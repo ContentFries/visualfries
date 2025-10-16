@@ -134,7 +134,14 @@ export class WordHighlighterAnimationBuilder {
         bgHighlighter.style.opacity = '1';
         if (bgStyles) {
             Object.entries(bgStyles).forEach(([key, value]) => {
-                bgHighlighter.style[key] = value;
+                // Check if key is a valid writable style property
+                if (key in bgHighlighter.style) {
+                    bgHighlighter.style[key] = String(value);
+                }
+                else {
+                    // For custom properties or CSS variables, use setProperty
+                    bgHighlighter.style.setProperty(key, String(value));
+                }
             });
         }
     }

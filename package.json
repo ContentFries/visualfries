@@ -23,9 +23,9 @@
 		"lint": "eslint . && prettier --check .",
 		"format": "prettier --write .",
 		"knip": "knip",
-		"release:check": "release-please check",
-		"release:create": "release-please create",
-		"release:manifest": "release-please manifest"
+		"release:pr": "release-please release-pr",
+		"release:github": "release-please github-release",
+		"release:bootstrap": "release-please bootstrap"
 	},
 	"files": [
 		"dist",

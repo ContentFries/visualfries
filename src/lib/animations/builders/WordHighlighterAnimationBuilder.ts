@@ -228,7 +228,6 @@ export class WordHighlighterAnimationBuilder {
 				}
 			});
 		}
-		
 	}
 
 	private static buildBackgroundAnimation(
@@ -255,7 +254,6 @@ export class WordHighlighterAnimationBuilder {
 				console.warn(`WordHighlighter: Word element at index ${i} is missing.`);
 				continue;
 			}
-
 			const startTime = parseFloat(wordStartTimes[i].toFixed(3));
 
 			targetComposer

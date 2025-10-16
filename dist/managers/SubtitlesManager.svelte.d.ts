@@ -13,10 +13,28 @@ export declare class SubtitlesManager {
     });
     get data(): Record<string, Record<string, ({
         id: string;
-        text: string;
         start_at: number;
         end_at: number;
+        text: string;
+        words?: [string, number, number, ...({
+            [x: string]: any;
+            s?: number | undefined;
+            si?: number | undefined;
+            c?: string | {
+                type: "linear" | "radial";
+                colors: string[];
+                stops?: number[] | undefined;
+                angle?: number | undefined;
+                position?: string | undefined;
+                shape?: "ellipse" | "circle" | undefined;
+            } | undefined;
+            e?: string | undefined;
+            w?: string | undefined;
+            f?: string | undefined;
+        } | null | undefined)[]][] | undefined;
+        enlarge?: number | undefined;
         visible?: boolean | undefined;
+        emoji?: string | undefined;
         color?: string | {
             type: "linear" | "radial";
             colors: string[];
@@ -33,63 +51,51 @@ export declare class SubtitlesManager {
             position?: string | undefined;
             shape?: "ellipse" | "circle" | undefined;
         } | undefined;
-        words?: [string, number, number, ...(import("zod").objectOutputType<{
-            s: import("zod").ZodOptional<import("zod").ZodNumber>;
-            si: import("zod").ZodOptional<import("zod").ZodNumber>;
-            c: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodEffects<import("zod").ZodString, string, string>, import("zod").ZodObject<{
-                type: import("zod").ZodEnum<["linear", "radial"]>;
-                colors: import("zod").ZodArray<import("zod").ZodEffects<import("zod").ZodString, string, string>, "many">;
-                stops: import("zod").ZodOptional<import("zod").ZodArray<import("zod").ZodNumber, "many">>;
-                angle: import("zod").ZodOptional<import("zod").ZodNumber>;
-                position: import("zod").ZodOptional<import("zod").ZodString>;
-                shape: import("zod").ZodOptional<import("zod").ZodEnum<["ellipse", "circle"]>>;
-            }, "strip", import("zod").ZodTypeAny, {
-                type: "linear" | "radial";
-                colors: string[];
-                stops?: number[] | undefined;
-                angle?: number | undefined;
-                position?: string | undefined;
-                shape?: "ellipse" | "circle" | undefined;
-            }, {
-                type: "linear" | "radial";
-                colors: string[];
-                stops?: number[] | undefined;
-                angle?: number | undefined;
-                position?: string | undefined;
-                shape?: "ellipse" | "circle" | undefined;
-            }>]>>;
-            e: import("zod").ZodOptional<import("zod").ZodString>;
-            w: import("zod").ZodOptional<import("zod").ZodString>;
-            f: import("zod").ZodOptional<import("zod").ZodString>;
-        }, import("zod").ZodAny, "strip"> | null | undefined)[]][] | undefined;
-        emoji?: string | undefined;
-        enlarge?: number | undefined;
     } | {
         id: string;
-        text: string;
         start_at: number;
         end_at: number;
-        visible?: boolean | undefined;
-        color?: string | undefined;
-        background?: string | undefined;
+        text: string;
         words?: {
             id: string;
-            text: string;
             start_at: number;
             end_at: number;
+            text: string;
             position?: number | undefined;
         }[] | undefined;
-        emoji?: string | undefined;
         enlarge?: number | undefined;
+        visible?: boolean | undefined;
+        emoji?: string | undefined;
+        color?: string | undefined;
+        background?: string | undefined;
     })[]>>;
     get settings(): {
         punctuation: boolean;
+        mergeGap?: number | undefined;
         data?: Record<string, Record<string, ({
             id: string;
-            text: string;
             start_at: number;
             end_at: number;
+            text: string;
+            words?: [string, number, number, ...({
+                [x: string]: any;
+                s?: number | undefined;
+                si?: number | undefined;
+                c?: string | {
+                    type: "linear" | "radial";
+                    colors: string[];
+                    stops?: number[] | undefined;
+                    angle?: number | undefined;
+                    position?: string | undefined;
+                    shape?: "ellipse" | "circle" | undefined;
+                } | undefined;
+                e?: string | undefined;
+                w?: string | undefined;
+                f?: string | undefined;
+            } | null | undefined)[]][] | undefined;
+            enlarge?: number | undefined;
             visible?: boolean | undefined;
+            emoji?: string | undefined;
             color?: string | {
                 type: "linear" | "radial";
                 colors: string[];
@@ -106,56 +112,24 @@ export declare class SubtitlesManager {
                 position?: string | undefined;
                 shape?: "ellipse" | "circle" | undefined;
             } | undefined;
-            words?: [string, number, number, ...(import("zod").objectOutputType<{
-                s: import("zod").ZodOptional<import("zod").ZodNumber>;
-                si: import("zod").ZodOptional<import("zod").ZodNumber>;
-                c: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodEffects<import("zod").ZodString, string, string>, import("zod").ZodObject<{
-                    type: import("zod").ZodEnum<["linear", "radial"]>;
-                    colors: import("zod").ZodArray<import("zod").ZodEffects<import("zod").ZodString, string, string>, "many">;
-                    stops: import("zod").ZodOptional<import("zod").ZodArray<import("zod").ZodNumber, "many">>;
-                    angle: import("zod").ZodOptional<import("zod").ZodNumber>;
-                    position: import("zod").ZodOptional<import("zod").ZodString>;
-                    shape: import("zod").ZodOptional<import("zod").ZodEnum<["ellipse", "circle"]>>;
-                }, "strip", import("zod").ZodTypeAny, {
-                    type: "linear" | "radial";
-                    colors: string[];
-                    stops?: number[] | undefined;
-                    angle?: number | undefined;
-                    position?: string | undefined;
-                    shape?: "ellipse" | "circle" | undefined;
-                }, {
-                    type: "linear" | "radial";
-                    colors: string[];
-                    stops?: number[] | undefined;
-                    angle?: number | undefined;
-                    position?: string | undefined;
-                    shape?: "ellipse" | "circle" | undefined;
-                }>]>>;
-                e: import("zod").ZodOptional<import("zod").ZodString>;
-                w: import("zod").ZodOptional<import("zod").ZodString>;
-                f: import("zod").ZodOptional<import("zod").ZodString>;
-            }, import("zod").ZodAny, "strip"> | null | undefined)[]][] | undefined;
-            emoji?: string | undefined;
-            enlarge?: number | undefined;
         } | {
             id: string;
-            text: string;
             start_at: number;
             end_at: number;
-            visible?: boolean | undefined;
-            color?: string | undefined;
-            background?: string | undefined;
+            text: string;
             words?: {
                 id: string;
-                text: string;
                 start_at: number;
                 end_at: number;
+                text: string;
                 position?: number | undefined;
             }[] | undefined;
-            emoji?: string | undefined;
             enlarge?: number | undefined;
+            visible?: boolean | undefined;
+            emoji?: string | undefined;
+            color?: string | undefined;
+            background?: string | undefined;
         })[]>> | undefined;
-        mergeGap?: number | undefined;
     };
     setAssetId(assetId: string): string;
     setLanguage(language: string): string;
@@ -165,10 +139,28 @@ export declare class SubtitlesManager {
     }>;
     getAssetSubtitles(assetId: string): Record<string, ({
         id: string;
-        text: string;
         start_at: number;
         end_at: number;
+        text: string;
+        words?: [string, number, number, ...({
+            [x: string]: any;
+            s?: number | undefined;
+            si?: number | undefined;
+            c?: string | {
+                type: "linear" | "radial";
+                colors: string[];
+                stops?: number[] | undefined;
+                angle?: number | undefined;
+                position?: string | undefined;
+                shape?: "ellipse" | "circle" | undefined;
+            } | undefined;
+            e?: string | undefined;
+            w?: string | undefined;
+            f?: string | undefined;
+        } | null | undefined)[]][] | undefined;
+        enlarge?: number | undefined;
         visible?: boolean | undefined;
+        emoji?: string | undefined;
         color?: string | {
             type: "linear" | "radial";
             colors: string[];
@@ -185,54 +177,23 @@ export declare class SubtitlesManager {
             position?: string | undefined;
             shape?: "ellipse" | "circle" | undefined;
         } | undefined;
-        words?: [string, number, number, ...(import("zod").objectOutputType<{
-            s: import("zod").ZodOptional<import("zod").ZodNumber>;
-            si: import("zod").ZodOptional<import("zod").ZodNumber>;
-            c: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodEffects<import("zod").ZodString, string, string>, import("zod").ZodObject<{
-                type: import("zod").ZodEnum<["linear", "radial"]>;
-                colors: import("zod").ZodArray<import("zod").ZodEffects<import("zod").ZodString, string, string>, "many">;
-                stops: import("zod").ZodOptional<import("zod").ZodArray<import("zod").ZodNumber, "many">>;
-                angle: import("zod").ZodOptional<import("zod").ZodNumber>;
-                position: import("zod").ZodOptional<import("zod").ZodString>;
-                shape: import("zod").ZodOptional<import("zod").ZodEnum<["ellipse", "circle"]>>;
-            }, "strip", import("zod").ZodTypeAny, {
-                type: "linear" | "radial";
-                colors: string[];
-                stops?: number[] | undefined;
-                angle?: number | undefined;
-                position?: string | undefined;
-                shape?: "ellipse" | "circle" | undefined;
-            }, {
-                type: "linear" | "radial";
-                colors: string[];
-                stops?: number[] | undefined;
-                angle?: number | undefined;
-                position?: string | undefined;
-                shape?: "ellipse" | "circle" | undefined;
-            }>]>>;
-            e: import("zod").ZodOptional<import("zod").ZodString>;
-            w: import("zod").ZodOptional<import("zod").ZodString>;
-            f: import("zod").ZodOptional<import("zod").ZodString>;
-        }, import("zod").ZodAny, "strip"> | null | undefined)[]][] | undefined;
-        emoji?: string | undefined;
-        enlarge?: number | undefined;
     } | {
         id: string;
-        text: string;
         start_at: number;
         end_at: number;
-        visible?: boolean | undefined;
-        color?: string | undefined;
-        background?: string | undefined;
+        text: string;
         words?: {
             id: string;
-            text: string;
             start_at: number;
             end_at: number;
+            text: string;
             position?: number | undefined;
         }[] | undefined;
-        emoji?: string | undefined;
         enlarge?: number | undefined;
+        visible?: boolean | undefined;
+        emoji?: string | undefined;
+        color?: string | undefined;
+        background?: string | undefined;
     })[]>;
     setAssetSubtitles(assetId: string, subtitles: Subtitle[]): void;
     replaceCollection(assetId: string, newCollection: SubtitleCollection, language?: string): void;

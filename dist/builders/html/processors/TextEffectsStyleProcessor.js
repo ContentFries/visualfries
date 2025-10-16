@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { TextEffectPresetName, TextShadowBuilder } from '../TextShadowBuilder.js';
 const GenericTextEffectShape = z.object({
     enabled: z.boolean().optional(),
-    preset: z.nativeEnum(TextEffectPresetName).optional(),
+    preset: z.enum(TextEffectPresetName).optional(),
     size: z.number().optional(),
     color: z.string().optional(),
     opacity: z.number().optional()

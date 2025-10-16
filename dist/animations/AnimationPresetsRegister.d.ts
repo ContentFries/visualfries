@@ -10,6 +10,108 @@ export declare class AnimationPresetsRegister {
             tweens: {
                 method: "set" | "to" | "from" | "fromTo";
                 vars: {
+                    [x: string]: any;
+                    from?: {
+                        [x: string]: string | number | boolean | {
+                            fromData: string;
+                            mode: "cycle" | "useFallback" | "clamp";
+                            fallbackValue?: any;
+                        } | {
+                            type: "byIndex";
+                            expression: string;
+                            fallbackValue?: any;
+                        } | null;
+                        opacity?: string | number | boolean | {
+                            fromData: string;
+                            mode: "cycle" | "useFallback" | "clamp";
+                            fallbackValue?: any;
+                        } | {
+                            type: "byIndex";
+                            expression: string;
+                            fallbackValue?: any;
+                        } | null | undefined;
+                        x?: string | number | boolean | {
+                            fromData: string;
+                            mode: "cycle" | "useFallback" | "clamp";
+                            fallbackValue?: any;
+                        } | {
+                            type: "byIndex";
+                            expression: string;
+                            fallbackValue?: any;
+                        } | null | undefined;
+                        y?: string | number | boolean | {
+                            fromData: string;
+                            mode: "cycle" | "useFallback" | "clamp";
+                            fallbackValue?: any;
+                        } | {
+                            type: "byIndex";
+                            expression: string;
+                            fallbackValue?: any;
+                        } | null | undefined;
+                        scale?: string | number | boolean | {
+                            fromData: string;
+                            mode: "cycle" | "useFallback" | "clamp";
+                            fallbackValue?: any;
+                        } | {
+                            type: "byIndex";
+                            expression: string;
+                            fallbackValue?: any;
+                        } | null | undefined;
+                        scaleX?: string | number | boolean | {
+                            fromData: string;
+                            mode: "cycle" | "useFallback" | "clamp";
+                            fallbackValue?: any;
+                        } | {
+                            type: "byIndex";
+                            expression: string;
+                            fallbackValue?: any;
+                        } | null | undefined;
+                        scaleY?: string | number | boolean | {
+                            fromData: string;
+                            mode: "cycle" | "useFallback" | "clamp";
+                            fallbackValue?: any;
+                        } | {
+                            type: "byIndex";
+                            expression: string;
+                            fallbackValue?: any;
+                        } | null | undefined;
+                        rotation?: string | number | boolean | {
+                            fromData: string;
+                            mode: "cycle" | "useFallback" | "clamp";
+                            fallbackValue?: any;
+                        } | {
+                            type: "byIndex";
+                            expression: string;
+                            fallbackValue?: any;
+                        } | null | undefined;
+                        width?: string | number | boolean | {
+                            fromData: string;
+                            mode: "cycle" | "useFallback" | "clamp";
+                            fallbackValue?: any;
+                        } | {
+                            type: "byIndex";
+                            expression: string;
+                            fallbackValue?: any;
+                        } | null | undefined;
+                        height?: string | number | boolean | {
+                            fromData: string;
+                            mode: "cycle" | "useFallback" | "clamp";
+                            fallbackValue?: any;
+                        } | {
+                            type: "byIndex";
+                            expression: string;
+                            fallbackValue?: any;
+                        } | null | undefined;
+                        color?: string | number | boolean | {
+                            fromData: string;
+                            mode: "cycle" | "useFallback" | "clamp";
+                            fallbackValue?: any;
+                        } | {
+                            type: "byIndex";
+                            expression: string;
+                            fallbackValue?: any;
+                        } | null | undefined;
+                    } | undefined;
                     duration?: string | number | boolean | {
                         fromData: string;
                         mode: "cycle" | "useFallback" | "clamp";
@@ -19,282 +121,6 @@ export declare class AnimationPresetsRegister {
                         expression: string;
                         fallbackValue?: any;
                     } | null | undefined;
-                    from?: import("zod").objectOutputType<{
-                        opacity: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodString, import("zod").ZodNumber, import("zod").ZodBoolean, import("zod").ZodNull, import("zod").ZodObject<{
-                            fromData: import("zod").ZodString;
-                            mode: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["cycle", "useFallback", "clamp"]>>>;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            fromData: string;
-                            mode: "cycle" | "useFallback" | "clamp";
-                            fallbackValue?: any;
-                        }, {
-                            fromData: string;
-                            mode?: "cycle" | "useFallback" | "clamp" | undefined;
-                            fallbackValue?: any;
-                        }>, import("zod").ZodObject<{
-                            type: import("zod").ZodLiteral<"byIndex">;
-                            expression: import("zod").ZodString;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }>]>>;
-                        x: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodString, import("zod").ZodNumber, import("zod").ZodBoolean, import("zod").ZodNull, import("zod").ZodObject<{
-                            fromData: import("zod").ZodString;
-                            mode: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["cycle", "useFallback", "clamp"]>>>;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            fromData: string;
-                            mode: "cycle" | "useFallback" | "clamp";
-                            fallbackValue?: any;
-                        }, {
-                            fromData: string;
-                            mode?: "cycle" | "useFallback" | "clamp" | undefined;
-                            fallbackValue?: any;
-                        }>, import("zod").ZodObject<{
-                            type: import("zod").ZodLiteral<"byIndex">;
-                            expression: import("zod").ZodString;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }>]>>;
-                        y: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodString, import("zod").ZodNumber, import("zod").ZodBoolean, import("zod").ZodNull, import("zod").ZodObject<{
-                            fromData: import("zod").ZodString;
-                            mode: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["cycle", "useFallback", "clamp"]>>>;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            fromData: string;
-                            mode: "cycle" | "useFallback" | "clamp";
-                            fallbackValue?: any;
-                        }, {
-                            fromData: string;
-                            mode?: "cycle" | "useFallback" | "clamp" | undefined;
-                            fallbackValue?: any;
-                        }>, import("zod").ZodObject<{
-                            type: import("zod").ZodLiteral<"byIndex">;
-                            expression: import("zod").ZodString;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }>]>>;
-                        scale: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodString, import("zod").ZodNumber, import("zod").ZodBoolean, import("zod").ZodNull, import("zod").ZodObject<{
-                            fromData: import("zod").ZodString;
-                            mode: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["cycle", "useFallback", "clamp"]>>>;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            fromData: string;
-                            mode: "cycle" | "useFallback" | "clamp";
-                            fallbackValue?: any;
-                        }, {
-                            fromData: string;
-                            mode?: "cycle" | "useFallback" | "clamp" | undefined;
-                            fallbackValue?: any;
-                        }>, import("zod").ZodObject<{
-                            type: import("zod").ZodLiteral<"byIndex">;
-                            expression: import("zod").ZodString;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }>]>>;
-                        scaleX: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodString, import("zod").ZodNumber, import("zod").ZodBoolean, import("zod").ZodNull, import("zod").ZodObject<{
-                            fromData: import("zod").ZodString;
-                            mode: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["cycle", "useFallback", "clamp"]>>>;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            fromData: string;
-                            mode: "cycle" | "useFallback" | "clamp";
-                            fallbackValue?: any;
-                        }, {
-                            fromData: string;
-                            mode?: "cycle" | "useFallback" | "clamp" | undefined;
-                            fallbackValue?: any;
-                        }>, import("zod").ZodObject<{
-                            type: import("zod").ZodLiteral<"byIndex">;
-                            expression: import("zod").ZodString;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }>]>>;
-                        scaleY: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodString, import("zod").ZodNumber, import("zod").ZodBoolean, import("zod").ZodNull, import("zod").ZodObject<{
-                            fromData: import("zod").ZodString;
-                            mode: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["cycle", "useFallback", "clamp"]>>>;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            fromData: string;
-                            mode: "cycle" | "useFallback" | "clamp";
-                            fallbackValue?: any;
-                        }, {
-                            fromData: string;
-                            mode?: "cycle" | "useFallback" | "clamp" | undefined;
-                            fallbackValue?: any;
-                        }>, import("zod").ZodObject<{
-                            type: import("zod").ZodLiteral<"byIndex">;
-                            expression: import("zod").ZodString;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }>]>>;
-                        rotation: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodString, import("zod").ZodNumber, import("zod").ZodBoolean, import("zod").ZodNull, import("zod").ZodObject<{
-                            fromData: import("zod").ZodString;
-                            mode: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["cycle", "useFallback", "clamp"]>>>;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            fromData: string;
-                            mode: "cycle" | "useFallback" | "clamp";
-                            fallbackValue?: any;
-                        }, {
-                            fromData: string;
-                            mode?: "cycle" | "useFallback" | "clamp" | undefined;
-                            fallbackValue?: any;
-                        }>, import("zod").ZodObject<{
-                            type: import("zod").ZodLiteral<"byIndex">;
-                            expression: import("zod").ZodString;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }>]>>;
-                        width: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodString, import("zod").ZodNumber, import("zod").ZodBoolean, import("zod").ZodNull, import("zod").ZodObject<{
-                            fromData: import("zod").ZodString;
-                            mode: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["cycle", "useFallback", "clamp"]>>>;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            fromData: string;
-                            mode: "cycle" | "useFallback" | "clamp";
-                            fallbackValue?: any;
-                        }, {
-                            fromData: string;
-                            mode?: "cycle" | "useFallback" | "clamp" | undefined;
-                            fallbackValue?: any;
-                        }>, import("zod").ZodObject<{
-                            type: import("zod").ZodLiteral<"byIndex">;
-                            expression: import("zod").ZodString;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }>]>>;
-                        height: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodString, import("zod").ZodNumber, import("zod").ZodBoolean, import("zod").ZodNull, import("zod").ZodObject<{
-                            fromData: import("zod").ZodString;
-                            mode: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["cycle", "useFallback", "clamp"]>>>;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            fromData: string;
-                            mode: "cycle" | "useFallback" | "clamp";
-                            fallbackValue?: any;
-                        }, {
-                            fromData: string;
-                            mode?: "cycle" | "useFallback" | "clamp" | undefined;
-                            fallbackValue?: any;
-                        }>, import("zod").ZodObject<{
-                            type: import("zod").ZodLiteral<"byIndex">;
-                            expression: import("zod").ZodString;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }>]>>;
-                        color: import("zod").ZodOptional<import("zod").ZodUnion<[import("zod").ZodString, import("zod").ZodNumber, import("zod").ZodBoolean, import("zod").ZodNull, import("zod").ZodObject<{
-                            fromData: import("zod").ZodString;
-                            mode: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["cycle", "useFallback", "clamp"]>>>;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            fromData: string;
-                            mode: "cycle" | "useFallback" | "clamp";
-                            fallbackValue?: any;
-                        }, {
-                            fromData: string;
-                            mode?: "cycle" | "useFallback" | "clamp" | undefined;
-                            fallbackValue?: any;
-                        }>, import("zod").ZodObject<{
-                            type: import("zod").ZodLiteral<"byIndex">;
-                            expression: import("zod").ZodString;
-                            fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                        }, "strip", import("zod").ZodTypeAny, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }, {
-                            type: "byIndex";
-                            expression: string;
-                            fallbackValue?: any;
-                        }>]>>;
-                    }, import("zod").ZodUnion<[import("zod").ZodString, import("zod").ZodNumber, import("zod").ZodBoolean, import("zod").ZodNull, import("zod").ZodObject<{
-                        fromData: import("zod").ZodString;
-                        mode: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["cycle", "useFallback", "clamp"]>>>;
-                        fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                    }, "strip", import("zod").ZodTypeAny, {
-                        fromData: string;
-                        mode: "cycle" | "useFallback" | "clamp";
-                        fallbackValue?: any;
-                    }, {
-                        fromData: string;
-                        mode?: "cycle" | "useFallback" | "clamp" | undefined;
-                        fallbackValue?: any;
-                    }>, import("zod").ZodObject<{
-                        type: import("zod").ZodLiteral<"byIndex">;
-                        expression: import("zod").ZodString;
-                        fallbackValue: import("zod").ZodOptional<import("zod").ZodAny>;
-                    }, "strip", import("zod").ZodTypeAny, {
-                        type: "byIndex";
-                        expression: string;
-                        fallbackValue?: any;
-                    }, {
-                        type: "byIndex";
-                        expression: string;
-                        fallbackValue?: any;
-                    }>]>, "strip"> | undefined;
                     ease?: string | undefined;
                     delay?: string | number | boolean | {
                         fromData: string;
@@ -307,33 +133,31 @@ export declare class AnimationPresetsRegister {
                     } | null | undefined;
                     stagger?: number | {
                         type?: "fromData" | undefined;
-                        from?: string | number | undefined;
-                        ease?: string | undefined;
                         dataKey?: string | undefined;
                         referencePoint?: "tweenStart" | undefined;
                         each?: number | undefined;
+                        from?: string | number | undefined;
                         grid?: [number | "auto", number | "auto"] | undefined;
                         axis?: "x" | "y" | undefined;
+                        ease?: string | undefined;
                         amount?: number | undefined;
                     } | undefined;
-                } & {
-                    [k: string]: any;
                 };
                 position?: string | number | {
                     anchor: string;
-                    alignTween: "center" | "start" | "end";
+                    alignTween: "start" | "end" | "center";
                     offset: string;
                     anchorPoint?: "start" | "end" | undefined;
                 } | undefined;
             }[];
             id?: string | undefined;
+            target?: string | undefined;
             position?: string | number | {
                 anchor: string;
-                alignTween: "center" | "start" | "end";
+                alignTween: "start" | "end" | "center";
                 offset: string;
                 anchorPoint?: "start" | "end" | undefined;
             } | undefined;
-            target?: string | undefined;
         }[];
         presetId?: string | undefined;
         version?: string | undefined;
@@ -342,8 +166,8 @@ export declare class AnimationPresetsRegister {
         data?: Record<string, any> | undefined;
         setup?: ({
             type: "style";
-            properties: {} & {
-                [k: string]: string | number | boolean | {
+            properties: {
+                [x: string]: string | number | boolean | {
                     fromData: string;
                     mode: "cycle" | "useFallback" | "clamp";
                     fallbackValue?: any;

@@ -19,7 +19,7 @@ export const SceneAssetMetadataShape = z.object({
 });
 export const AssetSubtitleShape = z.object({
     // id: z.string(),
-    url: z.string().url().optional(),
+    url: z.url().optional(),
     language_code: z.string().optional(),
     subtitles: z.array(SubtitleWithCompactWordsShape).optional()
 });
@@ -36,8 +36,8 @@ export const SceneAssetShape = z.object({
     subtitles: z.array(AssetSubtitleShape).optional()
 });
 export const SceneSubtitlesSettingsShape = z.object({
-    punctuation: z.boolean().default(true),
-    mergeGap: z.number().min(0).default(0.2).optional(),
+    punctuation: z.boolean().prefault(true),
+    mergeGap: z.number().min(0).prefault(0.2).optional(),
     data: z.record(z.string(), SubtitleCollectionShape).optional()
 });
 /**
@@ -59,27 +59,29 @@ export const SceneSettingsShape = z.object({
     }))
         .optional(),
     /** Frame rate for rendering */
-    fps: z.number().int().positive().default(30),
+    fps: z.int().positive().prefault(30),
     /** Background configuration */
     backgroundColor: z
         .union([
-        z.string().refine(isValidColor, { message: 'Invalid color format' }),
+        z.string().refine(isValidColor, {
+            error: 'Invalid color format'
+        }),
         z.object({
             type: z.enum(['linear', 'radial']),
             colors: z.array(z.string().refine(isValidColor)).min(2),
             stops: z.array(z.number().min(0).max(1)).optional(),
-            angle: z.number().min(0).max(360).default(180).optional(),
+            angle: z.number().min(0).max(360).prefault(180).optional(),
             position: z.string().optional(),
             shape: z.enum(['ellipse', 'circle']).optional()
         })
     ])
-        .default('#FFFFFF'),
+        .prefault('#FFFFFF'),
     /** Audio configuration */
     audio: z
         .object({
-        src: z.string().url().optional(),
-        volume: z.number().min(0).max(1).default(1),
-        muted: z.boolean().default(false)
+        src: z.url().optional(),
+        volume: z.number().min(0).max(1).prefault(1),
+        muted: z.boolean().prefault(false)
     })
         .optional(),
     subtitles: SceneSubtitlesSettingsShape.optional()
@@ -94,17 +96,17 @@ export const SceneLayerShape = z.object({
     /** Optional name for the layer */
     name: z.string().optional(),
     /** Layer stacking order (higher values appear on top) */
-    order: z.number().default(0),
+    order: z.number().prefault(0),
     /** Whether the layer is visible */
-    visible: z.boolean().default(true),
+    visible: z.boolean().prefault(true),
     /** Whether audio in this layer is muted */
-    muted: z.boolean().default(false),
+    muted: z.boolean().prefault(false),
     /** Components contained in this layer */
     components: z
         .array(
     // Will be extended with component schemas in components.ts
     ComponentShape)
-        .default([])
+        .prefault([])
 });
 /**
  * Audio track schema for global audio playback
@@ -113,14 +115,14 @@ export const AudioTrackShape = z.object({
     id: z.string(),
     name: z.string().optional(),
     url: z.string(),
-    volume: z.number().min(0).max(1).default(1),
+    volume: z.number().min(0).max(1).prefault(1),
     startAt: z.number().min(0).transform(toFixed3),
     endAt: z
         .number()
         .min(0)
         .optional()
         .transform((val) => (val === undefined ? undefined : toFixed3(val))),
-    muted: z.boolean().default(false)
+    muted: z.boolean().prefault(false)
 });
 /**
  * Schema for transitions between components
@@ -133,12 +135,12 @@ export const SceneTransitionShape = z.object({
     type: z.string(),
     presetId: z.string().optional(),
     duration: z.number().min(0).transform(toFixed3),
-    parameters: z.record(z.unknown()).optional()
+    parameters: z.record(z.string(), z.unknown()).optional()
 });
 /**
  * Schema for the main scene structure in v2.0
  */
-export const SceneShape = z.object({
+export const SceneShape = z.strictObject({
     /** Unique identifier for the scene */
     id: z.string(),
     /** Schema version */
@@ -146,15 +148,15 @@ export const SceneShape = z.object({
     /** Optional name for the scene */
     name: z.string().optional(),
     /** Scene settings */
-    settings: SceneSettingsShape.strict(),
+    settings: SceneSettingsShape,
     /** Assets registry */
-    assets: z.array(SceneAssetShape).default([]),
+    assets: z.array(SceneAssetShape).prefault([]),
     /** Layers in the scene */
-    layers: z.array(SceneLayerShape.strict()).default([]),
+    layers: z.array(SceneLayerShape).prefault([]),
     /** Scene transitions */
-    transitions: z.array(SceneTransitionShape).default([]),
+    transitions: z.array(SceneTransitionShape).prefault([]),
     /** Audio tracks */
-    audioTracks: z.array(AudioTrackShape).default([]),
+    audioTracks: z.array(AudioTrackShape).prefault([]),
     /** Optional checksum */
     checksum: z.string().optional()
 });

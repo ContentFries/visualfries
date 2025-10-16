@@ -5,7 +5,7 @@ const numberOrStringPercentage = z.union([z.number(), z.string().regex(/^(\d+(\.
 
 const PropertyFromDataShape = z.object({
 	fromData: z.string(),
-	mode: z.enum(['cycle', 'useFallback', 'clamp']).optional().default('cycle'),
+	mode: z.enum(['cycle', 'useFallback', 'clamp']).optional().prefault('cycle'),
 	fallbackValue: z.any().optional() // Can be any type, as property values vary
 });
 
@@ -56,9 +56,9 @@ const StaggerObjectShape = z
 		amount: z.number().optional()
 	})
 	.refine((data) => !(data.type === 'fromData' && !data.dataKey), {
-		message: "dataKey is required when stagger type is 'fromData'",
-		path: ['dataKey']
-	});
+		path: ['dataKey'],
+        error: "dataKey is required when stagger type is 'fromData'"
+    });
 
 const StaggerShape = z.union([
 	z.number(), // Shorthand for { each: <number> }
@@ -136,12 +136,12 @@ const FinalTweenVarsShape = TweenVarsShape.refine((vars) => {
 const PositionObjectShape = z.object({
 	anchor: z.string(), // "componentStart", "componentEnd", "componentCenter", or a timeline item ID
 	anchorPoint: z.enum(['start', 'end']).optional(), // Only if anchor is another timeline item id
-	alignTween: z.enum(['start', 'end', 'center']).optional().default('start'),
+	alignTween: z.enum(['start', 'end', 'center']).optional().prefault('start'),
 	offset: z
 		.string()
 		.regex(/^[+\-]?\d+(\.\d+)?s?$/)
 		.optional()
-		.default('0s') // e.g., "0s", "+=0.5s", "-1s"
+		.prefault('0s') // e.g., "0s", "+=0.5s", "-1s"
 });
 
 const AnimationTimelinePositionShape = z.union([
@@ -169,9 +169,9 @@ const TweenDefinitionShape = z
 			return true;
 		},
 		{
-			message: "'vars.from' is required when method is 'fromTo' (and only then).",
-			path: ['vars', 'from'] // More specific path
-		}
+			path: ['vars', 'from'], // More specific path
+            error: "'vars.from' is required when method is 'fromTo' (and only then)."
+        }
 	);
 
 export const KeyframeAnimationShape = z.object({
@@ -183,7 +183,7 @@ export const KeyframeAnimationShape = z.object({
 	 * Optional target for this single tween.
 	 * Defaults to "container" if not specified.
 	 */
-	target: z.string().default('container').optional()
+	target: z.string().prefault('container').optional()
 
 	// revertAfterComplete: z.boolean().optional().default(false), // this probably does not make sense here
 });
@@ -227,9 +227,9 @@ export const AnimationPresetShape = z.object({
 	version: z.string().optional(),
 	description: z.string().optional(),
 	duration: z.number().positive().optional(),
-	data: z.record(z.any()).default({}).optional(),
-	setup: z.array(SetupStepShape).default([]).optional(),
-	revertAfterComplete: z.boolean().default(false).optional(),
+	data: z.record(z.string(), z.any()).prefault({}).optional(),
+	setup: z.array(SetupStepShape).prefault([]).optional(),
+	revertAfterComplete: z.boolean().prefault(false).optional(),
 	timeline: z.array(AnimationSequenceItemShape) // .min(1) - cancelled as we can have system presets that predefine the timeline so we can use this in component animations list as well
 });
 

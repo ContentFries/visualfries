@@ -5,7 +5,7 @@ type GsapRegistry = {
     SlowMo: gsap.SlowMo;
     MotionPathPlugin: gsap.plugins.MotionPathPlugin;
     Physics2DPlugin: gsap.plugins.Physics2DPlugin;
-    SplitText: _SplitText;
+    SplitText: typeof _SplitText;
     PixiPlugin: gsap.plugins.PixiPlugin;
 };
 export declare const registerGsapPlugins: () => Promise<GsapRegistry>;

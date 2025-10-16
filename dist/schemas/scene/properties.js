@@ -15,7 +15,9 @@ export const GradientDefinitionShape = z.object({
     /** Gradient type */
     type: z.enum(['linear', 'radial']),
     /** Array of color strings */
-    colors: z.array(z.string().refine(isValidColor, { message: 'Invalid gradient color' })).min(2),
+    colors: z.array(z.string().refine(isValidColor, {
+        error: 'Invalid gradient color'
+    })).min(2),
     /** Optional array of stop positions (0-1) matching colors */
     stops: z.array(z.number().min(0).max(100)).optional(),
     /** Angle in degrees (for linear gradients) */
@@ -29,7 +31,9 @@ export const GradientDefinitionShape = z.object({
  * Color type that can be either a string or a gradient object
  */
 export const ColorTypeShape = z.union([
-    z.string().refine(isValidColor, { message: 'Invalid color format' }),
+    z.string().refine(isValidColor, {
+        error: 'Invalid color format'
+    }),
     GradientDefinitionShape
 ]);
 /**
@@ -42,14 +46,14 @@ export const PositionShape = z.object({
     /** Y-coordinate position (from top) */
     y: z.number(),
     /** Rotation in degrees */
-    rotation: z.number().default(0),
+    rotation: z.number().prefault(0),
     /** Anchor point for transformations (0,0 is top-left, 1,1 is bottom-right) */
     anchor: z
         .object({
-        x: z.number().min(0).max(1).default(0.5),
-        y: z.number().min(0).max(1).default(0.5)
+        x: z.number().min(0).max(1).prefault(0.5),
+        y: z.number().min(0).max(1).prefault(0.5)
     })
-        .default({ x: 0.5, y: 0.5 })
+        .prefault({ x: 0.5, y: 0.5 })
 });
 /**
  * Size property schema
@@ -61,9 +65,9 @@ export const SizeShape = z.object({
     /** Height in pixels */
     height: z.number().positive(),
     /** Uniform scale factor */
-    scale: z.number().positive().default(1),
+    scale: z.number().positive().prefault(1),
     /** Whether to maintain aspect ratio when resizing */
-    maintainAspectRatio: z.boolean().default(true),
+    maintainAspectRatio: z.boolean().prefault(true),
     /** Original dimensions before any transformations */
     original: z
         .object({
@@ -78,18 +82,18 @@ export const SizeShape = z.object({
  */
 export const TransformShape = z.object({
     /** Horizontal scale factor (1 = 100%) */
-    scaleX: z.number().default(1),
+    scaleX: z.number().prefault(1),
     /** Vertical scale factor (1 = 100%) */
-    scaleY: z.number().default(1),
+    scaleY: z.number().prefault(1),
     /** Horizontal skew in degrees */
-    skewX: z.number().default(0),
+    skewX: z.number().prefault(0),
     /** Vertical skew in degrees */
-    skewY: z.number().default(0),
+    skewY: z.number().prefault(0),
     /** Origin point for transformations */
     transformOrigin: z
         .object({
-        x: z.number().min(0).max(1).default(0.5),
-        y: z.number().min(0).max(1).default(0.5)
+        x: z.number().min(0).max(1).prefault(0.5),
+        y: z.number().min(0).max(1).prefault(0.5)
     })
         .optional()
 });
@@ -97,11 +101,13 @@ export const TransformShape = z.object({
  * Shadow effect schema
  */
 export const ShadowShape = z.object({
-    enabled: z.boolean().default(true).optional(),
+    enabled: z.boolean().prefault(true).optional(),
     /** Optional preset name */
     preset: z.string().optional(),
     /** Shadow color */
-    color: z.string().refine(isValidColor, { message: 'Invalid shadow color format' }).optional(),
+    color: z.string().refine(isValidColor, {
+        error: 'Invalid shadow color format'
+    }).optional(),
     /** Shadow blur radius in pixels */
     blur: z.number().min(0).optional(),
     /** Shadow size in pixels */
@@ -117,17 +123,19 @@ export const ShadowShape = z.object({
  * Outline/Stroke effect schema
  */
 export const OutlineShape = z.object({
-    enabled: z.boolean().default(true).optional(),
+    enabled: z.boolean().prefault(true).optional(),
     /** Optional preset name */
     preset: z.string().optional(),
     /** Outline color */
-    color: z.string().refine(isValidColor, { message: 'Invalid outline color format' }),
+    color: z.string().refine(isValidColor, {
+        error: 'Invalid outline color format'
+    }),
     /** Outline width in pixels */
     size: z.number().min(0).optional(),
     /** Outline opacity (0-1) */
     opacity: z.number().min(0).max(1).optional(),
     /** Outline style (Note: style/dashArray not in schema-llm.md, maybe remove?) */
-    style: z.enum(['solid', 'dashed', 'dotted']).default('solid').optional(),
+    style: z.enum(['solid', 'dashed', 'dotted']).prefault('solid').optional(),
     /** Custom dash pattern (only for 'dashed' style) */
     dashArray: z.array(z.number()).optional()
 });
@@ -138,7 +146,7 @@ export const FontSizeShape = z.object({
     /** Font size value */
     value: z.number().positive(),
     /** Font size unit */
-    unit: z.enum(['px', 'em', 'rem', '%']).default('px')
+    unit: z.enum(['px', 'em', 'rem', '%']).prefault('px')
 });
 /**
  * Line height with unit schema
@@ -147,27 +155,31 @@ export const LineHeightShape = z.object({
     /** Line height value */
     value: z.number().positive(),
     /** Line height unit */
-    unit: z.enum(['normal', 'px', 'em', '%']).default('normal')
+    unit: z.enum(['normal', 'px', 'em', '%']).prefault('normal')
 });
 /**
  * Color with opacity schema
  */
 export const ColorWithOpacityShape = z.object({
     /** Color value (hex, rgb, rgba, etc.) */
-    color: z.string().refine(isValidColor, { message: 'Invalid color format' }),
+    color: z.string().refine(isValidColor, {
+        error: 'Invalid color format'
+    }),
     /** Opacity (0-1) */
-    opacity: z.number().min(0).max(1).default(1)
+    opacity: z.number().min(0).max(1).prefault(1)
 });
 /**
  * Gradient stop schema
  */
 export const GradientStopShape = z.object({
     /** Color value */
-    color: z.string().refine(isValidColor, { message: 'Invalid gradient color format' }),
+    color: z.string().refine(isValidColor, {
+        error: 'Invalid gradient color format'
+    }),
     /** Position in the gradient (0-1) */
     position: z.number().min(0).max(1),
     /** Opacity (0-1) */
-    opacity: z.number().min(0).max(1).default(1)
+    opacity: z.number().min(0).max(1).prefault(1)
 });
 /**
  * Gradient background schema
@@ -178,12 +190,12 @@ export const GradientShape = z.object({
     /** Gradient stops */
     stops: z.array(GradientStopShape).min(2),
     /** Angle in degrees (for linear gradients) */
-    angle: z.number().min(0).max(360).default(0).optional(),
+    angle: z.number().min(0).max(360).prefault(0).optional(),
     /** Center position (for radial gradients) */
     center: z
         .object({
-        x: z.number().min(0).max(1).default(0.5),
-        y: z.number().min(0).max(1).default(0.5)
+        x: z.number().min(0).max(1).prefault(0.5),
+        y: z.number().min(0).max(1).prefault(0.5)
     })
         .optional()
 });
@@ -193,17 +205,17 @@ export const GradientShape = z.object({
  */
 export const AnimationTimingShape = z.object({
     /** Delay before animation starts (in seconds) */
-    delay: z.number().min(0).default(0),
+    delay: z.number().min(0).prefault(0),
     /** Animation duration (in seconds) */
-    duration: z.number().min(0).default(1).transform(toFixed3),
+    duration: z.number().min(0).prefault(1).transform(toFixed3),
     /** Number of times the animation repeats (-1 for infinite) */
-    repeat: z.number().int().default(0),
+    repeat: z.int().prefault(0),
     /** Delay between animation repetitions (in seconds) */
-    repeatDelay: z.number().min(0).default(0),
+    repeatDelay: z.number().min(0).prefault(0),
     /** Time between successive animations in seconds (for staggered animations) */
-    stagger: z.number().min(0).default(0),
+    stagger: z.number().min(0).prefault(0),
     /** Whether to reverse the animation on alternate repeats */
-    yoyo: z.boolean().default(false)
+    yoyo: z.boolean().prefault(false)
 });
 /**
  * Animation easing schema
@@ -261,7 +273,7 @@ export const KeyframeShape = z.object({
     /** Time position in seconds relative to animation start */
     time: z.number().min(0).transform(toFixed3),
     /** Target property values at this keyframe */
-    value: z.record(z.union([z.string(), z.number(), z.boolean()])),
+    value: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
     /** Easing to use when transitioning to this keyframe */
     easing: AnimationEasingShape.optional()
 });
@@ -293,19 +305,19 @@ export const EnhancedAnimationShape = z.object({
     /** Preset identifier (for preset animations) */
     presetId: z.string().max(255).optional(),
     /** What the animation targets */
-    target: AnimationTargetShape.default('element'),
+    target: AnimationTargetShape.prefault('element'),
     /** Animation timing properties */
-    timing: AnimationTimingShape.default({}),
+    timing: AnimationTimingShape.prefault({}),
     /** Animation easing */
-    easing: AnimationEasingShape.default('power2.out'),
+    easing: AnimationEasingShape.prefault('power2.out'),
     /** For keyframe animations: the keyframes */
     keyframes: z.array(KeyframeShape).optional(),
     /** Whether animation plays automatically */
-    autoplay: z.boolean().default(true),
+    autoplay: z.boolean().prefault(true),
     /** Whether to preserve transform styles that aren't explicitly animated */
-    preserveTransform: z.boolean().default(true),
+    preserveTransform: z.boolean().prefault(true),
     /** Additional animation parameters */
-    parameters: z.record(z.unknown()).optional()
+    parameters: z.record(z.string(), z.unknown()).optional()
 });
 /**
  * Transition schema
@@ -329,9 +341,9 @@ export const TransitionShape = z.object({
     /** Transition direction (for directional transitions) */
     direction: z.enum(['left', 'right', 'up', 'down', 'in', 'out']).optional(),
     /** Transition easing */
-    easing: AnimationEasingShape.default('power2.inOut'),
+    easing: AnimationEasingShape.prefault('power2.inOut'),
     /** Additional transition parameters */
-    parameters: z.record(z.unknown()).optional()
+    parameters: z.record(z.string(), z.unknown()).optional()
 });
 /**
  * Effect schema base
@@ -341,9 +353,9 @@ export const EffectBaseShape = z.object({
     /** Effect type */
     type: z.string(),
     /** Whether the effect is enabled */
-    enabled: z.boolean().default(true).optional(),
+    enabled: z.boolean().prefault(true).optional(),
     /** Effect intensity (0-1) */
-    intensity: z.number().min(0).max(1).default(1),
+    intensity: z.number().min(0).max(1).prefault(1),
     /** Effect mix blend mode */
     blendMode: z
         .enum([
@@ -364,7 +376,7 @@ export const EffectBaseShape = z.object({
         'color',
         'luminosity'
     ])
-        .default('normal')
+        .prefault('normal')
 });
 /**
  * Blur effect schema
@@ -372,7 +384,7 @@ export const EffectBaseShape = z.object({
 export const BlurEffectShape = EffectBaseShape.extend({
     type: z.literal('blur'),
     /** Blur radius in pixels */
-    radius: z.number().min(0).default(5)
+    radius: z.number().min(0).prefault(5)
 });
 /**
  * Color adjustment effect schema
@@ -380,13 +392,13 @@ export const BlurEffectShape = EffectBaseShape.extend({
 export const ColorAdjustmentEffectShape = EffectBaseShape.extend({
     type: z.literal('colorAdjustment'),
     /** Brightness adjustment (-1 to 1) */
-    brightness: z.number().min(-1).max(1).default(0),
+    brightness: z.number().min(-1).max(1).prefault(0),
     /** Contrast adjustment (-1 to 1) */
-    contrast: z.number().min(-1).max(1).default(0),
+    contrast: z.number().min(-1).max(1).prefault(0),
     /** Saturation adjustment (-1 to 1) */
-    saturation: z.number().min(-1).max(1).default(0),
+    saturation: z.number().min(-1).max(1).prefault(0),
     /** Hue rotation in degrees (0-360) */
-    hue: z.number().min(0).max(360).default(0)
+    hue: z.number().min(0).max(360).prefault(0)
 });
 /**
  * Union of all effect types

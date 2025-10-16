@@ -6,5 +6,5 @@ export * from './components.js';
 export * from './properties.js';
 // Export all schemas from animations.ts
 export * from './animations.js';
-// Re-export subtitle schemas
+// Re-export subtitle types from subtitles.ts
 export * from './subtitles.js';

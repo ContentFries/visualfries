@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.2](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.1...visualfries-v0.1.2) (2025-10-16)
+
+
+### Features
+
+* initial VisualFries library implementation ([e407968](https://github.com/ContentFries/visualfries/commit/e4079687d1c680190a80e8fa5ec046b86dabe9de))
+* integrate release-please for automated versioning and releases ([89634b3](https://github.com/ContentFries/visualfries/commit/89634b3701f6fbdcee0363b3416595998fe54724))
+
+
+### Bug Fixes
+
+* add missing release-please manifest file ([afff6ad](https://github.com/ContentFries/visualfries/commit/afff6ada7a69af69f754eed1cccc79ae8507e4de))
+* prettier config ([71d58c7](https://github.com/ContentFries/visualfries/commit/71d58c796389ab7a3a9df083d715311d29c3542b))
+
 ## [Unreleased]
 
 - Initial release setup with release-please automation

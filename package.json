@@ -22,7 +22,10 @@
 		"test:unit": "vitest",
 		"lint": "eslint . && prettier --check .",
 		"format": "prettier --write .",
-		"knip": "knip"
+		"knip": "knip",
+		"release:check": "release-please check",
+		"release:create": "release-please create",
+		"release:manifest": "release-please manifest"
 	},
 	"files": [
 		"dist",
@@ -76,6 +79,7 @@
 		"prettier-plugin-svelte": "^3.2.6",
 		"prettier-plugin-tailwindcss": "^0.7.0",
 		"publint": "^0.2.0",
+		"release-please": "^15.0.0",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
 		"tailwindcss": "^3.4.14",

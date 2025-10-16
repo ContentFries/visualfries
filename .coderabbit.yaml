@@ -4,5 +4,10 @@
 
 reviews:
   path_filters:
-    - "**/src/**"
-    - "!src/routes/debug/**"
+    - '**/src/**'
+    - 'package.json'
+    - '*config.js'
+    - '*config.ts'
+    - '*config.json'
+    - 'vitest.setup.ts'
+    - '!src/routes/debug/**'

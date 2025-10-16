@@ -2300,8 +2300,8 @@ export declare const SceneLayerShape: z.ZodObject<{
             streamUrl: z.ZodOptional<z.ZodURL>;
             assetId: z.ZodOptional<z.ZodString>;
             languageCode: z.ZodOptional<z.ZodString>;
-            startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-            endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+            endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
             metadata: z.ZodOptional<z.ZodObject<{
                 width: z.ZodOptional<z.ZodNumber>;
                 height: z.ZodOptional<z.ZodNumber>;
@@ -3454,8 +3454,8 @@ export declare const SceneLayerShape: z.ZodObject<{
             streamUrl: z.ZodOptional<z.ZodURL>;
             assetId: z.ZodOptional<z.ZodString>;
             languageCode: z.ZodOptional<z.ZodString>;
-            startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-            endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+            endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
             metadata: z.ZodOptional<z.ZodObject<{
                 width: z.ZodOptional<z.ZodNumber>;
                 height: z.ZodOptional<z.ZodNumber>;
@@ -4606,8 +4606,8 @@ export declare const SceneLayerShape: z.ZodObject<{
             streamUrl: z.ZodOptional<z.ZodURL>;
             assetId: z.ZodOptional<z.ZodString>;
             languageCode: z.ZodOptional<z.ZodString>;
-            startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-            endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+            endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
             metadata: z.ZodOptional<z.ZodObject<{
                 width: z.ZodOptional<z.ZodNumber>;
                 height: z.ZodOptional<z.ZodNumber>;
@@ -6990,8 +6990,8 @@ export declare const SceneLayerShape: z.ZodObject<{
             streamUrl: z.ZodOptional<z.ZodURL>;
             assetId: z.ZodOptional<z.ZodString>;
             languageCode: z.ZodOptional<z.ZodString>;
-            startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-            endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+            endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
             metadata: z.ZodOptional<z.ZodObject<{
                 width: z.ZodOptional<z.ZodNumber>;
                 height: z.ZodOptional<z.ZodNumber>;
@@ -10256,8 +10256,8 @@ export declare const SceneLayerShape: z.ZodObject<{
             streamUrl: z.ZodOptional<z.ZodURL>;
             assetId: z.ZodOptional<z.ZodString>;
             languageCode: z.ZodOptional<z.ZodString>;
-            startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-            endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+            endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
             metadata: z.ZodOptional<z.ZodObject<{
                 width: z.ZodOptional<z.ZodNumber>;
                 height: z.ZodOptional<z.ZodNumber>;
@@ -12844,8 +12844,8 @@ export declare const SceneShape: z.ZodObject<{
                 streamUrl: z.ZodOptional<z.ZodURL>;
                 assetId: z.ZodOptional<z.ZodString>;
                 languageCode: z.ZodOptional<z.ZodString>;
-                startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-                endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+                startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+                endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
                 metadata: z.ZodOptional<z.ZodObject<{
                     width: z.ZodOptional<z.ZodNumber>;
                     height: z.ZodOptional<z.ZodNumber>;
@@ -13998,8 +13998,8 @@ export declare const SceneShape: z.ZodObject<{
                 streamUrl: z.ZodOptional<z.ZodURL>;
                 assetId: z.ZodOptional<z.ZodString>;
                 languageCode: z.ZodOptional<z.ZodString>;
-                startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-                endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+                startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+                endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
                 metadata: z.ZodOptional<z.ZodObject<{
                     width: z.ZodOptional<z.ZodNumber>;
                     height: z.ZodOptional<z.ZodNumber>;
@@ -15150,8 +15150,8 @@ export declare const SceneShape: z.ZodObject<{
                 streamUrl: z.ZodOptional<z.ZodURL>;
                 assetId: z.ZodOptional<z.ZodString>;
                 languageCode: z.ZodOptional<z.ZodString>;
-                startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-                endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+                startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+                endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
                 metadata: z.ZodOptional<z.ZodObject<{
                     width: z.ZodOptional<z.ZodNumber>;
                     height: z.ZodOptional<z.ZodNumber>;
@@ -17534,8 +17534,8 @@ export declare const SceneShape: z.ZodObject<{
                 streamUrl: z.ZodOptional<z.ZodURL>;
                 assetId: z.ZodOptional<z.ZodString>;
                 languageCode: z.ZodOptional<z.ZodString>;
-                startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-                endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+                startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+                endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
                 metadata: z.ZodOptional<z.ZodObject<{
                     width: z.ZodOptional<z.ZodNumber>;
                     height: z.ZodOptional<z.ZodNumber>;
@@ -20800,8 +20800,8 @@ export declare const SceneShape: z.ZodObject<{
                 streamUrl: z.ZodOptional<z.ZodURL>;
                 assetId: z.ZodOptional<z.ZodString>;
                 languageCode: z.ZodOptional<z.ZodString>;
-                startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-                endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+                startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+                endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
                 metadata: z.ZodOptional<z.ZodObject<{
                     width: z.ZodOptional<z.ZodNumber>;
                     height: z.ZodOptional<z.ZodNumber>;

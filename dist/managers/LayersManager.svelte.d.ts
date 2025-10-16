@@ -998,12 +998,12 @@ export declare class LayersManager implements ResourceManager<ILayer, SceneLayer
             order: number;
             type: "IMAGE";
             source: {
-                startAt: number | null | undefined;
-                endAt: number | null | undefined;
                 url?: string | undefined;
                 streamUrl?: string | undefined;
                 assetId?: string | undefined;
                 languageCode?: string | undefined;
+                startAt?: number | null | undefined;
+                endAt?: number | null | undefined;
                 metadata?: {
                     width?: number | undefined;
                     height?: number | undefined;
@@ -1591,12 +1591,12 @@ export declare class LayersManager implements ResourceManager<ILayer, SceneLayer
             order: number;
             type: "GIF";
             source: {
-                startAt: number | null | undefined;
-                endAt: number | null | undefined;
                 url?: string | undefined;
                 streamUrl?: string | undefined;
                 assetId?: string | undefined;
                 languageCode?: string | undefined;
+                startAt?: number | null | undefined;
+                endAt?: number | null | undefined;
                 metadata?: {
                     width?: number | undefined;
                     height?: number | undefined;
@@ -2182,12 +2182,12 @@ export declare class LayersManager implements ResourceManager<ILayer, SceneLayer
             order: number;
             type: "VIDEO";
             source: {
-                startAt: number | null | undefined;
-                endAt: number | null | undefined;
                 url?: string | undefined;
                 streamUrl?: string | undefined;
                 assetId?: string | undefined;
                 languageCode?: string | undefined;
+                startAt?: number | null | undefined;
+                endAt?: number | null | undefined;
                 metadata?: {
                     width?: number | undefined;
                     height?: number | undefined;
@@ -3402,12 +3402,12 @@ export declare class LayersManager implements ResourceManager<ILayer, SceneLayer
             order: number;
             type: "AUDIO";
             source: {
-                startAt: number | null | undefined;
-                endAt: number | null | undefined;
                 url?: string | undefined;
                 streamUrl?: string | undefined;
                 assetId?: string | undefined;
                 languageCode?: string | undefined;
+                startAt?: number | null | undefined;
+                endAt?: number | null | undefined;
                 metadata?: {
                     width?: number | undefined;
                     height?: number | undefined;
@@ -5288,11 +5288,11 @@ export declare class LayersManager implements ResourceManager<ILayer, SceneLayer
             name?: string | undefined;
             checksum?: string | undefined;
             source?: {
-                startAt: number | null | undefined;
-                endAt: number | null | undefined;
                 streamUrl?: string | undefined;
                 assetId?: string | undefined;
                 languageCode?: string | undefined;
+                startAt?: number | null | undefined;
+                endAt?: number | null | undefined;
                 metadata?: {
                     width?: number | undefined;
                     height?: number | undefined;

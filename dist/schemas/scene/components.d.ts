@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ColorTypeShape } from './properties.js';
 /**
  * Structured Font Size as per schema-llm.md
  */
@@ -1196,8 +1197,8 @@ export declare const ComponentSourceShape: z.ZodObject<{
     streamUrl: z.ZodOptional<z.ZodURL>;
     assetId: z.ZodOptional<z.ZodString>;
     languageCode: z.ZodOptional<z.ZodString>;
-    startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-    endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+    startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+    endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
     metadata: z.ZodOptional<z.ZodObject<{
         width: z.ZodOptional<z.ZodNumber>;
         height: z.ZodOptional<z.ZodNumber>;
@@ -4634,8 +4635,8 @@ export declare const ImageComponentShape: z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-        endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
             width: z.ZodOptional<z.ZodNumber>;
             height: z.ZodOptional<z.ZodNumber>;
@@ -5792,8 +5793,8 @@ export declare const GifComponentShape: z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-        endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
             width: z.ZodOptional<z.ZodNumber>;
             height: z.ZodOptional<z.ZodNumber>;
@@ -6948,8 +6949,8 @@ export declare const VideoComponentShape: z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-        endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
             width: z.ZodOptional<z.ZodNumber>;
             height: z.ZodOptional<z.ZodNumber>;
@@ -9468,8 +9469,8 @@ export declare const AudioComponentShape: z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-        endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
             width: z.ZodOptional<z.ZodNumber>;
             height: z.ZodOptional<z.ZodNumber>;
@@ -12746,8 +12747,8 @@ export declare const SubtitleComponentShape: z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-        endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
             width: z.ZodOptional<z.ZodNumber>;
             height: z.ZodOptional<z.ZodNumber>;
@@ -15096,8 +15097,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-        endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
             width: z.ZodOptional<z.ZodNumber>;
             height: z.ZodOptional<z.ZodNumber>;
@@ -16250,8 +16251,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-        endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
             width: z.ZodOptional<z.ZodNumber>;
             height: z.ZodOptional<z.ZodNumber>;
@@ -17402,8 +17403,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-        endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
             width: z.ZodOptional<z.ZodNumber>;
             height: z.ZodOptional<z.ZodNumber>;
@@ -19786,8 +19787,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-        endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
             width: z.ZodOptional<z.ZodNumber>;
             height: z.ZodOptional<z.ZodNumber>;
@@ -23052,8 +23053,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
-        endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | null | undefined, number | undefined>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
             width: z.ZodOptional<z.ZodNumber>;
             height: z.ZodOptional<z.ZodNumber>;
@@ -23500,3 +23501,13 @@ export type ColorComponentInput = z.input<typeof ColorComponentShape>;
 export type GradientComponentInput = z.input<typeof GradientComponentShape>;
 export type SubtitleComponentInput = z.input<typeof SubtitleComponentShape>;
 export type ComponentEffect = z.infer<typeof ComponentEffectShape>;
+export type AppearanceInput = z.input<typeof AppearanceShape>;
+export type TextAppearanceInput = z.input<typeof TextAppearanceShape>;
+export type StructuredFontSizeInput = z.input<typeof StructuredFontSizeShape>;
+export type FontSourceInput = z.input<typeof FontSourceShape>;
+export type ComponentTimelineInput = z.input<typeof ComponentTimelineShape>;
+export type AnimationInput = z.input<typeof AnimationShape>;
+export type SourceMetadataInput = z.input<typeof SourceMetadataShape>;
+export type TimingAnchorInput = z.input<typeof TimingAnchorShape>;
+export type ComponentSourceInput = z.input<typeof ComponentSourceShape>;
+export type ColorTypeInput = z.input<typeof ColorTypeShape>;

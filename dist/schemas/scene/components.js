@@ -231,8 +231,8 @@ export const ComponentSourceShape = z.object({
     streamUrl: z.url().optional(),
     assetId: z.string().optional(),
     languageCode: z.string().optional(),
-    startAt: z.number().min(0).optional().transform(toFixed3Optional),
-    endAt: z.number().min(0).optional().transform(toFixed3Optional),
+    startAt: z.number().min(0).transform(toFixed3Optional).optional(),
+    endAt: z.number().min(0).transform(toFixed3Optional).optional(),
     metadata: SourceMetadataShape.optional(),
     transcriptFormat: z.string().optional()
 });

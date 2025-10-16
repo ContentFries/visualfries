@@ -5,3 +5,4 @@ All notable changes to this project will be documented in this file. See [Conven
 ## [Unreleased]
 
 - Initial release setup with release-please automation
+- Test feature to verify release automation works

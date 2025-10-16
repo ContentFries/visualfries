@@ -1,0 +1,31 @@
+import type { AnimationContext } from './AnimationContext.js';
+import type { AnimationEngineAdaptor, EngineTimeline } from './engines/AnimationEngineAdaptor.js';
+export declare class AnimationBuilder {
+    private animationContext;
+    private engineAdaptor;
+    private mainTimeline;
+    private labels;
+    constructor(animationContext: AnimationContext, engineAdaptor: AnimationEngineAdaptor);
+    build(): EngineTimeline;
+    private processSetupSteps;
+    private ensureItemHasId;
+    private buildTimelineItems;
+    private isValidTargets;
+    private addSequenceItemToTimeline;
+    private addItemLabelIfNeeded;
+    private processTweens;
+    private resolveTargets;
+    private resolveTweenVars;
+    private isObject;
+    private resolveValue;
+    private isFromDataValue;
+    private isByIndexValue;
+    private resolveFromDataValue;
+    private createArrayAccessFunction;
+    private resolveByIndexValue;
+    private calculatePosition;
+    private resolveStringPosition;
+    private resolveObjectPosition;
+    private resolveAnchor;
+    private buildPositionString;
+}

@@ -1,0 +1,5 @@
+{
+	"entry": ["src/lib/index.ts"],
+	"project": ["src/**/*.ts", "src/**/*.svelte"],
+	"ignore": ["src/routes/debug/**"]
+}

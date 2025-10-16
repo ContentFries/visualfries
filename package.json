@@ -1,0 +1,97 @@
+{
+	"name": "visualfries",
+	"version": "0.1.0",
+	"license": "MIT",
+	"author": "ContentFries",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/contentfries/visualfries"
+	},
+	"bugs": {
+		"url": "https://github.com/contentfries/visualfries/issues"
+	},
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build && pnpm run package",
+		"preview": "vite preview",
+		"package": "svelte-kit sync && svelte-package && publint",
+		"prepublishOnly": "pnpm run package",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"test": "pnpm run test:unit -- --run",
+		"test:unit": "vitest",
+		"lint": "eslint . && prettier --check .",
+		"format": "prettier --write .",
+		"knip": "knip"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.test.*",
+		"!dist/**/*.spec.*",
+		"!dist/stories/**"
+	],
+	"sideEffects": [
+		"**/*.css"
+	],
+	"@parcel/resolver-default": {
+		"packageExports": true
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"svelte": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"svelte": "./dist/index.js",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		}
+	},
+	"peerDependencies": {
+		"svelte": "^5.0.0"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-auto": "^3.0.0",
+		"@sveltejs/kit": "^2.46.4",
+		"@sveltejs/package": "^2.0.0",
+		"@sveltejs/vite-plugin-svelte": "^4.0.0",
+		"@tailwindcss/aspect-ratio": "^0.4.2",
+		"@tailwindcss/typography": "^0.5.16",
+		"@types/lodash-es": "^4.17.12",
+		"@types/md5": "^2.3.5",
+		"@types/node": "^20.17.30",
+		"@types/tinycolor2": "^1.4.6",
+		"@types/uuid": "^10.0.0",
+		"autoprefixer": "^10.4.20",
+		"daisyui": "^4.12.13",
+		"eslint": "^9.7.0",
+		"jsdom": "^26.1.0",
+		"knip": "^5.65.0",
+		"md5": "^2.3.0",
+		"postcss": "^8.4.47",
+		"prettier": "^3.3.2",
+		"prettier-plugin-svelte": "^3.2.6",
+		"prettier-plugin-tailwindcss": "^0.7.0",
+		"publint": "^0.2.0",
+		"svelte": "^5.0.0",
+		"svelte-check": "^4.0.0",
+		"tailwindcss": "^3.4.14",
+		"typescript": "^5.8.3",
+		"vite": "^5.0.11",
+		"vitest": "^2.0.4"
+	},
+	"dependencies": {
+		"awilix": "^12.0.3",
+		"dompurify": "^3.3.0",
+		"gifuct-js": "^2.1.2",
+		"gsap": "^3.13.0",
+		"hls.js": "^1.5.17",
+		"lodash-es": "^4.17.21",
+		"pixi.js-legacy": "^7.4.3",
+		"tinycolor2": "^1.6.0",
+		"uuid": "^10.0.0",
+		"zod": "^3.25.76"
+	}
+}

@@ -1,0 +1,8 @@
+# CodeRabbit Configuration
+# Uses default settings with minimal customization
+# Documentation: https://docs.coderabbit.ai/guides/configure-coderabbit
+
+reviews:
+  path_filters:
+    - "**/src/**"
+    - "!src/routes/debug/**"

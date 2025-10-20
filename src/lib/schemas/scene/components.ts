@@ -233,12 +233,11 @@ const SubtitleAppearanceShape = AppearanceShape.extend({
  * Timeline structure for components
  */
 export const ComponentTimelineShape = z.object({
-export const ComponentTimelineShape = z.object({
-  startAt: coerceNonNegativeNumber().transform(toFixed3),
-  endAt: coerceNonNegativeNumber().transform(toFixed3)
+	startAt: coerceNonNegativeNumber().transform(toFixed3),
+	endAt: coerceNonNegativeNumber().transform(toFixed3)
 }).refine((t) => t.startAt <= t.endAt, {
-  message: 'timeline endAt must be ≥ startAt',
-  path: ['endAt']
+	message: 'timeline endAt must be ≥ startAt',
+	path: ['endAt']
 });
 
 /**
@@ -278,7 +277,25 @@ export const ComponentSourceShape = z.object({
 	endAt: coerceNonNegativeNumber().transform(toFixed3Optional).optional(),
 	metadata: SourceMetadataShape.optional(),
 	transcriptFormat: z.string().optional()
-});
+}).refine(
+	(data) => {
+		// Only validate if both startAt and endAt are present and not null
+		if (
+			data.startAt !== undefined &&
+			data.startAt !== null &&
+			data.endAt !== undefined &&
+			data.endAt !== null
+		) {
+			return data.startAt <= data.endAt;
+		}
+		// If either is undefined or null, validation passes
+		return true;
+	},
+	{
+		message: 'endAt must be greater than or equal to startAt',
+		path: ['endAt'] // Error targets the endAt field
+	}
+);
 
 /**
  * Timing anchor for components that need synchronization (like subtitles)

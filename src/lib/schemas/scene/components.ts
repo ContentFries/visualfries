@@ -211,7 +211,13 @@ export const AIEmojiShape = z.object({
 	startAt: coerceValidNumber(),
 	endAt: coerceValidNumber(),
 	componentId: z.string().optional()
-});
+}).refine(
+	(data) => data.startAt <= data.endAt,
+	{
+		error: 'endAt must be greater than or equal to startAt',
+		path: ['endAt']
+	}
+);
 
 /**
  * Subtitle appearance for SUBTITLES components
@@ -492,6 +498,25 @@ export const VideoComponentShape = ComponentBaseWithoutAppearanceShape.extend({
 			startAt: coerceNonNegativeNumber().prefault(0),
 			endAt: coerceValidNumber().optional()
 		})
+		.refine(
+			(data) => {
+				// Only validate if both startAt and endAt are present and not null
+				if (
+					data.startAt !== undefined &&
+					data.startAt !== null &&
+					data.endAt !== undefined &&
+					data.endAt !== null
+				) {
+					return data.startAt <= data.endAt;
+				}
+				// If either is undefined or null, validation passes
+				return true;
+			},
+			{
+				error: 'endAt must be greater than or equal to startAt',
+				path: ['endAt']
+			}
+		)
 		.optional(),
 	crop: z
 		.object({

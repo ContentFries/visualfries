@@ -37,7 +37,14 @@ const CompactWordTupleShape = z
 		coerceValidNumber(), // start_at
 		coerceValidNumber() // end_at
 	])
-	.rest(z.union([CompactWordMetadataShape, z.null()])); // optional metadata as 4th element, can be null
+	.rest(z.union([CompactWordMetadataShape, z.null()]))
+	.refine(
+		(data) => data[1] <= data[2], // Compare start_at and end_at
+		{
+			error: 'end_at must be greater than or equal to start_at',
+			path: [2] // Error targets the third element (end_at)
+		}
+	); // optional metadata as 4th element, can be null
 
 // ============================================================================
 // REGULAR WORD FORMAT SCHEMAS
@@ -52,7 +59,13 @@ const SubtitleWordShape = z.object({
 	end_at: coerceValidNumber(),
 	text: z.string(),
 	position: coerceValidNumber().optional()
-});
+}).refine(
+	(data) => data.start_at <= data.end_at,
+	{
+		error: 'end_at must be greater than or equal to start_at',
+		path: ['end_at']
+	}
+);
 
 // ============================================================================
 // SUBTITLE SCHEMAS

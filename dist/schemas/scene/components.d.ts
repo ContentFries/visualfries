@@ -113,8 +113,8 @@ export declare const TextAppearanceShape: z.ZodObject<{
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-        angle: z.ZodOptional<z.ZodNumber>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
             ellipse: "ellipse";
@@ -137,24 +137,24 @@ export declare const TextAppearanceShape: z.ZodObject<{
         enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
         preset: z.ZodOptional<z.ZodString>;
         color: z.ZodOptional<z.ZodString>;
-        blur: z.ZodOptional<z.ZodNumber>;
-        size: z.ZodOptional<z.ZodNumber>;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodNumber>;
+        blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>>;
     outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
         preset: z.ZodOptional<z.ZodString>;
         color: z.ZodString;
-        size: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodNumber>;
+        size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
             solid: "solid";
             dashed: "dashed";
             dotted: "dotted";
         }>>>;
-        dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+        dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
     }, z.core.$strip>>>;
     activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         enabled: z.ZodBoolean;
@@ -164,8 +164,8 @@ export declare const TextAppearanceShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -178,8 +178,8 @@ export declare const TextAppearanceShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -201,10 +201,10 @@ export declare const TextAppearanceShape: z.ZodObject<{
             800: "800";
             900: "900";
         }>>;
-        scale: z.ZodOptional<z.ZodNumber>;
-        backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-        backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-        backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+        scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>>;
     activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         enabled: z.ZodBoolean;
@@ -214,8 +214,8 @@ export declare const TextAppearanceShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -228,8 +228,8 @@ export declare const TextAppearanceShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -251,10 +251,10 @@ export declare const TextAppearanceShape: z.ZodObject<{
             800: "800";
             900: "900";
         }>>;
-        scale: z.ZodOptional<z.ZodNumber>;
-        backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-        backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-        backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+        scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>>;
     highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
         type: z.ZodEnum<{
@@ -262,8 +262,8 @@ export declare const TextAppearanceShape: z.ZodObject<{
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-        angle: z.ZodOptional<z.ZodNumber>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
             ellipse: "ellipse";
@@ -279,8 +279,8 @@ export declare const BackgroundShape: z.ZodPipe<z.ZodUnion<readonly [z.ZodObject
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-        angle: z.ZodOptional<z.ZodNumber>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
             ellipse: "ellipse";
@@ -298,8 +298,8 @@ export declare const BackgroundShape: z.ZodPipe<z.ZodUnion<readonly [z.ZodObject
         radial: "radial";
     }>;
     colors: z.ZodArray<z.ZodString>;
-    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-    angle: z.ZodOptional<z.ZodNumber>;
+    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     position: z.ZodOptional<z.ZodString>;
     shape: z.ZodOptional<z.ZodEnum<{
         ellipse: "ellipse";
@@ -353,16 +353,16 @@ export declare const BackgroundShape: z.ZodPipe<z.ZodUnion<readonly [z.ZodObject
  * General appearance schema for all components
  */
 export declare const AppearanceShape: z.ZodObject<{
-    x: z.ZodNumber;
-    y: z.ZodNumber;
-    width: z.ZodNumber;
-    height: z.ZodNumber;
-    offsetX: z.ZodOptional<z.ZodNumber>;
-    offsetY: z.ZodOptional<z.ZodNumber>;
-    opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-    rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-    scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-    scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+    x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+    rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+    scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+    scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
     background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodBoolean>;
         color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -371,8 +371,8 @@ export declare const AppearanceShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -390,8 +390,8 @@ export declare const AppearanceShape: z.ZodObject<{
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-        angle: z.ZodOptional<z.ZodNumber>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
             ellipse: "ellipse";
@@ -512,8 +512,8 @@ export declare const AppearanceShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -536,24 +536,24 @@ export declare const AppearanceShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>>>;
         outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         }, z.core.$strip>>>;
         activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             enabled: z.ZodBoolean;
@@ -563,8 +563,8 @@ export declare const AppearanceShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -577,8 +577,8 @@ export declare const AppearanceShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -600,10 +600,10 @@ export declare const AppearanceShape: z.ZodObject<{
                 800: "800";
                 900: "900";
             }>>;
-            scale: z.ZodOptional<z.ZodNumber>;
-            backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-            backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-            backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+            scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>>>;
         activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             enabled: z.ZodBoolean;
@@ -613,8 +613,8 @@ export declare const AppearanceShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -627,8 +627,8 @@ export declare const AppearanceShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -650,10 +650,10 @@ export declare const AppearanceShape: z.ZodObject<{
                 800: "800";
                 900: "900";
             }>>;
-            scale: z.ZodOptional<z.ZodNumber>;
-            backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-            backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-            backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+            scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>>>;
         highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
             type: z.ZodEnum<{
@@ -661,8 +661,8 @@ export declare const AppearanceShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -688,16 +688,16 @@ export declare const AppearanceShape: z.ZodObject<{
 export declare const AIEmojiShape: z.ZodObject<{
     text: z.ZodString;
     emoji: z.ZodString;
-    startAt: z.ZodNumber;
-    endAt: z.ZodNumber;
+    startAt: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    endAt: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
     componentId: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 /**
  * Timeline structure for components
  */
 export declare const ComponentTimelineShape: z.ZodObject<{
-    startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-    endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+    startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+    endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
 }, z.core.$strip>;
 /**
  * Animation structure
@@ -705,13 +705,13 @@ export declare const ComponentTimelineShape: z.ZodObject<{
 export declare const AnimationShape: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodString;
-    startAt: z.ZodOptional<z.ZodNumber>;
+    startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
         id: z.ZodString;
         presetId: z.ZodOptional<z.ZodString>;
         version: z.ZodOptional<z.ZodString>;
         description: z.ZodOptional<z.ZodString>;
-        duration: z.ZodOptional<z.ZodNumber>;
+        duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
             type: z.ZodLiteral<"style">;
@@ -740,7 +740,7 @@ export declare const AnimationShape: z.ZodObject<{
         timeline: z.ZodArray<z.ZodObject<{
             id: z.ZodOptional<z.ZodString>;
             target: z.ZodOptional<z.ZodString>;
-            position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+            position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                 anchor: z.ZodString;
                 anchorPoint: z.ZodOptional<z.ZodEnum<{
                     start: "start";
@@ -760,7 +760,7 @@ export declare const AnimationShape: z.ZodObject<{
                     from: "from";
                     fromTo: "fromTo";
                 }>;
-                position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                     anchor: z.ZodString;
                     anchorPoint: z.ZodOptional<z.ZodEnum<{
                         start: "start";
@@ -949,15 +949,15 @@ export declare const AnimationShape: z.ZodObject<{
                         type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                         dataKey: z.ZodOptional<z.ZodString>;
                         referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                        each: z.ZodOptional<z.ZodNumber>;
-                        from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                        grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                        each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                        from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                        grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                         axis: z.ZodOptional<z.ZodEnum<{
                             x: "x";
                             y: "y";
                         }>>;
                         ease: z.ZodOptional<z.ZodString>;
-                        amount: z.ZodOptional<z.ZodNumber>;
+                        amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     }, z.core.$strip>]>>;
                 }, z.core.$catchall<z.ZodAny>>;
             }, z.core.$strip>>;
@@ -971,7 +971,7 @@ export declare const AnimationShape: z.ZodObject<{
                 from: "from";
                 fromTo: "fromTo";
             }>;
-            position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+            position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                 anchor: z.ZodString;
                 anchorPoint: z.ZodOptional<z.ZodEnum<{
                     start: "start";
@@ -1160,15 +1160,15 @@ export declare const AnimationShape: z.ZodObject<{
                     type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                     dataKey: z.ZodOptional<z.ZodString>;
                     referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                    each: z.ZodOptional<z.ZodNumber>;
-                    from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                    grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                    each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                    from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                    grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                     axis: z.ZodOptional<z.ZodEnum<{
                         x: "x";
                         y: "y";
                     }>>;
                     ease: z.ZodOptional<z.ZodString>;
-                    amount: z.ZodOptional<z.ZodNumber>;
+                    amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 }, z.core.$strip>]>>;
             }, z.core.$catchall<z.ZodAny>>;
         }, z.core.$strip>;
@@ -1180,13 +1180,13 @@ export declare const AnimationShape: z.ZodObject<{
  * Source metadata for media components
  */
 export declare const SourceMetadataShape: z.ZodObject<{
-    width: z.ZodOptional<z.ZodNumber>;
-    height: z.ZodOptional<z.ZodNumber>;
-    duration: z.ZodOptional<z.ZodNumber>;
+    width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     format: z.ZodOptional<z.ZodString>;
     codec: z.ZodOptional<z.ZodString>;
-    bitrate: z.ZodOptional<z.ZodNumber>;
-    fps: z.ZodOptional<z.ZodNumber>;
+    bitrate: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    fps: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     hasAudio: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 /**
@@ -1197,16 +1197,16 @@ export declare const ComponentSourceShape: z.ZodObject<{
     streamUrl: z.ZodOptional<z.ZodURL>;
     assetId: z.ZodOptional<z.ZodString>;
     languageCode: z.ZodOptional<z.ZodString>;
-    startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
-    endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+    startAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
+    endAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
     metadata: z.ZodOptional<z.ZodObject<{
-        width: z.ZodOptional<z.ZodNumber>;
-        height: z.ZodOptional<z.ZodNumber>;
-        duration: z.ZodOptional<z.ZodNumber>;
+        width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         format: z.ZodOptional<z.ZodString>;
         codec: z.ZodOptional<z.ZodString>;
-        bitrate: z.ZodOptional<z.ZodNumber>;
-        fps: z.ZodOptional<z.ZodNumber>;
+        bitrate: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        fps: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         hasAudio: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>>;
     transcriptFormat: z.ZodOptional<z.ZodString>;
@@ -1222,7 +1222,7 @@ export declare const TimingAnchorShape: z.ZodObject<{
     assetId: z.ZodOptional<z.ZodString>;
     layerId: z.ZodOptional<z.ZodString>;
     componentId: z.ZodOptional<z.ZodString>;
-    offset: z.ZodPrefault<z.ZodNumber>;
+    offset: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
 }, z.core.$strip>;
 /**
  * Layout split effect schema
@@ -1249,9 +1249,9 @@ export declare const LayoutSplitEffectShape: z.ZodObject<{
         luminosity: "luminosity";
     }>>;
     type: z.ZodLiteral<"layoutSplit">;
-    pieces: z.ZodOptional<z.ZodInt>;
-    sceneWidth: z.ZodOptional<z.ZodNumber>;
-    sceneHeight: z.ZodOptional<z.ZodNumber>;
+    pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
 }, z.core.$strip>;
 /**
@@ -1279,14 +1279,14 @@ export declare const RotationRandomizerEffectShape: z.ZodObject<{
         luminosity: "luminosity";
     }>>;
     type: z.ZodLiteral<"rotationRandomizer">;
-    maxRotation: z.ZodPrefault<z.ZodNumber>;
+    maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     animate: z.ZodPrefault<z.ZodBoolean>;
-    seed: z.ZodOptional<z.ZodInt>;
+    seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
 }, z.core.$strip>;
 export declare const FillBackgroundBlurEffectShape: z.ZodObject<{
     type: z.ZodLiteral<"fillBackgroundBlur">;
     enabled: z.ZodPrefault<z.ZodBoolean>;
-    blurAmount: z.ZodPrefault<z.ZodNumber>;
+    blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
 }, z.core.$strip>;
 /**
  * Text Shadow effect schema
@@ -1314,11 +1314,11 @@ export declare const TextShadowEffectShape: z.ZodObject<{
     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     preset: z.ZodOptional<z.ZodString>;
     color: z.ZodOptional<z.ZodString>;
-    blur: z.ZodOptional<z.ZodNumber>;
-    size: z.ZodOptional<z.ZodNumber>;
-    offsetX: z.ZodOptional<z.ZodNumber>;
-    offsetY: z.ZodOptional<z.ZodNumber>;
-    opacity: z.ZodOptional<z.ZodNumber>;
+    blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     type: z.ZodLiteral<"textShadow">;
 }, z.core.$strip>;
 /**
@@ -1347,14 +1347,14 @@ export declare const TextOutlineEffectShape: z.ZodObject<{
     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     preset: z.ZodOptional<z.ZodString>;
     color: z.ZodString;
-    size: z.ZodOptional<z.ZodNumber>;
-    opacity: z.ZodOptional<z.ZodNumber>;
+    size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
         solid: "solid";
         dashed: "dashed";
         dotted: "dotted";
     }>>>;
-    dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+    dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
     type: z.ZodLiteral<"textOutline">;
 }, z.core.$strip>;
 /**
@@ -1431,9 +1431,9 @@ export declare const ComponentEffectShape: z.ZodUnion<readonly [z.ZodDiscriminat
         luminosity: "luminosity";
     }>>;
     type: z.ZodLiteral<"layoutSplit">;
-    pieces: z.ZodOptional<z.ZodInt>;
-    sceneWidth: z.ZodOptional<z.ZodNumber>;
-    sceneHeight: z.ZodOptional<z.ZodNumber>;
+    pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
 }, z.core.$strip>, z.ZodObject<{
     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -1457,9 +1457,9 @@ export declare const ComponentEffectShape: z.ZodUnion<readonly [z.ZodDiscriminat
         luminosity: "luminosity";
     }>>;
     type: z.ZodLiteral<"rotationRandomizer">;
-    maxRotation: z.ZodPrefault<z.ZodNumber>;
+    maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     animate: z.ZodPrefault<z.ZodBoolean>;
-    seed: z.ZodOptional<z.ZodInt>;
+    seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
 }, z.core.$strip>, z.ZodObject<{
     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     intensity: z.ZodPrefault<z.ZodNumber>;
@@ -1486,7 +1486,7 @@ export declare const ComponentEffectShape: z.ZodUnion<readonly [z.ZodDiscriminat
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"fillBackgroundBlur">;
     enabled: z.ZodPrefault<z.ZodBoolean>;
-    blurAmount: z.ZodPrefault<z.ZodNumber>;
+    blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
 }, z.core.$strip>, z.ZodObject<{
     intensity: z.ZodPrefault<z.ZodNumber>;
     blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -1510,11 +1510,11 @@ export declare const ComponentEffectShape: z.ZodUnion<readonly [z.ZodDiscriminat
     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     preset: z.ZodOptional<z.ZodString>;
     color: z.ZodOptional<z.ZodString>;
-    blur: z.ZodOptional<z.ZodNumber>;
-    size: z.ZodOptional<z.ZodNumber>;
-    offsetX: z.ZodOptional<z.ZodNumber>;
-    offsetY: z.ZodOptional<z.ZodNumber>;
-    opacity: z.ZodOptional<z.ZodNumber>;
+    blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     type: z.ZodLiteral<"textShadow">;
 }, z.core.$strip>, z.ZodObject<{
     intensity: z.ZodPrefault<z.ZodNumber>;
@@ -1539,14 +1539,14 @@ export declare const ComponentEffectShape: z.ZodUnion<readonly [z.ZodDiscriminat
     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     preset: z.ZodOptional<z.ZodString>;
     color: z.ZodString;
-    size: z.ZodOptional<z.ZodNumber>;
-    opacity: z.ZodOptional<z.ZodNumber>;
+    size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
         solid: "solid";
         dashed: "dashed";
         dotted: "dotted";
     }>>>;
-    dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+    dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
     type: z.ZodLiteral<"textOutline">;
 }, z.core.$strip>]>;
 /**
@@ -1568,21 +1568,21 @@ export declare const ComponentBaseShape: z.ZodObject<{
         SUBTITLES: "SUBTITLES";
     }>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -1611,7 +1611,7 @@ export declare const ComponentBaseShape: z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -1631,7 +1631,7 @@ export declare const ComponentBaseShape: z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -1820,15 +1820,15 @@ export declare const ComponentBaseShape: z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -1842,7 +1842,7 @@ export declare const ComponentBaseShape: z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -2031,15 +2031,15 @@ export declare const ComponentBaseShape: z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -2122,9 +2122,9 @@ export declare const ComponentBaseShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -2148,9 +2148,9 @@ export declare const ComponentBaseShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -2177,7 +2177,7 @@ export declare const ComponentBaseShape: z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -2201,11 +2201,11 @@ export declare const ComponentBaseShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -2230,14 +2230,14 @@ export declare const ComponentBaseShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -2360,19 +2360,19 @@ export declare const ComponentBaseShape: z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -2381,8 +2381,8 @@ export declare const ComponentBaseShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -2400,8 +2400,8 @@ export declare const ComponentBaseShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -2522,8 +2522,8 @@ export declare const ComponentBaseShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -2546,24 +2546,24 @@ export declare const ComponentBaseShape: z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -2573,8 +2573,8 @@ export declare const ComponentBaseShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -2587,8 +2587,8 @@ export declare const ComponentBaseShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -2610,10 +2610,10 @@ export declare const ComponentBaseShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -2623,8 +2623,8 @@ export declare const ComponentBaseShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -2637,8 +2637,8 @@ export declare const ComponentBaseShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -2660,10 +2660,10 @@ export declare const ComponentBaseShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -2671,8 +2671,8 @@ export declare const ComponentBaseShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -2700,21 +2700,21 @@ export declare const TextComponentShape: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -2743,7 +2743,7 @@ export declare const TextComponentShape: z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -2763,7 +2763,7 @@ export declare const TextComponentShape: z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -2952,15 +2952,15 @@ export declare const TextComponentShape: z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -2974,7 +2974,7 @@ export declare const TextComponentShape: z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -3163,15 +3163,15 @@ export declare const TextComponentShape: z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -3254,9 +3254,9 @@ export declare const TextComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -3280,9 +3280,9 @@ export declare const TextComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -3309,7 +3309,7 @@ export declare const TextComponentShape: z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -3333,11 +3333,11 @@ export declare const TextComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -3362,14 +3362,14 @@ export declare const TextComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -3492,22 +3492,22 @@ export declare const TextComponentShape: z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"TEXT">;
     text: z.ZodString;
     isAIEmoji: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -3516,8 +3516,8 @@ export declare const TextComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -3535,8 +3535,8 @@ export declare const TextComponentShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -3658,8 +3658,8 @@ export declare const TextComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -3682,24 +3682,24 @@ export declare const TextComponentShape: z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -3709,8 +3709,8 @@ export declare const TextComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -3723,8 +3723,8 @@ export declare const TextComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -3746,10 +3746,10 @@ export declare const TextComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -3759,8 +3759,8 @@ export declare const TextComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -3773,8 +3773,8 @@ export declare const TextComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -3796,10 +3796,10 @@ export declare const TextComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -3807,8 +3807,8 @@ export declare const TextComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -3835,21 +3835,21 @@ export declare const ImageComponentShape: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -3878,7 +3878,7 @@ export declare const ImageComponentShape: z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -3898,7 +3898,7 @@ export declare const ImageComponentShape: z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -4087,15 +4087,15 @@ export declare const ImageComponentShape: z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -4109,7 +4109,7 @@ export declare const ImageComponentShape: z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -4298,15 +4298,15 @@ export declare const ImageComponentShape: z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -4389,9 +4389,9 @@ export declare const ImageComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -4415,9 +4415,9 @@ export declare const ImageComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -4444,7 +4444,7 @@ export declare const ImageComponentShape: z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -4468,11 +4468,11 @@ export declare const ImageComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -4497,14 +4497,14 @@ export declare const ImageComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -4627,7 +4627,7 @@ export declare const ImageComponentShape: z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"IMAGE">;
     source: z.ZodObject<{
@@ -4635,31 +4635,31 @@ export declare const ImageComponentShape: z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
-        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
-            width: z.ZodOptional<z.ZodNumber>;
-            height: z.ZodOptional<z.ZodNumber>;
-            duration: z.ZodOptional<z.ZodNumber>;
+            width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             format: z.ZodOptional<z.ZodString>;
             codec: z.ZodOptional<z.ZodString>;
-            bitrate: z.ZodOptional<z.ZodNumber>;
-            fps: z.ZodOptional<z.ZodNumber>;
+            bitrate: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            fps: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             hasAudio: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
         transcriptFormat: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -4668,8 +4668,8 @@ export declare const ImageComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -4687,8 +4687,8 @@ export declare const ImageComponentShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -4809,8 +4809,8 @@ export declare const ImageComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -4833,24 +4833,24 @@ export declare const ImageComponentShape: z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -4860,8 +4860,8 @@ export declare const ImageComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -4874,8 +4874,8 @@ export declare const ImageComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -4897,10 +4897,10 @@ export declare const ImageComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -4910,8 +4910,8 @@ export declare const ImageComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -4924,8 +4924,8 @@ export declare const ImageComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -4947,10 +4947,10 @@ export declare const ImageComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -4958,8 +4958,8 @@ export declare const ImageComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -4980,10 +4980,10 @@ export declare const ImageComponentShape: z.ZodObject<{
         backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     }, z.core.$strip>;
     crop: z.ZodOptional<z.ZodObject<{
-        xPercent: z.ZodPrefault<z.ZodNumber>;
-        yPercent: z.ZodPrefault<z.ZodNumber>;
-        widthPercent: z.ZodPrefault<z.ZodNumber>;
-        heightPercent: z.ZodPrefault<z.ZodNumber>;
+        xPercent: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        yPercent: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        widthPercent: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        heightPercent: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
 }, z.core.$strict>;
 /**
@@ -4993,21 +4993,21 @@ export declare const GifComponentShape: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -5036,7 +5036,7 @@ export declare const GifComponentShape: z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -5056,7 +5056,7 @@ export declare const GifComponentShape: z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -5245,15 +5245,15 @@ export declare const GifComponentShape: z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -5267,7 +5267,7 @@ export declare const GifComponentShape: z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -5456,15 +5456,15 @@ export declare const GifComponentShape: z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -5547,9 +5547,9 @@ export declare const GifComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -5573,9 +5573,9 @@ export declare const GifComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -5602,7 +5602,7 @@ export declare const GifComponentShape: z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -5626,11 +5626,11 @@ export declare const GifComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -5655,14 +5655,14 @@ export declare const GifComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -5785,7 +5785,7 @@ export declare const GifComponentShape: z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"GIF">;
     source: z.ZodObject<{
@@ -5793,31 +5793,31 @@ export declare const GifComponentShape: z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
-        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
-            width: z.ZodOptional<z.ZodNumber>;
-            height: z.ZodOptional<z.ZodNumber>;
-            duration: z.ZodOptional<z.ZodNumber>;
+            width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             format: z.ZodOptional<z.ZodString>;
             codec: z.ZodOptional<z.ZodString>;
-            bitrate: z.ZodOptional<z.ZodNumber>;
-            fps: z.ZodOptional<z.ZodNumber>;
+            bitrate: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            fps: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             hasAudio: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
         transcriptFormat: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -5826,8 +5826,8 @@ export declare const GifComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -5845,8 +5845,8 @@ export declare const GifComponentShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -5967,8 +5967,8 @@ export declare const GifComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -5991,24 +5991,24 @@ export declare const GifComponentShape: z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -6018,8 +6018,8 @@ export declare const GifComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -6032,8 +6032,8 @@ export declare const GifComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -6055,10 +6055,10 @@ export declare const GifComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -6068,8 +6068,8 @@ export declare const GifComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -6082,8 +6082,8 @@ export declare const GifComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -6105,10 +6105,10 @@ export declare const GifComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -6116,8 +6116,8 @@ export declare const GifComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -6139,7 +6139,7 @@ export declare const GifComponentShape: z.ZodObject<{
     }, z.core.$strip>;
     playback: z.ZodOptional<z.ZodObject<{
         loop: z.ZodPrefault<z.ZodBoolean>;
-        speed: z.ZodPrefault<z.ZodNumber>;
+        speed: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
 }, z.core.$strict>;
 /**
@@ -6149,21 +6149,21 @@ export declare const VideoComponentShape: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -6192,7 +6192,7 @@ export declare const VideoComponentShape: z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -6212,7 +6212,7 @@ export declare const VideoComponentShape: z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -6401,15 +6401,15 @@ export declare const VideoComponentShape: z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -6423,7 +6423,7 @@ export declare const VideoComponentShape: z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -6612,15 +6612,15 @@ export declare const VideoComponentShape: z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -6703,9 +6703,9 @@ export declare const VideoComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -6729,9 +6729,9 @@ export declare const VideoComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -6758,7 +6758,7 @@ export declare const VideoComponentShape: z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -6782,11 +6782,11 @@ export declare const VideoComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -6811,14 +6811,14 @@ export declare const VideoComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -6941,7 +6941,7 @@ export declare const VideoComponentShape: z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"VIDEO">;
     source: z.ZodObject<{
@@ -6949,31 +6949,31 @@ export declare const VideoComponentShape: z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
-        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
-            width: z.ZodOptional<z.ZodNumber>;
-            height: z.ZodOptional<z.ZodNumber>;
-            duration: z.ZodOptional<z.ZodNumber>;
+            width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             format: z.ZodOptional<z.ZodString>;
             codec: z.ZodOptional<z.ZodString>;
-            bitrate: z.ZodOptional<z.ZodNumber>;
-            fps: z.ZodOptional<z.ZodNumber>;
+            bitrate: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            fps: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             hasAudio: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
         transcriptFormat: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -6982,8 +6982,8 @@ export declare const VideoComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -7001,8 +7001,8 @@ export declare const VideoComponentShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -7123,8 +7123,8 @@ export declare const VideoComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -7147,24 +7147,24 @@ export declare const VideoComponentShape: z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -7174,8 +7174,8 @@ export declare const VideoComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -7188,8 +7188,8 @@ export declare const VideoComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -7211,10 +7211,10 @@ export declare const VideoComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -7224,8 +7224,8 @@ export declare const VideoComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -7238,8 +7238,8 @@ export declare const VideoComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -7261,10 +7261,10 @@ export declare const VideoComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -7272,8 +7272,8 @@ export declare const VideoComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -7293,20 +7293,20 @@ export declare const VideoComponentShape: z.ZodObject<{
         }>>;
         backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     }, z.core.$strip>;
-    volume: z.ZodPrefault<z.ZodNumber>;
+    volume: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     muted: z.ZodPrefault<z.ZodBoolean>;
     playback: z.ZodOptional<z.ZodObject<{
         autoplay: z.ZodPrefault<z.ZodBoolean>;
         loop: z.ZodPrefault<z.ZodBoolean>;
-        playbackRate: z.ZodPrefault<z.ZodNumber>;
-        startAt: z.ZodPrefault<z.ZodNumber>;
-        endAt: z.ZodOptional<z.ZodNumber>;
+        playbackRate: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        startAt: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
     crop: z.ZodOptional<z.ZodObject<{
-        x: z.ZodPrefault<z.ZodNumber>;
-        y: z.ZodPrefault<z.ZodNumber>;
-        width: z.ZodPrefault<z.ZodNumber>;
-        height: z.ZodPrefault<z.ZodNumber>;
+        x: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        y: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        width: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        height: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
 }, z.core.$strict>;
 /**
@@ -7334,14 +7334,14 @@ export declare const PerimeterProgressConfigShape: z.ZodObject<{
         "bottom-left": "bottom-left";
     }>>;
     clockwise: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
-    strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+    strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
 }, z.core.$strip>;
 export declare const RadialProgressConfigShape: z.ZodObject<{
     type: z.ZodLiteral<"radial">;
-    startAngle: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+    startAngle: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
     clockwise: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
-    innerRadius: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-    strokeWidth: z.ZodOptional<z.ZodNumber>;
+    innerRadius: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+    strokeWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     capStyle: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
         butt: "butt";
         round: "round";
@@ -7362,13 +7362,13 @@ export declare const DoubleProgressConfigShape: z.ZodObject<{
             bottom: "bottom";
         }>;
         reverse: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
-        offset: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        offset: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const CustomProgressConfigShape: z.ZodObject<{
     type: z.ZodLiteral<"custom">;
     pathData: z.ZodString;
-    strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+    strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
     capStyle: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
         butt: "butt";
         round: "round";
@@ -7399,13 +7399,13 @@ export declare const ProgressConfigShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         "bottom-left": "bottom-left";
     }>>;
     clockwise: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
-    strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+    strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"radial">;
-    startAngle: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+    startAngle: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
     clockwise: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
-    innerRadius: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-    strokeWidth: z.ZodOptional<z.ZodNumber>;
+    innerRadius: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+    strokeWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     capStyle: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
         butt: "butt";
         round: "round";
@@ -7425,12 +7425,12 @@ export declare const ProgressConfigShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             bottom: "bottom";
         }>;
         reverse: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
-        offset: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        offset: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
     }, z.core.$strip>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"custom">;
     pathData: z.ZodString;
-    strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+    strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
     capStyle: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
         butt: "butt";
         round: "round";
@@ -7444,21 +7444,21 @@ export declare const ShapeComponentShape: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -7487,7 +7487,7 @@ export declare const ShapeComponentShape: z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -7507,7 +7507,7 @@ export declare const ShapeComponentShape: z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -7696,15 +7696,15 @@ export declare const ShapeComponentShape: z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -7718,7 +7718,7 @@ export declare const ShapeComponentShape: z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -7907,15 +7907,15 @@ export declare const ShapeComponentShape: z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -7998,9 +7998,9 @@ export declare const ShapeComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -8024,9 +8024,9 @@ export declare const ShapeComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -8053,7 +8053,7 @@ export declare const ShapeComponentShape: z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -8077,11 +8077,11 @@ export declare const ShapeComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -8106,14 +8106,14 @@ export declare const ShapeComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -8236,7 +8236,7 @@ export declare const ShapeComponentShape: z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"SHAPE">;
     shape: z.ZodUnion<readonly [z.ZodObject<{
@@ -8262,13 +8262,13 @@ export declare const ShapeComponentShape: z.ZodObject<{
                 "bottom-left": "bottom-left";
             }>>;
             clockwise: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
-            strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+            strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"radial">;
-            startAngle: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+            startAngle: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             clockwise: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
-            innerRadius: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-            strokeWidth: z.ZodOptional<z.ZodNumber>;
+            innerRadius: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            strokeWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             capStyle: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 butt: "butt";
                 round: "round";
@@ -8288,12 +8288,12 @@ export declare const ShapeComponentShape: z.ZodObject<{
                     bottom: "bottom";
                 }>;
                 reverse: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
-                offset: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+                offset: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>;
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"custom">;
             pathData: z.ZodString;
-            strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+            strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             capStyle: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 butt: "butt";
                 round: "round";
@@ -8318,16 +8318,16 @@ export declare const ShapeComponentShape: z.ZodObject<{
         cornerRadius: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>]>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -8336,8 +8336,8 @@ export declare const ShapeComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -8355,8 +8355,8 @@ export declare const ShapeComponentShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -8477,8 +8477,8 @@ export declare const ShapeComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -8501,24 +8501,24 @@ export declare const ShapeComponentShape: z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -8528,8 +8528,8 @@ export declare const ShapeComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -8542,8 +8542,8 @@ export declare const ShapeComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -8565,10 +8565,10 @@ export declare const ShapeComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -8578,8 +8578,8 @@ export declare const ShapeComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -8592,8 +8592,8 @@ export declare const ShapeComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -8615,10 +8615,10 @@ export declare const ShapeComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -8626,8 +8626,8 @@ export declare const ShapeComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -8652,8 +8652,8 @@ export declare const ShapeComponentShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -8669,21 +8669,21 @@ export declare const AudioComponentShape: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -8712,7 +8712,7 @@ export declare const AudioComponentShape: z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -8732,7 +8732,7 @@ export declare const AudioComponentShape: z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -8921,15 +8921,15 @@ export declare const AudioComponentShape: z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -8943,7 +8943,7 @@ export declare const AudioComponentShape: z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -9132,15 +9132,15 @@ export declare const AudioComponentShape: z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -9223,9 +9223,9 @@ export declare const AudioComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -9249,9 +9249,9 @@ export declare const AudioComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -9278,7 +9278,7 @@ export declare const AudioComponentShape: z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -9302,11 +9302,11 @@ export declare const AudioComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -9331,14 +9331,14 @@ export declare const AudioComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -9461,7 +9461,7 @@ export declare const AudioComponentShape: z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"AUDIO">;
     source: z.ZodObject<{
@@ -9469,31 +9469,31 @@ export declare const AudioComponentShape: z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
-        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
-            width: z.ZodOptional<z.ZodNumber>;
-            height: z.ZodOptional<z.ZodNumber>;
-            duration: z.ZodOptional<z.ZodNumber>;
+            width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             format: z.ZodOptional<z.ZodString>;
             codec: z.ZodOptional<z.ZodString>;
-            bitrate: z.ZodOptional<z.ZodNumber>;
-            fps: z.ZodOptional<z.ZodNumber>;
+            bitrate: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            fps: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             hasAudio: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
         transcriptFormat: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -9502,8 +9502,8 @@ export declare const AudioComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -9521,8 +9521,8 @@ export declare const AudioComponentShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -9643,8 +9643,8 @@ export declare const AudioComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -9667,24 +9667,24 @@ export declare const AudioComponentShape: z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -9694,8 +9694,8 @@ export declare const AudioComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -9708,8 +9708,8 @@ export declare const AudioComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -9731,10 +9731,10 @@ export declare const AudioComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -9744,8 +9744,8 @@ export declare const AudioComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -9758,8 +9758,8 @@ export declare const AudioComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -9781,10 +9781,10 @@ export declare const AudioComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -9792,8 +9792,8 @@ export declare const AudioComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -9813,7 +9813,7 @@ export declare const AudioComponentShape: z.ZodObject<{
         }>>;
         backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     }, z.core.$strip>;
-    volume: z.ZodPrefault<z.ZodNumber>;
+    volume: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     muted: z.ZodPrefault<z.ZodBoolean>;
 }, z.core.$strict>;
 /**
@@ -9823,21 +9823,21 @@ export declare const ColorComponentShape: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -9866,7 +9866,7 @@ export declare const ColorComponentShape: z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -9886,7 +9886,7 @@ export declare const ColorComponentShape: z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -10075,15 +10075,15 @@ export declare const ColorComponentShape: z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -10097,7 +10097,7 @@ export declare const ColorComponentShape: z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -10286,15 +10286,15 @@ export declare const ColorComponentShape: z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -10377,9 +10377,9 @@ export declare const ColorComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -10403,9 +10403,9 @@ export declare const ColorComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -10432,7 +10432,7 @@ export declare const ColorComponentShape: z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -10456,11 +10456,11 @@ export declare const ColorComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -10485,14 +10485,14 @@ export declare const ColorComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -10615,20 +10615,20 @@ export declare const ColorComponentShape: z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"COLOR">;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -10700,8 +10700,8 @@ export declare const ColorComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -10724,24 +10724,24 @@ export declare const ColorComponentShape: z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -10751,8 +10751,8 @@ export declare const ColorComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -10765,8 +10765,8 @@ export declare const ColorComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -10788,10 +10788,10 @@ export declare const ColorComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -10801,8 +10801,8 @@ export declare const ColorComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -10815,8 +10815,8 @@ export declare const ColorComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -10838,10 +10838,10 @@ export declare const ColorComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -10849,8 +10849,8 @@ export declare const ColorComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -10879,21 +10879,21 @@ export declare const GradientComponentShape: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -10922,7 +10922,7 @@ export declare const GradientComponentShape: z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -10942,7 +10942,7 @@ export declare const GradientComponentShape: z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -11131,15 +11131,15 @@ export declare const GradientComponentShape: z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -11153,7 +11153,7 @@ export declare const GradientComponentShape: z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -11342,15 +11342,15 @@ export declare const GradientComponentShape: z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -11433,9 +11433,9 @@ export declare const GradientComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -11459,9 +11459,9 @@ export declare const GradientComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -11488,7 +11488,7 @@ export declare const GradientComponentShape: z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -11512,11 +11512,11 @@ export declare const GradientComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -11541,14 +11541,14 @@ export declare const GradientComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -11671,20 +11671,20 @@ export declare const GradientComponentShape: z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"GRADIENT">;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -11756,8 +11756,8 @@ export declare const GradientComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -11780,24 +11780,24 @@ export declare const GradientComponentShape: z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -11807,8 +11807,8 @@ export declare const GradientComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -11821,8 +11821,8 @@ export declare const GradientComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -11844,10 +11844,10 @@ export declare const GradientComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -11857,8 +11857,8 @@ export declare const GradientComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -11871,8 +11871,8 @@ export declare const GradientComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -11894,10 +11894,10 @@ export declare const GradientComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -11905,8 +11905,8 @@ export declare const GradientComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -11931,8 +11931,8 @@ export declare const GradientComponentShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -11948,21 +11948,21 @@ export declare const SubtitleComponentShape: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -11991,7 +11991,7 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -12011,7 +12011,7 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -12200,15 +12200,15 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -12222,7 +12222,7 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -12411,15 +12411,15 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -12502,9 +12502,9 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -12528,9 +12528,9 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -12557,7 +12557,7 @@ export declare const SubtitleComponentShape: z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -12581,11 +12581,11 @@ export declare const SubtitleComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -12610,14 +12610,14 @@ export declare const SubtitleComponentShape: z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -12740,23 +12740,23 @@ export declare const SubtitleComponentShape: z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"SUBTITLES">;
     source: z.ZodOptional<z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
-        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
-            width: z.ZodOptional<z.ZodNumber>;
-            height: z.ZodOptional<z.ZodNumber>;
-            duration: z.ZodOptional<z.ZodNumber>;
+            width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             format: z.ZodOptional<z.ZodString>;
             codec: z.ZodOptional<z.ZodString>;
-            bitrate: z.ZodOptional<z.ZodNumber>;
-            fps: z.ZodOptional<z.ZodNumber>;
+            bitrate: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            fps: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             hasAudio: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
         transcriptFormat: z.ZodOptional<z.ZodString>;
@@ -12770,20 +12770,20 @@ export declare const SubtitleComponentShape: z.ZodObject<{
         assetId: z.ZodOptional<z.ZodString>;
         layerId: z.ZodOptional<z.ZodString>;
         componentId: z.ZodOptional<z.ZodString>;
-        offset: z.ZodPrefault<z.ZodNumber>;
+        offset: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>;
     text: z.ZodOptional<z.ZodString>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -12792,8 +12792,8 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -12811,8 +12811,8 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -12934,8 +12934,8 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -12958,24 +12958,24 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -12985,8 +12985,8 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -12999,8 +12999,8 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -13022,10 +13022,10 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -13035,8 +13035,8 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -13049,8 +13049,8 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -13072,10 +13072,10 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -13083,8 +13083,8 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -13107,12 +13107,12 @@ export declare const SubtitleComponentShape: z.ZodObject<{
             top: "top";
             bottom: "bottom";
         }>>>;
-        aiEmojisPlacementOffset: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        aiEmojisPlacementOffset: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         aiEmojis: z.ZodOptional<z.ZodArray<z.ZodObject<{
             text: z.ZodString;
             emoji: z.ZodString;
-            startAt: z.ZodNumber;
-            endAt: z.ZodNumber;
+            startAt: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            endAt: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
             componentId: z.ZodOptional<z.ZodString>;
         }, z.core.$strip>>>;
         highlighterColor1: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -13121,8 +13121,8 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -13135,8 +13135,8 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -13149,8 +13149,8 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -13166,21 +13166,21 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -13209,7 +13209,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -13229,7 +13229,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -13418,15 +13418,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -13440,7 +13440,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -13629,15 +13629,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -13720,9 +13720,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -13746,9 +13746,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -13775,7 +13775,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -13799,11 +13799,11 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -13828,14 +13828,14 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -13958,22 +13958,22 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"TEXT">;
     text: z.ZodString;
     isAIEmoji: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -13982,8 +13982,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -14001,8 +14001,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -14124,8 +14124,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -14148,24 +14148,24 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -14175,8 +14175,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -14189,8 +14189,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -14212,10 +14212,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -14225,8 +14225,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -14239,8 +14239,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -14262,10 +14262,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -14273,8 +14273,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -14297,21 +14297,21 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -14340,7 +14340,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -14360,7 +14360,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -14549,15 +14549,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -14571,7 +14571,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -14760,15 +14760,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -14851,9 +14851,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -14877,9 +14877,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -14906,7 +14906,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -14930,11 +14930,11 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -14959,14 +14959,14 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -15089,7 +15089,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"IMAGE">;
     source: z.ZodObject<{
@@ -15097,31 +15097,31 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
-        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
-            width: z.ZodOptional<z.ZodNumber>;
-            height: z.ZodOptional<z.ZodNumber>;
-            duration: z.ZodOptional<z.ZodNumber>;
+            width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             format: z.ZodOptional<z.ZodString>;
             codec: z.ZodOptional<z.ZodString>;
-            bitrate: z.ZodOptional<z.ZodNumber>;
-            fps: z.ZodOptional<z.ZodNumber>;
+            bitrate: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            fps: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             hasAudio: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
         transcriptFormat: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -15130,8 +15130,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -15149,8 +15149,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -15271,8 +15271,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -15295,24 +15295,24 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -15322,8 +15322,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -15336,8 +15336,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -15359,10 +15359,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -15372,8 +15372,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -15386,8 +15386,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -15409,10 +15409,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -15420,8 +15420,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -15442,30 +15442,30 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     }, z.core.$strip>;
     crop: z.ZodOptional<z.ZodObject<{
-        xPercent: z.ZodPrefault<z.ZodNumber>;
-        yPercent: z.ZodPrefault<z.ZodNumber>;
-        widthPercent: z.ZodPrefault<z.ZodNumber>;
-        heightPercent: z.ZodPrefault<z.ZodNumber>;
+        xPercent: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        yPercent: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        widthPercent: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        heightPercent: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
 }, z.core.$strict>, z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -15494,7 +15494,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -15514,7 +15514,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -15703,15 +15703,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -15725,7 +15725,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -15914,15 +15914,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -16005,9 +16005,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -16031,9 +16031,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -16060,7 +16060,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -16084,11 +16084,11 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -16113,14 +16113,14 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -16243,7 +16243,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"GIF">;
     source: z.ZodObject<{
@@ -16251,31 +16251,31 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
-        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
-            width: z.ZodOptional<z.ZodNumber>;
-            height: z.ZodOptional<z.ZodNumber>;
-            duration: z.ZodOptional<z.ZodNumber>;
+            width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             format: z.ZodOptional<z.ZodString>;
             codec: z.ZodOptional<z.ZodString>;
-            bitrate: z.ZodOptional<z.ZodNumber>;
-            fps: z.ZodOptional<z.ZodNumber>;
+            bitrate: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            fps: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             hasAudio: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
         transcriptFormat: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -16284,8 +16284,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -16303,8 +16303,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -16425,8 +16425,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -16449,24 +16449,24 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -16476,8 +16476,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -16490,8 +16490,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -16513,10 +16513,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -16526,8 +16526,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -16540,8 +16540,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -16563,10 +16563,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -16574,8 +16574,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -16597,27 +16597,27 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
     }, z.core.$strip>;
     playback: z.ZodOptional<z.ZodObject<{
         loop: z.ZodPrefault<z.ZodBoolean>;
-        speed: z.ZodPrefault<z.ZodNumber>;
+        speed: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
 }, z.core.$strict>, z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -16646,7 +16646,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -16666,7 +16666,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -16855,15 +16855,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -16877,7 +16877,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -17066,15 +17066,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -17157,9 +17157,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -17183,9 +17183,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -17212,7 +17212,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -17236,11 +17236,11 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -17265,14 +17265,14 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -17395,7 +17395,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"VIDEO">;
     source: z.ZodObject<{
@@ -17403,31 +17403,31 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
-        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
-            width: z.ZodOptional<z.ZodNumber>;
-            height: z.ZodOptional<z.ZodNumber>;
-            duration: z.ZodOptional<z.ZodNumber>;
+            width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             format: z.ZodOptional<z.ZodString>;
             codec: z.ZodOptional<z.ZodString>;
-            bitrate: z.ZodOptional<z.ZodNumber>;
-            fps: z.ZodOptional<z.ZodNumber>;
+            bitrate: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            fps: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             hasAudio: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
         transcriptFormat: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -17436,8 +17436,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -17455,8 +17455,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -17577,8 +17577,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -17601,24 +17601,24 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -17628,8 +17628,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -17642,8 +17642,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -17665,10 +17665,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -17678,8 +17678,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -17692,8 +17692,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -17715,10 +17715,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -17726,8 +17726,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -17747,40 +17747,40 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>;
         backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     }, z.core.$strip>;
-    volume: z.ZodPrefault<z.ZodNumber>;
+    volume: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     muted: z.ZodPrefault<z.ZodBoolean>;
     playback: z.ZodOptional<z.ZodObject<{
         autoplay: z.ZodPrefault<z.ZodBoolean>;
         loop: z.ZodPrefault<z.ZodBoolean>;
-        playbackRate: z.ZodPrefault<z.ZodNumber>;
-        startAt: z.ZodPrefault<z.ZodNumber>;
-        endAt: z.ZodOptional<z.ZodNumber>;
+        playbackRate: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        startAt: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
     crop: z.ZodOptional<z.ZodObject<{
-        x: z.ZodPrefault<z.ZodNumber>;
-        y: z.ZodPrefault<z.ZodNumber>;
-        width: z.ZodPrefault<z.ZodNumber>;
-        height: z.ZodPrefault<z.ZodNumber>;
+        x: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        y: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        width: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        height: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
 }, z.core.$strict>, z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -17809,7 +17809,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -17829,7 +17829,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -18018,15 +18018,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -18040,7 +18040,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -18229,15 +18229,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -18320,9 +18320,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -18346,9 +18346,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -18375,7 +18375,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -18399,11 +18399,11 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -18428,14 +18428,14 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -18558,7 +18558,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"SHAPE">;
     shape: z.ZodUnion<readonly [z.ZodObject<{
@@ -18584,13 +18584,13 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 "bottom-left": "bottom-left";
             }>>;
             clockwise: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
-            strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+            strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"radial">;
-            startAngle: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+            startAngle: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             clockwise: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
-            innerRadius: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-            strokeWidth: z.ZodOptional<z.ZodNumber>;
+            innerRadius: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            strokeWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             capStyle: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 butt: "butt";
                 round: "round";
@@ -18610,12 +18610,12 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     bottom: "bottom";
                 }>;
                 reverse: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
-                offset: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+                offset: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>;
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"custom">;
             pathData: z.ZodString;
-            strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+            strokeWidth: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             capStyle: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 butt: "butt";
                 round: "round";
@@ -18640,16 +18640,16 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         cornerRadius: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>]>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -18658,8 +18658,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -18677,8 +18677,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -18799,8 +18799,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -18823,24 +18823,24 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -18850,8 +18850,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -18864,8 +18864,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -18887,10 +18887,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -18900,8 +18900,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -18914,8 +18914,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -18937,10 +18937,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -18948,8 +18948,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -18974,8 +18974,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -18987,21 +18987,21 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -19030,7 +19030,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -19050,7 +19050,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -19239,15 +19239,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -19261,7 +19261,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -19450,15 +19450,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -19541,9 +19541,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -19567,9 +19567,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -19596,7 +19596,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -19620,11 +19620,11 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -19649,14 +19649,14 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -19779,7 +19779,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"AUDIO">;
     source: z.ZodObject<{
@@ -19787,31 +19787,31 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
-        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
-            width: z.ZodOptional<z.ZodNumber>;
-            height: z.ZodOptional<z.ZodNumber>;
-            duration: z.ZodOptional<z.ZodNumber>;
+            width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             format: z.ZodOptional<z.ZodString>;
             codec: z.ZodOptional<z.ZodString>;
-            bitrate: z.ZodOptional<z.ZodNumber>;
-            fps: z.ZodOptional<z.ZodNumber>;
+            bitrate: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            fps: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             hasAudio: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
         transcriptFormat: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -19820,8 +19820,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -19839,8 +19839,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -19961,8 +19961,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -19985,24 +19985,24 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -20012,8 +20012,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -20026,8 +20026,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -20049,10 +20049,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -20062,8 +20062,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -20076,8 +20076,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -20099,10 +20099,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -20110,8 +20110,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -20131,27 +20131,27 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>;
         backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     }, z.core.$strip>;
-    volume: z.ZodPrefault<z.ZodNumber>;
+    volume: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     muted: z.ZodPrefault<z.ZodBoolean>;
 }, z.core.$strict>, z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -20180,7 +20180,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -20200,7 +20200,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -20389,15 +20389,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -20411,7 +20411,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -20600,15 +20600,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -20691,9 +20691,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -20717,9 +20717,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -20746,7 +20746,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -20770,11 +20770,11 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -20799,14 +20799,14 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -20929,20 +20929,20 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"COLOR">;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -21014,8 +21014,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -21038,24 +21038,24 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -21065,8 +21065,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -21079,8 +21079,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -21102,10 +21102,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -21115,8 +21115,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -21129,8 +21129,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -21152,10 +21152,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -21163,8 +21163,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -21189,21 +21189,21 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -21232,7 +21232,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -21252,7 +21252,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -21441,15 +21441,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -21463,7 +21463,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -21652,15 +21652,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -21743,9 +21743,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -21769,9 +21769,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -21798,7 +21798,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -21822,11 +21822,11 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -21851,14 +21851,14 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -21981,20 +21981,20 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"GRADIENT">;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -22066,8 +22066,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -22090,24 +22090,24 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -22117,8 +22117,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -22131,8 +22131,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -22154,10 +22154,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -22167,8 +22167,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -22181,8 +22181,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -22204,10 +22204,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -22215,8 +22215,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -22241,8 +22241,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -22254,21 +22254,21 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     timeline: z.ZodObject<{
-        startAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
-        endAt: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
+        startAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
+        endAt: z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number, number>>;
     }, z.core.$strip>;
     animations: z.ZodPrefault<z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodOptional<z.ZodBoolean>>;
         list: z.ZodPrefault<z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
-            startAt: z.ZodOptional<z.ZodNumber>;
+            startAt: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animation: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 id: z.ZodString;
                 presetId: z.ZodOptional<z.ZodString>;
                 version: z.ZodOptional<z.ZodString>;
                 description: z.ZodOptional<z.ZodString>;
-                duration: z.ZodOptional<z.ZodNumber>;
+                duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
                 setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     type: z.ZodLiteral<"style">;
@@ -22297,7 +22297,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 timeline: z.ZodArray<z.ZodObject<{
                     id: z.ZodOptional<z.ZodString>;
                     target: z.ZodOptional<z.ZodString>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -22317,7 +22317,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             from: "from";
                             fromTo: "fromTo";
                         }>;
-                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                             anchor: z.ZodString;
                             anchorPoint: z.ZodOptional<z.ZodEnum<{
                                 start: "start";
@@ -22506,15 +22506,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                                 dataKey: z.ZodOptional<z.ZodString>;
                                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                                each: z.ZodOptional<z.ZodNumber>;
-                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                                 axis: z.ZodOptional<z.ZodEnum<{
                                     x: "x";
                                     y: "y";
                                 }>>;
                                 ease: z.ZodOptional<z.ZodString>;
-                                amount: z.ZodOptional<z.ZodNumber>;
+                                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                             }, z.core.$strip>]>>;
                         }, z.core.$catchall<z.ZodAny>>;
                     }, z.core.$strip>>;
@@ -22528,7 +22528,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         from: "from";
                         fromTo: "fromTo";
                     }>;
-                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+                    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                         anchor: z.ZodString;
                         anchorPoint: z.ZodOptional<z.ZodEnum<{
                             start: "start";
@@ -22717,15 +22717,15 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                             dataKey: z.ZodOptional<z.ZodString>;
                             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                            each: z.ZodOptional<z.ZodNumber>;
-                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                             axis: z.ZodOptional<z.ZodEnum<{
                                 x: "x";
                                 y: "y";
                             }>>;
                             ease: z.ZodOptional<z.ZodString>;
-                            amount: z.ZodOptional<z.ZodNumber>;
+                            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                         }, z.core.$strip>]>>;
                     }, z.core.$catchall<z.ZodAny>>;
                 }, z.core.$strip>;
@@ -22808,9 +22808,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"layoutSplit">;
-            pieces: z.ZodOptional<z.ZodInt>;
-            sceneWidth: z.ZodOptional<z.ZodNumber>;
-            sceneHeight: z.ZodOptional<z.ZodNumber>;
+            pieces: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneWidth: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            sceneHeight: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             chunks: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodAny>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
@@ -22834,9 +22834,9 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 luminosity: "luminosity";
             }>>;
             type: z.ZodLiteral<"rotationRandomizer">;
-            maxRotation: z.ZodPrefault<z.ZodNumber>;
+            maxRotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             animate: z.ZodPrefault<z.ZodBoolean>;
-            seed: z.ZodOptional<z.ZodInt>;
+            seed: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -22863,7 +22863,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"fillBackgroundBlur">;
             enabled: z.ZodPrefault<z.ZodBoolean>;
-            blurAmount: z.ZodPrefault<z.ZodNumber>;
+            blurAmount: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
             blendMode: z.ZodPrefault<z.ZodEnum<{
@@ -22887,11 +22887,11 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodOptional<z.ZodString>;
-            blur: z.ZodOptional<z.ZodNumber>;
-            size: z.ZodOptional<z.ZodNumber>;
-            offsetX: z.ZodOptional<z.ZodNumber>;
-            offsetY: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             type: z.ZodLiteral<"textShadow">;
         }, z.core.$strip>, z.ZodObject<{
             intensity: z.ZodPrefault<z.ZodNumber>;
@@ -22916,14 +22916,14 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
             color: z.ZodString;
-            size: z.ZodOptional<z.ZodNumber>;
-            opacity: z.ZodOptional<z.ZodNumber>;
+            size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                 solid: "solid";
                 dashed: "dashed";
                 dotted: "dotted";
             }>>>;
-            dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             type: z.ZodLiteral<"textOutline">;
         }, z.core.$strip>]>>, z.ZodArray<z.ZodAny>]>, z.ZodTransform<Record<string, {
             intensity: number;
@@ -23046,23 +23046,23 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>>>;
     }, z.core.$strip>>;
     visible: z.ZodPrefault<z.ZodBoolean>;
-    order: z.ZodPrefault<z.ZodNumber>;
+    order: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     checksum: z.ZodOptional<z.ZodString>;
     type: z.ZodLiteral<"SUBTITLES">;
     source: z.ZodOptional<z.ZodObject<{
         streamUrl: z.ZodOptional<z.ZodURL>;
         assetId: z.ZodOptional<z.ZodString>;
         languageCode: z.ZodOptional<z.ZodString>;
-        startAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
-        endAt: z.ZodOptional<z.ZodPipe<z.ZodNumber, z.ZodTransform<number | null | undefined, number>>>;
+        startAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
+        endAt: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodTransform<number | null | undefined, number>>>;
         metadata: z.ZodOptional<z.ZodObject<{
-            width: z.ZodOptional<z.ZodNumber>;
-            height: z.ZodOptional<z.ZodNumber>;
-            duration: z.ZodOptional<z.ZodNumber>;
+            width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             format: z.ZodOptional<z.ZodString>;
             codec: z.ZodOptional<z.ZodString>;
-            bitrate: z.ZodOptional<z.ZodNumber>;
-            fps: z.ZodOptional<z.ZodNumber>;
+            bitrate: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            fps: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             hasAudio: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
         transcriptFormat: z.ZodOptional<z.ZodString>;
@@ -23076,20 +23076,20 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         assetId: z.ZodOptional<z.ZodString>;
         layerId: z.ZodOptional<z.ZodString>;
         componentId: z.ZodOptional<z.ZodString>;
-        offset: z.ZodPrefault<z.ZodNumber>;
+        offset: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>;
     text: z.ZodOptional<z.ZodString>;
     appearance: z.ZodObject<{
-        x: z.ZodNumber;
-        y: z.ZodNumber;
-        width: z.ZodNumber;
-        height: z.ZodNumber;
-        offsetX: z.ZodOptional<z.ZodNumber>;
-        offsetY: z.ZodOptional<z.ZodNumber>;
-        opacity: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        rotation: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
-        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        opacity: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -23098,8 +23098,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -23117,8 +23117,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -23240,8 +23240,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -23264,24 +23264,24 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodOptional<z.ZodString>;
-                blur: z.ZodOptional<z.ZodNumber>;
-                size: z.ZodOptional<z.ZodNumber>;
-                offsetX: z.ZodOptional<z.ZodNumber>;
-                offsetY: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             outline: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
                 color: z.ZodString;
-                size: z.ZodOptional<z.ZodNumber>;
-                opacity: z.ZodOptional<z.ZodNumber>;
+                size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
                     solid: "solid";
                     dashed: "dashed";
                     dotted: "dotted";
                 }>>>;
-                dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+                dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             }, z.core.$strip>>>;
             activeLine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -23291,8 +23291,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -23305,8 +23305,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -23328,10 +23328,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             activeWord: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -23341,8 +23341,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -23355,8 +23355,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         radial: "radial";
                     }>;
                     colors: z.ZodArray<z.ZodString>;
-                    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                    angle: z.ZodOptional<z.ZodNumber>;
+                    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                     position: z.ZodOptional<z.ZodString>;
                     shape: z.ZodOptional<z.ZodEnum<{
                         ellipse: "ellipse";
@@ -23378,10 +23378,10 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     800: "800";
                     900: "900";
                 }>>;
-                scale: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingX: z.ZodOptional<z.ZodNumber>;
-                backgroundPaddingY: z.ZodOptional<z.ZodNumber>;
-                backgroundBorderRadius: z.ZodOptional<z.ZodNumber>;
+                scale: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundPaddingY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                backgroundBorderRadius: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>>>;
             highlightColors: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -23389,8 +23389,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     radial: "radial";
                 }>;
                 colors: z.ZodArray<z.ZodString>;
-                stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-                angle: z.ZodOptional<z.ZodNumber>;
+                stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+                angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 position: z.ZodOptional<z.ZodString>;
                 shape: z.ZodOptional<z.ZodEnum<{
                     ellipse: "ellipse";
@@ -23413,12 +23413,12 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             top: "top";
             bottom: "bottom";
         }>>>;
-        aiEmojisPlacementOffset: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
+        aiEmojisPlacementOffset: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         aiEmojis: z.ZodOptional<z.ZodArray<z.ZodObject<{
             text: z.ZodString;
             emoji: z.ZodString;
-            startAt: z.ZodNumber;
-            endAt: z.ZodNumber;
+            startAt: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            endAt: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
             componentId: z.ZodOptional<z.ZodString>;
         }, z.core.$strip>>>;
         highlighterColor1: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
@@ -23427,8 +23427,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -23441,8 +23441,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -23455,8 +23455,8 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";

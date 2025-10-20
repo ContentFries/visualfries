@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { isValidColor } from './utils.js';
 import { EffectBaseShape, EffectShape as BaseEffectShape, BlurEffectShape, ShadowShape as StructuredShadowShape, OutlineShape as StructuredOutlineShape, ColorTypeShape, GradientDefinitionShape } from './properties.js';
 import { AnimationReferenceShape } from './animations.js';
+import { coerceValidNumber, coerceNumber, coercePositiveNumber, coerceNormalizedNumber, coerceNonNegativeNumber, coerceInteger } from './utils.js';
 // Utility functions
 const toFixed3 = (val) => parseFloat(val.toFixed(3));
 const toFixed3Optional = (val) => {
@@ -74,10 +75,10 @@ export const TextAppearanceShape = z.object({
         color: ColorTypeShape.nullable().optional(),
         backgroundColor: ColorTypeShape.nullable().optional(),
         fontWeight: FontWeightShape.optional(),
-        scale: z.number().positive().optional(),
-        backgroundPaddingX: z.number().min(0).optional(),
-        backgroundPaddingY: z.number().min(0).optional(),
-        backgroundBorderRadius: z.number().min(0).optional()
+        scale: coercePositiveNumber().optional(),
+        backgroundPaddingX: coerceNonNegativeNumber().optional(),
+        backgroundPaddingY: coerceNonNegativeNumber().optional(),
+        backgroundBorderRadius: coerceNonNegativeNumber().optional()
     })
         .nullable()
         .optional(),
@@ -87,10 +88,10 @@ export const TextAppearanceShape = z.object({
         color: ColorTypeShape.nullable().optional(),
         backgroundColor: ColorTypeShape.nullable().optional(),
         fontWeight: FontWeightShape.optional(),
-        scale: z.number().positive().optional(),
-        backgroundPaddingX: z.number().min(0).optional(),
-        backgroundPaddingY: z.number().min(0).optional(),
-        backgroundBorderRadius: z.number().min(0).optional()
+        scale: coercePositiveNumber().optional(),
+        backgroundPaddingX: coerceNonNegativeNumber().optional(),
+        backgroundPaddingY: coerceNonNegativeNumber().optional(),
+        backgroundBorderRadius: coerceNonNegativeNumber().optional()
     })
         .nullable()
         .optional(),
@@ -117,16 +118,16 @@ export const BackgroundShape = z.union([BgShape, ColorTypeShape]).transform((val
  * General appearance schema for all components
  */
 export const AppearanceShape = z.object({
-    x: z.number(),
-    y: z.number(),
-    width: z.number().positive(),
-    height: z.number().positive(),
-    offsetX: z.number().optional(), // 0 = left, 132 = 132px from left
-    offsetY: z.number().optional(), // 0 = top, 132 = 132px from top
-    opacity: z.number().min(0).max(1).prefault(1).optional(),
-    rotation: z.number().prefault(0).optional(),
-    scaleX: z.number().prefault(1).optional(),
-    scaleY: z.number().prefault(1).optional(),
+    x: coerceValidNumber(),
+    y: coerceValidNumber(),
+    width: coercePositiveNumber(),
+    height: coercePositiveNumber(),
+    offsetX: coerceValidNumber().optional(), // 0 = left, 132 = 132px from left
+    offsetY: coerceValidNumber().optional(), // 0 = top, 132 = 132px from top
+    opacity: coerceNormalizedNumber().prefault(1).optional(),
+    rotation: coerceValidNumber().prefault(0).optional(),
+    scaleX: coerceValidNumber().prefault(1).optional(),
+    scaleY: coerceValidNumber().prefault(1).optional(),
     background: BackgroundShape.nullable().prefault(null).optional(), // ColorTypeShape
     // Text-specific appearance properties
     text: TextAppearanceShape.optional(),
@@ -174,9 +175,12 @@ const GradientAppearanceShape = AppearanceShape.extend({
 export const AIEmojiShape = z.object({
     text: z.string(),
     emoji: z.string(),
-    startAt: z.number(),
-    endAt: z.number(),
+    startAt: coerceValidNumber(),
+    endAt: coerceValidNumber(),
     componentId: z.string().optional()
+}).refine((data) => data.startAt <= data.endAt, {
+    error: 'endAt must be greater than or equal to startAt',
+    path: ['endAt']
 });
 /**
  * Subtitle appearance for SUBTITLES components
@@ -187,7 +191,7 @@ const SubtitleAppearanceShape = AppearanceShape.extend({
     horizontalAlign: z.enum(['left', 'center', 'right']).optional(),
     hasAIEmojis: z.boolean().prefault(false).optional(),
     aiEmojisPlacement: z.enum(['top', 'bottom']).prefault('top').optional(),
-    aiEmojisPlacementOffset: z.number().prefault(30).optional(),
+    aiEmojisPlacementOffset: coerceValidNumber().prefault(30).optional(),
     aiEmojis: z.array(AIEmojiShape).optional(),
     highlighterColor1: ColorTypeShape.optional(),
     highlighterColor2: ColorTypeShape.optional(),
@@ -196,9 +200,14 @@ const SubtitleAppearanceShape = AppearanceShape.extend({
 /**
  * Timeline structure for components
  */
-export const ComponentTimelineShape = z.object({
-    startAt: z.number().min(0).transform(toFixed3),
-    endAt: z.number().min(0).transform(toFixed3)
+export const ComponentTimelineShape = z
+    .object({
+    startAt: coerceNonNegativeNumber().transform(toFixed3),
+    endAt: coerceNonNegativeNumber().transform(toFixed3)
+})
+    .refine((t) => t.startAt <= t.endAt, {
+    message: 'timeline endAt must be ≥ startAt',
+    path: ['endAt']
 });
 /**
  * Animation structure
@@ -206,7 +215,7 @@ export const ComponentTimelineShape = z.object({
 export const AnimationShape = z.object({
     id: z.string(),
     name: z.string(),
-    startAt: z.number().min(0).optional(),
+    startAt: coerceNonNegativeNumber().optional(),
     animation: AnimationReferenceShape,
     enabled: z.boolean().prefault(true).optional()
 });
@@ -214,27 +223,42 @@ export const AnimationShape = z.object({
  * Source metadata for media components
  */
 export const SourceMetadataShape = z.object({
-    width: z.number().positive().optional(),
-    height: z.number().positive().optional(),
-    duration: z.number().min(0).optional(),
+    width: coercePositiveNumber().optional(),
+    height: coercePositiveNumber().optional(),
+    duration: coerceNonNegativeNumber().optional(),
     format: z.string().optional(),
     codec: z.string().optional(),
-    bitrate: z.number().positive().optional(),
-    fps: z.number().positive().optional(),
+    bitrate: coercePositiveNumber().optional(),
+    fps: coercePositiveNumber().optional(),
     hasAudio: z.boolean().optional()
 });
 /**
  * Component source definition
  */
-export const ComponentSourceShape = z.object({
+export const ComponentSourceShape = z
+    .object({
     url: z.url().optional(), // might have assetId. However should be required for video and other components
     streamUrl: z.url().optional(),
     assetId: z.string().optional(),
     languageCode: z.string().optional(),
-    startAt: z.number().min(0).transform(toFixed3Optional).optional(),
-    endAt: z.number().min(0).transform(toFixed3Optional).optional(),
+    startAt: coerceNonNegativeNumber().transform(toFixed3Optional).optional(),
+    endAt: coerceNonNegativeNumber().transform(toFixed3Optional).optional(),
     metadata: SourceMetadataShape.optional(),
     transcriptFormat: z.string().optional()
+})
+    .refine((data) => {
+    // Only validate if both startAt and endAt are present and not null
+    if (data.startAt !== undefined &&
+        data.startAt !== null &&
+        data.endAt !== undefined &&
+        data.endAt !== null) {
+        return data.startAt <= data.endAt;
+    }
+    // If either is undefined or null, validation passes
+    return true;
+}, {
+    message: 'endAt must be greater than or equal to startAt',
+    path: ['endAt'] // Error targets the endAt field
 });
 /**
  * Timing anchor for components that need synchronization (like subtitles)
@@ -244,16 +268,16 @@ export const TimingAnchorShape = z.object({
     assetId: z.string().optional(),
     layerId: z.string().optional(),
     componentId: z.string().optional(),
-    offset: z.number().prefault(0)
+    offset: coerceValidNumber().prefault(0)
 });
 /**
  * Layout split effect schema
  */
 export const LayoutSplitEffectShape = EffectBaseShape.extend({
     type: z.literal('layoutSplit'),
-    pieces: z.int().positive().optional(),
-    sceneWidth: z.number().positive().optional(),
-    sceneHeight: z.number().positive().optional(),
+    pieces: coerceInteger(1).optional(),
+    sceneWidth: coercePositiveNumber().optional(),
+    sceneHeight: coercePositiveNumber().optional(),
     chunks: z.array(z.record(z.string(), z.any())).optional()
 });
 /**
@@ -261,15 +285,15 @@ export const LayoutSplitEffectShape = EffectBaseShape.extend({
  */
 export const RotationRandomizerEffectShape = EffectBaseShape.extend({
     type: z.literal('rotationRandomizer'),
-    maxRotation: z.number().prefault(2),
+    maxRotation: coerceValidNumber().prefault(2),
     animate: z.boolean().prefault(true),
-    seed: z.int().optional()
+    seed: coerceInteger().optional()
 });
 export const FillBackgroundBlurEffectShape = z.object({
     type: z.literal('fillBackgroundBlur'),
     enabled: z.boolean().prefault(true),
     // Using the hardcoded value from PixiSplitScreenDisplayObjectHook.ts as default
-    blurAmount: z.number().min(0).prefault(50)
+    blurAmount: coerceNonNegativeNumber().prefault(50)
     // Note: intensity and blendMode might not be applicable here, keeping it simple.
 });
 /**
@@ -346,7 +370,7 @@ const ComponentBaseWithoutAppearanceShape = z.object({
     animations: ComponentAnimationsShape.prefault({}),
     effects: ComponentEffectsShape.prefault({}),
     visible: z.boolean().prefault(true),
-    order: z.number().prefault(0),
+    order: coerceValidNumber().prefault(0),
     checksum: z.string().optional()
 });
 /**
@@ -374,10 +398,10 @@ export const ImageComponentShape = ComponentBaseWithoutAppearanceShape.extend({
     appearance: AppearanceShape,
     crop: z
         .object({
-        xPercent: z.number().min(0).max(1).prefault(0),
-        yPercent: z.number().min(0).max(1).prefault(0),
-        widthPercent: z.number().min(0).max(1).prefault(1),
-        heightPercent: z.number().min(0).max(1).prefault(1)
+        xPercent: coerceNormalizedNumber().prefault(0),
+        yPercent: coerceNormalizedNumber().prefault(0),
+        widthPercent: coerceNormalizedNumber().prefault(1),
+        heightPercent: coerceNormalizedNumber().prefault(1)
     })
         .optional()
 }).strict();
@@ -391,7 +415,7 @@ export const GifComponentShape = ComponentBaseWithoutAppearanceShape.extend({
     playback: z
         .object({
         loop: z.boolean().prefault(true),
-        speed: z.number().positive().prefault(1)
+        speed: coercePositiveNumber().prefault(1)
     })
         .optional()
 }).strict();
@@ -402,23 +426,37 @@ export const VideoComponentShape = ComponentBaseWithoutAppearanceShape.extend({
     type: z.literal('VIDEO'),
     source: ComponentSourceShape,
     appearance: AppearanceShape,
-    volume: z.number().min(0).max(1).prefault(1),
+    volume: coerceNormalizedNumber().prefault(1),
     muted: z.boolean().prefault(false),
     playback: z
         .object({
         autoplay: z.boolean().prefault(true),
         loop: z.boolean().prefault(false),
-        playbackRate: z.number().positive().prefault(1),
-        startAt: z.number().min(0).prefault(0),
-        endAt: z.number().optional()
+        playbackRate: coercePositiveNumber().prefault(1),
+        startAt: coerceNonNegativeNumber().prefault(0),
+        endAt: coerceValidNumber().optional()
+    })
+        .refine((data) => {
+        // Only validate if both startAt and endAt are present and not null
+        if (data.startAt !== undefined &&
+            data.startAt !== null &&
+            data.endAt !== undefined &&
+            data.endAt !== null) {
+            return data.startAt <= data.endAt;
+        }
+        // If either is undefined or null, validation passes
+        return true;
+    }, {
+        error: 'endAt must be greater than or equal to startAt',
+        path: ['endAt']
     })
         .optional(),
     crop: z
         .object({
-        x: z.number().prefault(0),
-        y: z.number().prefault(0),
-        width: z.number().min(0).max(1).prefault(1),
-        height: z.number().min(0).max(1).prefault(1)
+        x: coerceValidNumber().prefault(0),
+        y: coerceValidNumber().prefault(0),
+        width: coerceNormalizedNumber().prefault(1),
+        height: coerceNormalizedNumber().prefault(1)
     })
         .optional()
 }).strict();
@@ -437,14 +475,14 @@ export const PerimeterProgressConfigShape = z.object({
         .enum(['top-left', 'top-right', 'bottom-right', 'bottom-left'])
         .prefault('top-left'),
     clockwise: z.boolean().prefault(true).optional(),
-    strokeWidth: z.number().positive().prefault(4).optional()
+    strokeWidth: coercePositiveNumber().prefault(4).optional()
 });
 export const RadialProgressConfigShape = z.object({
     type: z.literal('radial'),
-    startAngle: z.number().prefault(-90).optional(), // -90 = top (12 o'clock), 0 = right (3 o'clock)
+    startAngle: coerceValidNumber().prefault(-90).optional(), // -90 = top (12 o'clock), 0 = right (3 o'clock)
     clockwise: z.boolean().prefault(true).optional(),
-    innerRadius: z.number().min(0).max(1).prefault(0).optional(), // 0 = filled circle, >0 = ring/donut
-    strokeWidth: z.number().positive().optional(), // For ring style
+    innerRadius: coerceNormalizedNumber().prefault(0).optional(), // 0 = filled circle, >0 = ring/donut
+    strokeWidth: coercePositiveNumber().optional(), // For ring style
     capStyle: z.enum(['butt', 'round', 'square']).prefault('round').optional()
 });
 export const DoubleProgressConfigShape = z.object({
@@ -454,7 +492,7 @@ export const DoubleProgressConfigShape = z.object({
         direction: z.enum(['horizontal', 'vertical']),
         position: z.enum(['top', 'bottom', 'left', 'right']),
         reverse: z.boolean().prefault(false).optional(),
-        offset: z.number().prefault(0).optional() // Offset from edge in pixels
+        offset: coerceValidNumber().prefault(0).optional() // Offset from edge in pixels
     }))
         .min(2)
         .max(4) // At least 2 paths, max 4 for performance
@@ -462,7 +500,7 @@ export const DoubleProgressConfigShape = z.object({
 export const CustomProgressConfigShape = z.object({
     type: z.literal('custom'),
     pathData: z.string(), // SVG path data for custom progress shapes
-    strokeWidth: z.number().positive().prefault(4).optional(),
+    strokeWidth: coercePositiveNumber().prefault(4).optional(),
     capStyle: z.enum(['butt', 'round', 'square']).prefault('round').optional()
 });
 /**
@@ -509,7 +547,7 @@ export const AudioComponentShape = ComponentBaseWithoutAppearanceShape.extend({
     type: z.literal('AUDIO'),
     source: ComponentSourceShape,
     appearance: AppearanceShape,
-    volume: z.number().min(0).max(1).prefault(1),
+    volume: coerceNormalizedNumber().prefault(1),
     muted: z.boolean().prefault(false)
 }).strict();
 /**
@@ -531,7 +569,7 @@ export const GradientComponentShape = ComponentBaseWithoutAppearanceShape.extend
  */
 export const SubtitleComponentShape = ComponentBaseWithoutAppearanceShape.extend({
     type: z.literal('SUBTITLES'),
-    source: ComponentSourceShape.extend({
+    source: ComponentSourceShape.safeExtend({
         url: z.url().optional()
         // Subtitles might need specific source fields, e.g., format
     }).optional(),

@@ -18,10 +18,10 @@ export const coerceValidNumber = () =>
 	z.coerce
 		.number()
 		.refine((val) => !isNaN(val), {
-			message: 'Must be a valid number'
+			error: 'Must be a valid number'
 		})
 		.refine((val) => isFinite(val), {
-			message: 'Must be a finite number'
+			error: 'Must be a finite number'
 		});
 
 /**
@@ -33,16 +33,16 @@ export const coerceNumber = (min?: number, max?: number) =>
 	z.coerce
 		.number()
 		.refine((val) => !isNaN(val), {
-			message: 'Must be a valid number'
+			error: 'Must be a valid number'
 		})
 		.refine((val) => isFinite(val), {
-			message: 'Must be a finite number'
+			error: 'Must be a finite number'
 		})
 		.refine((val) => min === undefined || val >= min, {
-			message: `Must be >= ${min}`
+			error: `Must be >= ${min}`
 		})
 		.refine((val) => max === undefined || val <= max, {
-			message: `Must be <= ${max}`
+			error: `Must be <= ${max}`
 		});
 
 /**
@@ -53,13 +53,13 @@ export const coercePositiveNumber = () =>
 	z.coerce
 		.number()
 		.refine((val) => !isNaN(val), {
-			message: 'Must be a valid number'
+			error: 'Must be a valid number'
 		})
 		.refine((val) => isFinite(val), {
-			message: 'Must be a finite number'
+			error: 'Must be a finite number'
 		})
 		.refine((val) => val > 0, {
-			message: 'Must be positive (> 0)'
+			error: 'Must be positive (> 0)'
 		});
 
 /**
@@ -70,13 +70,13 @@ export const coerceNormalizedNumber = () =>
 	z.coerce
 		.number()
 		.refine((val) => !isNaN(val), {
-			message: 'Must be a valid number'
+			error: 'Must be a valid number'
 		})
 		.refine((val) => isFinite(val), {
-			message: 'Must be a finite number'
+			error: 'Must be a finite number'
 		})
 		.refine((val) => val >= 0 && val <= 1, {
-			message: 'Must be between 0 and 1'
+			error: 'Must be between 0 and 1'
 		});
 
 /**
@@ -87,13 +87,13 @@ export const coerceNonNegativeNumber = () =>
 	z.coerce
 		.number()
 		.refine((val) => !isNaN(val), {
-			message: 'Must be a valid number'
+			error: 'Must be a valid number'
 		})
 		.refine((val) => isFinite(val), {
-			message: 'Must be a finite number'
+			error: 'Must be a finite number'
 		})
 		.refine((val) => val >= 0, {
-			message: 'Must be >= 0'
+			error: 'Must be >= 0'
 		});
 
 /**
@@ -104,17 +104,17 @@ export const coerceInteger = (min?: number, max?: number) =>
 	z.coerce
 		.number()
 		.refine((val) => !isNaN(val), {
-			message: 'Must be a valid number'
+			error: 'Must be a valid number'
 		})
 		.refine((val) => isFinite(val), {
-			message: 'Must be a finite number'
+			error: 'Must be a finite number'
 		})
 		.refine((val) => Number.isInteger(val), {
-			message: 'Must be an integer'
+			error: 'Must be an integer'
 		})
 		.refine((val) => min === undefined || val >= min, {
-			message: `Must be >= ${min}`
+			error: `Must be >= ${min}`
 		})
 		.refine((val) => max === undefined || val <= max, {
-			message: `Must be <= ${max}`
+			error: `Must be <= ${max}`
 		});

@@ -15,7 +15,8 @@ export function isValidColor(color: string) {
  * Prevents NaN, Infinity, and other invalid numeric states.
  */
 export const coerceValidNumber = () =>
-	z.coerce.number()
+	z.coerce
+		.number()
 		.refine((val) => !isNaN(val), {
 			message: 'Must be a valid number'
 		})
@@ -29,7 +30,8 @@ export const coerceValidNumber = () =>
  * @example coerceNumber(0) // For dimensions, must be >= 0
  */
 export const coerceNumber = (min?: number, max?: number) =>
-	z.coerce.number()
+	z.coerce
+		.number()
 		.refine((val) => !isNaN(val), {
 			message: 'Must be a valid number'
 		})
@@ -48,7 +50,8 @@ export const coerceNumber = (min?: number, max?: number) =>
  * Useful for dimensions, sizes, durations, etc.
  */
 export const coercePositiveNumber = () =>
-	z.coerce.number()
+	z.coerce
+		.number()
 		.refine((val) => !isNaN(val), {
 			message: 'Must be a valid number'
 		})
@@ -64,7 +67,8 @@ export const coercePositiveNumber = () =>
  * Useful for opacity, scale factors, percentages, etc.
  */
 export const coerceNormalizedNumber = () =>
-	z.coerce.number()
+	z.coerce
+		.number()
 		.refine((val) => !isNaN(val), {
 			message: 'Must be a valid number'
 		})
@@ -80,7 +84,8 @@ export const coerceNormalizedNumber = () =>
  * Useful for offsets, blur radius, etc.
  */
 export const coerceNonNegativeNumber = () =>
-	z.coerce.number()
+	z.coerce
+		.number()
 		.refine((val) => !isNaN(val), {
 			message: 'Must be a valid number'
 		})
@@ -96,7 +101,8 @@ export const coerceNonNegativeNumber = () =>
  * Useful for counts, indices, etc.
  */
 export const coerceInteger = (min?: number, max?: number) =>
-	z.coerce.number()
+	z.coerce
+		.number()
 		.refine((val) => !isNaN(val), {
 			message: 'Must be a valid number'
 		})

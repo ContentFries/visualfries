@@ -126,8 +126,12 @@ const BgShape = z.object({
 	radius: z.number().min(0).prefault(0).optional()
 });
 
-export const BackgroundShape = z.union([BgShape, ColorTypeShape]).transform((value) => {
-	if (typeof value === 'object' && value !== null && 'enabled' in value) {
+export const BackgroundShape = z.union([BgShape, ColorTypeShape, z.null()]).transform((value) => {
+	if (value === null) {
+		return null;
+	}
+
+	if (typeof value === 'object' && 'enabled' in value) {
 		return value;
 	}
 
@@ -154,7 +158,7 @@ export const AppearanceShape = z.object({
 	rotation: coerceValidNumber().prefault(0).optional(),
 	scaleX: coerceValidNumber().prefault(1).optional(),
 	scaleY: coerceValidNumber().prefault(1).optional(),
-	background: BackgroundShape.nullable().prefault(null).optional(), // ColorTypeShape
+	background: BackgroundShape.optional(), // ColorTypeShape
 	// Text-specific appearance properties
 	text: TextAppearanceShape.optional(),
 	// Optional alignment properties
@@ -205,19 +209,18 @@ const GradientAppearanceShape = AppearanceShape.extend({
 /**
  * AI Emoji shape for subtitle components
  */
-export const AIEmojiShape = z.object({
-	text: z.string(),
-	emoji: z.string(),
-	startAt: coerceValidNumber(),
-	endAt: coerceValidNumber(),
-	componentId: z.string().optional()
-}).refine(
-	(data) => data.startAt <= data.endAt,
-	{
+export const AIEmojiShape = z
+	.object({
+		text: z.string(),
+		emoji: z.string(),
+		startAt: coerceValidNumber(),
+		endAt: coerceValidNumber(),
+		componentId: z.string().optional()
+	})
+	.refine((data) => data.startAt <= data.endAt, {
 		error: 'endAt must be greater than or equal to startAt',
 		path: ['endAt']
-	}
-);
+	});
 
 /**
  * Subtitle appearance for SUBTITLES components

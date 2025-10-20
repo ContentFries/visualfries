@@ -1177,7 +1177,7 @@ export declare const SceneLayerShape: z.ZodObject<{
             rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-            background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+            background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                 enabled: z.ZodPrefault<z.ZodBoolean>;
                 color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                     type: z.ZodEnum<{
@@ -1211,7 +1211,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                     ellipse: "ellipse";
                     circle: "circle";
                 }>>;
-            }, z.core.$strip>]>]>, z.ZodTransform<{
+            }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                 enabled: boolean;
                 color: string | {
                     type: "linear" | "radial";
@@ -1235,7 +1235,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target: string;
                 radius: number;
-            }, string | {
+            } | null, string | {
                 type: "linear" | "radial";
                 colors: string[];
                 stops?: number[] | undefined;
@@ -1254,7 +1254,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target?: "wrapper" | "element" | undefined;
                 radius?: number | undefined;
-            }>>>>>;
+            } | null>>>;
             backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             text: z.ZodObject<{
                 fontFamily: z.ZodString;
@@ -2325,7 +2325,7 @@ export declare const SceneLayerShape: z.ZodObject<{
             rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-            background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+            background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                 enabled: z.ZodPrefault<z.ZodBoolean>;
                 color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                     type: z.ZodEnum<{
@@ -2359,7 +2359,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                     ellipse: "ellipse";
                     circle: "circle";
                 }>>;
-            }, z.core.$strip>]>]>, z.ZodTransform<{
+            }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                 enabled: boolean;
                 color: string | {
                     type: "linear" | "radial";
@@ -2383,7 +2383,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target: string;
                 radius: number;
-            }, string | {
+            } | null, string | {
                 type: "linear" | "radial";
                 colors: string[];
                 stops?: number[] | undefined;
@@ -2402,7 +2402,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target?: "wrapper" | "element" | undefined;
                 radius?: number | undefined;
-            }>>>>>;
+            } | null>>>;
             text: z.ZodOptional<z.ZodObject<{
                 fontFamily: z.ZodString;
                 fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -3479,7 +3479,7 @@ export declare const SceneLayerShape: z.ZodObject<{
             rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-            background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+            background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                 enabled: z.ZodPrefault<z.ZodBoolean>;
                 color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                     type: z.ZodEnum<{
@@ -3513,7 +3513,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                     ellipse: "ellipse";
                     circle: "circle";
                 }>>;
-            }, z.core.$strip>]>]>, z.ZodTransform<{
+            }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                 enabled: boolean;
                 color: string | {
                     type: "linear" | "radial";
@@ -3537,7 +3537,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target: string;
                 radius: number;
-            }, string | {
+            } | null, string | {
                 type: "linear" | "radial";
                 colors: string[];
                 stops?: number[] | undefined;
@@ -3556,7 +3556,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target?: "wrapper" | "element" | undefined;
                 radius?: number | undefined;
-            }>>>>>;
+            } | null>>>;
             text: z.ZodOptional<z.ZodObject<{
                 fontFamily: z.ZodString;
                 fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -4631,7 +4631,7 @@ export declare const SceneLayerShape: z.ZodObject<{
             rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-            background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+            background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                 enabled: z.ZodPrefault<z.ZodBoolean>;
                 color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                     type: z.ZodEnum<{
@@ -4665,7 +4665,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                     ellipse: "ellipse";
                     circle: "circle";
                 }>>;
-            }, z.core.$strip>]>]>, z.ZodTransform<{
+            }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                 enabled: boolean;
                 color: string | {
                     type: "linear" | "radial";
@@ -4689,7 +4689,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target: string;
                 radius: number;
-            }, string | {
+            } | null, string | {
                 type: "linear" | "radial";
                 colors: string[];
                 stops?: number[] | undefined;
@@ -4708,7 +4708,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target?: "wrapper" | "element" | undefined;
                 radius?: number | undefined;
-            }>>>>>;
+            } | null>>>;
             text: z.ZodOptional<z.ZodObject<{
                 fontFamily: z.ZodString;
                 fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -5853,7 +5853,7 @@ export declare const SceneLayerShape: z.ZodObject<{
             rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-            background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+            background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                 enabled: z.ZodPrefault<z.ZodBoolean>;
                 color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                     type: z.ZodEnum<{
@@ -5887,7 +5887,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                     ellipse: "ellipse";
                     circle: "circle";
                 }>>;
-            }, z.core.$strip>]>]>, z.ZodTransform<{
+            }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                 enabled: boolean;
                 color: string | {
                     type: "linear" | "radial";
@@ -5911,7 +5911,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target: string;
                 radius: number;
-            }, string | {
+            } | null, string | {
                 type: "linear" | "radial";
                 colors: string[];
                 stops?: number[] | undefined;
@@ -5930,7 +5930,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target?: "wrapper" | "element" | undefined;
                 radius?: number | undefined;
-            }>>>>>;
+            } | null>>>;
             text: z.ZodOptional<z.ZodObject<{
                 fontFamily: z.ZodString;
                 fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -7015,7 +7015,7 @@ export declare const SceneLayerShape: z.ZodObject<{
             rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-            background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+            background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                 enabled: z.ZodPrefault<z.ZodBoolean>;
                 color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                     type: z.ZodEnum<{
@@ -7049,7 +7049,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                     ellipse: "ellipse";
                     circle: "circle";
                 }>>;
-            }, z.core.$strip>]>]>, z.ZodTransform<{
+            }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                 enabled: boolean;
                 color: string | {
                     type: "linear" | "radial";
@@ -7073,7 +7073,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target: string;
                 radius: number;
-            }, string | {
+            } | null, string | {
                 type: "linear" | "radial";
                 colors: string[];
                 stops?: number[] | undefined;
@@ -7092,7 +7092,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target?: "wrapper" | "element" | undefined;
                 radius?: number | undefined;
-            }>>>>>;
+            } | null>>>;
             text: z.ZodOptional<z.ZodObject<{
                 fontFamily: z.ZodString;
                 fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -10293,7 +10293,7 @@ export declare const SceneLayerShape: z.ZodObject<{
             rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-            background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+            background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                 enabled: z.ZodPrefault<z.ZodBoolean>;
                 color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                     type: z.ZodEnum<{
@@ -10327,7 +10327,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                     ellipse: "ellipse";
                     circle: "circle";
                 }>>;
-            }, z.core.$strip>]>]>, z.ZodTransform<{
+            }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                 enabled: boolean;
                 color: string | {
                     type: "linear" | "radial";
@@ -10351,7 +10351,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target: string;
                 radius: number;
-            }, string | {
+            } | null, string | {
                 type: "linear" | "radial";
                 colors: string[];
                 stops?: number[] | undefined;
@@ -10370,7 +10370,7 @@ export declare const SceneLayerShape: z.ZodObject<{
                 };
                 target?: "wrapper" | "element" | undefined;
                 radius?: number | undefined;
-            }>>>>>;
+            } | null>>>;
             backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             text: z.ZodObject<{
                 fontFamily: z.ZodString;
@@ -11721,7 +11721,7 @@ export declare const SceneShape: z.ZodObject<{
                 rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-                background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+                background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                     enabled: z.ZodPrefault<z.ZodBoolean>;
                     color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                         type: z.ZodEnum<{
@@ -11755,7 +11755,7 @@ export declare const SceneShape: z.ZodObject<{
                         ellipse: "ellipse";
                         circle: "circle";
                     }>>;
-                }, z.core.$strip>]>]>, z.ZodTransform<{
+                }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                     enabled: boolean;
                     color: string | {
                         type: "linear" | "radial";
@@ -11779,7 +11779,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target: string;
                     radius: number;
-                }, string | {
+                } | null, string | {
                     type: "linear" | "radial";
                     colors: string[];
                     stops?: number[] | undefined;
@@ -11798,7 +11798,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target?: "wrapper" | "element" | undefined;
                     radius?: number | undefined;
-                }>>>>>;
+                } | null>>>;
                 backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 text: z.ZodObject<{
                     fontFamily: z.ZodString;
@@ -12869,7 +12869,7 @@ export declare const SceneShape: z.ZodObject<{
                 rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-                background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+                background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                     enabled: z.ZodPrefault<z.ZodBoolean>;
                     color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                         type: z.ZodEnum<{
@@ -12903,7 +12903,7 @@ export declare const SceneShape: z.ZodObject<{
                         ellipse: "ellipse";
                         circle: "circle";
                     }>>;
-                }, z.core.$strip>]>]>, z.ZodTransform<{
+                }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                     enabled: boolean;
                     color: string | {
                         type: "linear" | "radial";
@@ -12927,7 +12927,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target: string;
                     radius: number;
-                }, string | {
+                } | null, string | {
                     type: "linear" | "radial";
                     colors: string[];
                     stops?: number[] | undefined;
@@ -12946,7 +12946,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target?: "wrapper" | "element" | undefined;
                     radius?: number | undefined;
-                }>>>>>;
+                } | null>>>;
                 text: z.ZodOptional<z.ZodObject<{
                     fontFamily: z.ZodString;
                     fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -14023,7 +14023,7 @@ export declare const SceneShape: z.ZodObject<{
                 rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-                background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+                background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                     enabled: z.ZodPrefault<z.ZodBoolean>;
                     color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                         type: z.ZodEnum<{
@@ -14057,7 +14057,7 @@ export declare const SceneShape: z.ZodObject<{
                         ellipse: "ellipse";
                         circle: "circle";
                     }>>;
-                }, z.core.$strip>]>]>, z.ZodTransform<{
+                }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                     enabled: boolean;
                     color: string | {
                         type: "linear" | "radial";
@@ -14081,7 +14081,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target: string;
                     radius: number;
-                }, string | {
+                } | null, string | {
                     type: "linear" | "radial";
                     colors: string[];
                     stops?: number[] | undefined;
@@ -14100,7 +14100,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target?: "wrapper" | "element" | undefined;
                     radius?: number | undefined;
-                }>>>>>;
+                } | null>>>;
                 text: z.ZodOptional<z.ZodObject<{
                     fontFamily: z.ZodString;
                     fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -15175,7 +15175,7 @@ export declare const SceneShape: z.ZodObject<{
                 rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-                background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+                background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                     enabled: z.ZodPrefault<z.ZodBoolean>;
                     color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                         type: z.ZodEnum<{
@@ -15209,7 +15209,7 @@ export declare const SceneShape: z.ZodObject<{
                         ellipse: "ellipse";
                         circle: "circle";
                     }>>;
-                }, z.core.$strip>]>]>, z.ZodTransform<{
+                }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                     enabled: boolean;
                     color: string | {
                         type: "linear" | "radial";
@@ -15233,7 +15233,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target: string;
                     radius: number;
-                }, string | {
+                } | null, string | {
                     type: "linear" | "radial";
                     colors: string[];
                     stops?: number[] | undefined;
@@ -15252,7 +15252,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target?: "wrapper" | "element" | undefined;
                     radius?: number | undefined;
-                }>>>>>;
+                } | null>>>;
                 text: z.ZodOptional<z.ZodObject<{
                     fontFamily: z.ZodString;
                     fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -16397,7 +16397,7 @@ export declare const SceneShape: z.ZodObject<{
                 rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-                background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+                background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                     enabled: z.ZodPrefault<z.ZodBoolean>;
                     color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                         type: z.ZodEnum<{
@@ -16431,7 +16431,7 @@ export declare const SceneShape: z.ZodObject<{
                         ellipse: "ellipse";
                         circle: "circle";
                     }>>;
-                }, z.core.$strip>]>]>, z.ZodTransform<{
+                }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                     enabled: boolean;
                     color: string | {
                         type: "linear" | "radial";
@@ -16455,7 +16455,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target: string;
                     radius: number;
-                }, string | {
+                } | null, string | {
                     type: "linear" | "radial";
                     colors: string[];
                     stops?: number[] | undefined;
@@ -16474,7 +16474,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target?: "wrapper" | "element" | undefined;
                     radius?: number | undefined;
-                }>>>>>;
+                } | null>>>;
                 text: z.ZodOptional<z.ZodObject<{
                     fontFamily: z.ZodString;
                     fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -17559,7 +17559,7 @@ export declare const SceneShape: z.ZodObject<{
                 rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-                background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+                background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                     enabled: z.ZodPrefault<z.ZodBoolean>;
                     color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                         type: z.ZodEnum<{
@@ -17593,7 +17593,7 @@ export declare const SceneShape: z.ZodObject<{
                         ellipse: "ellipse";
                         circle: "circle";
                     }>>;
-                }, z.core.$strip>]>]>, z.ZodTransform<{
+                }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                     enabled: boolean;
                     color: string | {
                         type: "linear" | "radial";
@@ -17617,7 +17617,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target: string;
                     radius: number;
-                }, string | {
+                } | null, string | {
                     type: "linear" | "radial";
                     colors: string[];
                     stops?: number[] | undefined;
@@ -17636,7 +17636,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target?: "wrapper" | "element" | undefined;
                     radius?: number | undefined;
-                }>>>>>;
+                } | null>>>;
                 text: z.ZodOptional<z.ZodObject<{
                     fontFamily: z.ZodString;
                     fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -20837,7 +20837,7 @@ export declare const SceneShape: z.ZodObject<{
                 rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
                 scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-                background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+                background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
                     enabled: z.ZodPrefault<z.ZodBoolean>;
                     color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                         type: z.ZodEnum<{
@@ -20871,7 +20871,7 @@ export declare const SceneShape: z.ZodObject<{
                         ellipse: "ellipse";
                         circle: "circle";
                     }>>;
-                }, z.core.$strip>]>]>, z.ZodTransform<{
+                }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
                     enabled: boolean;
                     color: string | {
                         type: "linear" | "radial";
@@ -20895,7 +20895,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target: string;
                     radius: number;
-                }, string | {
+                } | null, string | {
                     type: "linear" | "radial";
                     colors: string[];
                     stops?: number[] | undefined;
@@ -20914,7 +20914,7 @@ export declare const SceneShape: z.ZodObject<{
                     };
                     target?: "wrapper" | "element" | undefined;
                     radius?: number | undefined;
-                }>>>>>;
+                } | null>>>;
                 backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 text: z.ZodObject<{
                     fontFamily: z.ZodString;

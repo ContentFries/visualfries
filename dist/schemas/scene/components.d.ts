@@ -305,7 +305,7 @@ export declare const BackgroundShape: z.ZodPipe<z.ZodUnion<readonly [z.ZodObject
         ellipse: "ellipse";
         circle: "circle";
     }>>;
-}, z.core.$strip>]>]>, z.ZodTransform<{
+}, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
     enabled: boolean;
     color: string | {
         type: "linear" | "radial";
@@ -329,7 +329,7 @@ export declare const BackgroundShape: z.ZodPipe<z.ZodUnion<readonly [z.ZodObject
     };
     target: string;
     radius: number;
-}, string | {
+} | null, string | {
     type: "linear" | "radial";
     colors: string[];
     stops?: number[] | undefined;
@@ -348,7 +348,7 @@ export declare const BackgroundShape: z.ZodPipe<z.ZodUnion<readonly [z.ZodObject
     };
     target?: "wrapper" | "element" | undefined;
     radius?: number | undefined;
-}>>;
+} | null>>;
 /**
  * General appearance schema for all components
  */
@@ -363,7 +363,7 @@ export declare const AppearanceShape: z.ZodObject<{
     rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
     scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
     scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-    background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+    background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
         enabled: z.ZodPrefault<z.ZodBoolean>;
         color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
             type: z.ZodEnum<{
@@ -397,7 +397,7 @@ export declare const AppearanceShape: z.ZodObject<{
             ellipse: "ellipse";
             circle: "circle";
         }>>;
-    }, z.core.$strip>]>]>, z.ZodTransform<{
+    }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
         enabled: boolean;
         color: string | {
             type: "linear" | "radial";
@@ -421,7 +421,7 @@ export declare const AppearanceShape: z.ZodObject<{
         };
         target: string;
         radius: number;
-    }, string | {
+    } | null, string | {
         type: "linear" | "radial";
         colors: string[];
         stops?: number[] | undefined;
@@ -440,7 +440,7 @@ export declare const AppearanceShape: z.ZodObject<{
         };
         target?: "wrapper" | "element" | undefined;
         radius?: number | undefined;
-    }>>>>>;
+    } | null>>>;
     text: z.ZodOptional<z.ZodObject<{
         fontFamily: z.ZodString;
         fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -2373,7 +2373,7 @@ export declare const ComponentBaseShape: z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -2407,7 +2407,7 @@ export declare const ComponentBaseShape: z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -2431,7 +2431,7 @@ export declare const ComponentBaseShape: z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -2450,7 +2450,7 @@ export declare const ComponentBaseShape: z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -3508,7 +3508,7 @@ export declare const TextComponentShape: z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -3542,7 +3542,7 @@ export declare const TextComponentShape: z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -3566,7 +3566,7 @@ export declare const TextComponentShape: z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -3585,7 +3585,7 @@ export declare const TextComponentShape: z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
         text: z.ZodObject<{
             fontFamily: z.ZodString;
@@ -4660,7 +4660,7 @@ export declare const ImageComponentShape: z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -4694,7 +4694,7 @@ export declare const ImageComponentShape: z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -4718,7 +4718,7 @@ export declare const ImageComponentShape: z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -4737,7 +4737,7 @@ export declare const ImageComponentShape: z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -5818,7 +5818,7 @@ export declare const GifComponentShape: z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -5852,7 +5852,7 @@ export declare const GifComponentShape: z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -5876,7 +5876,7 @@ export declare const GifComponentShape: z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -5895,7 +5895,7 @@ export declare const GifComponentShape: z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -6974,7 +6974,7 @@ export declare const VideoComponentShape: z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -7008,7 +7008,7 @@ export declare const VideoComponentShape: z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -7032,7 +7032,7 @@ export declare const VideoComponentShape: z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -7051,7 +7051,7 @@ export declare const VideoComponentShape: z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -8328,7 +8328,7 @@ export declare const ShapeComponentShape: z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -8362,7 +8362,7 @@ export declare const ShapeComponentShape: z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -8386,7 +8386,7 @@ export declare const ShapeComponentShape: z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -8405,7 +8405,7 @@ export declare const ShapeComponentShape: z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -9494,7 +9494,7 @@ export declare const AudioComponentShape: z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -9528,7 +9528,7 @@ export declare const AudioComponentShape: z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -9552,7 +9552,7 @@ export declare const AudioComponentShape: z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -9571,7 +9571,7 @@ export declare const AudioComponentShape: z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -12784,7 +12784,7 @@ export declare const SubtitleComponentShape: z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -12818,7 +12818,7 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -12842,7 +12842,7 @@ export declare const SubtitleComponentShape: z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -12861,7 +12861,7 @@ export declare const SubtitleComponentShape: z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
         text: z.ZodObject<{
             fontFamily: z.ZodString;
@@ -13974,7 +13974,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -14008,7 +14008,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -14032,7 +14032,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -14051,7 +14051,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
         text: z.ZodObject<{
             fontFamily: z.ZodString;
@@ -15122,7 +15122,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -15156,7 +15156,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -15180,7 +15180,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -15199,7 +15199,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -16276,7 +16276,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -16310,7 +16310,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -16334,7 +16334,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -16353,7 +16353,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -17428,7 +17428,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -17462,7 +17462,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -17486,7 +17486,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -17505,7 +17505,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -18650,7 +18650,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -18684,7 +18684,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -18708,7 +18708,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -18727,7 +18727,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -19812,7 +19812,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -19846,7 +19846,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -19870,7 +19870,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -19889,7 +19889,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         text: z.ZodOptional<z.ZodObject<{
             fontFamily: z.ZodString;
             fontSize: z.ZodUnion<readonly [z.ZodPipe<z.ZodNumber, z.ZodTransform<{
@@ -23090,7 +23090,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
         rotation: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleX: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         scaleY: z.ZodOptional<z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
-        background: z.ZodOptional<z.ZodPrefault<z.ZodNullable<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
+        background: z.ZodOptional<z.ZodPipe<z.ZodUnion<readonly [z.ZodObject<{
             enabled: z.ZodPrefault<z.ZodBoolean>;
             color: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 type: z.ZodEnum<{
@@ -23124,7 +23124,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 ellipse: "ellipse";
                 circle: "circle";
             }>>;
-        }, z.core.$strip>]>]>, z.ZodTransform<{
+        }, z.core.$strip>]>, z.ZodNull]>, z.ZodTransform<{
             enabled: boolean;
             color: string | {
                 type: "linear" | "radial";
@@ -23148,7 +23148,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target: string;
             radius: number;
-        }, string | {
+        } | null, string | {
             type: "linear" | "radial";
             colors: string[];
             stops?: number[] | undefined;
@@ -23167,7 +23167,7 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
             };
             target?: "wrapper" | "element" | undefined;
             radius?: number | undefined;
-        }>>>>>;
+        } | null>>>;
         backgroundAlwaysVisible: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
         text: z.ZodObject<{
             fontFamily: z.ZodString;

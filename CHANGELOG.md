@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.3](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.2...visualfries-v0.1.3) (2025-10-20)
+
+
+### Features
+
+* implement comprehensive schema coercion validators and timing validations ([b13a19d](https://github.com/ContentFries/visualfries/commit/b13a19d37d300a3edac7bf3803b8853d50999bfa)), closes [#9](https://github.com/ContentFries/visualfries/issues/9)
+
 ## [0.1.2](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.1...visualfries-v0.1.2) (2025-10-16)
 
 

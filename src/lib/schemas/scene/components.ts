@@ -317,7 +317,7 @@ export const TimingAnchorShape = z.object({
  */
 export const LayoutSplitEffectShape = EffectBaseShape.extend({
 	type: z.literal('layoutSplit'),
-	pieces: coercePositiveNumber().int().optional(),
+	pieces: coerceInteger(1).optional(),
 	sceneWidth: coercePositiveNumber().optional(),
 	sceneHeight: coercePositiveNumber().optional(),
 	chunks: z.array(z.record(z.string(), z.any())).optional()

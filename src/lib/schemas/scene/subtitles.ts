@@ -1,5 +1,13 @@
 import { z } from 'zod';
 import { ColorTypeShape } from './properties.js';
+import {
+	coerceValidNumber,
+	coerceNumber,
+	coercePositiveNumber,
+	coerceNormalizedNumber,
+	coerceNonNegativeNumber,
+	coerceInteger
+} from './utils.js';
 
 // ============================================================================
 // COMPACT WORD FORMAT SCHEMAS
@@ -10,8 +18,8 @@ import { ColorTypeShape } from './properties.js';
  */
 const CompactWordMetadataShape = z
 	.object({
-		s: z.number().optional(), // size override in percent
-		si: z.number().optional(), // speaker index
+		s: coerceValidNumber().optional(), // size override in percent
+		si: coerceInteger().optional(), // speaker index
 		c: ColorTypeShape.optional(), // color (0-1)
 		e: z.string().optional(), // emoji
 		w: z.string().optional(), // font weight or bold, bolder etc.
@@ -26,10 +34,17 @@ const CompactWordMetadataShape = z
 const CompactWordTupleShape = z
 	.tuple([
 		z.string(), // text
-		z.number(), // start_at
-		z.number() // end_at
+		coerceValidNumber(), // start_at
+		coerceValidNumber() // end_at
 	])
-	.rest(z.union([CompactWordMetadataShape, z.null()])); // optional metadata as 4th element, can be null
+	.rest(z.union([CompactWordMetadataShape, z.null()]))
+	.refine(
+		(data) => data[1] <= data[2], // Compare start_at and end_at
+		{
+			error: 'end_at must be greater than or equal to start_at',
+			path: [2] // Error targets the third element (end_at)
+		}
+	); // optional metadata as 4th element, can be null
 
 // ============================================================================
 // REGULAR WORD FORMAT SCHEMAS
@@ -40,11 +55,17 @@ const CompactWordTupleShape = z
  */
 const SubtitleWordShape = z.object({
 	id: z.string(),
-	start_at: z.number(),
-	end_at: z.number(),
+	start_at: coerceValidNumber(),
+	end_at: coerceValidNumber(),
 	text: z.string(),
-	position: z.number().optional()
-});
+	position: coerceValidNumber().optional()
+}).refine(
+	(data) => data.start_at <= data.end_at,
+	{
+		error: 'end_at must be greater than or equal to start_at',
+		path: ['end_at']
+	}
+);
 
 // ============================================================================
 // SUBTITLE SCHEMAS
@@ -75,8 +96,8 @@ const EnlargeShape = z
  */
 const SubtitleWithCompactWordsShape = z.object({
 	id: z.string(),
-	start_at: z.number(),
-	end_at: z.number(),
+	start_at: coerceValidNumber(),
+	end_at: coerceValidNumber(),
 	text: z.string(),
 	words: z.array(CompactWordTupleShape).optional(),
 
@@ -93,8 +114,8 @@ const SubtitleWithCompactWordsShape = z.object({
  */
 const SubtitleWithLegacyWordsShape = z.object({
 	id: z.string(),
-	start_at: z.number(),
-	end_at: z.number(),
+	start_at: coerceValidNumber(),
+	end_at: coerceValidNumber(),
 	text: z.string(),
 	words: z.array(SubtitleWordShape).optional(),
 

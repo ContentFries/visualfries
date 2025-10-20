@@ -233,8 +233,12 @@ const SubtitleAppearanceShape = AppearanceShape.extend({
  * Timeline structure for components
  */
 export const ComponentTimelineShape = z.object({
-	startAt: coerceNonNegativeNumber().transform(toFixed3),
-	endAt: coerceNonNegativeNumber().transform(toFixed3)
+export const ComponentTimelineShape = z.object({
+  startAt: coerceNonNegativeNumber().transform(toFixed3),
+  endAt: coerceNonNegativeNumber().transform(toFixed3)
+}).refine((t) => t.startAt <= t.endAt, {
+  message: 'timeline endAt must be ≥ startAt',
+  path: ['endAt']
 });
 
 /**

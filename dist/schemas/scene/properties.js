@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isValidColor } from './utils.js';
+import { coerceValidNumber, coerceNumber, coercePositiveNumber, coerceNormalizedNumber, coerceNonNegativeNumber, coerceInteger } from './utils.js';
 // Utility functions
 const toFixed3 = (val) => parseFloat(val.toFixed(3));
 const toFixed3Optional = (val) => {
@@ -19,9 +20,9 @@ export const GradientDefinitionShape = z.object({
         error: 'Invalid gradient color'
     })).min(2),
     /** Optional array of stop positions (0-1) matching colors */
-    stops: z.array(z.number().min(0).max(100)).optional(),
+    stops: z.array(coerceNormalizedNumber()).optional(),
     /** Angle in degrees (for linear gradients) */
-    angle: z.number().min(-360).max(360).optional(),
+    angle: coerceNumber(-360, 360).optional(),
     /** Position description (for radial gradients) */
     position: z.string().optional(),
     /** Shape type (for radial gradients) */
@@ -42,16 +43,16 @@ export const ColorTypeShape = z.union([
  */
 export const PositionShape = z.object({
     /** X-coordinate position (from left) */
-    x: z.number(),
+    x: coerceValidNumber(),
     /** Y-coordinate position (from top) */
-    y: z.number(),
+    y: coerceValidNumber(),
     /** Rotation in degrees */
-    rotation: z.number().prefault(0),
+    rotation: coerceValidNumber().prefault(0),
     /** Anchor point for transformations (0,0 is top-left, 1,1 is bottom-right) */
     anchor: z
         .object({
-        x: z.number().min(0).max(1).prefault(0.5),
-        y: z.number().min(0).max(1).prefault(0.5)
+        x: coerceNormalizedNumber().prefault(0.5),
+        y: coerceNormalizedNumber().prefault(0.5)
     })
         .prefault({ x: 0.5, y: 0.5 })
 });
@@ -61,18 +62,18 @@ export const PositionShape = z.object({
  */
 export const SizeShape = z.object({
     /** Width in pixels */
-    width: z.number().positive(),
+    width: coercePositiveNumber(),
     /** Height in pixels */
-    height: z.number().positive(),
+    height: coercePositiveNumber(),
     /** Uniform scale factor */
-    scale: z.number().positive().prefault(1),
+    scale: coercePositiveNumber().prefault(1),
     /** Whether to maintain aspect ratio when resizing */
     maintainAspectRatio: z.boolean().prefault(true),
     /** Original dimensions before any transformations */
     original: z
         .object({
-        width: z.number().positive().optional(),
-        height: z.number().positive().optional()
+        width: coercePositiveNumber().optional(),
+        height: coercePositiveNumber().optional()
     })
         .optional()
 });
@@ -82,18 +83,18 @@ export const SizeShape = z.object({
  */
 export const TransformShape = z.object({
     /** Horizontal scale factor (1 = 100%) */
-    scaleX: z.number().prefault(1),
+    scaleX: coerceValidNumber().prefault(1),
     /** Vertical scale factor (1 = 100%) */
-    scaleY: z.number().prefault(1),
+    scaleY: coerceValidNumber().prefault(1),
     /** Horizontal skew in degrees */
-    skewX: z.number().prefault(0),
+    skewX: coerceValidNumber().prefault(0),
     /** Vertical skew in degrees */
-    skewY: z.number().prefault(0),
+    skewY: coerceValidNumber().prefault(0),
     /** Origin point for transformations */
     transformOrigin: z
         .object({
-        x: z.number().min(0).max(1).prefault(0.5),
-        y: z.number().min(0).max(1).prefault(0.5)
+        x: coerceNormalizedNumber().prefault(0.5),
+        y: coerceNormalizedNumber().prefault(0.5)
     })
         .optional()
 });
@@ -109,15 +110,15 @@ export const ShadowShape = z.object({
         error: 'Invalid shadow color format'
     }).optional(),
     /** Shadow blur radius in pixels */
-    blur: z.number().min(0).optional(),
+    blur: coerceNonNegativeNumber().optional(),
     /** Shadow size in pixels */
-    size: z.number().optional(),
+    size: coerceValidNumber().optional(),
     /** Horizontal offset in pixels */
-    offsetX: z.number().optional(),
+    offsetX: coerceValidNumber().optional(),
     /** Vertical offset in pixels */
-    offsetY: z.number().optional(),
+    offsetY: coerceValidNumber().optional(),
     /** Shadow opacity (0-1) */
-    opacity: z.number().min(0).max(1).optional() // Keep opacity, useful even with presets
+    opacity: coerceNormalizedNumber().optional() // Keep opacity, useful even with presets
 });
 /**
  * Outline/Stroke effect schema
@@ -131,20 +132,20 @@ export const OutlineShape = z.object({
         error: 'Invalid outline color format'
     }),
     /** Outline width in pixels */
-    size: z.number().min(0).optional(),
+    size: coerceNonNegativeNumber().optional(),
     /** Outline opacity (0-1) */
-    opacity: z.number().min(0).max(1).optional(),
+    opacity: coerceNormalizedNumber().optional(),
     /** Outline style (Note: style/dashArray not in schema-llm.md, maybe remove?) */
     style: z.enum(['solid', 'dashed', 'dotted']).prefault('solid').optional(),
     /** Custom dash pattern (only for 'dashed' style) */
-    dashArray: z.array(z.number()).optional()
+    dashArray: z.array(coerceNonNegativeNumber()).optional()
 });
 /**
  * Font size with unit schema
  */
 export const FontSizeShape = z.object({
     /** Font size value */
-    value: z.number().positive(),
+    value: coercePositiveNumber(),
     /** Font size unit */
     unit: z.enum(['px', 'em', 'rem', '%']).prefault('px')
 });
@@ -153,7 +154,7 @@ export const FontSizeShape = z.object({
  */
 export const LineHeightShape = z.object({
     /** Line height value */
-    value: z.number().positive(),
+    value: coercePositiveNumber(),
     /** Line height unit */
     unit: z.enum(['normal', 'px', 'em', '%']).prefault('normal')
 });
@@ -166,7 +167,7 @@ export const ColorWithOpacityShape = z.object({
         error: 'Invalid color format'
     }),
     /** Opacity (0-1) */
-    opacity: z.number().min(0).max(1).prefault(1)
+    opacity: coerceNormalizedNumber().prefault(1)
 });
 /**
  * Gradient stop schema
@@ -177,9 +178,9 @@ export const GradientStopShape = z.object({
         error: 'Invalid gradient color format'
     }),
     /** Position in the gradient (0-1) */
-    position: z.number().min(0).max(1),
+    position: coerceNormalizedNumber(),
     /** Opacity (0-1) */
-    opacity: z.number().min(0).max(1).prefault(1)
+    opacity: coerceNormalizedNumber().prefault(1)
 });
 /**
  * Gradient background schema

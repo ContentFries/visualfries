@@ -3,16 +3,16 @@ import { z } from 'zod';
  * Compact word metadata object with optional short keys
  */
 declare const CompactWordMetadataShape: z.ZodOptional<z.ZodObject<{
-    s: z.ZodOptional<z.ZodNumber>;
-    si: z.ZodOptional<z.ZodNumber>;
+    s: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    si: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     c: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
         type: z.ZodEnum<{
             linear: "linear";
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-        angle: z.ZodOptional<z.ZodNumber>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
             ellipse: "ellipse";
@@ -26,17 +26,17 @@ declare const CompactWordMetadataShape: z.ZodOptional<z.ZodObject<{
 /**
  * Compact word tuple: [text, start_at, end_at, metadata?]
  */
-declare const CompactWordTupleShape: z.ZodTuple<[z.ZodString, z.ZodNumber, z.ZodNumber], z.ZodUnion<readonly [z.ZodOptional<z.ZodObject<{
-    s: z.ZodOptional<z.ZodNumber>;
-    si: z.ZodOptional<z.ZodNumber>;
+declare const CompactWordTupleShape: z.ZodTuple<[z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>], z.ZodUnion<readonly [z.ZodOptional<z.ZodObject<{
+    s: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    si: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     c: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
         type: z.ZodEnum<{
             linear: "linear";
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-        angle: z.ZodOptional<z.ZodNumber>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
             ellipse: "ellipse";
@@ -52,30 +52,30 @@ declare const CompactWordTupleShape: z.ZodTuple<[z.ZodString, z.ZodNumber, z.Zod
  */
 declare const SubtitleWordShape: z.ZodObject<{
     id: z.ZodString;
-    start_at: z.ZodNumber;
-    end_at: z.ZodNumber;
+    start_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    end_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
     text: z.ZodString;
-    position: z.ZodOptional<z.ZodNumber>;
+    position: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
 }, z.core.$strip>;
 /**
  * Subtitle with compact words format
  */
 declare const SubtitleWithCompactWordsShape: z.ZodObject<{
     id: z.ZodString;
-    start_at: z.ZodNumber;
-    end_at: z.ZodNumber;
+    start_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    end_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
     text: z.ZodString;
-    words: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodNumber, z.ZodNumber], z.ZodUnion<readonly [z.ZodOptional<z.ZodObject<{
-        s: z.ZodOptional<z.ZodNumber>;
-        si: z.ZodOptional<z.ZodNumber>;
+    words: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>], z.ZodUnion<readonly [z.ZodOptional<z.ZodObject<{
+        s: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        si: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         c: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
             type: z.ZodEnum<{
                 linear: "linear";
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -95,8 +95,8 @@ declare const SubtitleWithCompactWordsShape: z.ZodObject<{
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-        angle: z.ZodOptional<z.ZodNumber>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
             ellipse: "ellipse";
@@ -109,8 +109,8 @@ declare const SubtitleWithCompactWordsShape: z.ZodObject<{
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-        angle: z.ZodOptional<z.ZodNumber>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
             ellipse: "ellipse";
@@ -123,15 +123,15 @@ declare const SubtitleWithCompactWordsShape: z.ZodObject<{
  */
 declare const SubtitleWithLegacyWordsShape: z.ZodObject<{
     id: z.ZodString;
-    start_at: z.ZodNumber;
-    end_at: z.ZodNumber;
+    start_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    end_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
     text: z.ZodString;
     words: z.ZodOptional<z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        start_at: z.ZodNumber;
-        end_at: z.ZodNumber;
+        start_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        end_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
         text: z.ZodString;
-        position: z.ZodOptional<z.ZodNumber>;
+        position: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>>;
     enlarge: z.ZodOptional<z.ZodPipe<z.ZodOptional<z.ZodUnion<readonly [z.ZodBoolean, z.ZodNumber, z.ZodPipe<z.ZodString, z.ZodTransform<number | true, string>>]>>, z.ZodTransform<number | undefined, number | boolean | undefined>>>;
     visible: z.ZodOptional<z.ZodBoolean>;
@@ -144,20 +144,20 @@ declare const SubtitleWithLegacyWordsShape: z.ZodObject<{
  */
 declare const SubtitleShape: z.ZodUnion<readonly [z.ZodObject<{
     id: z.ZodString;
-    start_at: z.ZodNumber;
-    end_at: z.ZodNumber;
+    start_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    end_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
     text: z.ZodString;
-    words: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodNumber, z.ZodNumber], z.ZodUnion<readonly [z.ZodOptional<z.ZodObject<{
-        s: z.ZodOptional<z.ZodNumber>;
-        si: z.ZodOptional<z.ZodNumber>;
+    words: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>], z.ZodUnion<readonly [z.ZodOptional<z.ZodObject<{
+        s: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        si: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         c: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
             type: z.ZodEnum<{
                 linear: "linear";
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -177,8 +177,8 @@ declare const SubtitleShape: z.ZodUnion<readonly [z.ZodObject<{
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-        angle: z.ZodOptional<z.ZodNumber>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
             ellipse: "ellipse";
@@ -191,8 +191,8 @@ declare const SubtitleShape: z.ZodUnion<readonly [z.ZodObject<{
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-        angle: z.ZodOptional<z.ZodNumber>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
             ellipse: "ellipse";
@@ -201,15 +201,15 @@ declare const SubtitleShape: z.ZodUnion<readonly [z.ZodObject<{
     }, z.core.$strip>]>>;
 }, z.core.$strip>, z.ZodObject<{
     id: z.ZodString;
-    start_at: z.ZodNumber;
-    end_at: z.ZodNumber;
+    start_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    end_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
     text: z.ZodString;
     words: z.ZodOptional<z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        start_at: z.ZodNumber;
-        end_at: z.ZodNumber;
+        start_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        end_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
         text: z.ZodString;
-        position: z.ZodOptional<z.ZodNumber>;
+        position: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>>;
     enlarge: z.ZodOptional<z.ZodPipe<z.ZodOptional<z.ZodUnion<readonly [z.ZodBoolean, z.ZodNumber, z.ZodPipe<z.ZodString, z.ZodTransform<number | true, string>>]>>, z.ZodTransform<number | undefined, number | boolean | undefined>>>;
     visible: z.ZodOptional<z.ZodBoolean>;
@@ -222,20 +222,20 @@ declare const SubtitleShape: z.ZodUnion<readonly [z.ZodObject<{
  */
 declare const SubtitleCollectionShape: z.ZodRecord<z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
     id: z.ZodString;
-    start_at: z.ZodNumber;
-    end_at: z.ZodNumber;
+    start_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    end_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
     text: z.ZodString;
-    words: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodNumber, z.ZodNumber], z.ZodUnion<readonly [z.ZodOptional<z.ZodObject<{
-        s: z.ZodOptional<z.ZodNumber>;
-        si: z.ZodOptional<z.ZodNumber>;
+    words: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>], z.ZodUnion<readonly [z.ZodOptional<z.ZodObject<{
+        s: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        si: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         c: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
             type: z.ZodEnum<{
                 linear: "linear";
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-            angle: z.ZodOptional<z.ZodNumber>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+            angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{
                 ellipse: "ellipse";
@@ -255,8 +255,8 @@ declare const SubtitleCollectionShape: z.ZodRecord<z.ZodString, z.ZodArray<z.Zod
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-        angle: z.ZodOptional<z.ZodNumber>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
             ellipse: "ellipse";
@@ -269,8 +269,8 @@ declare const SubtitleCollectionShape: z.ZodRecord<z.ZodString, z.ZodArray<z.Zod
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-        angle: z.ZodOptional<z.ZodNumber>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+        angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
             ellipse: "ellipse";
@@ -279,15 +279,15 @@ declare const SubtitleCollectionShape: z.ZodRecord<z.ZodString, z.ZodArray<z.Zod
     }, z.core.$strip>]>>;
 }, z.core.$strip>, z.ZodObject<{
     id: z.ZodString;
-    start_at: z.ZodNumber;
-    end_at: z.ZodNumber;
+    start_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    end_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
     text: z.ZodString;
     words: z.ZodOptional<z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        start_at: z.ZodNumber;
-        end_at: z.ZodNumber;
+        start_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        end_at: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
         text: z.ZodString;
-        position: z.ZodOptional<z.ZodNumber>;
+        position: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>>;
     enlarge: z.ZodOptional<z.ZodPipe<z.ZodOptional<z.ZodUnion<readonly [z.ZodBoolean, z.ZodNumber, z.ZodPipe<z.ZodString, z.ZodTransform<number | true, string>>]>>, z.ZodTransform<number | undefined, number | boolean | undefined>>>;
     visible: z.ZodOptional<z.ZodBoolean>;

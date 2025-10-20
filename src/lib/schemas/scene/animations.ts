@@ -1,4 +1,12 @@
 import { z } from 'zod';
+import {
+	coerceValidNumber,
+	coerceNumber,
+	coercePositiveNumber,
+	coerceNormalizedNumber,
+	coerceNonNegativeNumber,
+	coerceInteger
+} from './utils.js';
 
 // Utility for numbers that might be strings (e.g., "50%") or actual numbers
 const numberOrStringPercentage = z.union([z.number(), z.string().regex(/^(\d+(\.\d+)?%?)$/)]);
@@ -46,19 +54,19 @@ const StaggerObjectShape = z
 		type: z.literal('fromData').optional(), // Only "fromData" has a special type currently
 		dataKey: z.string().optional(), // Required if type is "fromData"
 		referencePoint: z.literal('tweenStart').optional(), // Mostly for "fromData"
-		each: z.number().optional(),
-		from: z.union([z.string(), z.number()]).optional(), // "start", "center", "end", "edges", "random", index
+		each: coerceValidNumber().optional(),
+		from: z.union([z.string(), coerceValidNumber()]).optional(), // "start", "center", "end", "edges", "random", index
 		grid: z
-			.tuple([z.union([z.literal('auto'), z.number()]), z.union([z.literal('auto'), z.number()])])
+			.tuple([z.union([z.literal('auto'), coerceValidNumber()]), z.union([z.literal('auto'), coerceValidNumber()])])
 			.optional(),
 		axis: z.enum(['x', 'y']).optional(),
 		ease: z.string().optional(), // Easing function string
-		amount: z.number().optional()
+		amount: coerceValidNumber().optional()
 	})
 	.refine((data) => !(data.type === 'fromData' && !data.dataKey), {
 		path: ['dataKey'],
-        error: "dataKey is required when stagger type is 'fromData'"
-    });
+		error: "dataKey is required when stagger type is 'fromData'"
+	});
 
 const StaggerShape = z.union([
 	z.number(), // Shorthand for { each: <number> }
@@ -146,7 +154,7 @@ const PositionObjectShape = z.object({
 
 const AnimationTimelinePositionShape = z.union([
 	z.string(), // Time value, label, relative position, "in", "out"
-	z.number(), // Time value, label, relative position, "in", "out"
+	coerceValidNumber(), // Time value, label, relative position, "in", "out"
 	PositionObjectShape
 ]);
 
@@ -170,8 +178,8 @@ const TweenDefinitionShape = z
 		},
 		{
 			path: ['vars', 'from'], // More specific path
-            error: "'vars.from' is required when method is 'fromTo' (and only then)."
-        }
+			error: "'vars.from' is required when method is 'fromTo' (and only then)."
+		}
 	);
 
 export const KeyframeAnimationShape = z.object({
@@ -226,7 +234,7 @@ export const AnimationPresetShape = z.object({
 	presetId: z.string().optional(),
 	version: z.string().optional(),
 	description: z.string().optional(),
-	duration: z.number().positive().optional(),
+	duration: coercePositiveNumber().optional(),
 	data: z.record(z.string(), z.any()).prefault({}).optional(),
 	setup: z.array(SetupStepShape).prefault([]).optional(),
 	revertAfterComplete: z.boolean().prefault(false).optional(),

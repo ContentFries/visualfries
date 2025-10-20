@@ -9,8 +9,8 @@ export declare const GradientDefinitionShape: z.ZodObject<{
         radial: "radial";
     }>;
     colors: z.ZodArray<z.ZodString>;
-    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-    angle: z.ZodOptional<z.ZodNumber>;
+    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     position: z.ZodOptional<z.ZodString>;
     shape: z.ZodOptional<z.ZodEnum<{
         ellipse: "ellipse";
@@ -26,8 +26,8 @@ export declare const ColorTypeShape: z.ZodUnion<readonly [z.ZodString, z.ZodObje
         radial: "radial";
     }>;
     colors: z.ZodArray<z.ZodString>;
-    stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
-    angle: z.ZodOptional<z.ZodNumber>;
+    stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
+    angle: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     position: z.ZodOptional<z.ZodString>;
     shape: z.ZodOptional<z.ZodEnum<{
         ellipse: "ellipse";
@@ -39,12 +39,12 @@ export declare const ColorTypeShape: z.ZodUnion<readonly [z.ZodString, z.ZodObje
  * Defines the position of a component within the scene
  */
 export declare const PositionShape: z.ZodObject<{
-    x: z.ZodNumber;
-    y: z.ZodNumber;
-    rotation: z.ZodPrefault<z.ZodNumber>;
+    x: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    y: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    rotation: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     anchor: z.ZodPrefault<z.ZodObject<{
-        x: z.ZodPrefault<z.ZodNumber>;
-        y: z.ZodPrefault<z.ZodNumber>;
+        x: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        y: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
@@ -52,13 +52,13 @@ export declare const PositionShape: z.ZodObject<{
  * Defines the dimensions of a component
  */
 export declare const SizeShape: z.ZodObject<{
-    width: z.ZodNumber;
-    height: z.ZodNumber;
-    scale: z.ZodPrefault<z.ZodNumber>;
+    width: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    height: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    scale: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     maintainAspectRatio: z.ZodPrefault<z.ZodBoolean>;
     original: z.ZodOptional<z.ZodObject<{
-        width: z.ZodOptional<z.ZodNumber>;
-        height: z.ZodOptional<z.ZodNumber>;
+        width: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        height: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
@@ -66,13 +66,13 @@ export declare const SizeShape: z.ZodObject<{
  * Defines additional transformations beyond basic position and size
  */
 export declare const TransformShape: z.ZodObject<{
-    scaleX: z.ZodPrefault<z.ZodNumber>;
-    scaleY: z.ZodPrefault<z.ZodNumber>;
-    skewX: z.ZodPrefault<z.ZodNumber>;
-    skewY: z.ZodPrefault<z.ZodNumber>;
+    scaleX: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    scaleY: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    skewX: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    skewY: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     transformOrigin: z.ZodOptional<z.ZodObject<{
-        x: z.ZodPrefault<z.ZodNumber>;
-        y: z.ZodPrefault<z.ZodNumber>;
+        x: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        y: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
@@ -82,11 +82,11 @@ export declare const ShadowShape: z.ZodObject<{
     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     preset: z.ZodOptional<z.ZodString>;
     color: z.ZodOptional<z.ZodString>;
-    blur: z.ZodOptional<z.ZodNumber>;
-    size: z.ZodOptional<z.ZodNumber>;
-    offsetX: z.ZodOptional<z.ZodNumber>;
-    offsetY: z.ZodOptional<z.ZodNumber>;
-    opacity: z.ZodOptional<z.ZodNumber>;
+    blur: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    offsetX: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    offsetY: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
 }, z.core.$strip>;
 /**
  * Outline/Stroke effect schema
@@ -95,20 +95,20 @@ export declare const OutlineShape: z.ZodObject<{
     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
     preset: z.ZodOptional<z.ZodString>;
     color: z.ZodString;
-    size: z.ZodOptional<z.ZodNumber>;
-    opacity: z.ZodOptional<z.ZodNumber>;
+    size: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    opacity: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     style: z.ZodOptional<z.ZodPrefault<z.ZodEnum<{
         solid: "solid";
         dashed: "dashed";
         dotted: "dotted";
     }>>>;
-    dashArray: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+    dashArray: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
 }, z.core.$strip>;
 /**
  * Font size with unit schema
  */
 export declare const FontSizeShape: z.ZodObject<{
-    value: z.ZodNumber;
+    value: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
     unit: z.ZodPrefault<z.ZodEnum<{
         px: "px";
         em: "em";
@@ -120,7 +120,7 @@ export declare const FontSizeShape: z.ZodObject<{
  * Line height with unit schema
  */
 export declare const LineHeightShape: z.ZodObject<{
-    value: z.ZodNumber;
+    value: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
     unit: z.ZodPrefault<z.ZodEnum<{
         normal: "normal";
         px: "px";
@@ -133,15 +133,15 @@ export declare const LineHeightShape: z.ZodObject<{
  */
 export declare const ColorWithOpacityShape: z.ZodObject<{
     color: z.ZodString;
-    opacity: z.ZodPrefault<z.ZodNumber>;
+    opacity: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
 }, z.core.$strip>;
 /**
  * Gradient stop schema
  */
 export declare const GradientStopShape: z.ZodObject<{
     color: z.ZodString;
-    position: z.ZodNumber;
-    opacity: z.ZodPrefault<z.ZodNumber>;
+    position: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    opacity: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
 }, z.core.$strip>;
 /**
  * Gradient background schema
@@ -153,8 +153,8 @@ export declare const GradientShape: z.ZodObject<{
     }>;
     stops: z.ZodArray<z.ZodObject<{
         color: z.ZodString;
-        position: z.ZodNumber;
-        opacity: z.ZodPrefault<z.ZodNumber>;
+        position: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        opacity: z.ZodPrefault<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
     angle: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
     center: z.ZodOptional<z.ZodObject<{

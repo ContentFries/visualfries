@@ -3,15 +3,15 @@ declare const StaggerShape: z.ZodUnion<readonly [z.ZodNumber, z.ZodObject<{
     type: z.ZodOptional<z.ZodLiteral<"fromData">>;
     dataKey: z.ZodOptional<z.ZodString>;
     referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-    each: z.ZodOptional<z.ZodNumber>;
-    from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-    grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+    each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+    from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+    grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
     axis: z.ZodOptional<z.ZodEnum<{
         x: "x";
         y: "y";
     }>>;
     ease: z.ZodOptional<z.ZodString>;
-    amount: z.ZodOptional<z.ZodNumber>;
+    amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
 }, z.core.$strip>]>;
 declare const BaseAnimatableProperties: z.ZodObject<{
     opacity: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodBoolean, z.ZodNull, z.ZodObject<{
@@ -333,18 +333,18 @@ declare const FinalTweenVarsShape: z.ZodObject<{
         type: z.ZodOptional<z.ZodLiteral<"fromData">>;
         dataKey: z.ZodOptional<z.ZodString>;
         referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-        each: z.ZodOptional<z.ZodNumber>;
-        from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-        grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+        each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+        from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+        grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
         axis: z.ZodOptional<z.ZodEnum<{
             x: "x";
             y: "y";
         }>>;
         ease: z.ZodOptional<z.ZodString>;
-        amount: z.ZodOptional<z.ZodNumber>;
+        amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>]>>;
 }, z.core.$catchall<z.ZodAny>>;
-declare const AnimationTimelinePositionShape: z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+declare const AnimationTimelinePositionShape: z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
     anchor: z.ZodString;
     anchorPoint: z.ZodOptional<z.ZodEnum<{
         start: "start";
@@ -364,7 +364,7 @@ declare const TweenDefinitionShape: z.ZodObject<{
         from: "from";
         fromTo: "fromTo";
     }>;
-    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
         anchor: z.ZodString;
         anchorPoint: z.ZodOptional<z.ZodEnum<{
             start: "start";
@@ -553,15 +553,15 @@ declare const TweenDefinitionShape: z.ZodObject<{
             type: z.ZodOptional<z.ZodLiteral<"fromData">>;
             dataKey: z.ZodOptional<z.ZodString>;
             referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-            each: z.ZodOptional<z.ZodNumber>;
-            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+            each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+            from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+            grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
             axis: z.ZodOptional<z.ZodEnum<{
                 x: "x";
                 y: "y";
             }>>;
             ease: z.ZodOptional<z.ZodString>;
-            amount: z.ZodOptional<z.ZodNumber>;
+            amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
         }, z.core.$strip>]>>;
     }, z.core.$catchall<z.ZodAny>>;
 }, z.core.$strip>;
@@ -574,7 +574,7 @@ export declare const KeyframeAnimationShape: z.ZodObject<{
             from: "from";
             fromTo: "fromTo";
         }>;
-        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
             anchor: z.ZodString;
             anchorPoint: z.ZodOptional<z.ZodEnum<{
                 start: "start";
@@ -763,15 +763,15 @@ export declare const KeyframeAnimationShape: z.ZodObject<{
                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                 dataKey: z.ZodOptional<z.ZodString>;
                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                each: z.ZodOptional<z.ZodNumber>;
-                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                 axis: z.ZodOptional<z.ZodEnum<{
                     x: "x";
                     y: "y";
                 }>>;
                 ease: z.ZodOptional<z.ZodString>;
-                amount: z.ZodOptional<z.ZodNumber>;
+                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>]>>;
         }, z.core.$catchall<z.ZodAny>>;
     }, z.core.$strip>;
@@ -780,7 +780,7 @@ export declare const KeyframeAnimationShape: z.ZodObject<{
 declare const AnimationSequenceItemShape: z.ZodObject<{
     id: z.ZodOptional<z.ZodString>;
     target: z.ZodOptional<z.ZodString>;
-    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+    position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
         anchor: z.ZodString;
         anchorPoint: z.ZodOptional<z.ZodEnum<{
             start: "start";
@@ -800,7 +800,7 @@ declare const AnimationSequenceItemShape: z.ZodObject<{
             from: "from";
             fromTo: "fromTo";
         }>;
-        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
             anchor: z.ZodString;
             anchorPoint: z.ZodOptional<z.ZodEnum<{
                 start: "start";
@@ -989,15 +989,15 @@ declare const AnimationSequenceItemShape: z.ZodObject<{
                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                 dataKey: z.ZodOptional<z.ZodString>;
                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                each: z.ZodOptional<z.ZodNumber>;
-                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                 axis: z.ZodOptional<z.ZodEnum<{
                     x: "x";
                     y: "y";
                 }>>;
                 ease: z.ZodOptional<z.ZodString>;
-                amount: z.ZodOptional<z.ZodNumber>;
+                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>]>>;
         }, z.core.$catchall<z.ZodAny>>;
     }, z.core.$strip>>;
@@ -1030,7 +1030,7 @@ export declare const AnimationPresetShape: z.ZodObject<{
     presetId: z.ZodOptional<z.ZodString>;
     version: z.ZodOptional<z.ZodString>;
     description: z.ZodOptional<z.ZodString>;
-    duration: z.ZodOptional<z.ZodNumber>;
+    duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
     setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
         type: z.ZodLiteral<"style">;
@@ -1059,7 +1059,7 @@ export declare const AnimationPresetShape: z.ZodObject<{
     timeline: z.ZodArray<z.ZodObject<{
         id: z.ZodOptional<z.ZodString>;
         target: z.ZodOptional<z.ZodString>;
-        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
             anchor: z.ZodString;
             anchorPoint: z.ZodOptional<z.ZodEnum<{
                 start: "start";
@@ -1079,7 +1079,7 @@ export declare const AnimationPresetShape: z.ZodObject<{
                 from: "from";
                 fromTo: "fromTo";
             }>;
-            position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+            position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                 anchor: z.ZodString;
                 anchorPoint: z.ZodOptional<z.ZodEnum<{
                     start: "start";
@@ -1268,15 +1268,15 @@ export declare const AnimationPresetShape: z.ZodObject<{
                     type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                     dataKey: z.ZodOptional<z.ZodString>;
                     referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                    each: z.ZodOptional<z.ZodNumber>;
-                    from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                    grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                    each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                    from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                    grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                     axis: z.ZodOptional<z.ZodEnum<{
                         x: "x";
                         y: "y";
                     }>>;
                     ease: z.ZodOptional<z.ZodString>;
-                    amount: z.ZodOptional<z.ZodNumber>;
+                    amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 }, z.core.$strip>]>>;
             }, z.core.$catchall<z.ZodAny>>;
         }, z.core.$strip>>;
@@ -1287,7 +1287,7 @@ export declare const AnimationReferenceShape: z.ZodUnion<readonly [z.ZodString, 
     presetId: z.ZodOptional<z.ZodString>;
     version: z.ZodOptional<z.ZodString>;
     description: z.ZodOptional<z.ZodString>;
-    duration: z.ZodOptional<z.ZodNumber>;
+    duration: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
     data: z.ZodOptional<z.ZodPrefault<z.ZodRecord<z.ZodString, z.ZodAny>>>;
     setup: z.ZodOptional<z.ZodPrefault<z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
         type: z.ZodLiteral<"style">;
@@ -1316,7 +1316,7 @@ export declare const AnimationReferenceShape: z.ZodUnion<readonly [z.ZodString, 
     timeline: z.ZodArray<z.ZodObject<{
         id: z.ZodOptional<z.ZodString>;
         target: z.ZodOptional<z.ZodString>;
-        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
             anchor: z.ZodString;
             anchorPoint: z.ZodOptional<z.ZodEnum<{
                 start: "start";
@@ -1336,7 +1336,7 @@ export declare const AnimationReferenceShape: z.ZodUnion<readonly [z.ZodString, 
                 from: "from";
                 fromTo: "fromTo";
             }>;
-            position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+            position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
                 anchor: z.ZodString;
                 anchorPoint: z.ZodOptional<z.ZodEnum<{
                     start: "start";
@@ -1525,15 +1525,15 @@ export declare const AnimationReferenceShape: z.ZodUnion<readonly [z.ZodString, 
                     type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                     dataKey: z.ZodOptional<z.ZodString>;
                     referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                    each: z.ZodOptional<z.ZodNumber>;
-                    from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                    grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                    each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                    from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                    grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                     axis: z.ZodOptional<z.ZodEnum<{
                         x: "x";
                         y: "y";
                     }>>;
                     ease: z.ZodOptional<z.ZodString>;
-                    amount: z.ZodOptional<z.ZodNumber>;
+                    amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
                 }, z.core.$strip>]>>;
             }, z.core.$catchall<z.ZodAny>>;
         }, z.core.$strip>>;
@@ -1547,7 +1547,7 @@ export declare const AnimationReferenceShape: z.ZodUnion<readonly [z.ZodString, 
             from: "from";
             fromTo: "fromTo";
         }>;
-        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodObject<{
+        position: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
             anchor: z.ZodString;
             anchorPoint: z.ZodOptional<z.ZodEnum<{
                 start: "start";
@@ -1736,15 +1736,15 @@ export declare const AnimationReferenceShape: z.ZodUnion<readonly [z.ZodString, 
                 type: z.ZodOptional<z.ZodLiteral<"fromData">>;
                 dataKey: z.ZodOptional<z.ZodString>;
                 referencePoint: z.ZodOptional<z.ZodLiteral<"tweenStart">>;
-                each: z.ZodOptional<z.ZodNumber>;
-                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>;
-                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodNumber]>], null>>;
+                each: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
+                from: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>>;
+                grid: z.ZodOptional<z.ZodTuple<[z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>, z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>]>], null>>;
                 axis: z.ZodOptional<z.ZodEnum<{
                     x: "x";
                     y: "y";
                 }>>;
                 ease: z.ZodOptional<z.ZodString>;
-                amount: z.ZodOptional<z.ZodNumber>;
+                amount: z.ZodOptional<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>;
             }, z.core.$strip>]>>;
         }, z.core.$catchall<z.ZodAny>>;
     }, z.core.$strip>;

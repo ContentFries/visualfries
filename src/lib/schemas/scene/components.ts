@@ -232,13 +232,15 @@ const SubtitleAppearanceShape = AppearanceShape.extend({
 /**
  * Timeline structure for components
  */
-export const ComponentTimelineShape = z.object({
-	startAt: coerceNonNegativeNumber().transform(toFixed3),
-	endAt: coerceNonNegativeNumber().transform(toFixed3)
-}).refine((t) => t.startAt <= t.endAt, {
-	message: 'timeline endAt must be ≥ startAt',
-	path: ['endAt']
-});
+export const ComponentTimelineShape = z
+	.object({
+		startAt: coerceNonNegativeNumber().transform(toFixed3),
+		endAt: coerceNonNegativeNumber().transform(toFixed3)
+	})
+	.refine((t) => t.startAt <= t.endAt, {
+		message: 'timeline endAt must be ≥ startAt',
+		path: ['endAt']
+	});
 
 /**
  * Animation structure
@@ -268,34 +270,36 @@ export const SourceMetadataShape = z.object({
 /**
  * Component source definition
  */
-export const ComponentSourceShape = z.object({
-	url: z.url().optional(), // might have assetId. However should be required for video and other components
-	streamUrl: z.url().optional(),
-	assetId: z.string().optional(),
-	languageCode: z.string().optional(),
-	startAt: coerceNonNegativeNumber().transform(toFixed3Optional).optional(),
-	endAt: coerceNonNegativeNumber().transform(toFixed3Optional).optional(),
-	metadata: SourceMetadataShape.optional(),
-	transcriptFormat: z.string().optional()
-}).refine(
-	(data) => {
-		// Only validate if both startAt and endAt are present and not null
-		if (
-			data.startAt !== undefined &&
-			data.startAt !== null &&
-			data.endAt !== undefined &&
-			data.endAt !== null
-		) {
-			return data.startAt <= data.endAt;
+export const ComponentSourceShape = z
+	.object({
+		url: z.url().optional(), // might have assetId. However should be required for video and other components
+		streamUrl: z.url().optional(),
+		assetId: z.string().optional(),
+		languageCode: z.string().optional(),
+		startAt: coerceNonNegativeNumber().transform(toFixed3Optional).optional(),
+		endAt: coerceNonNegativeNumber().transform(toFixed3Optional).optional(),
+		metadata: SourceMetadataShape.optional(),
+		transcriptFormat: z.string().optional()
+	})
+	.refine(
+		(data) => {
+			// Only validate if both startAt and endAt are present and not null
+			if (
+				data.startAt !== undefined &&
+				data.startAt !== null &&
+				data.endAt !== undefined &&
+				data.endAt !== null
+			) {
+				return data.startAt <= data.endAt;
+			}
+			// If either is undefined or null, validation passes
+			return true;
+		},
+		{
+			message: 'endAt must be greater than or equal to startAt',
+			path: ['endAt'] // Error targets the endAt field
 		}
-		// If either is undefined or null, validation passes
-		return true;
-	},
-	{
-		message: 'endAt must be greater than or equal to startAt',
-		path: ['endAt'] // Error targets the endAt field
-	}
-);
+	);
 
 /**
  * Timing anchor for components that need synchronization (like subtitles)
@@ -620,7 +624,7 @@ export const GradientComponentShape = ComponentBaseWithoutAppearanceShape.extend
  */
 export const SubtitleComponentShape = ComponentBaseWithoutAppearanceShape.extend({
 	type: z.literal('SUBTITLES'),
-	source: ComponentSourceShape.extend({
+	source: ComponentSourceShape.safeExtend({
 		url: z.url().optional()
 		// Subtitles might need specific source fields, e.g., format
 	}).optional(),

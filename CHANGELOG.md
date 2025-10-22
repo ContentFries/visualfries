@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.5](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.4...visualfries-v0.1.5) (2025-10-22)
+
+
+### Bug Fixes
+
+* characters loading now loads google fonts as expected ([b8e13e2](https://github.com/ContentFries/visualfries/commit/b8e13e2a8b3cce69f27deaf5b2415986bacd7934))
+* chars loading now loads google fonts as expected, code is also simpler ([23a82c1](https://github.com/ContentFries/visualfries/commit/23a82c189e277278e594a1ccb8617ccd19d4efb8))
+
 ## [0.1.4](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.3...visualfries-v0.1.4) (2025-10-20)
 
 

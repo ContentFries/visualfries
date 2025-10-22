@@ -27,13 +27,7 @@ import { AppManager } from './managers/AppManager.svelte.js';
 import { ComponentsManager } from './managers/ComponentsManager.svelte.js';
 import { v4 as uuidv4 } from 'uuid';
 
-import type {
-	EventMap,
-	EventType,
-	EventPayload,
-	BuilderState,
-	ISceneBuilder
-} from '$lib';
+import type { EventMap, EventType, EventPayload, BuilderState, ISceneBuilder } from '$lib';
 
 import { MediaManager } from './managers/MediaManager.js';
 import { LayersManager } from './managers/LayersManager.svelte.js';
@@ -530,10 +524,12 @@ export class SceneBuilder implements ISceneBuilder {
 		this.stateManager.removeLoadingComponent(componentId);
 	}
 
-	buildCharactersList() {
-		// TODO - refactor
+	public buildCharactersList() {
 		this.stateManager.setCharactersList(
-			buildCharactersListFromComponentsAndSubtitles(this.sceneData.layers, this.subtitles.data)
+			buildCharactersListFromComponentsAndSubtitles(
+				this.sceneData.layers,
+				this.subtitles.getSubtitlesCharactersList()
+			)
 		);
 	}
 

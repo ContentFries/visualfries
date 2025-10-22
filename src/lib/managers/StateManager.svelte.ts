@@ -1,9 +1,5 @@
 import { EventManager } from './EventManager.js';
-import type {
-	BuilderState,
-	EventPayload,
-	IStateManager
-} from '$lib';
+import type { BuilderState, EventPayload, IStateManager } from '$lib';
 import type { RenderEnvironment, Scene as SceneData } from '$lib';
 import { TimeManager } from './TimeManager.svelte.js';
 import type { LayersManager } from './LayersManager.svelte.js';
@@ -98,6 +94,8 @@ export class StateManager implements IStateManager {
 	}
 
 	public setCharactersList(chars: string[]) {
+		// remove duplicates
+		chars = [...new Set(chars)];
 		this.charactersList = chars;
 	}
 

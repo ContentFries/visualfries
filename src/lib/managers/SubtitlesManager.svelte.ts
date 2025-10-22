@@ -1,6 +1,12 @@
 import { EventManager } from '$lib/managers/EventManager.js';
 
-import type { SubtitleCollection, Subtitle, Scene, SceneSubtitlesSettings, CompactWordTuple } from '$lib';
+import type {
+	SubtitleCollection,
+	Subtitle,
+	Scene,
+	SceneSubtitlesSettings,
+	CompactWordTuple
+} from '$lib';
 import { normalizeSubtitle } from '$lib/adapters/subtitleHelpers.js';
 import { SubtitleWithCompactWordsShape } from '$lib';
 import type { TimeManager } from './TimeManager.svelte.js';
@@ -239,6 +245,30 @@ function buildSubtitlesManager(
 	// Key format: "assetId:lang"
 	// This prevents recalculating unchanged languages when editing a single language
 	let validatedCollections = new Map<string, Subtitle[]>();
+
+	function getSubtitlesCharactersList() {
+		// loop all subtitles in index
+		let charactersList: string[] = [];
+		for (const [assetId, assetIndex] of Object.entries(index)) {
+			for (const [lang, langIndex] of Object.entries(assetIndex)) {
+				for (const [subtitleId, subtitle] of Object.entries(langIndex)) {
+					const text = subtitle.text;
+					const characters = text.split('');
+					if (characters && characters.length > 0) {
+						for (const char of characters) {
+							if (!charactersList.includes(char)) {
+								charactersList.push(char);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// remove duplicates
+		charactersList = [...new Set(charactersList)];
+		return charactersList;
+	}
 
 	// Mark subtitle as dirty (needs word validation)
 	function markSubtitleDirty(subtitleId: string) {
@@ -615,6 +645,10 @@ function buildSubtitlesManager(
 
 		get settings(): SceneSubtitlesSettings {
 			return { ...settings };
+		},
+
+		getSubtitlesCharactersList(): string[] {
+			return getSubtitlesCharactersList();
 		},
 
 		updateSettings(newSettings: Partial<SceneSubtitlesSettings>) {
@@ -1553,6 +1587,10 @@ export class SubtitlesManager {
 			return;
 		}
 		return this.builder.getText(this.assetId, this.language);
+	}
+
+	public getSubtitlesCharactersList(): string[] {
+		return this.builder.getSubtitlesCharactersList();
 	}
 
 	public updateSettings(newSettings: Partial<SceneSubtitlesSettings>) {

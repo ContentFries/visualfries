@@ -52,7 +52,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build package
-        run: pnpm build
+        run: pnpm build --no-git-checks
 
       - name: Publish to npm
         run: pnpm publish

@@ -91,7 +91,9 @@ export class MediaSeekingHook {
             };
             // Add error event handling
             media.onerror = () => {
-                console.error('Media error:', media.error);
+                if (media.error && media.error.code !== 4) {
+                    console.error('Media error:', media.src, media.error);
+                }
             };
         }
     }
@@ -100,6 +102,7 @@ export class MediaSeekingHook {
         await this.#handleSetup();
     }
     async #handleDestroy() {
+        // Clear media element reference - MediaHook will handle releaseMediaElement
         this.#mediaElement = undefined;
     }
     async #handleUpdate() {

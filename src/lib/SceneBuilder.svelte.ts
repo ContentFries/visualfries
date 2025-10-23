@@ -553,9 +553,11 @@ export class SceneBuilder implements ISceneBuilder {
 		this.appManager.destroy();
 		this.domManager.destroy();
 		this.stateManager.destroy();
-		this.mediaManager.destroy();
 		this.timelineManager.destroy();
 		this.componentsManager.destroy();
+
+		// media manages should be destroyed last
+		this.mediaManager.destroy();
 
 		// Remove the container from the DI container cache
 		removeContainer(this.sceneData.id);

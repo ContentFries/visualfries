@@ -19,7 +19,7 @@ export function changeIdDeep(obj) {
     }
     return obj;
 }
-export const buildCharactersListFromComponentsAndSubtitles = function (layers, subtitles) {
+export const buildCharactersListFromComponentsAndSubtitles = function (layers, subtitlesCharactersList) {
     const characters = ' ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-,;:!$?\'"';
     const charactestList = characters.split('');
     const components = layers.flatMap((layer) => layer.components);
@@ -42,28 +42,11 @@ export const buildCharactersListFromComponentsAndSubtitles = function (layers, s
                 charactestList.push(...new Set(variantChars));
             }
         }
-        if (component.type === 'SUBTITLES' &&
-            component.source &&
-            component.source?.assetId &&
-            subtitles[component.source.assetId]) {
-            const c = component;
-            const source = c.source;
-            if (source && source.assetId && subtitles[source.assetId]) {
-                for (const langSubs of Object.values(subtitles[source.assetId])) {
-                    for (const subtitle of langSubs) {
-                        const textList = subtitle.text.split('');
-                        const missingChars = textList.filter((char) => {
-                            // Check if the character is not whitespace, not in the characters list,
-                            // and is a Unicode letter or number
-                            return !/\s/.test(char) && !characters.includes(char) && /\p{L}|\p{N}/u.test(char);
-                        });
-                        // Add both uppercase and lowercase variants of missing chars
-                        const variantChars = missingChars.flatMap((char) => [
-                            char.toLowerCase(),
-                            char.toUpperCase()
-                        ]);
-                        charactestList.push(...new Set(variantChars));
-                    }
+        if (subtitlesCharactersList.length > 0) {
+            for (const char of subtitlesCharactersList) {
+                if (!characters.includes(char)) {
+                    // Add both uppercase and lowercase variants of missing chars
+                    charactestList.push(char.toLowerCase(), char.toUpperCase());
                 }
             }
         }

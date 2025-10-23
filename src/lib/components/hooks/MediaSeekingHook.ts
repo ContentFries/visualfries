@@ -1,9 +1,5 @@
 import { z } from 'zod';
-import type {
-	HookType,
-	IComponentContext,
-	IComponentHook
-} from '$lib';
+import type { HookType, IComponentContext, IComponentHook } from '$lib';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 
 export class MediaSeekingHook implements IComponentHook {
@@ -118,7 +114,9 @@ export class MediaSeekingHook implements IComponentHook {
 
 			// Add error event handling
 			media.onerror = () => {
-				console.error('Media error:', media.error);
+				if (media.error && media.error.code !== 4) {
+					console.error('Media error:', media.src, media.error);
+				}
 			};
 		}
 	}
@@ -129,6 +127,7 @@ export class MediaSeekingHook implements IComponentHook {
 	}
 
 	async #handleDestroy() {
+		// Clear media element reference - MediaHook will handle releaseMediaElement
 		this.#mediaElement = undefined;
 	}
 

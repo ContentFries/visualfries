@@ -201,6 +201,28 @@ function buildSubtitlesManager(timeManager, eventManager, sceneData, subtitles) 
     // Key format: "assetId:lang"
     // This prevents recalculating unchanged languages when editing a single language
     let validatedCollections = new Map();
+    function getSubtitlesCharactersList() {
+        // loop all subtitles in index
+        let charactersList = [];
+        for (const [assetId, assetIndex] of Object.entries(index)) {
+            for (const [lang, langIndex] of Object.entries(assetIndex)) {
+                for (const [subtitleId, subtitle] of Object.entries(langIndex)) {
+                    const text = subtitle.text;
+                    const characters = text.split('');
+                    if (characters && characters.length > 0) {
+                        for (const char of characters) {
+                            if (!charactersList.includes(char)) {
+                                charactersList.push(char);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // remove duplicates
+        charactersList = [...new Set(charactersList)];
+        return charactersList;
+    }
     // Mark subtitle as dirty (needs word validation)
     function markSubtitleDirty(subtitleId) {
         validatedSubtitles.delete(subtitleId);
@@ -513,6 +535,9 @@ function buildSubtitlesManager(timeManager, eventManager, sceneData, subtitles) 
         },
         get settings() {
             return { ...settings };
+        },
+        getSubtitlesCharactersList() {
+            return getSubtitlesCharactersList();
         },
         updateSettings(newSettings) {
             settings = { ...settings, ...newSettings };
@@ -1271,6 +1296,9 @@ export class SubtitlesManager {
             return;
         }
         return this.builder.getText(this.assetId, this.language);
+    }
+    getSubtitlesCharactersList() {
+        return this.builder.getSubtitlesCharactersList();
     }
     updateSettings(newSettings) {
         return this.builder.updateSettings(newSettings);

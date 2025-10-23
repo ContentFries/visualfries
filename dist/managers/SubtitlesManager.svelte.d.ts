@@ -208,6 +208,7 @@ export declare class SubtitlesManager {
     addNewSubtitleAfter(subtitleId: string, newText: string): void;
     splitByChars(maxChars: number): void;
     getText(): string | undefined;
+    getSubtitlesCharactersList(): string[];
     updateSettings(newSettings: Partial<SceneSubtitlesSettings>): void;
     findTextChunkTiming(searchText: string, options?: {
         caseSensitive?: boolean;

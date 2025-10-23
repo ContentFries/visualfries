@@ -380,8 +380,7 @@ export class SceneBuilder {
         this.stateManager.removeLoadingComponent(componentId);
     }
     buildCharactersList() {
-        // TODO - refactor
-        this.stateManager.setCharactersList(buildCharactersListFromComponentsAndSubtitles(this.sceneData.layers, this.subtitles.data));
+        this.stateManager.setCharactersList(buildCharactersListFromComponentsAndSubtitles(this.sceneData.layers, this.subtitles.getSubtitlesCharactersList()));
     }
     render() {
         const rendered = this.runSync(CommandType.RENDER);
@@ -400,9 +399,10 @@ export class SceneBuilder {
         this.appManager.destroy();
         this.domManager.destroy();
         this.stateManager.destroy();
-        this.mediaManager.destroy();
         this.timelineManager.destroy();
         this.componentsManager.destroy();
+        // media manages should be destroyed last
+        this.mediaManager.destroy();
         // Remove the container from the DI container cache
         removeContainer(this.sceneData.id);
     }

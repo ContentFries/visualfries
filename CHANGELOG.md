@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.6](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.5...visualfries-v0.1.6) (2025-10-23)
+
+
+### Bug Fixes
+
+* improve scene destroying ([1810c60](https://github.com/ContentFries/visualfries/commit/1810c60c62e2dcff2681eb078f0102093ebbfefc))
+
 ## [0.1.5](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.4...visualfries-v0.1.5) (2025-10-22)
 
 

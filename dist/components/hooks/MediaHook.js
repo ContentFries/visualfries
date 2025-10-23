@@ -229,6 +229,16 @@ export class MediaHook {
     async #handleDestroy() {
         this.#destroyed = true;
         this.#lastTargetTime = null;
+        // Release the media element back to the MediaManager
+        if (this.#mediaElement) {
+            const mediaType = this.#context.type === 'VIDEO' ? 'video' : 'audio';
+            const source = this.#context.contextData.source;
+            if (source && source.url) {
+                this.mediaManager.releaseMediaElement(source.url, mediaType);
+            }
+            this.#context.removeResource(mediaType === 'video' ? 'videoElement' : 'audioElement');
+        }
+        this.#mediaElement = undefined;
     }
     async handle(type, context) {
         this.#context = context;

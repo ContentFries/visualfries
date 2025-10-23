@@ -256,6 +256,19 @@ export class MediaHook implements IComponentHook {
 	async #handleDestroy() {
 		this.#destroyed = true;
 		this.#lastTargetTime = null;
+
+		// Release the media element back to the MediaManager
+		if (this.#mediaElement) {
+			const mediaType = this.#context.type === 'VIDEO' ? 'video' : 'audio';
+			const source = (this.#context.contextData as any).source;
+			if (source && source.url) {
+				this.mediaManager.releaseMediaElement(source.url, mediaType);
+			}
+
+			this.#context.removeResource(mediaType === 'video' ? 'videoElement' : 'audioElement');
+		}
+
+		this.#mediaElement = undefined as any;
 	}
 
 	async handle(type: HookType, context: IComponentContext) {

@@ -69,18 +69,18 @@ export class MediaManager {
 		if (!this.imageElements.has(mediaPath)) {
 			const img = document.createElement('img');
 			img.src = mediaPath;
-			
+
 			// Check if image is already loaded/cached
 			if (img.complete && img.naturalWidth > 0) {
 				this.imageElements.set(mediaPath, img);
 				return img;
 			}
-			
+
 			// Check if image failed to load
 			if (img.complete && img.naturalWidth === 0) {
 				throw new Error(`Failed to load image: ${mediaPath}`);
 			}
-			
+
 			// Image is still loading, attach handlers
 			await new Promise((resolve, reject) => {
 				img.onload = resolve;
@@ -222,6 +222,7 @@ export class MediaManager {
 			if (type === 'video') {
 				const videoElement = this.videoElements.get(mediaPath);
 				if (videoElement) {
+					// https://html.spec.whatwg.org/multipage/media.html#best-practices-for-authors-using-media-elements
 					videoElement.src = '';
 					videoElement.load(); // This frees up memory
 					this.videoElements.delete(mediaPath);

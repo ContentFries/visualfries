@@ -181,6 +181,7 @@ export class MediaManager {
             if (type === 'video') {
                 const videoElement = this.videoElements.get(mediaPath);
                 if (videoElement) {
+                    // https://html.spec.whatwg.org/multipage/media.html#best-practices-for-authors-using-media-elements
                     videoElement.src = '';
                     videoElement.load(); // This frees up memory
                     this.videoElements.delete(mediaPath);

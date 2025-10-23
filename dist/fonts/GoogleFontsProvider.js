@@ -22,7 +22,7 @@ export const createGoogleFontsProvider = () => {
             const formattedFontFamily = fontFamily.replace(/\s/g, '+');
             let apiUrl = `https://fonts.googleapis.com/css2?family=${formattedFontFamily}`;
             if (text) {
-                apiUrl += `&text=${encodeURIComponent(text)}`;
+                apiUrl += `&text=${text}`;
             }
             // 1. Fetch the CSS file from Google Fonts.
             const cssResponse = await fetch(apiUrl, {

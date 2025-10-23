@@ -57,6 +57,8 @@ export class StateManager {
         return this.charactersList;
     }
     setCharactersList(chars) {
+        // remove duplicates
+        chars = [...new Set(chars)];
         this.charactersList = chars;
     }
     setScale(scale) {

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.7](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.6...visualfries-v0.1.7) (2025-11-06)
+
+
+### Bug Fixes
+
+* **MediaHook:** handle undefined mediaElement in methods to prevent errors ([#23](https://github.com/ContentFries/visualfries/issues/23)) ([641305f](https://github.com/ContentFries/visualfries/commit/641305f130f1a80b4ae68faa3c93a6a2eb11386c))
+
 ## [0.1.6](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.5...visualfries-v0.1.6) (2025-10-23)
 
 

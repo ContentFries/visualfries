@@ -7,7 +7,7 @@ export class MediaHook implements IComponentHook {
 	types: HookType[] = ['setup', 'update', 'destroy', 'refresh'];
 	priority: number = 1;
 	#context!: IComponentContext;
-	#mediaElement!: HTMLMediaElement;
+	#mediaElement: HTMLMediaElement | undefined;
 	#MAX_LAG_TIME = 1;
 	#lastSyncCheck = 0;
 	#lastTargetTime: number | null = null;
@@ -60,6 +60,10 @@ export class MediaHook implements IComponentHook {
 	}
 
 	async #autoSeek() {
+		if (!this.#mediaElement) {
+			return;
+		}
+
 		const target = this.#context.currentComponentTime;
 		const frameDuration = 1 / (this.state.data.settings.fps || 30);
 		if (
@@ -73,6 +77,10 @@ export class MediaHook implements IComponentHook {
 	}
 
 	async #seek(time: number) {
+		if (!this.#mediaElement) {
+			return;
+		}
+
 		const element = this.#mediaElement;
 		const frameDuration = 1 / (this.state.data.settings.fps || 30);
 
@@ -113,6 +121,10 @@ export class MediaHook implements IComponentHook {
 	}
 
 	#isOutOfSync() {
+		if (!this.#mediaElement) {
+			return false;
+		}
+
 		// run only once per MAX_LAG_TIME
 		const now = performance.now() / 1000; // convert to seconds
 		if (now - this.#lastSyncCheck < this.#MAX_LAG_TIME) {
@@ -125,12 +137,20 @@ export class MediaHook implements IComponentHook {
 	}
 
 	async #pause(reason?: string): Promise<void> {
+		if (!this.#mediaElement) {
+			return;
+		}
+
 		if (!this.#mediaElement.paused && !this.#playRequested) {
 			this.#mediaElement.pause();
 		}
 	}
 
 	async #play(): Promise<void> {
+		if (!this.#mediaElement) {
+			return;
+		}
+
 		if (this.#mediaElement.paused) {
 			this.#playRequested = true;
 			try {
@@ -207,7 +227,7 @@ export class MediaHook implements IComponentHook {
 
 		// Check if component is loading using the StateManager
 		if (this.state.isLoadingComponent(this.#context.contextData.id)) {
-			if (this.#mediaElement.readyState < 2) {
+			if (this.#mediaElement && this.#mediaElement.readyState < 2) {
 				await this.#pause('readyState < 2');
 				return;
 			} else {
@@ -216,10 +236,10 @@ export class MediaHook implements IComponentHook {
 		}
 
 		// Ensure the media element matches the component's mute and volume state
-		if (this.#mediaElement.muted != isMuted) {
+		if (this.#mediaElement && this.#mediaElement.muted != isMuted) {
 			this.#mediaElement.muted = isMuted;
 		}
-		if (this.#mediaElement.volume != componentVolume) {
+		if (this.#mediaElement && this.#mediaElement.volume != componentVolume) {
 			this.#mediaElement.volume = componentVolume;
 		}
 
@@ -233,7 +253,7 @@ export class MediaHook implements IComponentHook {
 				return await this.#autoSeek();
 			} else {
 				// When scene is playing and media is paused, play media
-				if (this.#mediaElement.paused) {
+				if (this.#mediaElement && this.#mediaElement.paused) {
 					await this.#play();
 				}
 			}

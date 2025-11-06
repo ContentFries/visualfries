@@ -208,6 +208,10 @@ export class MediaHook implements IComponentHook {
 			return;
 		}
 
+		if (!this.#mediaElement) {
+			await this.#handleRefresh();
+		}
+
 		// Make sure we're still marked as the controller (debounced)
 		if (!isController && shouldCheckController) {
 			// Only set controller if no other component is currently controlling this media

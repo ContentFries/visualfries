@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.9](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.8...visualfries-v0.1.9) (2025-12-01)
+
+
+### Bug Fixes
+
+* **SceneSettings:** update stops range from 0-1 to 0-100 ([02b3afd](https://github.com/ContentFries/visualfries/commit/02b3afd6ac69e4fa5c7405da4a4de39202b9048f))
+* **SceneSettings:** update stops range from 0-1 to 0-100 ([8971af6](https://github.com/ContentFries/visualfries/commit/8971af6d1fda9d3f2ec1ca8e8647956e2812b59e))
+
 ## [0.1.8](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.7...visualfries-v0.1.8) (2025-11-06)
 
 

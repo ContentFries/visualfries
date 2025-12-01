@@ -24,11 +24,15 @@ export const GradientDefinitionShape = z.object({
 	/** Gradient type */
 	type: z.enum(['linear', 'radial']),
 	/** Array of color strings */
-	colors: z.array(z.string().refine(isValidColor, {
-        error: 'Invalid gradient color'
-    })).min(2),
-	/** Optional array of stop positions (0-1) matching colors */
-	stops: z.array(coerceNormalizedNumber()).optional(),
+	colors: z
+		.array(
+			z.string().refine(isValidColor, {
+				error: 'Invalid gradient color'
+			})
+		)
+		.min(2),
+	/** Optional array of stop positions (0-100) matching colors */
+	stops: z.array(coerceNumber(0, 100)).optional(),
 	/** Angle in degrees (for linear gradients) */
 	angle: coerceNumber(-360, 360).optional(),
 	/** Position description (for radial gradients) */
@@ -119,9 +123,12 @@ export const ShadowShape = z.object({
 	/** Optional preset name */
 	preset: z.string().optional(),
 	/** Shadow color */
-	color: z.string().refine(isValidColor, {
-        error: 'Invalid shadow color format'
-    }).optional(),
+	color: z
+		.string()
+		.refine(isValidColor, {
+			error: 'Invalid shadow color format'
+		})
+		.optional(),
 	/** Shadow blur radius in pixels */
 	blur: coerceNonNegativeNumber().optional(),
 	/** Shadow size in pixels */
@@ -143,8 +150,8 @@ export const OutlineShape = z.object({
 	preset: z.string().optional(),
 	/** Outline color */
 	color: z.string().refine(isValidColor, {
-        error: 'Invalid outline color format'
-    }),
+		error: 'Invalid outline color format'
+	}),
 	/** Outline width in pixels */
 	size: coerceNonNegativeNumber().optional(),
 	/** Outline opacity (0-1) */
@@ -181,8 +188,8 @@ export const LineHeightShape = z.object({
 export const ColorWithOpacityShape = z.object({
 	/** Color value (hex, rgb, rgba, etc.) */
 	color: z.string().refine(isValidColor, {
-        error: 'Invalid color format'
-    }),
+		error: 'Invalid color format'
+	}),
 	/** Opacity (0-1) */
 	opacity: coerceNormalizedNumber().prefault(1)
 });
@@ -193,8 +200,8 @@ export const ColorWithOpacityShape = z.object({
 export const GradientStopShape = z.object({
 	/** Color value */
 	color: z.string().refine(isValidColor, {
-        error: 'Invalid gradient color format'
-    }),
+		error: 'Invalid gradient color format'
+	}),
 	/** Position in the gradient (0-1) */
 	position: coerceNormalizedNumber(),
 	/** Opacity (0-1) */
@@ -210,7 +217,7 @@ export const GradientShape = z.object({
 	/** Gradient stops */
 	stops: z.array(GradientStopShape).min(2),
 	/** Angle in degrees (for linear gradients) */
-	angle: z.number().min(0).max(360).prefault(0).optional(),
+	angle: z.number().min(-360).max(360).prefault(0).optional(),
 	/** Center position (for radial gradients) */
 	center: z
 		.object({

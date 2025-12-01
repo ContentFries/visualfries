@@ -50,6 +50,9 @@ export class MediaHook {
         }
     }
     async #autoSeek() {
+        if (!this.#mediaElement) {
+            return;
+        }
         const target = this.#context.currentComponentTime;
         const frameDuration = 1 / (this.state.data.settings.fps || 30);
         if (this.#lastTargetTime !== null &&
@@ -60,6 +63,9 @@ export class MediaHook {
         await this.#seek(target);
     }
     async #seek(time) {
+        if (!this.#mediaElement) {
+            return;
+        }
         const element = this.#mediaElement;
         const frameDuration = 1 / (this.state.data.settings.fps || 30);
         // Use fastSeek for larger jumps when supported
@@ -96,6 +102,9 @@ export class MediaHook {
         });
     }
     #isOutOfSync() {
+        if (!this.#mediaElement) {
+            return false;
+        }
         // run only once per MAX_LAG_TIME
         const now = performance.now() / 1000; // convert to seconds
         if (now - this.#lastSyncCheck < this.#MAX_LAG_TIME) {
@@ -106,11 +115,17 @@ export class MediaHook {
         return lagTime >= this.#MAX_LAG_TIME;
     }
     async #pause(reason) {
+        if (!this.#mediaElement) {
+            return;
+        }
         if (!this.#mediaElement.paused && !this.#playRequested) {
             this.#mediaElement.pause();
         }
     }
     async #play() {
+        if (!this.#mediaElement) {
+            return;
+        }
         if (this.#mediaElement.paused) {
             this.#playRequested = true;
             try {
@@ -167,6 +182,9 @@ export class MediaHook {
             }
             return;
         }
+        if (!this.#mediaElement) {
+            await this.#handleRefresh();
+        }
         // Make sure we're still marked as the controller (debounced)
         if (!isController && shouldCheckController) {
             // Only set controller if no other component is currently controlling this media
@@ -184,7 +202,7 @@ export class MediaHook {
         }
         // Check if component is loading using the StateManager
         if (this.state.isLoadingComponent(this.#context.contextData.id)) {
-            if (this.#mediaElement.readyState < 2) {
+            if (this.#mediaElement && this.#mediaElement.readyState < 2) {
                 await this.#pause('readyState < 2');
                 return;
             }
@@ -193,10 +211,10 @@ export class MediaHook {
             }
         }
         // Ensure the media element matches the component's mute and volume state
-        if (this.#mediaElement.muted != isMuted) {
+        if (this.#mediaElement && this.#mediaElement.muted != isMuted) {
             this.#mediaElement.muted = isMuted;
         }
-        if (this.#mediaElement.volume != componentVolume) {
+        if (this.#mediaElement && this.#mediaElement.volume != componentVolume) {
             this.#mediaElement.volume = componentVolume;
         }
         const isScenePlaying = this.#context.sceneState.state === 'playing' || this.#context.sceneState.state === 'loading';
@@ -208,7 +226,7 @@ export class MediaHook {
             }
             else {
                 // When scene is playing and media is paused, play media
-                if (this.#mediaElement.paused) {
+                if (this.#mediaElement && this.#mediaElement.paused) {
                     await this.#play();
                 }
             }

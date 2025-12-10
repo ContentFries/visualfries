@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.10](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.9...visualfries-v0.1.10) (2025-12-10)
+
+
+### Bug Fixes
+
+* filter out emojis from font character list to prevent Google Fonts API failures ([#29](https://github.com/ContentFries/visualfries/issues/29)) ([8acb34e](https://github.com/ContentFries/visualfries/commit/8acb34e7980197e7eb342f5e071ca627cec1ced7))
+
 ## [0.1.9](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.8...visualfries-v0.1.9) (2025-12-01)
 
 

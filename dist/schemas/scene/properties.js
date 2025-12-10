@@ -16,11 +16,13 @@ export const GradientDefinitionShape = z.object({
     /** Gradient type */
     type: z.enum(['linear', 'radial']),
     /** Array of color strings */
-    colors: z.array(z.string().refine(isValidColor, {
+    colors: z
+        .array(z.string().refine(isValidColor, {
         error: 'Invalid gradient color'
-    })).min(2),
-    /** Optional array of stop positions (0-1) matching colors */
-    stops: z.array(coerceNormalizedNumber()).optional(),
+    }))
+        .min(2),
+    /** Optional array of stop positions (0-100) matching colors */
+    stops: z.array(coerceNumber(0, 100)).optional(),
     /** Angle in degrees (for linear gradients) */
     angle: coerceNumber(-360, 360).optional(),
     /** Position description (for radial gradients) */
@@ -106,9 +108,12 @@ export const ShadowShape = z.object({
     /** Optional preset name */
     preset: z.string().optional(),
     /** Shadow color */
-    color: z.string().refine(isValidColor, {
+    color: z
+        .string()
+        .refine(isValidColor, {
         error: 'Invalid shadow color format'
-    }).optional(),
+    })
+        .optional(),
     /** Shadow blur radius in pixels */
     blur: coerceNonNegativeNumber().optional(),
     /** Shadow size in pixels */
@@ -191,7 +196,7 @@ export const GradientShape = z.object({
     /** Gradient stops */
     stops: z.array(GradientStopShape).min(2),
     /** Angle in degrees (for linear gradients) */
-    angle: z.number().min(0).max(360).prefault(0).optional(),
+    angle: z.number().min(-360).max(360).prefault(0).optional(),
     /** Center position (for radial gradients) */
     center: z
         .object({

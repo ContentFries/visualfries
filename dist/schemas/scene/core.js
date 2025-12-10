@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isValidColor } from './utils.js';
+import { coerceNumber, isValidColor } from './utils.js';
 import { ComponentShape } from './components.js';
 import { SubtitleCollectionShape, SubtitleWithCompactWordsShape } from './subtitles.js';
 // Utility functions
@@ -69,7 +69,7 @@ export const SceneSettingsShape = z.object({
         z.object({
             type: z.enum(['linear', 'radial']),
             colors: z.array(z.string().refine(isValidColor)).min(2),
-            stops: z.array(z.number().min(0).max(100)).optional(),
+            stops: z.array(coerceNumber(0, 100)).optional(),
             angle: z.number().min(0).max(360).prefault(180).optional(),
             position: z.string().optional(),
             shape: z.enum(['ellipse', 'circle']).optional()

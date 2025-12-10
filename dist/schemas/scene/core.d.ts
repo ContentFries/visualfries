@@ -262,7 +262,7 @@ export declare const SceneSettingsShape: z.ZodObject<{
             radial: "radial";
         }>;
         colors: z.ZodArray<z.ZodString>;
-        stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+        stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
         angle: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
         position: z.ZodOptional<z.ZodString>;
         shape: z.ZodOptional<z.ZodEnum<{
@@ -10723,7 +10723,7 @@ export declare const SceneShape: z.ZodObject<{
                 radial: "radial";
             }>;
             colors: z.ZodArray<z.ZodString>;
-            stops: z.ZodOptional<z.ZodArray<z.ZodNumber>>;
+            stops: z.ZodOptional<z.ZodArray<z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>>>;
             angle: z.ZodOptional<z.ZodPrefault<z.ZodNumber>>;
             position: z.ZodOptional<z.ZodString>;
             shape: z.ZodOptional<z.ZodEnum<{

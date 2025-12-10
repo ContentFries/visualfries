@@ -26,6 +26,21 @@ export function changeIdDeep<T>(obj: T): T {
 	return obj;
 }
 
+/**
+ * Checks if a character is an emoji.
+ * Preserves all legitimate Unicode letters and numbers (Chinese, Japanese, Korean, Arabic, etc.).
+ */
+function isEmoji(char: string): boolean {
+	// If it's a legitimate Unicode letter or number, it's NOT an emoji
+	// This includes Chinese, Japanese, Korean, Arabic, and all other writing systems
+	if (/\p{L}|\p{N}/u.test(char)) {
+		return false;
+	}
+
+	// Use Unicode emoji property - automatically maintained by the Unicode standard
+	return /\p{Emoji}/u.test(char);
+}
+
 export const buildCharactersListFromComponentsAndSubtitles = function (
 	layers: SceneLayer[],
 	subtitlesCharactersList: string[]
@@ -43,8 +58,13 @@ export const buildCharactersListFromComponentsAndSubtitles = function (
 				const textList = text.split('');
 				const missingChars = textList.filter((char: string) => {
 					// Check if the character is not whitespace, not in the characters list,
-					// and is a Unicode letter or number
-					return !/\s/.test(char) && !characters.includes(char) && /\p{L}|\p{N}/u.test(char);
+					// is a Unicode letter or number, and is NOT an emoji
+					return (
+						!/\s/.test(char) &&
+						!characters.includes(char) &&
+						/\p{L}|\p{N}/u.test(char) &&
+						!isEmoji(char)
+					);
 				});
 
 				// Add both uppercase and lowercase variants of missing chars
@@ -58,7 +78,7 @@ export const buildCharactersListFromComponentsAndSubtitles = function (
 
 		if (subtitlesCharactersList.length > 0) {
 			for (const char of subtitlesCharactersList) {
-				if (!characters.includes(char)) {
+				if (!characters.includes(char) && !isEmoji(char)) {
 					// Add both uppercase and lowercase variants of missing chars
 					charactestList.push(char.toLowerCase(), char.toUpperCase());
 				}

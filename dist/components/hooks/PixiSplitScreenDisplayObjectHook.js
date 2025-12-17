@@ -187,15 +187,28 @@ export class PixiSplitScreenDisplayObjectHook {
         this.#context.setResource('pixiRenderObject', this.#displayObject);
     }
     async #handleRefresh() {
-        await this.#handleDestroy();
-        // Reset texture reference so it gets refreshed from context
-        this.#pixiTexture = undefined;
-        if (this.#displayObject) {
-            this.#displayObject.removeChildren();
+        const currentTexture = this.#context.getResource('pixiTexture');
+        // Check if texture has changed (e.g., video source change)
+        if (currentTexture && currentTexture !== this.#pixiTexture) {
+            // Texture changed - need to recreate everything
+            await this.#handleDestroy();
+            this.#pixiTexture = currentTexture;
+            if (this.#displayObject) {
+                this.#displayObject.removeChildren();
+                this.#initDisplayObject();
+            }
         }
-        // Don't call #initDisplayObject here - let #handleUpdate do it
-        // after resources are ready
-        await this.#handleUpdate();
+        else if (this.#displayObject?.children?.length > 0) {
+            // Same texture - just update sprite properties (position, size, etc.)
+            // For split screen, we may need to rebuild if effects changed
+            // For now, trigger a full rebuild on refresh
+            this.#displayObject.removeChildren();
+            if (currentTexture) {
+                this.#pixiTexture = currentTexture;
+                this.#initDisplayObject();
+            }
+        }
+        // If no texture yet, #handleUpdate will handle initial creation
     }
     async #handleDestroy() {
         // remove event listeners from video

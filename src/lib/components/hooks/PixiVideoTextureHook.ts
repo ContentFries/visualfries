@@ -5,7 +5,10 @@ import { VideoComponentShape } from '$lib';
 import { z } from 'zod';
 
 export class PixiVideoTextureHook implements IComponentHook {
-	types: HookType[] = ['update', 'destroy', 'refresh'];
+	// Note: 'refresh' is NOT included - timeline position changes don't need texture recreation.
+	// The video element persists and the same texture can continue to be used.
+	// Only 'refresh:content' (source change) should recreate the texture.
+	types: HookType[] = ['update', 'destroy', 'refresh:content'];
 	priority: number = 1;
 	#context!: IComponentContext;
 	#videoTexture: PIXI.Texture | undefined;
@@ -14,8 +17,7 @@ export class PixiVideoTextureHook implements IComponentHook {
 	#handlers: HookHandlers = {
 		update: this.#handleUpdate.bind(this),
 		destroy: this.#handleDestroy.bind(this),
-		refresh: this.#handleRefresh.bind(this),
-		'refresh:config': this.#handleRefresh.bind(this)
+		'refresh:content': this.#handleRefreshContent.bind(this)
 	} as const;
 
 	async #handleUpdate() {
@@ -49,9 +51,10 @@ export class PixiVideoTextureHook implements IComponentHook {
 		}
 	}
 
-	async #handleRefresh() {
+	async #handleRefreshContent() {
+		// Only recreate texture when video source changes
 		await this.#handleDestroy();
-		// #handleUpdate will recreate texture on next update call
+		// Texture will be recreated on next update when videoElement is available
 	}
 
 	async handle(type: HookType, context: IComponentContext) {
@@ -68,3 +71,4 @@ export class PixiVideoTextureHook implements IComponentHook {
 		}
 	}
 }
+

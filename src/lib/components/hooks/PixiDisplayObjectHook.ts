@@ -49,9 +49,23 @@ export class PixiDisplayObjectHook implements IComponentHook {
 	}
 
 	async #handleRefresh() {
-		await this.#handleDestroy();
-		this.#initDisplayObject();
-		await this.#handleUpdate();
+		// Check if texture has changed (e.g., video source change)
+		const currentTexture = this.#context.getResource('pixiTexture');
+		
+		if (currentTexture && currentTexture !== this.#pixiTexture) {
+			// Texture changed - need to recreate sprite with new texture
+			await this.#handleDestroy();
+			this.#pixiTexture = currentTexture;
+			this.#initDisplayObject();
+		} else if (this.#displayObject?.children?.length > 0) {
+			// Same texture - just update sprite properties (position, size, opacity, etc.)
+			const sprite = this.#displayObject.children[0] as PIXI.Sprite;
+			if (sprite) {
+				setPlacementAndOpacity(sprite, this.#context.data.appearance as Appearance);
+				this.state.markDirty();
+			}
+		}
+		// If no texture yet, #handleUpdate will handle initial creation
 	}
 
 	async #handleUpdate() {

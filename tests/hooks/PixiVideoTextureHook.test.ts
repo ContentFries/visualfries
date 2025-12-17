@@ -43,10 +43,12 @@ describe('PixiVideoTextureHook', () => {
 	});
 
 	describe('Hook configuration', () => {
-		it('should have correct types array including update, destroy, and refresh', () => {
+		it('should have correct types array including update, destroy, and refresh:content', () => {
 			expect(hook.types).toContain('update');
 			expect(hook.types).toContain('destroy');
-			expect(hook.types).toContain('refresh');
+			expect(hook.types).toContain('refresh:content');
+			// Note: 'refresh' is NOT included - timeline changes don't need texture recreation
+			expect(hook.types).not.toContain('refresh');
 		});
 
 		it('should have priority 1', () => {
@@ -120,8 +122,8 @@ describe('PixiVideoTextureHook', () => {
 		});
 	});
 
-	describe('Refresh handler', () => {
-		it('should clean up and allow new texture creation on refresh', async () => {
+	describe('Refresh:content handler (source change)', () => {
+		it('should clean up and allow new texture creation on refresh:content', async () => {
 			const mockVideoElement = document.createElement('video');
 			mockContext.getResource.mockReturnValue(mockVideoElement);
 
@@ -129,21 +131,35 @@ describe('PixiVideoTextureHook', () => {
 			await hook.handle('update', mockContext);
 			expect(mockContext.setResource).toHaveBeenCalledTimes(1);
 
-			// Refresh should destroy old texture
-			await hook.handle('refresh', mockContext);
+			// refresh:content should destroy old texture (for source changes)
+			await hook.handle('refresh:content', mockContext);
 			expect(mockContext.removeResource).toHaveBeenCalledWith('pixiTexture');
 
-			// After refresh, next update should be able to create new texture
+			// After refresh:content, next update should be able to create new texture
 			mockContext.setResource.mockClear();
 			await hook.handle('update', mockContext);
 			expect(mockContext.setResource).toHaveBeenCalledWith('pixiTexture', expect.any(Object));
 		});
 
-		it('should handle refresh when no texture exists', async () => {
+		it('should handle refresh:content when no texture exists', async () => {
 			mockContext.getResource.mockReturnValue(undefined);
 
 			// Should not throw when refreshing without a texture
-			await expect(hook.handle('refresh', mockContext)).resolves.not.toThrow();
+			await expect(hook.handle('refresh:content', mockContext)).resolves.not.toThrow();
+		});
+
+		it('should NOT destroy texture on plain refresh (timeline position change)', async () => {
+			const mockVideoElement = document.createElement('video');
+			mockContext.getResource.mockReturnValue(mockVideoElement);
+
+			// Create initial texture
+			await hook.handle('update', mockContext);
+			expect(mockContext.setResource).toHaveBeenCalledTimes(1);
+
+			// Plain 'refresh' should NOT destroy texture (not in types array)
+			await hook.handle('refresh', mockContext);
+			// removeResource should NOT have been called
+			expect(mockContext.removeResource).not.toHaveBeenCalled();
 		});
 	});
 

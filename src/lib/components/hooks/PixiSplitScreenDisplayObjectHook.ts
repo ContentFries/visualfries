@@ -101,7 +101,8 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		// Get the source element (video/image)
 		const sourceElement = this.#context.getResource('videoElement');
 		if (!sourceElement) {
-			throw new Error('videoElement not found in resources.');
+			// Video element not ready yet - will be called again on next update
+			return;
 		}
 		// const sourceElement = this.#pixiTexture.baseTexture.resource.source as
 		// 	| HTMLVideoElement
@@ -229,8 +230,13 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 
 	async #handleRefresh() {
 		await this.#handleDestroy();
-		this.#displayObject.removeChildren();
-		this.#initDisplayObject();
+		// Reset texture reference so it gets refreshed from context
+		this.#pixiTexture = undefined as any;
+		if (this.#displayObject) {
+			this.#displayObject.removeChildren();
+		}
+		// Don't call #initDisplayObject here - let #handleUpdate do it
+		// after resources are ready
 		await this.#handleUpdate();
 	}
 

@@ -1,15 +1,22 @@
 import * as PIXI from 'pixi.js-legacy';
 
-import type { IComponentContext, IComponentHook, HookType } from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
 import { VideoComponentShape } from '$lib';
 import { z } from 'zod';
 
 export class PixiVideoTextureHook implements IComponentHook {
-	types: HookType[] = ['update'];
+	types: HookType[] = ['update', 'destroy', 'refresh'];
 	priority: number = 1;
 	#context!: IComponentContext;
 	#videoTexture: PIXI.Texture | undefined;
 	componentElement!: z.infer<typeof VideoComponentShape>;
+
+	#handlers: HookHandlers = {
+		update: this.#handleUpdate.bind(this),
+		destroy: this.#handleDestroy.bind(this),
+		refresh: this.#handleRefresh.bind(this),
+		'refresh:config': this.#handleRefresh.bind(this)
+	} as const;
 
 	async #handleUpdate() {
 		if (this.#videoTexture) {
@@ -18,7 +25,8 @@ export class PixiVideoTextureHook implements IComponentHook {
 
 		const media = this.#context.getResource('videoElement');
 		if (!media) {
-			throw new Error('videoElement not found in resources.');
+			// Video element not ready yet - will be called again on next update
+			return;
 		}
 
 		const res = new PIXI.VideoResource(media, {
@@ -32,6 +40,20 @@ export class PixiVideoTextureHook implements IComponentHook {
 		this.#context.setResource('pixiTexture', this.#videoTexture);
 	}
 
+	async #handleDestroy() {
+		if (this.#videoTexture) {
+			// Destroy the texture and its base texture to free GPU memory
+			this.#videoTexture.destroy(true);
+			this.#videoTexture = undefined;
+			this.#context.removeResource('pixiTexture');
+		}
+	}
+
+	async #handleRefresh() {
+		await this.#handleDestroy();
+		// #handleUpdate will recreate texture on next update call
+	}
+
 	async handle(type: HookType, context: IComponentContext) {
 		this.#context = context;
 		const data = this.#context.contextData;
@@ -40,6 +62,9 @@ export class PixiVideoTextureHook implements IComponentHook {
 		}
 		this.componentElement = data as z.infer<typeof VideoComponentShape>;
 
-		return await this.#handleUpdate();
+		const handler = this.#handlers[type];
+		if (handler) {
+			await handler();
+		}
 	}
 }

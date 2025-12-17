@@ -34,6 +34,7 @@ export class AnimationHook implements IComponentHook {
 	#currentId: string | undefined = undefined;
 	#componentTimeline: gsap.core.Timeline | undefined | null = undefined;
 	#animationsBuilt = false;
+	#lastAnimationDataHash: string | undefined = undefined; // Track animationData changes
 
 	private timeline: TimelineManager;
 	private splitTextCache: SplitTextCache;
@@ -196,6 +197,20 @@ export class AnimationHook implements IComponentHook {
 		// Check if component ID has changed
 		if (this.#context.isActive && this.#currentId !== this.#context.contextData.id) {
 			await this.#handleRefresh();
+		}
+
+		// Check if animationData has changed (e.g., SubtitlesHook just set wordStartTimes)
+		// This fixes the issue where animations are built before animationData is available
+		if (this.#context.isActive && this.#animationsBuilt) {
+			const animationData = this.#context.resources.get('animationData') as Record<string, any> | undefined;
+			const currentHash = animationData?.wordStartTimes?.length?.toString() ?? '';
+			
+			if (currentHash !== this.#lastAnimationDataHash && currentHash !== '') {
+				// animationData changed (became available) - need to rebuild animations
+				this.#lastAnimationDataHash = currentHash;
+				await this.#handleRefresh();
+				return;
+			}
 		}
 
 		// Setup if component becomes active and animations aren't set up

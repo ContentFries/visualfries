@@ -179,8 +179,10 @@ export class ComponentState {
         // }
     }
     async updateAppearance(appearance) {
-        const mergedAppearance = merge({}, this.#data.appearance, appearance);
-        this.#data = { ...this.#data, appearance: mergedAppearance };
+        // Use $state.snapshot() to properly extract all properties from the reactive proxy
+        const currentData = $state.snapshot(this.#data);
+        const mergedAppearance = merge({}, currentData.appearance, appearance);
+        this.#data = { ...currentData, appearance: mergedAppearance };
         this.#emitChange();
         await this.maybeAutoRefresh();
     }

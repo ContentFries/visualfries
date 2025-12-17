@@ -222,8 +222,10 @@ export class ComponentState implements ComponentProps {
 	}
 
 	async updateAppearance(appearance: Partial<AppearanceInput>): Promise<void> {
-		const mergedAppearance = merge({}, this.#data!.appearance, appearance);
-		this.#data = { ...this.#data!, appearance: mergedAppearance } as ComponentData;
+		// Use $state.snapshot() to properly extract all properties from the reactive proxy
+		const currentData = $state.snapshot(this.#data!);
+		const mergedAppearance = merge({}, currentData.appearance, appearance);
+		this.#data = { ...currentData, appearance: mergedAppearance } as ComponentData;
 
 		this.#emitChange();
 		await this.maybeAutoRefresh();

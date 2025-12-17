@@ -98,7 +98,22 @@ export class ComponentContext {
         const sortedHooks = [...hooks].sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
         for (let i = 0; i < sortedHooks.length; i += 1) {
             const handler = sortedHooks[i];
-            await handler.handle(type, this);
+            try {
+                await handler.handle(type, this);
+            }
+            catch (error) {
+                // Log the error but continue to next hook
+                const hookName = handler.constructor?.name ?? `Hook[${i}]`;
+                console.warn(`[ComponentContext] Hook "${hookName}" failed during "${type}" for component "${this.id}":`, error instanceof Error ? error.message : String(error));
+                // Emit error event for debugging/monitoring
+                this.eventManager.emit('hookerror', {
+                    hookName,
+                    hookType: type,
+                    error: error instanceof Error ? error : new Error(String(error)),
+                    componentId: this.id,
+                    timestamp: Date.now()
+                });
+            }
         }
     }
     destroy() { }

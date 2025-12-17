@@ -276,6 +276,25 @@ export class SceneBuilder {
             },
             checksum: 'new-' + uuidv4()
         };
+        // For VIDEO components, adjust source.startAt for the second part
+        // source.startAt determines at what point in the video file playback starts
+        // when the timeline reaches timeline.startAt
+        if (cloneData.type === 'VIDEO') {
+            const videoClone = cloneData;
+            // Calculate the time offset from original component start to split point
+            const timeOffsetFromStart = currentTime - compStart;
+            // Get current source.startAt (or 0 if not set/undefined)
+            const currentSourceStartAt = videoClone.source?.startAt ?? 0;
+            // The new source.startAt is the original offset plus the split offset
+            const newSourceStartAt = currentSourceStartAt + timeOffsetFromStart;
+            // Ensure source object exists and update startAt
+            if (!videoClone.source) {
+                videoClone.source = { startAt: newSourceStartAt };
+            }
+            else {
+                videoClone.source.startAt = newSourceStartAt;
+            }
+        }
         // Update original component's end time
         component.props.setEnd(this.currentTime);
         // Add the cloned component to the same layer

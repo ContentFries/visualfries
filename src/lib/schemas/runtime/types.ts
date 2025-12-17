@@ -77,6 +77,13 @@ export interface LayerEvents {
 export interface ComponentEvents {
 	componentschange: void;
 	componentchange: ComponentData;
+	hookerror: {
+		hookName: string;
+		hookType: string;
+		error: Error;
+		componentId: string;
+		timestamp: number;
+	};
 }
 
 export interface SubtitlesEvents {

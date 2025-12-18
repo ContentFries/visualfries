@@ -70,7 +70,11 @@ export class PixiDisplayObjectHook implements IComponentHook {
 
 	async #handleUpdate() {
 		const isActive = this.#context.isActive;
+		
 		if (this.#displayObject) {
+			// Always re-assert the resource in case the context was cleared or updated
+			this.#context.setResource('pixiRenderObject', this.#displayObject);
+
 			// Only mark dirty if visibility actually changed
 			if (this.#displayObject.visible !== isActive) {
 				this.#displayObject.visible = isActive;

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 
 export class MediaHook implements IComponentHook {
-	types: HookType[] = ['setup', 'update', 'destroy', 'refresh'];
+	types: HookType[] = ['setup', 'update', 'destroy'];
 	priority: number = 1;
 	#context!: IComponentContext;
 	#mediaElement: HTMLMediaElement | undefined;

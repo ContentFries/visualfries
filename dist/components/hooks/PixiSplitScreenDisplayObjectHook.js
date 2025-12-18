@@ -172,6 +172,8 @@ export class PixiSplitScreenDisplayObjectHook {
             this.#drawBlurredBackground();
         }
         if (this.#displayObject) {
+            // Always re-assert the resource in case the context was cleared or updated
+            this.#context.setResource('pixiRenderObject', this.#displayObject);
             if (this.#displayObject.visible != isActive) {
                 this.#displayObject.visible = isActive;
             }

@@ -85,7 +85,7 @@ describe('PixiVideoTextureHook', () => {
 			expect(mockContext.setResource).toHaveBeenCalledWith('pixiTexture', expect.any(Object));
 		});
 
-		it('should not recreate texture if already exists', async () => {
+		it('should not recreate texture if already exists but re-assert it', async () => {
 			const mockVideoElement = document.createElement('video');
 			mockContext.getResource.mockReturnValue(mockVideoElement);
 
@@ -93,9 +93,14 @@ describe('PixiVideoTextureHook', () => {
 			await hook.handle('update', mockContext);
 			expect(mockContext.setResource).toHaveBeenCalledTimes(1);
 
-			// Second call should not create another texture
+			// Second call should not recreate but should re-assert the same texture
 			await hook.handle('update', mockContext);
-			expect(mockContext.setResource).toHaveBeenCalledTimes(1);
+			expect(mockContext.setResource).toHaveBeenCalledTimes(2);
+			
+			// Verify it's the same texture being set
+			const firstCallTexture = mockContext.setResource.mock.calls[0][1];
+			const secondCallTexture = mockContext.setResource.mock.calls[1][1];
+			expect(firstCallTexture).toBe(secondCallTexture);
 		});
 	});
 

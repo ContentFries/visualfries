@@ -1,0 +1,105 @@
+{
+	"id": "gradient-background-example",
+	"version": "2.0",
+	"name": "Gradient Background",
+	"settings": {
+		"width": 1080,
+		"height": 1920,
+		"duration": 5,
+		"fps": 30,
+		"backgroundColor": "#000000"
+	},
+	"assets": [],
+	"layers": [
+		{
+			"id": "layer-main",
+			"name": "Main Layer",
+			"order": 0,
+			"visible": true,
+			"muted": false,
+			"components": [
+				{
+					"id": "bg-gradient",
+					"name": "Background Gradient",
+					"type": "SHAPE",
+					"timeline": { "startAt": 0, "endAt": 5 },
+					"visible": true,
+					"order": 0,
+					"shape": { "type": "rectangle" },
+					"appearance": {
+						"x": 0,
+						"y": 0,
+						"width": 1080,
+						"height": 1920,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1,
+						"background": {
+							"colors": ["#667eea", "#764ba2"],
+							"angle": 135
+						}
+					},
+					"animations": { "enabled": true, "list": [] },
+					"effects": { "enabled": true, "map": {} }
+				},
+				{
+					"id": "title-text",
+					"name": "Title",
+					"type": "TEXT",
+					"text": "Hello World",
+					"timeline": { "startAt": 0, "endAt": 5 },
+					"visible": true,
+					"order": 1,
+					"appearance": {
+						"x": 0,
+						"y": 800,
+						"width": 1080,
+						"height": 300,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1,
+						"horizontalAlign": "center",
+						"verticalAlign": "center",
+						"text": {
+							"fontFamily": "Inter",
+							"fontSize": 120,
+							"fontWeight": "900",
+							"lineHeight": { "value": 1.1, "unit": "em" },
+							"letterSpacing": { "value": -0.02, "unit": "em" },
+							"color": "#ffffff",
+							"textAlign": "center",
+							"textTransform": "uppercase"
+						}
+					},
+					"animations": {
+						"enabled": true,
+						"list": [
+							{
+								"id": "title-scale",
+								"name": "Scale In",
+								"animation": {
+									"id": "scale-in",
+									"timeline": [
+										{
+											"tweens": [
+												{
+													"method": "from",
+													"vars": { "duration": 0.6, "scale": 0.5, "opacity": 0 }
+												}
+											]
+										}
+									]
+								}
+							}
+						]
+					},
+					"effects": { "enabled": true, "map": {} }
+				}
+			]
+		}
+	],
+	"transitions": [],
+	"audioTracks": []
+}

@@ -1,0 +1,116 @@
+{
+	"id": "04_real_subtitles",
+	"version": "2.0",
+	"name": "04. Real Subtitles",
+	"settings": {
+		"width": 1080,
+		"height": 1920,
+		"duration": 5,
+		"fps": 30,
+		"backgroundColor": "#000000"
+	},
+	"assets": [
+		{
+			"id": "bunny-asset",
+			"type": "VIDEO",
+			"url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+		}
+	],
+	"layers": [
+		{
+			"id": "layer-video",
+			"name": "Video Layer",
+			"order": 0,
+			"visible": true,
+			"muted": true,
+			"components": [
+				{
+					"id": "bunny-video",
+					"name": "Background Video",
+					"type": "VIDEO",
+					"timeline": { "startAt": 0, "endAt": 5 },
+					"visible": true,
+					"order": 0,
+					"source": {
+						"assetId": "bunny-asset",
+						"url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+						"startAt": 0,
+						"endAt": 5
+					},
+					"appearance": {
+						"x": 0,
+						"y": 0,
+						"width": 1080,
+						"height": 1920,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1
+					},
+					"volume": 0,
+					"muted": true,
+					"animations": { "enabled": true, "list": [] },
+					"effects": { "enabled": true, "map": {} }
+				}
+			]
+		},
+		{
+			"id": "layer-subtitles",
+			"name": "Subtitle Layer",
+			"order": 1,
+			"visible": true,
+			"muted": false,
+			"components": [
+				{
+					"id": "real-subtitles",
+					"name": "Real Subtitles",
+					"type": "SUBTITLES",
+					"timeline": { "startAt": 0, "endAt": 5 },
+					"visible": true,
+					"order": 0,
+					"source": {
+						"assetId": "bunny-asset",
+						"startAt": 0,
+						"endAt": 5
+					},
+					"appearance": {
+						"x": 0,
+						"y": 1400,
+						"width": 1080,
+						"height": 300,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1,
+						"text": {
+							"fontFamily": "Inter",
+							"fontSize": 80,
+							"fontWeight": "900",
+							"color": "#ffffff",
+							"textAlign": "center",
+							"textTransform": "uppercase",
+							"activeWord": {
+								"enabled": true,
+								"color": "#ffd700",
+								"scale": 1.3
+							}
+						}
+					},
+					"animations": {
+						"enabled": true,
+						"list": [
+							{
+								"id": "words-anim",
+								"name": "Words Highlight",
+								"animation": "cf-words-highlight"
+							}
+						]
+					},
+					"effects": { "enabled": true, "map": {} }
+				}
+			]
+		}
+	],
+	"transitions": [],
+	"audioTracks": []
+}

@@ -1,0 +1,89 @@
+{
+	"id": "01_basic_text",
+	"version": "2.0",
+	"name": "01. Basic Text",
+	"settings": {
+		"width": 1080,
+		"height": 1920,
+		"duration": 5,
+		"fps": 30,
+		"backgroundColor": "#000000"
+	},
+	"assets": [],
+	"layers": [
+		{
+			"id": "layer-bg",
+			"name": "Background Layer",
+			"order": 0,
+			"visible": true,
+			"muted": false,
+			"components": [
+				{
+					"id": "bg-shape",
+					"name": "Black Rectangle",
+					"type": "SHAPE",
+					"timeline": { "startAt": 0, "endAt": 5 },
+					"visible": true,
+					"order": 0,
+					"shape": { "type": "rectangle" },
+					"appearance": {
+						"x": 0,
+						"y": 0,
+						"width": 1080,
+						"height": 1920,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1,
+						"background": "#000000"
+					},
+					"animations": { "enabled": true, "list": [] },
+					"effects": { "enabled": true, "map": {} }
+				}
+			]
+		},
+		{
+			"id": "layer-text",
+			"name": "Text Layer",
+			"order": 1,
+			"visible": true,
+			"muted": false,
+			"components": [
+				{
+					"id": "center-text",
+					"name": "Center Text",
+					"type": "TEXT",
+					"text": "VISUALFRIES",
+					"timeline": { "startAt": 0, "endAt": 5 },
+					"visible": true,
+					"order": 0,
+					"appearance": {
+						"x": 0,
+						"y": 860,
+						"width": 1080,
+						"height": 200,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1,
+						"horizontalAlign": "center",
+						"verticalAlign": "center",
+						"text": {
+							"fontFamily": "Inter",
+							"fontSize": 140,
+							"fontWeight": "900",
+							"lineHeight": { "value": 1, "unit": "em" },
+							"color": "#ffffff",
+							"textAlign": "center",
+							"textTransform": "uppercase"
+						}
+					},
+					"animations": { "enabled": true, "list": [] },
+					"effects": { "enabled": true, "map": {} }
+				}
+			]
+		}
+	],
+	"transitions": [],
+	"audioTracks": []
+}

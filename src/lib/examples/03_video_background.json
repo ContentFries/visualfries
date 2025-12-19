@@ -1,0 +1,94 @@
+{
+	"id": "03_video_background",
+	"version": "2.0",
+	"name": "03. Video Background",
+	"settings": {
+		"width": 1080,
+		"height": 1920,
+		"duration": 5,
+		"fps": 30,
+		"backgroundColor": "#000000"
+	},
+	"assets": [],
+	"layers": [
+		{
+			"id": "layer-video",
+			"name": "Video Layer",
+			"order": 0,
+			"visible": true,
+			"muted": true,
+			"components": [
+				{
+					"id": "bunny-video",
+					"name": "Background Video",
+					"type": "VIDEO",
+					"timeline": { "startAt": 0, "endAt": 5 },
+					"visible": true,
+					"order": 0,
+					"source": {
+						"url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+						"startAt": 0,
+						"endAt": 5
+					},
+					"appearance": {
+						"x": 0,
+						"y": 0,
+						"width": 1080,
+						"height": 1920,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1
+					},
+					"volume": 0,
+					"muted": true,
+					"animations": { "enabled": true, "list": [] },
+					"effects": { "enabled": true, "map": {} }
+				}
+			]
+		},
+		{
+			"id": "layer-overlay",
+			"name": "Overlay Layer",
+			"order": 1,
+			"visible": true,
+			"muted": false,
+			"components": [
+				{
+					"id": "overlay-text",
+					"name": "Overlay Text",
+					"type": "TEXT",
+					"text": "VIDEO BG",
+					"timeline": { "startAt": 0, "endAt": 5 },
+					"visible": true,
+					"order": 0,
+					"appearance": {
+						"x": 0,
+						"y": 860,
+						"width": 1080,
+						"height": 200,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1,
+						"horizontalAlign": "center",
+						"verticalAlign": "center",
+						"text": {
+							"fontFamily": "Inter",
+							"fontSize": 140,
+							"fontWeight": "900",
+							"lineHeight": { "value": 1, "unit": "em" },
+							"color": "#ffffff",
+							"textAlign": "center",
+							"textTransform": "uppercase"
+						}
+					},
+					"animations": { "enabled": true, "list": [] },
+					"effects": { "enabled": true, "map": {} }
+				}
+			]
+		}
+	],
+	"transitions": [],
+	"audioTracks": []
+}

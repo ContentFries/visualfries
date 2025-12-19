@@ -1,0 +1,97 @@
+{
+	"id": "karaoke-subtitles-example",
+	"version": "2.0",
+	"name": "Karaoke Subtitles",
+	"settings": {
+		"width": 1080,
+		"height": 1920,
+		"duration": 4,
+		"fps": 30,
+		"backgroundColor": "#1a1a2e"
+	},
+	"assets": [],
+	"layers": [
+		{
+			"id": "layer-main",
+			"name": "Main Layer",
+			"order": 0,
+			"visible": true,
+			"muted": false,
+			"components": [
+				{
+					"id": "bg",
+					"name": "Background",
+					"type": "SHAPE",
+					"timeline": { "startAt": 0, "endAt": 4 },
+					"visible": true,
+					"order": 0,
+					"shape": { "type": "rectangle" },
+					"appearance": {
+						"x": 0,
+						"y": 0,
+						"width": 1080,
+						"height": 1920,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1,
+						"background": {
+							"colors": ["#0f0f23", "#1a1a3e"],
+							"angle": 180
+						}
+					},
+					"animations": { "enabled": true, "list": [] },
+					"effects": { "enabled": true, "map": {} }
+				},
+				{
+					"id": "subtitle-karaoke",
+					"name": "Karaoke Text",
+					"type": "TEXT",
+					"text": "Create stunning videos",
+					"timeline": { "startAt": 0, "endAt": 4 },
+					"visible": true,
+					"order": 1,
+					"appearance": {
+						"x": 0,
+						"y": 850,
+						"width": 1080,
+						"height": 200,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1,
+						"horizontalAlign": "center",
+						"verticalAlign": "center",
+						"text": {
+							"fontFamily": "Montserrat",
+							"fontSize": 90,
+							"fontWeight": "900",
+							"lineHeight": { "value": 1.2, "unit": "em" },
+							"color": "rgba(255,255,255,0.4)",
+							"textAlign": "center",
+							"textTransform": "uppercase",
+							"activeWord": {
+								"enabled": true,
+								"color": "#ffd700",
+								"scale": 1.3
+							}
+						}
+					},
+					"animations": {
+						"enabled": true,
+						"list": [
+							{
+								"id": "words-anim",
+								"name": "Words Highlight",
+								"animation": "cf-words-highlight"
+							}
+						]
+					},
+					"effects": { "enabled": true, "map": {} }
+				}
+			]
+		}
+	],
+	"transitions": [],
+	"audioTracks": []
+}

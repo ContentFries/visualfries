@@ -24,7 +24,6 @@ export class AnimationHook {
     #currentId = undefined;
     #componentTimeline = undefined;
     #animationsBuilt = false;
-    #lastAnimationDataHash = undefined; // Track animationData changes
     timeline;
     splitTextCache;
     types = Object.keys(this.#handlers);
@@ -142,18 +141,6 @@ export class AnimationHook {
         // Check if component ID has changed
         if (this.#context.isActive && this.#currentId !== this.#context.contextData.id) {
             await this.#handleRefresh();
-        }
-        // Check if animationData has changed (e.g., SubtitlesHook just set wordStartTimes)
-        // This fixes the issue where animations are built before animationData is available
-        if (this.#context.isActive && this.#animationsBuilt) {
-            const animationData = this.#context.resources.get('animationData');
-            const currentHash = animationData?.wordStartTimes?.length?.toString() ?? '';
-            if (currentHash !== this.#lastAnimationDataHash && currentHash !== '') {
-                // animationData changed (became available) - need to rebuild animations
-                this.#lastAnimationDataHash = currentHash;
-                await this.#handleRefresh();
-                return;
-            }
         }
         // Setup if component becomes active and animations aren't set up
         if (this.#context.isActive) {

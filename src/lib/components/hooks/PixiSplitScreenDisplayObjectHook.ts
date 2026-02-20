@@ -1,11 +1,6 @@
 import * as PIXI from 'pixi.js-legacy';
 
-import type {
-	IComponentContext,
-	IComponentHook,
-	HookType,
-	HookHandlers
-} from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
 import { LayoutSplitEffectShape, VideoComponentShape } from '$lib';
 import { z } from 'zod';
 import type { StateManager } from '$lib/managers/StateManager.svelte.ts';
@@ -99,14 +94,12 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		ctx.filter = `blur(${sanitizedStrength}px)`;
 
 		// Get the source element (video/image)
-		const sourceElement = this.#context.getResource('videoElement');
+		const sourceElement =
+			this.#context.getResource('videoElement') || this.#context.getResource('imageElement');
 		if (!sourceElement) {
-			// Video element not ready yet - will be called again on next update
+			// Video or Image element not ready yet - will be called again on next update
 			return;
 		}
-		// const sourceElement = this.#pixiTexture.baseTexture.resource.source as
-		// 	| HTMLVideoElement
-		// 	| HTMLImageElement;
 
 		// Draw the original texture with blur
 		ctx.drawImage(sourceElement, 0, 0, this.#bgCanvas.width, this.#bgCanvas.height);
@@ -233,7 +226,7 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 
 	async #handleRefresh() {
 		const currentTexture = this.#context.getResource('pixiTexture');
-		
+
 		// Check if texture has changed (e.g., video source change)
 		if (currentTexture && currentTexture !== this.#pixiTexture) {
 			// Texture changed - need to recreate everything
@@ -264,10 +257,10 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 	async handle(type: HookType, context: IComponentContext) {
 		this.#context = context;
 		const data = this.#context.contextData;
-		if (!data || data.type !== 'VIDEO') {
+		if (!data || (data.type !== 'VIDEO' && data.type !== 'IMAGE')) {
 			return;
 		}
-		this.componentElement = data as z.infer<typeof VideoComponentShape>;
+		this.componentElement = data as any;
 
 		const handler = this.#handlers[type];
 		if (handler) {

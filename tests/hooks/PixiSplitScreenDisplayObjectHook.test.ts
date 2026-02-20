@@ -26,11 +26,16 @@ vi.mock('pixi.js-legacy', async (importOriginal) => {
 			endFill: vi.fn().mockReturnThis(),
 			destroy: vi.fn()
 		})),
-		Texture: vi.fn().mockImplementation(() => ({
-			destroy: vi.fn(),
-			width: 1920,
-			height: 1080
-		})),
+		Texture: Object.assign(
+			vi.fn().mockImplementation(() => ({
+				destroy: vi.fn(),
+				width: 1920,
+				height: 1080
+			})),
+			{
+				from: vi.fn().mockReturnValue({})
+			}
+		),
 		BlurFilter: vi.fn().mockImplementation(() => ({}))
 	};
 });
@@ -174,8 +179,8 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 		});
 	});
 
-	describe('Non-VIDEO components', () => {
-		it('should not process non-VIDEO components', async () => {
+	describe('Non-VIDEO and Non-IMAGE components', () => {
+		it('should not process non-VIDEO/IMAGE components like TEXT', async () => {
 			mockContext.contextData = {
 				id: 'test-text',
 				type: 'TEXT',
@@ -190,7 +195,7 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 
 			await hook.handle('update', mockContext);
 
-			// Should not try to get resources for non-VIDEO
+			// Should not try to get resources for non-VIDEO/IMAGE
 			expect(mockContext.setResource).not.toHaveBeenCalled();
 		});
 
@@ -198,6 +203,109 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 			mockContext.contextData = undefined as any;
 
 			await expect(hook.handle('update', mockContext)).resolves.not.toThrow();
+		});
+	});
+
+	describe('IMAGE components', () => {
+		it('should process IMAGE components and use imageElement for blur', async () => {
+			mockStateManager.environment = 'server' as any;
+			const mockTexture = { width: 1920, height: 1080, baseTexture: {} };
+			mockContext.getResource.mockImplementation((key: string) => {
+				if (key === 'pixiTexture') return mockTexture;
+				if (key === 'imageElement') return {} as any; // mock image element
+				return undefined;
+			});
+
+			mockContext.contextData = {
+				id: 'test-image',
+				type: 'IMAGE',
+				source: { url: 'https://example.com/image.png' },
+				timeline: { startAt: 0, endAt: 10 },
+				appearance: { x: 0, y: 0, width: 1920, height: 1080 },
+				animations: {},
+				effects: {
+					enabled: true,
+					map: { fillBackgroundBlur: { type: 'fillBackgroundBlur', enabled: true, blurAmount: 50 } }
+				},
+				visible: true,
+				order: 0
+			} as any;
+			mockContext.data.effects = mockContext.contextData.effects;
+
+			await hook.handle('update', mockContext);
+
+			// Should get imageElement and set object
+			expect(mockContext.getResource).toHaveBeenCalledWith('imageElement');
+			expect(mockContext.setResource).toHaveBeenCalledWith('pixiRenderObject', expect.any(Object));
+		});
+
+		it('should process IMAGE components with split screen', async () => {
+			const mockTexture = { width: 1920, height: 1080, baseTexture: {} };
+			mockContext.getResource.mockImplementation((key: string) => {
+				if (key === 'pixiTexture') return mockTexture;
+				return undefined;
+			});
+
+			mockContext.contextData = {
+				id: 'test-image',
+				type: 'IMAGE',
+				source: { url: 'https://example.com/image.png' },
+				timeline: { startAt: 0, endAt: 10 },
+				appearance: { x: 0, y: 0, width: 1920, height: 1080 },
+				animations: {},
+				effects: {
+					enabled: true,
+					map: {
+						layoutSplit: {
+							type: 'layoutSplit',
+							enabled: true,
+							pieces: 2,
+							sceneWidth: 1080,
+							sceneHeight: 1920,
+							chunks: [
+								{
+									group: { x: 0, y: 0, width: 1080, height: 960 },
+									component: { x: 0, y: 0, width: 1920, height: 1080 }
+								},
+								{
+									group: { x: 0, y: 960, width: 1080, height: 960 },
+									component: { x: 0, y: 0, width: 1920, height: 1080 }
+								}
+							]
+						}
+					}
+				},
+				visible: true,
+				order: 0
+			} as any;
+			mockContext.data.effects = mockContext.contextData.effects;
+
+			await expect(hook.handle('update', mockContext)).resolves.not.toThrow();
+			expect(mockContext.setResource).toHaveBeenCalledWith('pixiRenderObject', expect.any(Object));
+		});
+
+		it('should process IMAGE components normally (non-split)', async () => {
+			const mockTexture = { width: 1920, height: 1080, baseTexture: {} };
+			mockContext.getResource.mockImplementation((key: string) => {
+				if (key === 'pixiTexture') return mockTexture;
+				return undefined;
+			});
+
+			mockContext.contextData = {
+				id: 'test-image',
+				type: 'IMAGE',
+				source: { url: 'https://example.com/image.png' },
+				timeline: { startAt: 0, endAt: 10 },
+				appearance: { x: 0, y: 0, width: 1920, height: 1080 },
+				animations: {},
+				effects: { enabled: false, map: {} },
+				visible: true,
+				order: 0
+			} as any;
+			mockContext.data.effects = mockContext.contextData.effects;
+
+			await expect(hook.handle('update', mockContext)).resolves.not.toThrow();
+			expect(mockContext.setResource).toHaveBeenCalledWith('pixiRenderObject', expect.any(Object));
 		});
 	});
 

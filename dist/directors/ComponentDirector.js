@@ -48,7 +48,7 @@ export class ComponentDirector {
         return this.builder.getComponent();
     }
     constructImage() {
-        this.builder.withImage().withTexture().withDisplayObject();
+        this.builder.withImage().withTexture().withSplitScreen();
         return this.builder.getComponent();
     }
     constructGif() {

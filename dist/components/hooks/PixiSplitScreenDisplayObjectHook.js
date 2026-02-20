@@ -76,14 +76,11 @@ export class PixiSplitScreenDisplayObjectHook {
         // Use sanitized value to prevent XSS
         ctx.filter = `blur(${sanitizedStrength}px)`;
         // Get the source element (video/image)
-        const sourceElement = this.#context.getResource('videoElement');
+        const sourceElement = this.#context.getResource('videoElement') || this.#context.getResource('imageElement');
         if (!sourceElement) {
-            // Video element not ready yet - will be called again on next update
+            // Video or Image element not ready yet - will be called again on next update
             return;
         }
-        // const sourceElement = this.#pixiTexture.baseTexture.resource.source as
-        // 	| HTMLVideoElement
-        // 	| HTMLImageElement;
         // Draw the original texture with blur
         ctx.drawImage(sourceElement, 0, 0, this.#bgCanvas.width, this.#bgCanvas.height);
     }
@@ -219,7 +216,7 @@ export class PixiSplitScreenDisplayObjectHook {
     async handle(type, context) {
         this.#context = context;
         const data = this.#context.contextData;
-        if (!data || data.type !== 'VIDEO') {
+        if (!data || (data.type !== 'VIDEO' && data.type !== 'IMAGE')) {
             return;
         }
         this.componentElement = data;

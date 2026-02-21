@@ -8,7 +8,7 @@ export declare class Component implements IComponent {
         componentContext: ComponentContext;
     });
     get id(): string;
-    get type(): "IMAGE" | "GIF" | "VIDEO" | "TEXT" | "SHAPE" | "AUDIO" | "COLOR" | "GRADIENT" | "SUBTITLES";
+    get type(): "VIDEO" | "GIF" | "IMAGE" | "TEXT" | "SHAPE" | "AUDIO" | "COLOR" | "GRADIENT" | "SUBTITLES";
     get props(): ComponentProps;
     get displayObject(): import("pixi.js-legacy").Container<import("pixi.js-legacy").DisplayObject> | undefined;
     get context(): IComponentContext;

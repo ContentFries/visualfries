@@ -28,8 +28,16 @@ import { ComponentsManager } from './managers/ComponentsManager.svelte.js';
 import { v4 as uuidv4 } from 'uuid';
 
 import type { EventMap, EventType, EventPayload, BuilderState, ISceneBuilder } from '$lib';
+import type {
+	DeterministicFrameProvider,
+	DeterministicMediaConfig,
+	DeterministicDiagnosticsReport,
+	RenderFrameRangeOptions,
+	RenderFrameRangeSummary
+} from '$lib';
 
 import { MediaManager } from './managers/MediaManager.js';
+import { DeterministicMediaManager } from './managers/DeterministicMediaManager.js';
 import { LayersManager } from './managers/LayersManager.svelte.js';
 import { SubtitlesManager } from './managers/SubtitlesManager.svelte.js';
 import type { Component } from './components/Component.svelte.js';
@@ -48,6 +56,7 @@ export class SceneBuilder implements ISceneBuilder {
 	private stateManager: StateManager;
 	private commandRunner: CommandRunner;
 	private mediaManager: MediaManager;
+	private deterministicMediaManager: DeterministicMediaManager;
 	private subtitlesManager: SubtitlesManager;
 	private fonts: FontType[];
 
@@ -62,6 +71,7 @@ export class SceneBuilder implements ISceneBuilder {
 		stateManager: StateManager;
 		commandRunner: CommandRunner;
 		mediaManager: MediaManager;
+		deterministicMediaManager: DeterministicMediaManager;
 		subtitlesManager: SubtitlesManager;
 		fonts: FontType[];
 	}) {
@@ -74,6 +84,7 @@ export class SceneBuilder implements ISceneBuilder {
 		this.stateManager = cradle.stateManager;
 		this.commandRunner = cradle.commandRunner;
 		this.mediaManager = cradle.mediaManager;
+		this.deterministicMediaManager = cradle.deterministicMediaManager;
 		this.subtitlesManager = cradle.subtitlesManager;
 		this.fonts = cradle.fonts;
 
@@ -413,6 +424,22 @@ export class SceneBuilder implements ISceneBuilder {
 		});
 	}
 
+	public setDeterministicFrameProvider(provider: DeterministicFrameProvider | null): void {
+		this.deterministicMediaManager.setProvider(provider);
+	}
+
+	public getDeterministicFrameProvider(): DeterministicFrameProvider | null {
+		return this.deterministicMediaManager.getProvider();
+	}
+
+	public getDeterministicMediaConfig(): DeterministicMediaConfig {
+		return this.deterministicMediaManager.config;
+	}
+
+	public getDiagnosticsReport(): DeterministicDiagnosticsReport | null {
+		return this.deterministicMediaManager.getDiagnosticsReport();
+	}
+
 	public async seekAndRenderFrame(
 		time: number,
 		target?: PIXI.DisplayObject | PIXI.RenderTexture,
@@ -480,6 +507,74 @@ export class SceneBuilder implements ISceneBuilder {
 			throw new Error('Rendering frame failed');
 		}
 		return frame;
+	}
+
+	public async renderFrameRange(options: RenderFrameRangeOptions): Promise<RenderFrameRangeSummary> {
+		if (this.environment !== 'server') {
+			throw new Error('renderFrameRange is only available in server environment');
+		}
+
+		const format = options.format ?? 'blob';
+		const quality = options.quality ?? 1;
+		const skipDuplicates = options.skipDuplicates ?? false;
+		const fromFrame = Math.max(0, Math.floor(options.fromFrame));
+		const toFrame = Math.max(fromFrame, Math.floor(options.toFrame));
+
+		let framesRendered = 0;
+		let framesSkipped = 0;
+		let aborted = false;
+		let previousFrame: string | ArrayBuffer | Blob | null = null;
+
+		for (let frameIndex = fromFrame; frameIndex < toFrame; frameIndex += 1) {
+			if (options.signal?.aborted) {
+				aborted = true;
+				break;
+			}
+
+			let frame: string | ArrayBuffer | Blob;
+			let isDuplicate = false;
+			const frameTime = frameIndex / this.fps;
+
+			if (skipDuplicates) {
+				const isDirty = await this.isSceneDirty(frameTime);
+				if (!isDirty && previousFrame) {
+					frame = previousFrame;
+					isDuplicate = true;
+					framesSkipped += 1;
+				} else {
+					frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality);
+					previousFrame = frame;
+				}
+			} else {
+				frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality);
+				previousFrame = frame;
+			}
+
+			let released = false;
+			const release = () => {
+				if (released) {
+					return;
+				}
+				released = true;
+			};
+
+			await options.onFrame({
+				frameIndex,
+				frame,
+				isDuplicate,
+				release
+			});
+
+			release();
+			framesRendered += 1;
+		}
+
+		return {
+			framesRendered,
+			framesSkipped,
+			aborted,
+			diagnostics: this.getDiagnosticsReport()
+		};
 	}
 
 	public log(message: string) {
@@ -557,6 +652,7 @@ export class SceneBuilder implements ISceneBuilder {
 
 		// media manages should be destroyed last
 		this.mediaManager.destroy();
+		void this.deterministicMediaManager.destroy();
 
 		// Remove the container from the DI container cache
 		removeContainer(this.sceneData.id);

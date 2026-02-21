@@ -7,17 +7,26 @@ vi.mock('pixi.js-legacy', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('pixi.js-legacy')>();
 	return {
 		...actual,
-		Container: vi.fn().mockImplementation(() => ({
-			addChild: vi.fn(),
-			removeChildren: vi.fn(),
-			destroy: vi.fn(),
-			visible: true
-		})),
-		Sprite: vi.fn().mockImplementation(() => ({
+		Container: vi.fn().mockImplementation(() => {
+			const container = {
+				children: [] as any[],
+				addChild: vi.fn((...children: any[]) => {
+					container.children.push(...children);
+				}),
+				removeChildren: vi.fn(() => {
+					container.children = [];
+				}),
+				destroy: vi.fn(),
+				visible: true
+			};
+			return container;
+		}),
+		Sprite: vi.fn().mockImplementation((texture?: unknown) => ({
 			x: 0,
 			y: 0,
 			width: 0,
 			height: 0,
+			texture,
 			destroy: vi.fn()
 		})),
 		Graphics: vi.fn().mockImplementation(() => ({
@@ -130,7 +139,17 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 		it('should throw when pixiTexture is missing during update', async () => {
 			mockContext.getResource.mockReturnValue(undefined);
 
-			// pixiTexture is required, should throw
+			// In VIDEO mode this should be a non-throwing pass-through.
+			await expect(hook.handle('update', mockContext)).resolves.not.toThrow();
+		});
+
+		it('should still throw when pixiTexture is missing for IMAGE components', async () => {
+			mockContext.contextData = {
+				...mockContext.contextData,
+				type: 'IMAGE'
+			} as any;
+			mockContext.getResource.mockReturnValue(undefined);
+
 			await expect(hook.handle('update', mockContext)).rejects.toThrow(
 				'pixiTexture not found in resources'
 			);
@@ -176,6 +195,31 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 			// After refresh + internal update, setResource should have been called again
 			// The hook calls update internally during refresh, so total calls should increase
 			expect(mockContext.setResource.mock.calls.length).toBeGreaterThanOrEqual(callCountBefore);
+		});
+
+		it('should update swapped texture in-place without full rebuild on update', async () => {
+			const textureA = { id: 'A', width: 1920, height: 1080 };
+			const textureB = { id: 'B', width: 1920, height: 1080 };
+			let call = 0;
+			mockContext.getResource.mockImplementation((key: string) => {
+				if (key === 'pixiTexture') {
+					call += 1;
+					return (call === 1 ? textureA : textureB) as any;
+				}
+				return undefined;
+			});
+
+			await expect(hook.handle('update', mockContext)).resolves.not.toThrow();
+			const firstSetCall = mockContext.setResource.mock.calls.find(
+				([resourceKey]) => resourceKey === 'pixiRenderObject'
+			);
+			const displayObject = firstSetCall?.[1] as any;
+			expect(displayObject).toBeTruthy();
+			expect(displayObject.children[0].texture).toBe(textureA);
+
+			await expect(hook.handle('update', mockContext)).resolves.not.toThrow();
+			expect(displayObject.removeChildren).not.toHaveBeenCalled();
+			expect(displayObject.children[0].texture).toBe(textureB);
 		});
 	});
 

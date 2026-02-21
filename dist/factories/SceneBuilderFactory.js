@@ -1,3 +1,4 @@
+import { DeterministicMediaConfigShape, defaultDeterministicMediaConfig } from '../schemas/runtime/deterministic.js';
 import { asClass, Lifetime } from 'awilix/browser';
 import { registerNewContainer } from '../DIContainer.js';
 import { SceneBuilder } from '../SceneBuilder.svelte.js';
@@ -19,11 +20,13 @@ const defaultConfig = {
     forceCanvas: false,
     scale: 1,
     autoPlay: false,
-    loop: false
+    loop: false,
+    deterministicMedia: defaultDeterministicMediaConfig
 };
 export const createSceneBuilder = async function (sceneData, container, config) {
     setFontProviders(config?.fontProviders);
     const sceneConfig = config ? { ...defaultConfig, ...config } : defaultConfig;
+    sceneConfig.deterministicMedia = DeterministicMediaConfigShape.parse(config?.deterministicMedia ?? defaultConfig.deterministicMedia);
     const sceneSubs = get(sceneData, 'settings.subtitles.data', null);
     const subs = sceneSubs ? sceneSubs : sceneConfig.subtitles;
     const childContainer = registerNewContainer(sceneData, [
@@ -34,7 +37,8 @@ export const createSceneBuilder = async function (sceneData, container, config) 
         ['forceCanvas', sceneConfig.forceCanvas],
         ['scale', sceneConfig.scale],
         ['autoPlay', sceneConfig.autoPlay],
-        ['loop', sceneConfig.loop]
+        ['loop', sceneConfig.loop],
+        ['deterministicMediaConfig', sceneConfig.deterministicMedia]
     ]);
     // Register the factory
     childContainer.register({

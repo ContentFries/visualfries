@@ -4,18 +4,24 @@ import type { IComponentContext, HookType } from '$lib';
 // We need to mock pixi.js-legacy before importing the hook
 vi.mock('pixi.js-legacy', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('pixi.js-legacy')>();
+	const Texture = vi.fn().mockImplementation(() => ({
+		destroy: vi.fn()
+	}));
+	(Texture as any).from = vi.fn().mockImplementation(() => ({
+		destroy: vi.fn()
+	}));
+
 	return {
 		...actual,
 		VideoResource: vi.fn().mockImplementation(() => ({})),
 		BaseTexture: vi.fn().mockImplementation(() => ({})),
-		Texture: vi.fn().mockImplementation(() => ({
-			destroy: vi.fn()
-		}))
+		Texture
 	};
 });
 
 // Import after mock
 import { PixiVideoTextureHook } from '$lib/components/hooks/PixiVideoTextureHook.ts';
+import { Texture, VideoResource } from 'pixi.js-legacy';
 
 describe('PixiVideoTextureHook', () => {
 	let hook: PixiVideoTextureHook;
@@ -57,6 +63,25 @@ describe('PixiVideoTextureHook', () => {
 	});
 
 	describe('Graceful handling of missing videoElement', () => {
+		it('should prefer pre-supplied pixiResource and skip VideoResource path', async () => {
+			const preSuppliedResource = {};
+			mockContext.getResource.mockImplementation((resourceType: string) => {
+				if (resourceType === 'pixiResource') {
+					return preSuppliedResource as any;
+				}
+				if (resourceType === 'videoElement') {
+					return document.createElement('video') as any;
+				}
+				return undefined as any;
+			});
+
+			await hook.handle('update', mockContext);
+
+			expect((Texture as any).from).toHaveBeenCalledWith(preSuppliedResource);
+			expect(VideoResource).not.toHaveBeenCalled();
+			expect(mockContext.setResource).toHaveBeenCalledWith('pixiTexture', expect.any(Object));
+		});
+
 		it('should return early when videoElement is not in resources', async () => {
 			// Mock getResource to return undefined
 			mockContext.getResource.mockReturnValue(undefined);

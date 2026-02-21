@@ -1,4 +1,5 @@
 import type { Scene, RenderEnvironment, Subtitle, FontType, SubtitleCollection } from '..';
+import type { DeterministicMediaConfig } from '../schemas/runtime/deterministic.js';
 import { SceneBuilder } from '../SceneBuilder.svelte.js';
 import type { FontProvider } from '../fonts/types.js';
 type Config = {
@@ -10,6 +11,7 @@ type Config = {
     autoPlay?: boolean;
     loop?: boolean;
     fontProviders?: FontProvider[];
+    deterministicMedia: DeterministicMediaConfig;
 };
 export declare const createSceneBuilder: (sceneData: Scene, container: HTMLDivElement, config?: Partial<Config>) => Promise<SceneBuilder>;
 export {};

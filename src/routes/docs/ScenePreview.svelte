@@ -74,13 +74,13 @@
 			min="0" 
 			max={sceneData.settings.duration} 
 			step="0.01"
-			value={sceneBuilder?.state?.currentTime || 0}
+			value={sceneBuilder?.currentTime || 0}
 			oninput={seek}
 			class="range range-xs range-primary flex-1"
 		/>
 		
 		<span class="text-xs font-mono text-zinc-500 w-12 text-right">
-			{(sceneBuilder?.state?.currentTime || 0).toFixed(2)}s
+			{(sceneBuilder?.currentTime || 0).toFixed(2)}s
 		</span>
 	</div>
 </div>

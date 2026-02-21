@@ -5320,5 +5320,5 @@ export declare class Layer implements ILayer {
     get displayObject(): Container<import("pixi.js-legacy").DisplayObject>;
     get id(): string;
     get checksum(): string;
-    get type(): "IMAGE" | "GIF" | "VIDEO" | "TEXT" | "SHAPE" | "AUDIO" | "COLOR" | "GRADIENT" | "SUBTITLES" | undefined;
+    get type(): "VIDEO" | "GIF" | "IMAGE" | "TEXT" | "SHAPE" | "AUDIO" | "COLOR" | "GRADIENT" | "SUBTITLES" | undefined;
 }

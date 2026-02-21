@@ -164,16 +164,38 @@ export class PixiSplitScreenDisplayObjectHook {
         }
         this.initMainSprite();
     }
+    #swapDisplayTexture(nextTexture) {
+        if (!this.#displayObject) {
+            return;
+        }
+        const previousTexture = this.#pixiTexture;
+        const walk = (node) => {
+            const children = node.children;
+            if (!Array.isArray(children)) {
+                return;
+            }
+            for (const child of children) {
+                const spriteLike = child;
+                if (spriteLike.texture && spriteLike.texture === previousTexture) {
+                    spriteLike.texture = nextTexture;
+                }
+                walk(child);
+            }
+        };
+        walk(this.#displayObject);
+        this.#pixiTexture = nextTexture;
+    }
     async #handleUpdate() {
         const isActive = this.#context.isActive;
         if (isActive) {
             this.#drawBlurredBackground();
         }
         if (this.#displayObject) {
-            // If the texture was swapped (e.g. by refresh:content), rebuild the display object
+            // Texture swaps are frequent in deterministic mode; update sprite textures
+            // in-place instead of rebuilding split/blur geometry each frame.
             const currentTexture = this.#context.getResource('pixiTexture');
             if (currentTexture && currentTexture !== this.#pixiTexture) {
-                await this.#handleRefresh();
+                this.#swapDisplayTexture(currentTexture);
             }
             // Always re-assert the resource in case the context was cleared or updated
             this.#context.setResource('pixiRenderObject', this.#displayObject);
@@ -184,6 +206,10 @@ export class PixiSplitScreenDisplayObjectHook {
         }
         const texture = this.#context.getResource('pixiTexture');
         if (!texture) {
+            const type = this.#context.contextData.type;
+            if (type === 'VIDEO' || type === 'GIF') {
+                return;
+            }
             throw new Error('pixiTexture not found in resources.');
         }
         this.#pixiTexture = texture;

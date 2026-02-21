@@ -2,6 +2,7 @@ import * as PIXI from 'pixi.js-legacy';
 export class PixiTextureHook {
     types = ['update', 'refresh:content', 'destroy'];
     priority = 1;
+    static #textureRefs = new WeakMap();
     #context;
     #texture;
     #resource;
@@ -10,12 +11,39 @@ export class PixiTextureHook {
         'refresh:content': this.#handleRefreshContent.bind(this),
         destroy: this.#handleDestroy.bind(this)
     };
+    #retainTexture(texture) {
+        const refs = PixiTextureHook.#textureRefs.get(texture) ?? 0;
+        PixiTextureHook.#textureRefs.set(texture, refs + 1);
+    }
+    #releaseTexture(texture) {
+        const refs = PixiTextureHook.#textureRefs.get(texture) ?? 0;
+        if (refs <= 1) {
+            PixiTextureHook.#textureRefs.delete(texture);
+            texture.destroy(true);
+            return;
+        }
+        PixiTextureHook.#textureRefs.set(texture, refs - 1);
+    }
+    #setTexture(texture, resource) {
+        if (this.#texture === texture) {
+            this.#resource = resource;
+            this.#context.setResource('pixiTexture', texture);
+            return;
+        }
+        if (this.#texture) {
+            this.#releaseTexture(this.#texture);
+        }
+        this.#texture = texture;
+        this.#resource = resource;
+        this.#retainTexture(texture);
+        this.#context.setResource('pixiTexture', texture);
+    }
     #destroyTexture() {
         // Always clear local state and remove the context resource, even when
         // #texture is already undefined, so a desync between hook state and the
         // context map can never leave a stale pixiTexture visible downstream.
         if (this.#texture) {
-            this.#texture.destroy(true);
+            this.#releaseTexture(this.#texture);
         }
         this.#texture = undefined;
         this.#resource = undefined;
@@ -24,6 +52,10 @@ export class PixiTextureHook {
     async #handleUpdate() {
         const resource = this.#context.getResource('pixiResource');
         if (!resource) {
+            const type = this.#context.contextData.type;
+            if (type === 'VIDEO' || type === 'GIF') {
+                return;
+            }
             throw new Error('pixiResource not found in resources.');
         }
         // Skip recreation only when both the resource identity AND the cached texture are unchanged
@@ -32,13 +64,9 @@ export class PixiTextureHook {
             this.#context.getResource('pixiTexture') === this.#texture) {
             return;
         }
-        // Destroy the previous texture to free GPU memory before creating a new one
-        this.#destroyTexture();
         const texture = PIXI.Texture.from(resource);
         if (texture) {
-            this.#context.setResource('pixiTexture', texture);
-            this.#texture = texture;
-            this.#resource = resource;
+            this.#setTexture(texture, resource);
         }
         else {
             throw new Error('Failed to create texture from resource.');
@@ -56,9 +84,7 @@ export class PixiTextureHook {
         if (resource) {
             const texture = PIXI.Texture.from(resource);
             if (texture) {
-                this.#context.setResource('pixiTexture', texture);
-                this.#texture = texture;
-                this.#resource = resource;
+                this.#setTexture(texture, resource);
             }
         }
     }

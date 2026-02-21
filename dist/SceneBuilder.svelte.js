@@ -13,6 +13,7 @@ import { AppManager } from './managers/AppManager.svelte.js';
 import { ComponentsManager } from './managers/ComponentsManager.svelte.js';
 import { v4 as uuidv4 } from 'uuid';
 import { MediaManager } from './managers/MediaManager.js';
+import { DeterministicMediaManager } from './managers/DeterministicMediaManager.js';
 import { LayersManager } from './managers/LayersManager.svelte.js';
 import { SubtitlesManager } from './managers/SubtitlesManager.svelte.js';
 import { removeContainer } from './DIContainer.js';
@@ -28,6 +29,7 @@ export class SceneBuilder {
     stateManager;
     commandRunner;
     mediaManager;
+    deterministicMediaManager;
     subtitlesManager;
     fonts;
     // Replace constructor with cradle pattern
@@ -41,6 +43,7 @@ export class SceneBuilder {
         this.stateManager = cradle.stateManager;
         this.commandRunner = cradle.commandRunner;
         this.mediaManager = cradle.mediaManager;
+        this.deterministicMediaManager = cradle.deterministicMediaManager;
         this.subtitlesManager = cradle.subtitlesManager;
         this.fonts = cradle.fonts;
         // TODO - check scene is v2
@@ -295,6 +298,18 @@ export class SceneBuilder {
             base64data
         });
     }
+    setDeterministicFrameProvider(provider) {
+        this.deterministicMediaManager.setProvider(provider);
+    }
+    getDeterministicFrameProvider() {
+        return this.deterministicMediaManager.getProvider();
+    }
+    getDeterministicMediaConfig() {
+        return this.deterministicMediaManager.config;
+    }
+    getDiagnosticsReport() {
+        return this.deterministicMediaManager.getDiagnosticsReport();
+    }
     async seekAndRenderFrame(time, target, format = 'png', quality = 1) {
         await this.seek(time);
         // Ensure scene is rendered after seek so media hooks apply their updates
@@ -344,6 +359,66 @@ export class SceneBuilder {
             throw new Error('Rendering frame failed');
         }
         return frame;
+    }
+    async renderFrameRange(options) {
+        if (this.environment !== 'server') {
+            throw new Error('renderFrameRange is only available in server environment');
+        }
+        const format = options.format ?? 'blob';
+        const quality = options.quality ?? 1;
+        const skipDuplicates = options.skipDuplicates ?? false;
+        const fromFrame = Math.max(0, Math.floor(options.fromFrame));
+        const toFrame = Math.max(fromFrame, Math.floor(options.toFrame));
+        let framesRendered = 0;
+        let framesSkipped = 0;
+        let aborted = false;
+        let previousFrame = null;
+        for (let frameIndex = fromFrame; frameIndex < toFrame; frameIndex += 1) {
+            if (options.signal?.aborted) {
+                aborted = true;
+                break;
+            }
+            let frame;
+            let isDuplicate = false;
+            const frameTime = frameIndex / this.fps;
+            if (skipDuplicates) {
+                const isDirty = await this.isSceneDirty(frameTime);
+                if (!isDirty && previousFrame) {
+                    frame = previousFrame;
+                    isDuplicate = true;
+                    framesSkipped += 1;
+                }
+                else {
+                    frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality);
+                    previousFrame = frame;
+                }
+            }
+            else {
+                frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality);
+                previousFrame = frame;
+            }
+            let released = false;
+            const release = () => {
+                if (released) {
+                    return;
+                }
+                released = true;
+            };
+            await options.onFrame({
+                frameIndex,
+                frame,
+                isDuplicate,
+                release
+            });
+            release();
+            framesRendered += 1;
+        }
+        return {
+            framesRendered,
+            framesSkipped,
+            aborted,
+            diagnostics: this.getDiagnosticsReport()
+        };
     }
     log(message) {
         $effect.root(function () {
@@ -401,6 +476,7 @@ export class SceneBuilder {
         this.componentsManager.destroy();
         // media manages should be destroyed last
         this.mediaManager.destroy();
+        void this.deterministicMediaManager.destroy();
         // Remove the container from the DI container cache
         removeContainer(this.sceneData.id);
     }

@@ -126,7 +126,7 @@ export declare class StateManager implements IStateManager {
         };
         assets: {
             id: string;
-            type: "IMAGE" | "GIF" | "VIDEO" | "AUDIO" | "FONT";
+            type: "VIDEO" | "GIF" | "IMAGE" | "AUDIO" | "FONT";
             url: string;
             path?: string | undefined;
             language_code?: string | undefined;

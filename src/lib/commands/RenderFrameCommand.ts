@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 import { DomManager } from '$lib/managers/DomManager.js';
 import { AppManager } from '$lib/managers/AppManager.svelte.js';
+import { DeterministicMediaManager } from '$lib/managers/DeterministicMediaManager.js';
 
 const replaceSourceOnTimeSchema = z.object({
 	format: z.enum(['arraybuffer', 'blob', 'png', 'jpg', 'jpeg']),
@@ -16,15 +17,19 @@ export class RenderFrameCommand implements Command<string | ArrayBuffer | Blob |
 	private appManager: AppManager;
 	private lastRenderedFrame: string | ArrayBuffer | Blob | null = null;
 	private lastRenderArgs: { format: string; quality: number; target: any } | null = null;
+	private deterministicMediaManager?: DeterministicMediaManager;
+	private lastDeterministicFingerprint = '';
 
 	constructor(cradle: {
 		stateManager: StateManager;
 		domManager: DomManager;
 		appManager: AppManager;
+		deterministicMediaManager?: DeterministicMediaManager;
 	}) {
 		this.sceneState = cradle.stateManager;
 		this.domManager = cradle.domManager;
 		this.appManager = cradle.appManager;
+		this.deterministicMediaManager = cradle.deterministicMediaManager;
 	}
 
 	async execute(args: unknown): Promise<string | ArrayBuffer | Blob | null> {
@@ -34,6 +39,8 @@ export class RenderFrameCommand implements Command<string | ArrayBuffer | Blob |
 		}
 
 		const { format, quality, target } = check.data;
+		const currentDeterministicFingerprint =
+			this.deterministicMediaManager?.isEnabled() ? this.deterministicMediaManager.getFingerprint() : '';
 
 		// Server optimization: Return cached frame if nothing changed visually and render args match
 		if (this.sceneState.environment === 'server' && !this.sceneState.isDirty) {
@@ -43,7 +50,7 @@ export class RenderFrameCommand implements Command<string | ArrayBuffer | Blob |
 					this.lastRenderArgs.quality === quality &&
 					this.lastRenderArgs.target === target;
 				
-				if (argsMatch) {
+				if (argsMatch && this.lastDeterministicFingerprint === currentDeterministicFingerprint) {
 					return this.lastRenderedFrame;
 				}
 			}
@@ -107,6 +114,7 @@ export class RenderFrameCommand implements Command<string | ArrayBuffer | Blob |
 		if (this.sceneState.environment === 'server') {
 			this.lastRenderedFrame = frame;
 			this.lastRenderArgs = { format, quality, target };
+			this.lastDeterministicFingerprint = currentDeterministicFingerprint;
 			this.sceneState.clearDirty();
 		}
 

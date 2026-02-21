@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { StateManager } from '../managers/StateManager.svelte.js';
 import { DomManager } from '../managers/DomManager.js';
 import { AppManager } from '../managers/AppManager.svelte.js';
+import { DeterministicMediaManager } from '../managers/DeterministicMediaManager.js';
 const replaceSourceOnTimeSchema = z.object({
     format: z.enum(['arraybuffer', 'blob', 'png', 'jpg', 'jpeg']),
     quality: z.number().min(0).max(1),
@@ -13,10 +14,13 @@ export class RenderFrameCommand {
     appManager;
     lastRenderedFrame = null;
     lastRenderArgs = null;
+    deterministicMediaManager;
+    lastDeterministicFingerprint = '';
     constructor(cradle) {
         this.sceneState = cradle.stateManager;
         this.domManager = cradle.domManager;
         this.appManager = cradle.appManager;
+        this.deterministicMediaManager = cradle.deterministicMediaManager;
     }
     async execute(args) {
         const check = replaceSourceOnTimeSchema.safeParse(args);
@@ -24,6 +28,7 @@ export class RenderFrameCommand {
             return null;
         }
         const { format, quality, target } = check.data;
+        const currentDeterministicFingerprint = this.deterministicMediaManager?.isEnabled() ? this.deterministicMediaManager.getFingerprint() : '';
         // Server optimization: Return cached frame if nothing changed visually and render args match
         if (this.sceneState.environment === 'server' && !this.sceneState.isDirty) {
             if (this.lastRenderedFrame && this.lastRenderArgs) {
@@ -31,7 +36,7 @@ export class RenderFrameCommand {
                 const argsMatch = this.lastRenderArgs.format === format &&
                     this.lastRenderArgs.quality === quality &&
                     this.lastRenderArgs.target === target;
-                if (argsMatch) {
+                if (argsMatch && this.lastDeterministicFingerprint === currentDeterministicFingerprint) {
                     return this.lastRenderedFrame;
                 }
             }
@@ -86,6 +91,7 @@ export class RenderFrameCommand {
         if (this.sceneState.environment === 'server') {
             this.lastRenderedFrame = frame;
             this.lastRenderArgs = { format, quality, target };
+            this.lastDeterministicFingerprint = currentDeterministicFingerprint;
             this.sceneState.clearDirty();
         }
         return frame;

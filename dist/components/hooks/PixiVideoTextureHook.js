@@ -10,6 +10,7 @@ export class PixiVideoTextureHook {
     #context;
     #videoTexture;
     #videoElement;
+    #pixiResource;
     componentElement;
     #handlers = {
         update: this.#handleUpdate.bind(this),
@@ -17,6 +18,19 @@ export class PixiVideoTextureHook {
         'refresh:content': this.#handleRefreshContent.bind(this)
     };
     async #handleUpdate() {
+        const preSuppliedResource = this.#context.getResource('pixiResource');
+        if (preSuppliedResource) {
+            if (!this.#videoTexture || this.#pixiResource !== preSuppliedResource) {
+                await this.#handleDestroy();
+                this.#videoTexture = PIXI.Texture.from(preSuppliedResource);
+                this.#pixiResource = preSuppliedResource;
+                this.#videoElement = undefined;
+            }
+            if (this.#videoTexture) {
+                this.#context.setResource('pixiTexture', this.#videoTexture);
+            }
+            return;
+        }
         const media = this.#context.getResource('videoElement');
         // If element changed or texture is missing, recreate it
         if (media && (media !== this.#videoElement || !this.#videoTexture)) {
@@ -28,6 +42,7 @@ export class PixiVideoTextureHook {
             const baseTexture = new PIXI.BaseTexture(res);
             this.#videoTexture = new PIXI.Texture(baseTexture);
             this.#videoElement = media;
+            this.#pixiResource = undefined;
         }
         // Always re-assert the resource in case the context was cleared or updated
         if (this.#videoTexture) {
@@ -40,6 +55,7 @@ export class PixiVideoTextureHook {
             this.#videoTexture.destroy(true);
             this.#videoTexture = undefined;
             this.#videoElement = undefined;
+            this.#pixiResource = undefined;
             this.#context.removeResource('pixiTexture');
         }
     }

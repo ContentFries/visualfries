@@ -97,6 +97,10 @@ export class PixiDisplayObjectHook implements IComponentHook {
 		// Regular shapes need texture to create sprite
 		const texture = this.#context.getResource('pixiTexture');
 		if (!texture) {
+			const type = this.#context.contextData.type;
+			if (type === 'VIDEO' || type === 'GIF') {
+				return;
+			}
 			throw new Error('pixiTexture not found in resources.');
 		}
 

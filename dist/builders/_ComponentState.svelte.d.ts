@@ -15,7 +15,7 @@ export declare class ComponentState implements ComponentProps {
     setRefreshCallback(callback: () => Promise<void>): void;
     private maybeAutoRefresh;
     get id(): string;
-    get type(): "IMAGE" | "GIF" | "VIDEO" | "TEXT" | "SHAPE" | "AUDIO" | "COLOR" | "GRADIENT" | "SUBTITLES";
+    get type(): "VIDEO" | "GIF" | "IMAGE" | "TEXT" | "SHAPE" | "AUDIO" | "COLOR" | "GRADIENT" | "SUBTITLES";
     get name(): string;
     get start_at(): number;
     get end_at(): number;

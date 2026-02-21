@@ -198,6 +198,31 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		this.initMainSprite();
 	}
 
+	#swapDisplayTexture(nextTexture: PIXI.Texture) {
+		if (!this.#displayObject) {
+			return;
+		}
+
+		const previousTexture = this.#pixiTexture;
+		const walk = (node: { children?: unknown[] }) => {
+			const children = node.children;
+			if (!Array.isArray(children)) {
+				return;
+			}
+
+			for (const child of children) {
+				const spriteLike = child as { texture?: PIXI.Texture };
+				if (spriteLike.texture && spriteLike.texture === previousTexture) {
+					spriteLike.texture = nextTexture;
+				}
+				walk(child as { children?: unknown[] });
+			}
+		};
+
+		walk(this.#displayObject as unknown as { children?: unknown[] });
+		this.#pixiTexture = nextTexture;
+	}
+
 	async #handleUpdate() {
 		const isActive = this.#context.isActive;
 		if (isActive) {
@@ -205,10 +230,11 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		}
 
 		if (this.#displayObject) {
-			// If the texture was swapped (e.g. by refresh:content), rebuild the display object
+			// Texture swaps are frequent in deterministic mode; update sprite textures
+			// in-place instead of rebuilding split/blur geometry each frame.
 			const currentTexture = this.#context.getResource('pixiTexture');
 			if (currentTexture && currentTexture !== this.#pixiTexture) {
-				await this.#handleRefresh();
+				this.#swapDisplayTexture(currentTexture);
 			}
 
 			// Always re-assert the resource in case the context was cleared or updated
@@ -222,6 +248,10 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 
 		const texture = this.#context.getResource('pixiTexture');
 		if (!texture) {
+			const type = this.#context.contextData.type;
+			if (type === 'VIDEO' || type === 'GIF') {
+				return;
+			}
 			throw new Error('pixiTexture not found in resources.');
 		}
 

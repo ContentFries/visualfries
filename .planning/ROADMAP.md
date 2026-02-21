@@ -6,11 +6,11 @@ This milestone adds a first-class deterministic server media rendering API to th
 
 ## Phases
 
-- [ ] **Phase 1: Types & Interfaces** — Define all public contracts; zero implementation
-- [ ] **Phase 2: DeterministicMediaManager** — Singleton manager with LRU cache and fingerprint
-- [ ] **Phase 3: Hook + ComponentDirector Branch** — Core feature; server-only hook chain replaces native media chain
-- [ ] **Phase 4: PixiVideoTextureHook Guard** — Minimal two-line guard isolating touch to existing production code
-- [ ] **Phase 5: RenderFrameCommand Cache Guard** — Fingerprint-based cache staleness defence
+- [x] **Phase 1: Types & Interfaces** — Define all public contracts; zero implementation
+- [x] **Phase 2: DeterministicMediaManager** — Singleton manager with LRU cache and fingerprint
+- [x] **Phase 3: Hook + ComponentDirector Branch** — Core feature; server-only hook chain replaces native media chain
+- [x] **Phase 4: PixiVideoTextureHook Guard** — Minimal two-line guard isolating touch to existing production code
+- [x] **Phase 5: RenderFrameCommand Cache Guard** — Fingerprint-based cache staleness defence
 - [ ] **Phase 6: renderFrameRange() Render Loop** — Public API entry point; sequential frame loop with back-pressure
 - [ ] **Phase 7: ReplaceSourceOnTimeCommand + Diagnostics** — Cleanup, compat wrapper, and opt-in observability
 
@@ -37,8 +37,8 @@ This milestone adds a first-class deterministic server media rendering API to th
 
 Plans:
 
-- [ ] 01-01: Define Zod schemas and TypeScript types (TYPE-01–06)
-- [ ] 01-02: Extend createSceneBuilder config + export all types from index (TYPE-07–08)
+- [x] 01-01: Define Zod schemas and TypeScript types (TYPE-01–06)
+- [x] 01-02: Extend createSceneBuilder config + export all types from index (TYPE-07–08)
 
 ---
 
@@ -62,8 +62,8 @@ Plans:
 
 Plans:
 
-- [ ] 02-01: Implement DeterministicMediaManager class with provider storage, cacheKey tracking, LRU cache, and fingerprint (MGR-01–05)
-- [ ] 02-02: DI registration, SceneBuilder façade, and unit tests (MGR-06–08)
+- [x] 02-01: Implement DeterministicMediaManager class with provider storage, cacheKey tracking, LRU cache, and fingerprint (MGR-01–05)
+- [x] 02-02: DI registration, SceneBuilder façade, and unit tests (MGR-06–08)
 
 ---
 
@@ -87,8 +87,8 @@ Plans:
 
 Plans:
 
-- [ ] 03-01: Implement DeterministicMediaFrameHook (HOOK-01–08)
-- [ ] 03-02: ComponentDirector branch for VIDEO/GIF + DI registration (HOOK-10)
+- [x] 03-01: Implement DeterministicMediaFrameHook (HOOK-01–08)
+- [x] 03-02: ComponentDirector branch for VIDEO/GIF + DI registration (HOOK-10)
 
 ---
 
@@ -109,7 +109,7 @@ Plans:
 
 Plans:
 
-- [ ] 04-01: Add pre-supply guard to PixiVideoTextureHook (HOOK-09)
+- [x] 04-01: Add pre-supply guard to PixiVideoTextureHook (HOOK-09)
 
 ---
 
@@ -130,7 +130,7 @@ Plans:
 
 Plans:
 
-- [ ] 05-01: Extend RenderFrameCommand with deterministicFingerprint cache guard (CACHE-01–02)
+- [x] 05-01: Extend RenderFrameCommand with deterministicFingerprint cache guard (CACHE-01–02)
 
 ---
 
@@ -179,7 +179,7 @@ Plans:
 
 Plans:
 
-- [ ] 07-01: Diagnostics implementation in DeterministicMediaManager + getDiagnosticsReport() (DIAG-01–03)
+- [x] 07-01: Diagnostics implementation in DeterministicMediaManager + getDiagnosticsReport() (DIAG-01–03)
 - [ ] 07-02: Unit tests and blob vs base64 performance test (TEST-01–05)
 
 ---
@@ -190,14 +190,15 @@ Plans:
 
 | Phase                                       | Plans Complete | Status      | Completed |
 | ------------------------------------------- | -------------- | ----------- | --------- |
-| 1. Types & Interfaces                       | 0/2            | Not started | -         |
-| 2. DeterministicMediaManager                | 0/2            | Not started | -         |
-| 3. Hook + ComponentDirector Branch          | 0/2            | Not started | -         |
-| 4. PixiVideoTextureHook Guard               | 0/1            | Not started | -         |
-| 5. RenderFrameCommand Cache Guard           | 0/1            | Not started | -         |
-| 6. renderFrameRange() Render Loop           | 0/2            | Not started | -         |
-| 7. ReplaceSourceOnTimeCommand + Diagnostics | 0/2            | Not started | -         |
+| 1. Types & Interfaces                       | 2/2            | Complete    | 2026-02-21 |
+| 2. DeterministicMediaManager                | 2/2            | Complete    | 2026-02-21 |
+| 3. Hook + ComponentDirector Branch          | 2/2            | Complete    | 2026-02-21 |
+| 4. PixiVideoTextureHook Guard               | 1/1            | Complete    | 2026-02-21 |
+| 5. RenderFrameCommand Cache Guard           | 1/1            | Complete    | 2026-02-21 |
+| 6. renderFrameRange() Render Loop           | 0/2            | In progress | -         |
+| 7. ReplaceSourceOnTimeCommand + Diagnostics | 1/2            | In progress | -         |
 
 ---
 
 _Roadmap created: 2026-02-21_
+_Last synced: 2026-02-21 (implementation progress: 42/44 v1 requirements complete; open: REND-02, TEST-05; follow-up fixes: deterministic VIDEO/GIF primary path, strict inactive handling, shared texture lifecycle, split-screen in-place texture swap)_

@@ -28,6 +28,13 @@ import type {
 	GifComponentShape,
 	Subtitle
 } from '$lib';
+import type {
+	DeterministicMediaConfig,
+	DeterministicFrameProvider,
+	DeterministicDiagnosticsReport,
+	RenderFrameRangeOptions,
+	RenderFrameRangeSummary
+} from './deterministic.js';
 
 const SCENE_LAYER_COMPONENT_TYPE = [
 	'IMAGE',
@@ -203,6 +210,7 @@ export interface ComponentBuilder {
 
 	withMedia(): ComponentBuilder;
 	withMediaSeeking(): ComponentBuilder;
+	withDeterministicMedia(): ComponentBuilder;
 	withVideoTexture(): ComponentBuilder;
 	withSplitScreen(): ComponentBuilder;
 	withHtmlText(): ComponentBuilder;
@@ -269,7 +277,7 @@ export interface Layer {
 export interface ResourceTypes {
 	videoElement: HTMLVideoElement | undefined;
 	audioElement: HTMLAudioElement | undefined;
-	imageElement: HTMLImageElement | undefined;
+	imageElement: HTMLImageElement | ImageBitmap | undefined;
 	pixiResource: TextureSource | undefined;
 	pixiTexture: Texture | undefined;
 	pixiSprite: Sprite | undefined;
@@ -360,12 +368,17 @@ export interface SceneBuilder {
 	initialize(): Promise<void>;
 	seek(time: number): Promise<void>;
 	replaceSourceOnTime(time: number, componentId: string, base64data: string): Promise<void>;
+	setDeterministicFrameProvider(provider: DeterministicFrameProvider | null): void;
+	getDeterministicFrameProvider(): DeterministicFrameProvider | null;
+	getDeterministicMediaConfig(): DeterministicMediaConfig;
+	getDiagnosticsReport(): DeterministicDiagnosticsReport | null;
 	seekAndRenderFrame(
 		time: number,
 		target?: DisplayObject | RenderTexture,
 		format?: string,
 		quality?: number
 	): Promise<string | ArrayBuffer | Blob>;
+	renderFrameRange(options: RenderFrameRangeOptions): Promise<RenderFrameRangeSummary>;
 	isSceneDirty(time: number): Promise<boolean>;
 	renderFrame(
 		target?: DisplayObject | RenderTexture,

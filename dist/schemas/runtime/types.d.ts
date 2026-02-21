@@ -177,6 +177,7 @@ export interface Layer {
     update(layerData: Partial<SceneLayerInput>): void;
     addComponent(component: Component): void;
     removeComponent(component: Component): void;
+    syncDisplayObjects(): boolean;
     build(): Promise<void>;
     setOrder(order: number): void;
     getData(): SceneLayer;

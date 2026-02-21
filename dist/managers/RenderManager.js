@@ -1,11 +1,13 @@
 import { StateManager } from './StateManager.svelte.js';
 import { EventManager } from './EventManager.js';
 import { AppManager } from './AppManager.svelte.js';
+import { LayersManager } from './LayersManager.svelte.js';
 export class RenderManager {
     state;
     componentsManager;
     eventManager;
     appManager;
+    layersManager;
     // Track last visibility to ensure we run one more update to hide components that just became invisible
     lastActiveById = new Map();
     lastRenderTime = -1;
@@ -14,6 +16,7 @@ export class RenderManager {
         this.componentsManager = cradle.componentsManager;
         this.eventManager = cradle.eventManager;
         this.appManager = cradle.appManager;
+        this.layersManager = cradle.layersManager;
         this.initializeEventListeners();
     }
     initializeEventListeners() {
@@ -27,6 +30,18 @@ export class RenderManager {
         });
     }
     async handleBeforeRender() { }
+    #syncLayerDisplayObjects() {
+        const layers = this.layersManager.getAll();
+        let changed = false;
+        for (const layer of layers) {
+            if (layer.syncDisplayObjects()) {
+                changed = true;
+            }
+        }
+        if (changed) {
+            this.state.markDirty();
+        }
+    }
     async render() {
         const components = this.componentsManager.getAll();
         const currentTime = this.state.currentTime;
@@ -47,6 +62,7 @@ export class RenderManager {
         for (const e of entries) {
             this.lastActiveById.set(e.component.id, e.shouldBeVisible);
         }
+        this.#syncLayerDisplayObjects();
         this.appManager.render();
         this.lastRenderTime = currentTime;
     }

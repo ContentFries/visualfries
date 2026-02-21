@@ -52,6 +52,36 @@ export class Layer {
         this.components.sort((a, b) => a.props.timeline.startAt - b.props.timeline.startAt);
         this.#emit('layerschange');
     }
+    syncDisplayObjects() {
+        let changed = false;
+        if (!this.#displayObject) {
+            return false;
+        }
+        for (let index = 0; index < this.components.length; index += 1) {
+            const component = this.components[index];
+            const displayObject = component.displayObject;
+            if (!displayObject) {
+                continue;
+            }
+            const parent = displayObject.parent;
+            if (parent !== this.#displayObject) {
+                if (parent && typeof parent.removeChild === 'function') {
+                    parent.removeChild(displayObject);
+                }
+                this.#displayObject.addChild(displayObject);
+                changed = true;
+            }
+            if (typeof this.#displayObject.getChildIndex === 'function' &&
+                typeof this.#displayObject.setChildIndex === 'function') {
+                const currentIndex = this.#displayObject.getChildIndex(displayObject);
+                if (currentIndex !== index) {
+                    this.#displayObject.setChildIndex(displayObject, index);
+                    changed = true;
+                }
+            }
+        }
+        return changed;
+    }
     removeComponent(component) {
         const hasComponent = this.components.find((c) => c.id === component.id);
         if (hasComponent) {

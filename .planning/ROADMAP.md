@@ -198,7 +198,15 @@ Plans:
 | 6. renderFrameRange() Render Loop           | 0/2            | In progress | -         |
 | 7. ReplaceSourceOnTimeCommand + Diagnostics | 1/2            | In progress | -         |
 
+### Follow-up Fixes (2026-02-21)
+
+- [x] FONT-01: Native TEXT/SUBTITLES font auto-discovery added (activeWord/activeLine weights + `fontSource.variants`)
+- [x] FONT-02: Explicit variant preload implemented (`fonts.googleapis.com/css2` + per-descriptor `document.fonts.load`)
+- [x] FONT-03: SceneBuilder initialization now awaits descriptor preload before app/scene build
+- [x] FONT-04: Custom-font preload path implemented with `FontFace` where available; failures warn and continue
+- [x] FONT-05: Added regression tests for discovery, preload calls, and initialization ordering
+
 ---
 
 _Roadmap created: 2026-02-21_
-_Last synced: 2026-02-21 (implementation progress: 42/44 v1 requirements complete; open: REND-02, TEST-05; follow-up fixes include deterministic seek/readiness guarantees, same-frame null retry behavior, dirty-state consistency for frame range duplicate checks)_
+_Last synced: 2026-02-21 (deterministic track: 42/44 v1 requirements complete; open: REND-02, TEST-05; follow-up fixes delivered: delayed display-object layer sync, seek/readiness guarantees, same-frame null retry behavior, dirty-state consistency, and native font preload/discovery stability for first-frame text metrics)_

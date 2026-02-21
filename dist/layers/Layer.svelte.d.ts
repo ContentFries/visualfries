@@ -18,6 +18,7 @@ export declare class Layer implements ILayer {
     });
     build(): Promise<void>;
     addComponent(component: IComponent): void;
+    syncDisplayObjects(): boolean;
     removeComponent(component: IComponent): void;
     update(props: Partial<SceneLayerInput>): void;
     setOrder(order: number): void;

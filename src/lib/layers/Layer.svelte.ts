@@ -75,6 +75,43 @@ export class Layer implements ILayer {
 		this.#emit('layerschange');
 	}
 
+	syncDisplayObjects(): boolean {
+		let changed = false;
+		if (!this.#displayObject) {
+			return false;
+		}
+
+		for (let index = 0; index < this.components.length; index += 1) {
+			const component = this.components[index];
+			const displayObject = component.displayObject;
+			if (!displayObject) {
+				continue;
+			}
+
+			const parent = (displayObject as any).parent;
+			if (parent !== this.#displayObject) {
+				if (parent && typeof parent.removeChild === 'function') {
+					parent.removeChild(displayObject);
+				}
+				this.#displayObject.addChild(displayObject);
+				changed = true;
+			}
+
+			if (
+				typeof this.#displayObject.getChildIndex === 'function' &&
+				typeof this.#displayObject.setChildIndex === 'function'
+			) {
+				const currentIndex = this.#displayObject.getChildIndex(displayObject);
+				if (currentIndex !== index) {
+					this.#displayObject.setChildIndex(displayObject, index);
+					changed = true;
+				}
+			}
+		}
+
+		return changed;
+	}
+
 	removeComponent(component: IComponent) {
 		const hasComponent = this.components.find((c) => c.id === component.id);
 		if (hasComponent) {

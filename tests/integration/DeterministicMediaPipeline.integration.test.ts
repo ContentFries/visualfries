@@ -9,12 +9,42 @@ vi.mock('pixi.js-legacy', async (importOriginal) => {
 		y = 0;
 		mask: any;
 		addChild(...children: any[]) {
+			for (const child of children) {
+				if (child && typeof child === 'object') {
+					(child as any).parent = this;
+				}
+			}
 			this.children.push(...children);
 			return children[0];
 		}
+		removeChild(child: any) {
+			const index = this.children.indexOf(child);
+			if (index >= 0) {
+				this.children.splice(index, 1);
+				if (child && typeof child === 'object') {
+					(child as any).parent = undefined;
+				}
+			}
+			return child;
+		}
 		removeChildren() {
+			for (const child of this.children) {
+				if (child && typeof child === 'object') {
+					(child as any).parent = undefined;
+				}
+			}
 			this.children = [];
 		}
+		getChildIndex(child: any) {
+			return this.children.indexOf(child);
+		}
+		setChildIndex(child: any, index: number) {
+			const current = this.children.indexOf(child);
+			if (current < 0) return;
+			this.children.splice(current, 1);
+			this.children.splice(index, 0, child);
+		}
+		sortChildren() {}
 	}
 
 	class Sprite {
@@ -77,6 +107,8 @@ import { DeterministicMediaFrameHook } from '$lib/components/hooks/Deterministic
 import { PixiTextureHook } from '$lib/components/hooks/PixiTextureHook.ts';
 import { PixiSplitScreenDisplayObjectHook } from '$lib/components/hooks/PixiSplitScreenDisplayObjectHook.ts';
 import { DeterministicMediaManager } from '$lib/managers/DeterministicMediaManager.ts';
+import { Layer } from '$lib/layers/Layer.svelte.ts';
+import { RenderManager } from '$lib/managers/RenderManager.ts';
 import type { DeterministicFrameProvider } from '$lib';
 
 const createSceneData = () =>
@@ -99,15 +131,16 @@ const createContext = (args: {
 	componentId: string;
 	startAt: number;
 	endAt: number;
+	sourceStartAt?: number;
 	state: any;
 	effects?: Record<string, unknown>;
 }) => {
 	const resources = new Map<string, unknown>();
 	const data = {
-		id: args.componentId,
-		type: 'VIDEO',
-		source: { url: 'https://example.com/video.mp4' },
-		timeline: { startAt: args.startAt, endAt: args.endAt },
+			id: args.componentId,
+			type: 'VIDEO',
+			source: { url: 'https://example.com/video.mp4', startAt: args.sourceStartAt ?? 0 },
+			timeline: { startAt: args.startAt, endAt: args.endAt },
 		appearance: { x: 0, y: 0, width: 1080, height: 1920 },
 		animations: {},
 		effects: { enabled: true, map: args.effects ?? {} },
@@ -119,12 +152,12 @@ const createContext = (args: {
 		contextData: data,
 		data,
 		sceneState: args.state,
-		get isActive() {
-			return args.state.currentTime >= args.startAt && args.state.currentTime <= args.endAt;
-		},
-		get currentComponentTime() {
-			return Math.max(0, args.state.currentTime - args.startAt);
-		},
+			get isActive() {
+				return args.state.currentTime >= args.startAt && args.state.currentTime <= args.endAt;
+			},
+			get currentComponentTime() {
+				return (args.sourceStartAt ?? 0) + Math.max(0, args.state.currentTime - args.startAt);
+			},
 		getResource: (key: string) => resources.get(key),
 		setResource: (key: string, value: unknown) => resources.set(key, value),
 		removeResource: (key: string) => resources.delete(key)
@@ -314,5 +347,126 @@ describe('Deterministic media pipeline integration', () => {
 			expect(pipeline.context.getResource('pixiTexture')).toBeTruthy();
 			expect(pipeline.context.getResource('pixiRenderObject')).toBeTruthy();
 		}
+	});
+
+	it('attaches delayed deterministic split display object to layer at first active frame and keeps split geometry', async () => {
+		const splitEffect = createSplitEffect();
+		const requests: number[] = [];
+		const provider: DeterministicFrameProvider = {
+			getFrame: vi.fn(async (request) => {
+				requests.push(request.frameIndex);
+				return {
+					kind: 'imageBitmap',
+					cacheKey: `${request.componentId}-${request.frameIndex}`,
+					imageBitmap: { width: 1080, height: 1920, close: vi.fn() } as any
+				};
+			})
+		};
+		const state = {
+			environment: 'server',
+			currentTime: 0,
+			width: 1080,
+			height: 1920,
+			data: { settings: { fps: 30 } },
+			markDirty: vi.fn()
+		};
+		const manager = new DeterministicMediaManager({
+			sceneData: createSceneData(),
+			deterministicMediaConfig: { enabled: true, strict: true, diagnostics: false, provider }
+		});
+
+		const context = createContext({
+			componentId: 'video-delayed-split',
+			startAt: 3,
+			endAt: 6,
+			sourceStartAt: 2,
+			state,
+			effects: splitEffect
+		});
+		const deterministicHook = new DeterministicMediaFrameHook({
+			stateManager: state as any,
+			deterministicMediaManager: manager
+		});
+		const textureHook = new PixiTextureHook();
+		const splitHook = new PixiSplitScreenDisplayObjectHook({ stateManager: state as any });
+
+		const component: any = {
+			id: 'video-delayed-split',
+			type: 'VIDEO',
+			props: {
+				timeline: { startAt: 3, endAt: 6 },
+				visible: true
+			},
+			context,
+			get displayObject() {
+				return context.getResource('pixiRenderObject');
+			},
+			update: async () => {
+				await deterministicHook.handle('update', context);
+				await textureHook.handle('update', context);
+				await splitHook.handle('update', context);
+			}
+		};
+
+		const layer = new Layer({
+			layerData: {
+				id: 'layer-1',
+				name: 'Layer 1',
+				order: 0,
+				visible: true,
+				muted: false,
+				components: []
+			} as any,
+			componentsManager: { create: vi.fn() } as any,
+			eventManager: { emit: vi.fn() } as any
+		});
+		await layer.build();
+		layer.addComponent(component);
+		expect(layer.displayObject.children.length).toBe(0);
+
+		const renderManager = new RenderManager({
+			stateManager: state as any,
+			componentsManager: { getAll: () => [component] } as any,
+			eventManager: { on: vi.fn(), removeEventListener: vi.fn() } as any,
+			appManager: { render: vi.fn() } as any,
+			layersManager: { getAll: () => [layer] } as any
+		});
+
+		// Before component start: display object does not exist and cannot be attached.
+		state.currentTime = 0;
+		await renderManager.render();
+		expect(layer.displayObject.children.length).toBe(0);
+
+		// First active frame: split display object is created and must be attached to the layer.
+		state.currentTime = 3;
+		await renderManager.render();
+		const startRenderObject = component.displayObject as any;
+		expect(startRenderObject).toBeTruthy();
+		expect(startRenderObject.parent).toBe(layer.displayObject);
+		expect(layer.displayObject.children.includes(startRenderObject)).toBe(true);
+
+		// Mid-segment frame remains attached and has split geometry with drawable sprites.
+		state.currentTime = 4;
+		await renderManager.render();
+		const midRenderObject = component.displayObject as any;
+		expect(midRenderObject).toBe(startRenderObject);
+		expect(midRenderObject.children.length).toBe(2);
+
+		const chunks = splitEffect.layoutSplit.chunks;
+		for (let i = 0; i < chunks.length; i += 1) {
+			const splitContainer = midRenderObject.children[i] as any;
+			const chunk = chunks[i];
+			expect(splitContainer.x).toBe(chunk.group.x);
+			expect(splitContainer.y).toBe(chunk.group.y);
+			const splitSprite = splitContainer.children[0] as any;
+			expect(splitSprite).toBeTruthy();
+			expect(splitSprite.texture).toBeTruthy();
+			expect(splitSprite.width).toBe(chunk.component.width);
+			expect(splitSprite.height).toBe(chunk.component.height);
+		}
+
+		// frameIndex is component-local and includes source start offset for VIDEO.
+		expect(requests).toContain(60); // start frame: sourceStartAt(2s) * 30fps
+		expect(requests).toContain(90); // mid frame: (sourceStartAt(2s) + 1s) * 30fps
 	});
 });

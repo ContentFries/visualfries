@@ -33,6 +33,11 @@ Backend renderers can obtain a deterministic, timeline-correct frame blob with a
 - [ ] Integration/performance tests: 3-video scene + frame count + blob ≥30% faster benchmark
 - [x] Diagnostics mode: provider hit/miss, cache hit ratio, per-frame latency — disabled by default, never throws
 - [x] All new API is backward-compatible; `deterministicMedia.enabled` defaults to `false`
+- [x] Font auto-discovery for `TEXT`/`SUBTITLES` (including active word/line override weights and `fontSource.variants`)
+- [x] Explicit font variant preload via Google CSS2 + per-descriptor `document.fonts.load`
+- [x] SceneBuilder initialization now waits for descriptor preload before scene tree build (server/client)
+- [x] Custom font preload path with `FontFace` where available; warn-and-continue fallback behavior
+- [x] Font stability regression tests (discovery, descriptor preload, initialization ordering)
 
 ### Out of Scope
 
@@ -80,7 +85,9 @@ Backend renderers can obtain a deterministic, timeline-correct frame blob with a
 | Shared PIXI texture destruction policy                                    | `Texture.from(source)` can return shared instances; use hook-level retain/release instead of eager destroy | ✓ Complete |
 | Deterministic seek/readiness in server rendering                          | First active frame must be valid without preroll; seek must await deterministic media/effect readiness     | ✓ Complete |
 | Deterministic null-result retry semantics                                 | Same-frame null must not be sticky; allow provider retries during seek preparation loops                   | ✓ Complete |
+| Delayed deterministic display-object layer attachment                     | Deterministic VIDEO/GIF can create display objects after initial build; layer must sync/attach each render | ✓ Complete |
+| Font loading determinism for SplitText/highlighter metrics               | `document.fonts.ready` is insufficient for variant coverage; explicit descriptor preload is required        | ✓ Complete |
 
 ---
 
-_Last updated: 2026-02-21 after deterministic seek/readiness + dirty/cache consistency pass (42/44 requirements complete)_
+_Last updated: 2026-02-21 after deterministic delayed-attachment fix + font preload/discovery stability hardening (tests green)_

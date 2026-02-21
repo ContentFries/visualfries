@@ -84,6 +84,15 @@
 - **ENC-02**: Mediabunny plugin package (MPL-2.0) integration
 - **ENC-03**: "Offthread video" (Remotion-style) decode/cache architecture
 
+## Follow-up Requirements (Font Stability)
+
+- [x] **FONT-01**: Auto-discover fonts for `TEXT` + `SUBTITLES` components by scene data (default on)
+- [x] **FONT-02**: Include all relevant weights from base text, `activeWord`, `activeLine`, and `fontSource.variants`
+- [x] **FONT-03**: Build Google CSS2 URLs with explicit weight sets and preload each descriptor via `document.fonts.load`
+- [x] **FONT-04**: Keep custom font path supported using equivalent preload semantics where possible (`FontFace` + descriptor load)
+- [x] **FONT-05**: Ensure preload ordering happens before scene tree build to avoid first-frame fallback metric jumps
+- [x] **FONT-06**: Add regression tests for discovery, descriptor preloading, and initialization ordering in server mode
+
 ## Out of Scope
 
 | Feature                                             | Reason                                                        |
@@ -155,4 +164,4 @@ _Note: REQUIREMENTS.md originally stated 41 total; enumeration yields 44. All 44
 ---
 
 _Requirements defined: 2026-02-21_
-_Last updated: 2026-02-21 after deterministic seek/readiness + dirty/cache consistency pass (42/44 complete; open: REND-02, TEST-05)_
+_Last updated: 2026-02-21 after font stability follow-up (discovery + explicit preload + ordering tests) and deterministic integration coverage (42/44 deterministic v1 complete; open: REND-02, TEST-05)_

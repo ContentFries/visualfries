@@ -15,6 +15,7 @@ import { ComponentShape } from '$lib';
 
 import { buildCharactersListFromComponentsAndSubtitles, changeIdDeep } from './utils/utils.js';
 import { loadFonts } from './utils/document.js';
+import { discoverRequiredFontVariants } from './fonts/fontDiscovery.js';
 
 import { CommandType } from './commands/CommandTypes.js';
 import { CommandRunner } from './commands/CommandRunner.js';
@@ -268,7 +269,8 @@ export class SceneBuilder implements ISceneBuilder {
 	}
 
 	private async loadFonts(fonts: FontType[]) {
-		return await loadFonts(fonts);
+		const variants = discoverRequiredFontVariants(this.sceneData, fonts);
+		return await loadFonts(fonts, variants);
 	}
 
 	async initialize() {
@@ -281,9 +283,7 @@ export class SceneBuilder implements ISceneBuilder {
 		this.renderTicker = () => {
 			this.render();
 		};
-		if (this.fonts.length > 0) {
-			await this.loadFonts(this.fonts);
-		}
+		await this.loadFonts(this.fonts);
 
 		this.layersManager.setAppManager(this.appManager);
 		await this.appManager.initialize();

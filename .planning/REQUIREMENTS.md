@@ -97,23 +97,60 @@
 
 ## Traceability
 
-Populated during roadmap creation.
-
-| Requirement | Phase | Status  |
-| ----------- | ----- | ------- |
-| TYPE-01–08  | —     | Pending |
-| MGR-01–08   | —     | Pending |
-| HOOK-01–10  | —     | Pending |
-| REND-01–08  | —     | Pending |
-| CACHE-01–02 | —     | Pending |
-| DIAG-01–03  | —     | Pending |
-| TEST-01–05  | —     | Pending |
+| Requirement | Phase                                              | Status  |
+| ----------- | -------------------------------------------------- | ------- |
+| TYPE-01     | Phase 1 — Types & Interfaces                       | Pending |
+| TYPE-02     | Phase 1 — Types & Interfaces                       | Pending |
+| TYPE-03     | Phase 1 — Types & Interfaces                       | Pending |
+| TYPE-04     | Phase 1 — Types & Interfaces                       | Pending |
+| TYPE-05     | Phase 1 — Types & Interfaces                       | Pending |
+| TYPE-06     | Phase 1 — Types & Interfaces                       | Pending |
+| TYPE-07     | Phase 1 — Types & Interfaces                       | Pending |
+| TYPE-08     | Phase 1 — Types & Interfaces                       | Pending |
+| MGR-01      | Phase 2 — DeterministicMediaManager                | Pending |
+| MGR-02      | Phase 2 — DeterministicMediaManager                | Pending |
+| MGR-03      | Phase 2 — DeterministicMediaManager                | Pending |
+| MGR-04      | Phase 2 — DeterministicMediaManager                | Pending |
+| MGR-05      | Phase 2 — DeterministicMediaManager                | Pending |
+| MGR-06      | Phase 2 — DeterministicMediaManager                | Pending |
+| MGR-07      | Phase 2 — DeterministicMediaManager                | Pending |
+| MGR-08      | Phase 2 — DeterministicMediaManager                | Pending |
+| HOOK-01     | Phase 3 — Hook + ComponentDirector Branch          | Pending |
+| HOOK-02     | Phase 3 — Hook + ComponentDirector Branch          | Pending |
+| HOOK-03     | Phase 3 — Hook + ComponentDirector Branch          | Pending |
+| HOOK-04     | Phase 3 — Hook + ComponentDirector Branch          | Pending |
+| HOOK-05     | Phase 3 — Hook + ComponentDirector Branch          | Pending |
+| HOOK-06     | Phase 3 — Hook + ComponentDirector Branch          | Pending |
+| HOOK-07     | Phase 3 — Hook + ComponentDirector Branch          | Pending |
+| HOOK-08     | Phase 3 — Hook + ComponentDirector Branch          | Pending |
+| HOOK-09     | Phase 4 — PixiVideoTextureHook Guard               | Pending |
+| HOOK-10     | Phase 3 — Hook + ComponentDirector Branch          | Pending |
+| REND-01     | Phase 6 — renderFrameRange() Render Loop           | Pending |
+| REND-02     | Phase 6 — renderFrameRange() Render Loop           | Pending |
+| REND-03     | Phase 6 — renderFrameRange() Render Loop           | Pending |
+| REND-04     | Phase 6 — renderFrameRange() Render Loop           | Pending |
+| REND-05     | Phase 6 — renderFrameRange() Render Loop           | Pending |
+| REND-06     | Phase 6 — renderFrameRange() Render Loop           | Pending |
+| REND-07     | Phase 6 — renderFrameRange() Render Loop           | Pending |
+| REND-08     | Phase 6 — renderFrameRange() Render Loop           | Pending |
+| CACHE-01    | Phase 5 — RenderFrameCommand Cache Guard           | Pending |
+| CACHE-02    | Phase 5 — RenderFrameCommand Cache Guard           | Pending |
+| DIAG-01     | Phase 7 — ReplaceSourceOnTimeCommand + Diagnostics | Pending |
+| DIAG-02     | Phase 7 — ReplaceSourceOnTimeCommand + Diagnostics | Pending |
+| DIAG-03     | Phase 7 — ReplaceSourceOnTimeCommand + Diagnostics | Pending |
+| TEST-01     | Phase 7 — ReplaceSourceOnTimeCommand + Diagnostics | Pending |
+| TEST-02     | Phase 7 — ReplaceSourceOnTimeCommand + Diagnostics | Pending |
+| TEST-03     | Phase 7 — ReplaceSourceOnTimeCommand + Diagnostics | Pending |
+| TEST-04     | Phase 7 — ReplaceSourceOnTimeCommand + Diagnostics | Pending |
+| TEST-05     | Phase 7 — ReplaceSourceOnTimeCommand + Diagnostics | Pending |
 
 **Coverage:**
 
-- v1 requirements: 41 total
-- Mapped to phases: 0
-- Unmapped: 41 ⚠️
+- v1 requirements: 44 total (8 TYPE + 8 MGR + 10 HOOK + 8 REND + 2 CACHE + 3 DIAG + 5 TEST)
+- Mapped to phases: 44
+- Unmapped: 0 ✓
+
+_Note: REQUIREMENTS.md originally stated 41 total; enumeration yields 44. All 44 are mapped._
 
 ---
 

@@ -1,19 +1,20 @@
 import * as PIXI from 'pixi.js-legacy';
 
 import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
-import { LayoutSplitEffectShape, VideoComponentShape } from '$lib';
+import { ImageComponentShape, LayoutSplitEffectShape, VideoComponentShape } from '$lib';
 import { z } from 'zod';
 import type { StateManager } from '$lib/managers/StateManager.svelte.ts';
 
 export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
-	types: HookType[] = ['update', 'destroy', 'refresh'];
+	types: HookType[] = ['update', 'destroy', 'refresh', 'refresh:content'];
 
 	#handlers: HookHandlers = {
 		update: this.#handleUpdate.bind(this),
 		destroy: this.#handleDestroy.bind(this),
 		refresh: this.#handleRefresh.bind(this),
 		'refresh:config': this.#handleRefresh.bind(this),
-		'refresh:metadata': this.#handleRefresh.bind(this)
+		'refresh:metadata': this.#handleRefresh.bind(this),
+		'refresh:content': this.#handleRefresh.bind(this)
 	} as const;
 
 	priority: number = 1;
@@ -21,7 +22,7 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 	#pixiTexture!: PIXI.Texture;
 	#displayObject!: PIXI.Container;
 	#bgCanvas: HTMLCanvasElement | undefined = undefined;
-	componentElement!: z.infer<typeof VideoComponentShape>;
+	componentElement!: z.infer<typeof VideoComponentShape> | z.infer<typeof ImageComponentShape>;
 	private sceneState: StateManager;
 
 	constructor(cradle: { stateManager: StateManager }) {
@@ -204,6 +205,12 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		}
 
 		if (this.#displayObject) {
+			// If the texture was swapped (e.g. by refresh:content), rebuild the display object
+			const currentTexture = this.#context.getResource('pixiTexture');
+			if (currentTexture && currentTexture !== this.#pixiTexture) {
+				await this.#handleRefresh();
+			}
+
 			// Always re-assert the resource in case the context was cleared or updated
 			this.#context.setResource('pixiRenderObject', this.#displayObject);
 

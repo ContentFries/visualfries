@@ -2,12 +2,13 @@ import * as PIXI from 'pixi.js-legacy';
 import { setPlacementAndOpacity } from '../../utils/utils.js';
 import { StateManager } from '../../managers/StateManager.svelte.js';
 export class PixiDisplayObjectHook {
-    types = ['update', 'destroy', 'refresh'];
+    types = ['update', 'destroy', 'refresh', 'refresh:content'];
     #handlers = {
         update: this.#handleUpdate.bind(this),
         destroy: this.#handleDestroy.bind(this),
         refresh: this.#handleRefresh.bind(this),
-        'refresh:config': this.#handleRefresh.bind(this)
+        'refresh:config': this.#handleRefresh.bind(this),
+        'refresh:content': this.#handleRefresh.bind(this)
     };
     priority = 1;
     #context;
@@ -53,6 +54,11 @@ export class PixiDisplayObjectHook {
     async #handleUpdate() {
         const isActive = this.#context.isActive;
         if (this.#displayObject) {
+            // If the texture was swapped (e.g. by refresh:content), rebuild the sprite
+            const currentTexture = this.#context.getResource('pixiTexture');
+            if (currentTexture && currentTexture !== this.#pixiTexture) {
+                await this.#handleRefresh();
+            }
             // Always re-assert the resource in case the context was cleared or updated
             this.#context.setResource('pixiRenderObject', this.#displayObject);
             // Only mark dirty if visibility actually changed
@@ -81,7 +87,9 @@ export class PixiDisplayObjectHook {
         this.#context.setResource('pixiRenderObject', this.#displayObject);
     }
     async #handleDestroy() {
-        this.#displayObject.removeChildren();
+        if (this.#displayObject) {
+            this.#displayObject.removeChildren();
+        }
     }
     async handle(type, context) {
         this.#context = context;

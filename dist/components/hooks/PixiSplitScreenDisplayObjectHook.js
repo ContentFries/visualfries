@@ -1,14 +1,15 @@
 import * as PIXI from 'pixi.js-legacy';
-import { LayoutSplitEffectShape, VideoComponentShape } from '../..';
+import { ImageComponentShape, LayoutSplitEffectShape, VideoComponentShape } from '../..';
 import { z } from 'zod';
 export class PixiSplitScreenDisplayObjectHook {
-    types = ['update', 'destroy', 'refresh'];
+    types = ['update', 'destroy', 'refresh', 'refresh:content'];
     #handlers = {
         update: this.#handleUpdate.bind(this),
         destroy: this.#handleDestroy.bind(this),
         refresh: this.#handleRefresh.bind(this),
         'refresh:config': this.#handleRefresh.bind(this),
-        'refresh:metadata': this.#handleRefresh.bind(this)
+        'refresh:metadata': this.#handleRefresh.bind(this),
+        'refresh:content': this.#handleRefresh.bind(this)
     };
     priority = 1;
     #context;
@@ -169,6 +170,11 @@ export class PixiSplitScreenDisplayObjectHook {
             this.#drawBlurredBackground();
         }
         if (this.#displayObject) {
+            // If the texture was swapped (e.g. by refresh:content), rebuild the display object
+            const currentTexture = this.#context.getResource('pixiTexture');
+            if (currentTexture && currentTexture !== this.#pixiTexture) {
+                await this.#handleRefresh();
+            }
             // Always re-assert the resource in case the context was cleared or updated
             this.#context.setResource('pixiRenderObject', this.#displayObject);
             if (this.#displayObject.visible != isActive) {

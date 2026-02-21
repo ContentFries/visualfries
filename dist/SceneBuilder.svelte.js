@@ -310,14 +310,14 @@ export class SceneBuilder {
     getDiagnosticsReport() {
         return this.deterministicMediaManager.getDiagnosticsReport();
     }
-    async seekAndRenderFrame(time, target, format = 'png', quality = 1) {
+    async seekAndRenderFrame(time, target, format = 'png', quality = 1, imageOptions) {
         await this.seek(time);
         // In server mode SeekCommand performs awaited render preparation.
         // Keep client render behavior unchanged.
         if (this.environment !== 'server') {
             this.render();
         }
-        const frame = await this.renderFrame(target, format, quality);
+        const frame = await this.renderFrame(target, format, quality, imageOptions);
         return frame;
     }
     /**
@@ -354,8 +354,14 @@ export class SceneBuilder {
         this.render();
         return wasDirty || this.stateManager.isDirty;
     }
-    async renderFrame(target, format = 'png', quality = 1) {
-        const frame = (await this.run(CommandType.RENDER_FRAME, { target, format, quality }));
+    async renderFrame(target, format = 'png', quality = 1, imageOptions) {
+        const frame = (await this.run(CommandType.RENDER_FRAME, {
+            target,
+            format,
+            quality,
+            imageFormat: imageOptions?.imageFormat,
+            imageQuality: imageOptions?.imageQuality
+        }));
         if (!frame) {
             throw new Error('Rendering frame failed');
         }
@@ -367,6 +373,10 @@ export class SceneBuilder {
         }
         const format = options.format ?? 'blob';
         const quality = options.quality ?? 1;
+        const imageOptions = {
+            imageFormat: options.imageFormat,
+            imageQuality: options.imageQuality
+        };
         const skipDuplicates = options.skipDuplicates ?? false;
         const fromFrame = Math.max(0, Math.floor(options.fromFrame));
         const toFrame = Math.max(fromFrame, Math.floor(options.toFrame));
@@ -374,6 +384,7 @@ export class SceneBuilder {
         let framesSkipped = 0;
         let aborted = false;
         let previousFrame = null;
+        let previousMimeType;
         for (let frameIndex = fromFrame; frameIndex < toFrame; frameIndex += 1) {
             if (options.signal?.aborted) {
                 aborted = true;
@@ -381,22 +392,34 @@ export class SceneBuilder {
             }
             let frame;
             let isDuplicate = false;
+            let mimeType;
             const frameTime = frameIndex / this.fps;
             if (skipDuplicates) {
                 const isDirty = await this.isSceneDirty(frameTime);
                 if (!isDirty && previousFrame) {
                     frame = previousFrame;
+                    mimeType = previousMimeType;
                     isDuplicate = true;
                     framesSkipped += 1;
                 }
                 else {
-                    frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality);
+                    frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality, imageOptions);
                     previousFrame = frame;
                 }
             }
             else {
-                frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality);
+                frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality, imageOptions);
                 previousFrame = frame;
+            }
+            if (!mimeType && frame instanceof Blob) {
+                mimeType = frame.type || undefined;
+            }
+            if (!mimeType && format === 'blob') {
+                const imageFormat = imageOptions.imageFormat ?? 'png';
+                mimeType = imageFormat === 'jpg' || imageFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+            }
+            if (!isDuplicate) {
+                previousMimeType = mimeType;
             }
             let released = false;
             const release = () => {
@@ -409,6 +432,7 @@ export class SceneBuilder {
                 frameIndex,
                 frame,
                 isDuplicate,
+                mimeType,
                 release
             });
             release();

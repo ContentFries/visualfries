@@ -19,3 +19,9 @@ export class DeterministicRenderError extends Error {
         this.sceneTime = props.sceneTime;
     }
 }
+export class RenderFrameEncodingError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'RenderFrameEncodingError';
+    }
+}

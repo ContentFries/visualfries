@@ -17,5 +17,6 @@ export declare class RenderFrameCommand implements Command<string | ArrayBuffer 
         appManager: AppManager;
         deterministicMediaManager?: DeterministicMediaManager;
     });
+    private resolveBlobMimeType;
     execute(args: unknown): Promise<string | ArrayBuffer | Blob | null>;
 }

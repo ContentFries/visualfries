@@ -33,6 +33,7 @@ import type {
 	DeterministicFrameProvider,
 	DeterministicMediaConfig,
 	DeterministicDiagnosticsReport,
+	FrameImageEncodingOptions,
 	RenderFrameRangeOptions,
 	RenderFrameRangeSummary
 } from '$lib';
@@ -444,7 +445,8 @@ export class SceneBuilder implements ISceneBuilder {
 		time: number,
 		target?: PIXI.DisplayObject | PIXI.RenderTexture,
 		format = 'png',
-		quality = 1
+		quality = 1,
+		imageOptions?: FrameImageEncodingOptions
 	): Promise<string | ArrayBuffer | Blob> {
 		await this.seek(time);
 		// In server mode SeekCommand performs awaited render preparation.
@@ -452,7 +454,7 @@ export class SceneBuilder implements ISceneBuilder {
 		if (this.environment !== 'server') {
 			this.render();
 		}
-		const frame = await this.renderFrame(target, format, quality);
+		const frame = await this.renderFrame(target, format, quality, imageOptions);
 		return frame;
 	}
 
@@ -496,9 +498,16 @@ export class SceneBuilder implements ISceneBuilder {
 	public async renderFrame(
 		target?: PIXI.DisplayObject | PIXI.RenderTexture,
 		format = 'png',
-		quality = 1
+		quality = 1,
+		imageOptions?: FrameImageEncodingOptions
 	): Promise<string | ArrayBuffer | Blob> {
-		const frame = (await this.run(CommandType.RENDER_FRAME, { target, format, quality })) as
+		const frame = (await this.run(CommandType.RENDER_FRAME, {
+			target,
+			format,
+			quality,
+			imageFormat: imageOptions?.imageFormat,
+			imageQuality: imageOptions?.imageQuality
+		})) as
 			| string
 			| ArrayBuffer
 			| Blob
@@ -516,6 +525,10 @@ export class SceneBuilder implements ISceneBuilder {
 
 		const format = options.format ?? 'blob';
 		const quality = options.quality ?? 1;
+		const imageOptions = {
+			imageFormat: options.imageFormat,
+			imageQuality: options.imageQuality
+		} as const;
 		const skipDuplicates = options.skipDuplicates ?? false;
 		const fromFrame = Math.max(0, Math.floor(options.fromFrame));
 		const toFrame = Math.max(fromFrame, Math.floor(options.toFrame));
@@ -524,6 +537,7 @@ export class SceneBuilder implements ISceneBuilder {
 		let framesSkipped = 0;
 		let aborted = false;
 		let previousFrame: string | ArrayBuffer | Blob | null = null;
+		let previousMimeType: string | undefined;
 
 		for (let frameIndex = fromFrame; frameIndex < toFrame; frameIndex += 1) {
 			if (options.signal?.aborted) {
@@ -533,21 +547,40 @@ export class SceneBuilder implements ISceneBuilder {
 
 			let frame: string | ArrayBuffer | Blob;
 			let isDuplicate = false;
+			let mimeType: string | undefined;
 			const frameTime = frameIndex / this.fps;
 
 			if (skipDuplicates) {
 				const isDirty = await this.isSceneDirty(frameTime);
 				if (!isDirty && previousFrame) {
 					frame = previousFrame;
+					mimeType = previousMimeType;
 					isDuplicate = true;
 					framesSkipped += 1;
 				} else {
-					frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality);
+					frame = await this.seekAndRenderFrame(
+						frameTime,
+						undefined,
+						format,
+						quality,
+						imageOptions
+					);
 					previousFrame = frame;
 				}
 			} else {
-				frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality);
+				frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality, imageOptions);
 				previousFrame = frame;
+			}
+
+			if (!mimeType && frame instanceof Blob) {
+				mimeType = frame.type || undefined;
+			}
+			if (!mimeType && format === 'blob') {
+				const imageFormat = imageOptions.imageFormat ?? 'png';
+				mimeType = imageFormat === 'jpg' || imageFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+			}
+			if (!isDuplicate) {
+				previousMimeType = mimeType;
 			}
 
 			let released = false;
@@ -562,6 +595,7 @@ export class SceneBuilder implements ISceneBuilder {
 				frameIndex,
 				frame,
 				isDuplicate,
+				mimeType,
 				release
 			});
 

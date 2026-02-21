@@ -38,6 +38,10 @@ Backend renderers can obtain a deterministic, timeline-correct frame blob with a
 - [x] SceneBuilder initialization now waits for descriptor preload before scene tree build (server/client)
 - [x] Custom font preload path with `FontFace` where available; warn-and-continue fallback behavior
 - [x] Font stability regression tests (discovery, descriptor preload, initialization ordering)
+- [x] Deterministic blob/image output config added (`imageFormat`, `imageQuality`) with backward-compatible PNG default
+- [x] Blob output MIME control wired through `RenderFrameCommand` (`jpg/png` mapping) + null-blob deterministic error
+- [x] `renderFrameRange` now forwards blob encoding config and emits `mimeType` callback metadata
+- [x] Blob encoding regression tests: JPEG signature, PNG signature, default behavior, deterministic range JPG mode
 
 ### Out of Scope
 
@@ -87,7 +91,8 @@ Backend renderers can obtain a deterministic, timeline-correct frame blob with a
 | Deterministic null-result retry semantics                                 | Same-frame null must not be sticky; allow provider retries during seek preparation loops                   | ✓ Complete |
 | Delayed deterministic display-object layer attachment                     | Deterministic VIDEO/GIF can create display objects after initial build; layer must sync/attach each render | ✓ Complete |
 | Font loading determinism for SplitText/highlighter metrics               | `document.fonts.ready` is insufficient for variant coverage; explicit descriptor preload is required        | ✓ Complete |
+| Deterministic blob transport format control                              | WS/ffmpeg consumers need native JPEG blob selection; default behavior must stay backward-compatible          | ✓ Complete |
 
 ---
 
-_Last updated: 2026-02-21 after deterministic delayed-attachment fix + font preload/discovery stability hardening (tests green)_
+_Last updated: 2026-02-21 after deterministic delayed-attachment + font preload/discovery + explicit blob JPEG/PNG output controls (tests green)_

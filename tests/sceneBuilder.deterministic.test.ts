@@ -3,6 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { SceneBuilder } from '$lib/SceneBuilder.svelte.ts';
 import { CommandType } from '$lib/commands/CommandTypes.ts';
 
+const blobToBytes = async (blob: Blob): Promise<Uint8Array> =>
+	new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
+		reader.onerror = () => reject(reader.error ?? new Error('Failed to read blob'));
+		reader.readAsArrayBuffer(blob);
+	});
+
 const createSceneBuilder = (
 	stateOverrides: Partial<any> = {},
 	runImpl?: (cmd: CommandType, props?: unknown) => unknown
@@ -90,7 +98,9 @@ describe('SceneBuilder deterministic seek/readiness behavior', () => {
 		expect(commandRunner.run).toHaveBeenCalledWith(CommandType.RENDER_FRAME, {
 			target: undefined,
 			format: 'png',
-			quality: 1
+			quality: 1,
+			imageFormat: undefined,
+			imageQuality: undefined
 		});
 		expect(commandRunner.runSync).not.toHaveBeenCalled();
 	});
@@ -147,5 +157,52 @@ describe('SceneBuilder deterministic seek/readiness behavior', () => {
 		expect(received[0].isDuplicate).toBe(false);
 		expect(received[1].isDuplicate).toBe(true);
 		expect(received[0].frame).toBe(received[1].frame);
+	});
+
+	it('renderFrameRange forwards blob jpg encoding options and exposes mimeType for deterministic frames', async () => {
+		const jpegSignature = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+		const { builder, commandRunner } = createSceneBuilder(
+			{},
+			(commandType: CommandType, props?: any) => {
+				if (commandType === CommandType.RENDER_FRAME) {
+					expect(props?.format).toBe('blob');
+					expect(props?.imageFormat).toBe('jpg');
+					expect(props?.imageQuality).toBe(0.68);
+					return new Blob([jpegSignature], { type: 'image/jpeg' });
+				}
+				return undefined;
+			}
+		);
+
+		const items: Array<{ frameIndex: number; mimeType?: string; frame: Blob }> = [];
+		const summary = await builder.renderFrameRange({
+			fromFrame: 0,
+			toFrame: 2,
+			format: 'blob',
+			imageFormat: 'jpg',
+			imageQuality: 0.68,
+			onFrame: (item) => {
+				items.push({
+					frameIndex: item.frameIndex,
+					mimeType: item.mimeType,
+					frame: item.frame as Blob
+				});
+			}
+		});
+
+		expect(summary.framesRendered).toBe(2);
+		expect(items).toHaveLength(2);
+		expect(items[0].mimeType).toBe('image/jpeg');
+		expect(items[1].mimeType).toBe('image/jpeg');
+
+		const frameBytes = await blobToBytes(items[0].frame);
+		expect(frameBytes[0]).toBe(0xff);
+		expect(frameBytes[1]).toBe(0xd8);
+		expect(frameBytes[2]).toBe(0xff);
+
+		const renderCalls = commandRunner.run.mock.calls.filter(
+			([commandType]) => commandType === CommandType.RENDER_FRAME
+		);
+		expect(renderCalls).toHaveLength(2);
 	});
 });

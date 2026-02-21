@@ -8,7 +8,7 @@ import { DomManager } from './managers/DomManager.js';
 import { AppManager } from './managers/AppManager.svelte.js';
 import { ComponentsManager } from './managers/ComponentsManager.svelte.js';
 import type { EventMap, EventType, EventPayload, BuilderState, ISceneBuilder } from './';
-import type { DeterministicFrameProvider, DeterministicMediaConfig, DeterministicDiagnosticsReport, RenderFrameRangeOptions, RenderFrameRangeSummary } from './';
+import type { DeterministicFrameProvider, DeterministicMediaConfig, DeterministicDiagnosticsReport, FrameImageEncodingOptions, RenderFrameRangeOptions, RenderFrameRangeSummary } from './';
 import { MediaManager } from './managers/MediaManager.js';
 import { DeterministicMediaManager } from './managers/DeterministicMediaManager.js';
 import { LayersManager } from './managers/LayersManager.svelte.js';
@@ -5377,7 +5377,7 @@ export declare class SceneBuilder implements ISceneBuilder {
     getDeterministicFrameProvider(): DeterministicFrameProvider | null;
     getDeterministicMediaConfig(): DeterministicMediaConfig;
     getDiagnosticsReport(): DeterministicDiagnosticsReport | null;
-    seekAndRenderFrame(time: number, target?: PIXI.DisplayObject | PIXI.RenderTexture, format?: string, quality?: number): Promise<string | ArrayBuffer | Blob>;
+    seekAndRenderFrame(time: number, target?: PIXI.DisplayObject | PIXI.RenderTexture, format?: string, quality?: number, imageOptions?: FrameImageEncodingOptions): Promise<string | ArrayBuffer | Blob>;
     /**
      * Check if seeking to a specific time would result in visual changes
      * without actually extracting frame data.
@@ -5402,7 +5402,7 @@ export declare class SceneBuilder implements ISceneBuilder {
      * }
      */
     isSceneDirty(time: number): Promise<boolean>;
-    renderFrame(target?: PIXI.DisplayObject | PIXI.RenderTexture, format?: string, quality?: number): Promise<string | ArrayBuffer | Blob>;
+    renderFrame(target?: PIXI.DisplayObject | PIXI.RenderTexture, format?: string, quality?: number, imageOptions?: FrameImageEncodingOptions): Promise<string | ArrayBuffer | Blob>;
     renderFrameRange(options: RenderFrameRangeOptions): Promise<RenderFrameRangeSummary>;
     log(message: string): void;
     play(changeState?: boolean): void;

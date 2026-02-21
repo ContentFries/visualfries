@@ -81,7 +81,15 @@ export type RenderFrameRangeItem = {
 	frameIndex: number;
 	frame: string | ArrayBuffer | Blob;
 	isDuplicate: boolean;
+	mimeType?: string;
 	release: () => void;
+};
+
+export type FrameImageFormat = 'jpg' | 'jpeg' | 'png';
+
+export type FrameImageEncodingOptions = {
+	imageFormat?: FrameImageFormat;
+	imageQuality?: number;
 };
 
 export type RenderFrameRangeOptions = {
@@ -89,6 +97,8 @@ export type RenderFrameRangeOptions = {
 	toFrame: number;
 	format?: 'arraybuffer' | 'blob' | 'png' | 'jpg' | 'jpeg';
 	quality?: number;
+	imageFormat?: FrameImageFormat;
+	imageQuality?: number;
 	skipDuplicates?: boolean;
 	signal?: AbortSignal;
 	onFrame: (item: RenderFrameRangeItem) => Promise<void> | void;
@@ -112,5 +122,12 @@ export class DeterministicRenderError extends Error {
 		this.componentId = props.componentId;
 		this.frameIndex = props.frameIndex;
 		this.sceneTime = props.sceneTime;
+	}
+}
+
+export class RenderFrameEncodingError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'RenderFrameEncodingError';
 	}
 }

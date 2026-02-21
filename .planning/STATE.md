@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** Backend renderers can obtain a deterministic, timeline-correct frame blob with a 5-line loop — no internal patching, correct split-screen and blur effects, no trailing frames.
-**Current focus:** Phase 6/7 closeout + font measurement stability hardening (server/client first-frame correctness)
+**Current focus:** Phase 6/7 closeout + deterministic output hardening (font stability + explicit blob JPEG/PNG controls)
 
 ## Current Position
 
 Phase: 6 of 7 (renderFrameRange + diagnostics closeout)
 Plan: 0 of 2 in current phase
 Status: In progress
-Last activity: 2026-02-21 — Native font auto-discovery + explicit variant preload shipped; SceneBuilder now blocks scene build on descriptor preload for stable SplitText/activeWord metrics
+Last activity: 2026-02-21 — Deterministic blob output controls shipped (`imageFormat`, `imageQuality`, callback `mimeType`) with JPEG/PNG signature tests and range-forwarding coverage
 
 Progress: [██████████] 95% (42/44 requirements complete)
 
@@ -55,6 +55,7 @@ Recent decisions affecting current work:
 - Phase 7 (implemented): `ReplaceSourceOnTimeCommand` rebuilt as deterministic one-time override wrapper.
 - Phase 3 (implemented): deterministic VIDEO/GIF server path now omits native media/video hook chain.
 - Font preload (implemented): auto-discover TEXT/SUBTITLES family+weights and preload descriptors with `document.fonts.load` before scene tree build.
+- Blob output controls (implemented): explicit JPG/PNG blob encoding config wired through render APIs with deterministic null-blob error handling.
 
 ### Pending Todos
 
@@ -68,5 +69,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Font stability fix complete with discovery + preload + ordering tests green (275/275)
+Stopped at: Deterministic blob output fix complete with JPEG/PNG signature coverage and full suite green (280/280)
 Resume file: None

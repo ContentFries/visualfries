@@ -93,6 +93,15 @@
 - [x] **FONT-05**: Ensure preload ordering happens before scene tree build to avoid first-frame fallback metric jumps
 - [x] **FONT-06**: Add regression tests for discovery, descriptor preloading, and initialization ordering in server mode
 
+## Follow-up Requirements (Deterministic Blob Encoding)
+
+- [x] **BLOB-01**: Add explicit blob/image encoding controls (`imageFormat`, `imageQuality`) while preserving default PNG behavior
+- [x] **BLOB-02**: `RenderFrameCommand` blob path must pass MIME/quality into `canvas.toBlob(cb, mime, quality)` with `jpg -> image/jpeg`, `png -> image/png`
+- [x] **BLOB-03**: Throw clear deterministic encoding error when `canvas.toBlob` returns null
+- [x] **BLOB-04**: `renderFrameRange` forwards blob encoding options to every frame render
+- [x] **BLOB-05**: Optional frame callback metadata includes blob `mimeType` for consumers
+- [x] **BLOB-06**: Tests verify JPEG signature, PNG signature, default backward-compatible blob behavior, and deterministic `renderFrameRange` JPG mode
+
 ## Out of Scope
 
 | Feature                                             | Reason                                                        |
@@ -164,4 +173,4 @@ _Note: REQUIREMENTS.md originally stated 41 total; enumeration yields 44. All 44
 ---
 
 _Requirements defined: 2026-02-21_
-_Last updated: 2026-02-21 after font stability follow-up (discovery + explicit preload + ordering tests) and deterministic integration coverage (42/44 deterministic v1 complete; open: REND-02, TEST-05)_
+_Last updated: 2026-02-21 after font stability + deterministic blob encoding follow-ups (explicit JPEG/PNG blob controls, mime metadata, tests) and deterministic integration coverage (42/44 deterministic v1 complete; open: REND-02, TEST-05)_

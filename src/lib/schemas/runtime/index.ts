@@ -37,7 +37,8 @@ export type {
 export {
 	DeterministicMediaConfigShape,
 	defaultDeterministicMediaConfig,
-	DeterministicRenderError
+	DeterministicRenderError,
+	RenderFrameEncodingError
 } from './deterministic.js';
 
 export type {
@@ -47,6 +48,8 @@ export type {
 	DeterministicFrameProvider,
 	DeterministicFrameOverride,
 	DeterministicDiagnosticsReport,
+	FrameImageFormat,
+	FrameImageEncodingOptions,
 	RenderFrameRangeOptions,
 	RenderFrameRangeItem,
 	RenderFrameRangeSummary

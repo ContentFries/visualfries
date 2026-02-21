@@ -205,8 +205,12 @@ Plans:
 - [x] FONT-03: SceneBuilder initialization now awaits descriptor preload before app/scene build
 - [x] FONT-04: Custom-font preload path implemented with `FontFace` where available; failures warn and continue
 - [x] FONT-05: Added regression tests for discovery, preload calls, and initialization ordering
+- [x] BLOB-01: Added explicit blob encoding options (`imageFormat`, `imageQuality`) for frame rendering APIs
+- [x] BLOB-02: `RenderFrameCommand` now maps blob `jpg/png` to deterministic MIME via `canvas.toBlob(cb, mime, quality)`
+- [x] BLOB-03: `renderFrameRange` now forwards blob encoding options and emits `mimeType` metadata in frame callbacks
+- [x] BLOB-04: Added JPEG/PNG signature tests and deterministic `renderFrameRange` JPG-mode coverage
 
 ---
 
 _Roadmap created: 2026-02-21_
-_Last synced: 2026-02-21 (deterministic track: 42/44 v1 requirements complete; open: REND-02, TEST-05; follow-up fixes delivered: delayed display-object layer sync, seek/readiness guarantees, same-frame null retry behavior, dirty-state consistency, and native font preload/discovery stability for first-frame text metrics)_
+_Last synced: 2026-02-21 (deterministic track: 42/44 v1 requirements complete; open: REND-02, TEST-05; follow-up fixes delivered: delayed display-object layer sync, seek/readiness guarantees, same-frame null retry behavior, dirty-state consistency, native font preload/discovery stability, and explicit deterministic blob JPEG/PNG output controls)_

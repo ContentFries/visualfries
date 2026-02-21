@@ -65,13 +65,21 @@ export type RenderFrameRangeItem = {
     frameIndex: number;
     frame: string | ArrayBuffer | Blob;
     isDuplicate: boolean;
+    mimeType?: string;
     release: () => void;
+};
+export type FrameImageFormat = 'jpg' | 'jpeg' | 'png';
+export type FrameImageEncodingOptions = {
+    imageFormat?: FrameImageFormat;
+    imageQuality?: number;
 };
 export type RenderFrameRangeOptions = {
     fromFrame: number;
     toFrame: number;
     format?: 'arraybuffer' | 'blob' | 'png' | 'jpg' | 'jpeg';
     quality?: number;
+    imageFormat?: FrameImageFormat;
+    imageQuality?: number;
     skipDuplicates?: boolean;
     signal?: AbortSignal;
     onFrame: (item: RenderFrameRangeItem) => Promise<void> | void;
@@ -91,4 +99,7 @@ export declare class DeterministicRenderError extends Error {
         frameIndex: number;
         sceneTime: number;
     });
+}
+export declare class RenderFrameEncodingError extends Error {
+    constructor(message: string);
 }

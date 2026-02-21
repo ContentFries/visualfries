@@ -32,6 +32,7 @@ import type {
 	DeterministicMediaConfig,
 	DeterministicFrameProvider,
 	DeterministicDiagnosticsReport,
+	FrameImageEncodingOptions,
 	RenderFrameRangeOptions,
 	RenderFrameRangeSummary
 } from './deterministic.js';
@@ -377,14 +378,16 @@ export interface SceneBuilder {
 		time: number,
 		target?: DisplayObject | RenderTexture,
 		format?: string,
-		quality?: number
+		quality?: number,
+		imageOptions?: FrameImageEncodingOptions
 	): Promise<string | ArrayBuffer | Blob>;
 	renderFrameRange(options: RenderFrameRangeOptions): Promise<RenderFrameRangeSummary>;
 	isSceneDirty(time: number): Promise<boolean>;
 	renderFrame(
 		target?: DisplayObject | RenderTexture,
 		format?: string,
-		quality?: number
+		quality?: number,
+		imageOptions?: FrameImageEncodingOptions
 	): Promise<string | ArrayBuffer | Blob>;
 	log(message: string): void;
 	play(changeState?: boolean): void;

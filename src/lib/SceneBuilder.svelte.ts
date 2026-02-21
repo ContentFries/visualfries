@@ -375,43 +375,13 @@ export class SceneBuilder implements ISceneBuilder {
 			return false;
 		}
 
-		// Create clone of component data with adjusted times
-		const originalEndAt = component.props.timeline.endAt;
+		// Create clone of component data EXACTLY as it is
 		const newData = changeIdDeep(component.props.getData());
 		const cloneData: ComponentData = {
 			...newData,
 			id: uuidv4(), // Generate new ID for clone
-			timeline: {
-				...newData.timeline,
-				endAt: originalEndAt
-			},
 			checksum: 'new-' + uuidv4()
 		};
-
-		// For VIDEO components, adjust source.startAt for the second part
-		// source.startAt determines at what point in the video file playback starts
-		// when the timeline reaches timeline.startAt
-		if (cloneData.type === 'VIDEO') {
-			const videoClone = cloneData as ComponentData & {
-				source?: { startAt?: number; endAt?: number; url?: string };
-			};
-
-			// Calculate the time offset from original component start to split point
-			const timeOffsetFromStart = currentTime - compStart;
-
-			// Get current source.startAt (or 0 if not set/undefined)
-			const currentSourceStartAt = videoClone.source?.startAt ?? 0;
-
-			// The new source.startAt is the original offset plus the split offset
-			const newSourceStartAt = currentSourceStartAt + timeOffsetFromStart;
-
-			// Ensure source object exists and update startAt
-			if (!videoClone.source) {
-				videoClone.source = { startAt: newSourceStartAt };
-			} else {
-				videoClone.source.startAt = newSourceStartAt;
-			}
-		}
 
 		// Update original component's end time
 		component.props.setEnd(this.currentTime);

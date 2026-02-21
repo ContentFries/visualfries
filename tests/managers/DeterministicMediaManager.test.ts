@@ -83,6 +83,32 @@ describe('DeterministicMediaManager', () => {
 		expect(resolved).toBeNull();
 	});
 
+	it('retries provider on same frame after null response', async () => {
+		const bitmap = { close: vi.fn() } as unknown as ImageBitmap;
+		const provider: DeterministicFrameProvider = {
+			getFrame: vi
+				.fn()
+				.mockResolvedValueOnce(null)
+				.mockResolvedValueOnce({
+					kind: 'imageBitmap',
+					cacheKey: 'retry-hit',
+					imageBitmap: bitmap
+				})
+		};
+
+		const manager = new DeterministicMediaManager({
+			sceneData: scene,
+			deterministicMediaConfig: { enabled: true, strict: false, diagnostics: false, provider }
+		});
+
+		const first = await manager.resolveOverride(createRequest(0));
+		const second = await manager.resolveOverride(createRequest(0));
+
+		expect(first).toBeNull();
+		expect(second?.cacheKey).toBe('retry-hit');
+		expect(provider.getFrame).toHaveBeenCalledTimes(2);
+	});
+
 	it('evicts least-recently-used cached entries and closes resources on destroy', async () => {
 		const firstBitmap = { close: vi.fn() } as unknown as ImageBitmap;
 		const secondBitmap = { close: vi.fn() } as unknown as ImageBitmap;

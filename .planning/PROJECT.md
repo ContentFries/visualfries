@@ -78,7 +78,9 @@ Backend renderers can obtain a deterministic, timeline-correct frame blob with a
 | cacheKey deduplication for frame cache guard                              | `RenderFrameCommand` must include deterministic fingerprint to bypass stale cached frames                | ✓ Complete |
 | Deterministic texture swaps in split-screen path                          | Rebuild-on-every-frame is too expensive; update sprite textures in-place on texture identity changes      | ✓ Complete |
 | Shared PIXI texture destruction policy                                    | `Texture.from(source)` can return shared instances; use hook-level retain/release instead of eager destroy | ✓ Complete |
+| Deterministic seek/readiness in server rendering                          | First active frame must be valid without preroll; seek must await deterministic media/effect readiness     | ✓ Complete |
+| Deterministic null-result retry semantics                                 | Same-frame null must not be sticky; allow provider retries during seek preparation loops                   | ✓ Complete |
 
 ---
 
-_Last updated: 2026-02-21 after deterministic focused fix pass + media stability follow-up (42/44 requirements complete)_
+_Last updated: 2026-02-21 after deterministic seek/readiness + dirty/cache consistency pass (42/44 requirements complete)_

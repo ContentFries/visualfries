@@ -201,4 +201,4 @@ Plans:
 ---
 
 _Roadmap created: 2026-02-21_
-_Last synced: 2026-02-21 (implementation progress: 42/44 v1 requirements complete; open: REND-02, TEST-05; follow-up fixes: deterministic VIDEO/GIF primary path, strict inactive handling, shared texture lifecycle, split-screen in-place texture swap)_
+_Last synced: 2026-02-21 (implementation progress: 42/44 v1 requirements complete; open: REND-02, TEST-05; follow-up fixes include deterministic seek/readiness guarantees, same-frame null retry behavior, dirty-state consistency for frame range duplicate checks)_

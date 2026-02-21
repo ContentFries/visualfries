@@ -1,0 +1,198 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import { SeekCommand } from '$lib/commands/SeekCommand.ts';
+
+type MockComponent = {
+	id: string;
+	type: 'VIDEO' | 'GIF';
+	props: { timeline: { startAt: number; endAt: number } };
+	context: {
+		data: { effects: { map: Record<string, unknown> } };
+		isActive: boolean;
+		getResource: (key: 'pixiTexture' | 'pixiRenderObject' | 'videoElement' | 'imageElement') => unknown;
+		setResource: (key: string, value: unknown) => void;
+	};
+};
+
+const createComponent = (args: {
+	id: string;
+	startAt: number;
+	endAt: number;
+	state: { currentTime: number };
+	effects?: Record<string, unknown>;
+}): MockComponent => {
+	const resources = new Map<string, unknown>();
+	return {
+		id: args.id,
+		type: 'VIDEO',
+		props: { timeline: { startAt: args.startAt, endAt: args.endAt } },
+		context: {
+			data: { effects: { map: args.effects ?? {} } },
+			get isActive() {
+				return args.state.currentTime >= args.startAt && args.state.currentTime <= args.endAt;
+			},
+			getResource: (key) => resources.get(key),
+			setResource: (key, value) => resources.set(key, value)
+		}
+	};
+};
+
+describe('SeekCommand deterministic readiness', () => {
+	it('prepares first active split frame without external warmup loop', async () => {
+		const state = { environment: 'server', duration: 10, state: 'paused', currentTime: 0 } as any;
+		const component = createComponent({
+			id: 'video-split',
+			startAt: 2,
+			endAt: 6,
+			state,
+			effects: { layoutSplit: { type: 'layoutSplit' } }
+		});
+
+		const timeline = {
+			seek: vi.fn((time: number) => {
+				state.currentTime = time;
+			})
+		} as any;
+
+		let renderCalls = 0;
+		const renderManager = {
+			render: vi.fn(async () => {
+				renderCalls += 1;
+				if (state.currentTime === 2 && renderCalls >= 2) {
+					component.context.setResource('pixiTexture', { id: 'tex-split' });
+					component.context.setResource('pixiRenderObject', { id: 'obj-split' });
+				}
+			})
+		} as any;
+
+		const command = new SeekCommand({
+			timelineManager: timeline,
+			stateManager: state,
+			renderManager,
+			componentsManager: { getAll: () => [component] } as any,
+			deterministicMediaManager: { isEnabled: () => true } as any
+		});
+
+		await expect(command.execute({ time: 2 })).resolves.toBeUndefined();
+		expect(component.context.getResource('pixiTexture')).toBeTruthy();
+		expect(component.context.getResource('pixiRenderObject')).toBeTruthy();
+		expect(renderCalls).toBeGreaterThanOrEqual(2);
+	});
+
+	it('waits for blur source readiness on first active deterministic frame', async () => {
+		const state = { environment: 'server', duration: 10, state: 'paused', currentTime: 0 } as any;
+		const component = createComponent({
+			id: 'video-blur',
+			startAt: 3,
+			endAt: 7,
+			state,
+			effects: { fillBackgroundBlur: { type: 'fillBackgroundBlur', blurAmount: 32 } }
+		});
+
+		const timeline = {
+			seek: vi.fn((time: number) => {
+				state.currentTime = time;
+			})
+		} as any;
+
+		let renderCalls = 0;
+		const renderManager = {
+			render: vi.fn(async () => {
+				renderCalls += 1;
+				if (state.currentTime === 3 && renderCalls >= 2) {
+					component.context.setResource('pixiTexture', { id: 'tex-blur' });
+					component.context.setResource('pixiRenderObject', { id: 'obj-blur' });
+				}
+				if (state.currentTime === 3 && renderCalls >= 3) {
+					component.context.setResource('imageElement', { id: 'img-blur' });
+				}
+			})
+		} as any;
+
+		const command = new SeekCommand({
+			timelineManager: timeline,
+			stateManager: state,
+			renderManager,
+			componentsManager: { getAll: () => [component] } as any,
+			deterministicMediaManager: { isEnabled: () => true } as any
+		});
+
+		await expect(command.execute({ time: 3 })).resolves.toBeUndefined();
+		expect(component.context.getResource('pixiTexture')).toBeTruthy();
+		expect(component.context.getResource('pixiRenderObject')).toBeTruthy();
+		expect(component.context.getResource('imageElement')).toBeTruthy();
+		expect(renderCalls).toBeGreaterThanOrEqual(3);
+	});
+
+	it('handles three deterministic videos in sequence without consumer preroll', async () => {
+		const state = { environment: 'server', duration: 12, state: 'paused', currentTime: 0 } as any;
+		const normal = createComponent({ id: 'video-normal', startAt: 0, endAt: 1, state });
+		const split = createComponent({
+			id: 'video-split',
+			startAt: 1,
+			endAt: 2,
+			state,
+			effects: { layoutSplit: { type: 'layoutSplit' } }
+		});
+		const blur = createComponent({
+			id: 'video-blur',
+			startAt: 2,
+			endAt: 3,
+			state,
+			effects: { fillBackgroundBlur: { type: 'fillBackgroundBlur', blurAmount: 24 } }
+		});
+
+		let activeSeekTime = 0;
+		const timeline = {
+			seek: vi.fn((time: number) => {
+				activeSeekTime = time;
+				state.currentTime = time;
+			})
+		} as any;
+
+		const renderCountBySeek = new Map<number, number>();
+		const renderManager = {
+			render: vi.fn(async () => {
+				const next = (renderCountBySeek.get(activeSeekTime) ?? 0) + 1;
+				renderCountBySeek.set(activeSeekTime, next);
+
+				if (activeSeekTime === 0 && next >= 2) {
+					normal.context.setResource('pixiTexture', { id: 'tex-normal' });
+					normal.context.setResource('pixiRenderObject', { id: 'obj-normal' });
+				}
+				if (activeSeekTime === 1 && next >= 2) {
+					split.context.setResource('pixiTexture', { id: 'tex-split' });
+					split.context.setResource('pixiRenderObject', { id: 'obj-split' });
+				}
+				if (activeSeekTime === 2 && next >= 2) {
+					blur.context.setResource('pixiTexture', { id: 'tex-blur' });
+					blur.context.setResource('pixiRenderObject', { id: 'obj-blur' });
+				}
+				if (activeSeekTime === 2 && next >= 3) {
+					blur.context.setResource('imageElement', { id: 'img-blur' });
+				}
+			})
+		} as any;
+
+		const command = new SeekCommand({
+			timelineManager: timeline,
+			stateManager: state,
+			renderManager,
+			componentsManager: { getAll: () => [normal, split, blur] } as any,
+			deterministicMediaManager: { isEnabled: () => true } as any
+		});
+
+		await expect(command.execute({ time: 0 })).resolves.toBeUndefined();
+		expect(normal.context.getResource('pixiTexture')).toBeTruthy();
+		expect(normal.context.getResource('pixiRenderObject')).toBeTruthy();
+
+		await expect(command.execute({ time: 1 })).resolves.toBeUndefined();
+		expect(split.context.getResource('pixiTexture')).toBeTruthy();
+		expect(split.context.getResource('pixiRenderObject')).toBeTruthy();
+
+		await expect(command.execute({ time: 2 })).resolves.toBeUndefined();
+		expect(blur.context.getResource('pixiTexture')).toBeTruthy();
+		expect(blur.context.getResource('pixiRenderObject')).toBeTruthy();
+		expect(blur.context.getResource('imageElement')).toBeTruthy();
+	});
+});

@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { TimelineManager } from '$lib/managers/TimelineManager.svelte.js';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 import { RenderManager } from '$lib/managers/RenderManager.js';
+import { ComponentsManager } from '$lib/managers/ComponentsManager.svelte.js';
+import { DeterministicMediaManager } from '$lib/managers/DeterministicMediaManager.js';
 
 const seekSchema = z.object({
 	time: z.number()
@@ -12,15 +14,100 @@ export class SeekCommand implements Command {
 	private timeline: TimelineManager;
 	private state: StateManager;
 	private renderManager: RenderManager;
+	private componentsManager: ComponentsManager;
+	private deterministicMediaManager: DeterministicMediaManager;
 
 	constructor(cradle: {
 		timelineManager: TimelineManager;
 		stateManager: StateManager;
 		renderManager: RenderManager;
+		componentsManager: ComponentsManager;
+		deterministicMediaManager: DeterministicMediaManager;
 	}) {
 		this.timeline = cradle.timelineManager;
 		this.state = cradle.stateManager;
 		this.renderManager = cradle.renderManager;
+		this.componentsManager = cradle.componentsManager;
+		this.deterministicMediaManager = cradle.deterministicMediaManager;
+	}
+
+	#isDeterministicMediaComponent(component: {
+		type: string;
+		props: { timeline: { startAt: number; endAt: number } };
+		context: {
+			isActive: boolean;
+			getResource: (key: 'pixiTexture' | 'pixiRenderObject' | 'videoElement' | 'imageElement') => unknown;
+			data?: { effects?: { map?: Record<string, unknown> } };
+		};
+	}): boolean {
+		return component.type === 'VIDEO' || component.type === 'GIF';
+	}
+
+	#hasBlurEffect(component: {
+		context: { data?: { effects?: { map?: Record<string, unknown> } } };
+	}): boolean {
+		const effectsMap = component.context.data?.effects?.map ?? {};
+		if ('fillBackgroundBlur' in effectsMap) {
+			return true;
+		}
+
+		for (const effect of Object.values(effectsMap)) {
+			const entry = effect as { type?: string };
+			if (entry.type === 'fillBackgroundBlur') {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	#getPendingDeterministicComponents(): string[] {
+		const components = this.componentsManager.getAll();
+		const pending: string[] = [];
+
+		for (const component of components) {
+			if (!this.#isDeterministicMediaComponent(component as any)) {
+				continue;
+			}
+			if (!component.context.isActive) {
+				continue;
+			}
+
+			const pixiTexture = component.context.getResource('pixiTexture');
+			const pixiRenderObject = component.context.getResource('pixiRenderObject');
+			if (!pixiTexture || !pixiRenderObject) {
+				pending.push(component.id);
+				continue;
+			}
+
+			if (this.#hasBlurEffect(component as any)) {
+				const sourceElement =
+					component.context.getResource('videoElement') || component.context.getResource('imageElement');
+				if (!sourceElement) {
+					pending.push(component.id);
+				}
+			}
+		}
+
+		return pending;
+	}
+
+	async #renderUntilDeterministicReady(): Promise<void> {
+		const maxAttempts = 12;
+		for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+			await this.renderManager.render();
+			const pending = this.#getPendingDeterministicComponents();
+			if (pending.length === 0) {
+				return;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		}
+
+		const pending = this.#getPendingDeterministicComponents();
+		if (pending.length > 0) {
+			throw new Error(
+				`Deterministic media was not ready after seek for active components: ${pending.join(', ')}`
+			);
+		}
 	}
 
 	async execute(args: unknown): Promise<void> {
@@ -56,15 +143,21 @@ export class SeekCommand implements Command {
 				if (this.state.state !== 'loading') break;
 				await new Promise((resolve) => setTimeout(resolve, 30));
 			}
-			if (this.state.state === 'loading') {
-				console.warn('SeekCommand: Max render attempts exhausted while still loading');
+				if (this.state.state === 'loading') {
+					console.warn('SeekCommand: Max render attempts exhausted while still loading');
+				}
+				
+				// Re-seek to apply correct animation state to any animations
+				// that were added during the render passes above.
+				// This fixes the race condition where subtitle animations are added
+				// AFTER the initial seek, causing them to miss their initial state.
+				this.timeline.seek(time);
+
+				if (this.deterministicMediaManager.isEnabled()) {
+					await this.#renderUntilDeterministicReady();
+				} else {
+					await this.renderManager.render();
+				}
 			}
-			
-			// Re-seek to apply correct animation state to any animations
-			// that were added during the render passes above.
-			// This fixes the race condition where subtitle animations are added
-			// AFTER the initial seek, causing them to miss their initial state.
-			this.timeline.seek(time);
-		}
 	}
 }

@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { TimelineManager } from '../managers/TimelineManager.svelte.js';
 import { StateManager } from '../managers/StateManager.svelte.js';
 import { RenderManager } from '../managers/RenderManager.js';
+import { ComponentsManager } from '../managers/ComponentsManager.svelte.js';
+import { DeterministicMediaManager } from '../managers/DeterministicMediaManager.js';
 const seekSchema = z.object({
     time: z.number()
 });
@@ -9,10 +11,70 @@ export class SeekCommand {
     timeline;
     state;
     renderManager;
+    componentsManager;
+    deterministicMediaManager;
     constructor(cradle) {
         this.timeline = cradle.timelineManager;
         this.state = cradle.stateManager;
         this.renderManager = cradle.renderManager;
+        this.componentsManager = cradle.componentsManager;
+        this.deterministicMediaManager = cradle.deterministicMediaManager;
+    }
+    #isDeterministicMediaComponent(component) {
+        return component.type === 'VIDEO' || component.type === 'GIF';
+    }
+    #hasBlurEffect(component) {
+        const effectsMap = component.context.data?.effects?.map ?? {};
+        if ('fillBackgroundBlur' in effectsMap) {
+            return true;
+        }
+        for (const effect of Object.values(effectsMap)) {
+            const entry = effect;
+            if (entry.type === 'fillBackgroundBlur') {
+                return true;
+            }
+        }
+        return false;
+    }
+    #getPendingDeterministicComponents() {
+        const components = this.componentsManager.getAll();
+        const pending = [];
+        for (const component of components) {
+            if (!this.#isDeterministicMediaComponent(component)) {
+                continue;
+            }
+            if (!component.context.isActive) {
+                continue;
+            }
+            const pixiTexture = component.context.getResource('pixiTexture');
+            const pixiRenderObject = component.context.getResource('pixiRenderObject');
+            if (!pixiTexture || !pixiRenderObject) {
+                pending.push(component.id);
+                continue;
+            }
+            if (this.#hasBlurEffect(component)) {
+                const sourceElement = component.context.getResource('videoElement') || component.context.getResource('imageElement');
+                if (!sourceElement) {
+                    pending.push(component.id);
+                }
+            }
+        }
+        return pending;
+    }
+    async #renderUntilDeterministicReady() {
+        const maxAttempts = 12;
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+            await this.renderManager.render();
+            const pending = this.#getPendingDeterministicComponents();
+            if (pending.length === 0) {
+                return;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+        const pending = this.#getPendingDeterministicComponents();
+        if (pending.length > 0) {
+            throw new Error(`Deterministic media was not ready after seek for active components: ${pending.join(', ')}`);
+        }
     }
     async execute(args) {
         const check = seekSchema.safeParse(args);
@@ -54,6 +116,12 @@ export class SeekCommand {
             // This fixes the race condition where subtitle animations are added
             // AFTER the initial seek, causing them to miss their initial state.
             this.timeline.seek(time);
+            if (this.deterministicMediaManager.isEnabled()) {
+                await this.#renderUntilDeterministicReady();
+            }
+            else {
+                await this.renderManager.render();
+            }
         }
     }
 }

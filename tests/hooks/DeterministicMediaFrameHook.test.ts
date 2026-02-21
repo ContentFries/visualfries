@@ -124,4 +124,32 @@ describe('DeterministicMediaFrameHook', () => {
 		expect(context.removeResource).toHaveBeenCalledWith('pixiResource');
 		expect(context.removeResource).toHaveBeenCalledWith('imageElement');
 	});
+
+	it('uses component-local frameIndex for non-zero timeline starts', async () => {
+		let sceneTime = 5;
+		const timelineStart = 5;
+		context = {
+			...createContext(),
+			contextData: {
+				...createContext().contextData,
+				timeline: { startAt: timelineStart, endAt: 9 }
+			},
+			get currentComponentTime() {
+				return sceneTime - timelineStart;
+			}
+		} as any;
+
+		manager.resolveOverride.mockResolvedValue({ cacheKey: 'local', pixiResource: {} });
+
+		await hook.handle('update', context);
+		expect(manager.resolveOverride).toHaveBeenLastCalledWith(
+			expect.objectContaining({ frameIndex: 0, componentId: 'video-1' })
+		);
+
+		sceneTime = 5.5;
+		await hook.handle('update', context);
+		expect(manager.resolveOverride).toHaveBeenLastCalledWith(
+			expect.objectContaining({ frameIndex: 15, componentId: 'video-1' })
+		);
+	});
 });

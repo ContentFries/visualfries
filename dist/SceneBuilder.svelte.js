@@ -312,8 +312,11 @@ export class SceneBuilder {
     }
     async seekAndRenderFrame(time, target, format = 'png', quality = 1) {
         await this.seek(time);
-        // Ensure scene is rendered after seek so media hooks apply their updates
-        this.render();
+        // In server mode SeekCommand performs awaited render preparation.
+        // Keep client render behavior unchanged.
+        if (this.environment !== 'server') {
+            this.render();
+        }
         const frame = await this.renderFrame(target, format, quality);
         return frame;
     }
@@ -341,17 +344,15 @@ export class SceneBuilder {
      * }
      */
     async isSceneDirty(time) {
-        // Seek to the specified time to trigger component/hook updates
         await this.seek(time);
-        // Get current dirty state BEFORE calling render()
-        // This prevents render() from clearing the dirty flag
+        // In server mode seek already ran awaited render preparation, so read
+        // dirty state after seek to capture deterministic frame changes.
+        if (this.environment === 'server') {
+            return this.stateManager.isDirty;
+        }
         const wasDirty = this.stateManager.isDirty;
-        // Render to update all display objects and let hooks detect changes
-        // This triggers all hook updates but doesn't extract frame data
         this.render();
-        // Return the dirty state we captured before render()
-        // Don't clear the dirty flag - let actual frame extraction handle that
-        return wasDirty;
+        return wasDirty || this.stateManager.isDirty;
     }
     async renderFrame(target, format = 'png', quality = 1) {
         const frame = (await this.run(CommandType.RENDER_FRAME, { target, format, quality }));

@@ -4,6 +4,8 @@ import { z } from 'zod';
 export type DeterministicFrameRequest = {
 	componentId: string;
 	componentType: 'VIDEO' | 'GIF';
+	// Component-local frame index at current component timeline time.
+	// This is not the global scene frame index.
 	frameIndex: number;
 	fps: number;
 	width: number;

@@ -155,4 +155,4 @@ _Note: REQUIREMENTS.md originally stated 41 total; enumeration yields 44. All 44
 ---
 
 _Requirements defined: 2026-02-21_
-_Last updated: 2026-02-21 after deterministic focused fix pass + media stability follow-up (42/44 complete; open: REND-02, TEST-05)_
+_Last updated: 2026-02-21 after deterministic seek/readiness + dirty/cache consistency pass (42/44 complete; open: REND-02, TEST-05)_

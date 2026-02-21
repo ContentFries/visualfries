@@ -82,7 +82,7 @@ export class DeterministicMediaManager {
 		const oneTimeOverride = this.#consumeOneTimeOverride(request.componentId, request.frameIndex);
 		if (!oneTimeOverride) {
 			const cachedResult = this.#lastResolvedByComponent.get(request.componentId);
-			if (cachedResult && cachedResult.frameIndex === request.frameIndex) {
+			if (cachedResult && cachedResult.frameIndex === request.frameIndex && cachedResult.override) {
 				return cachedResult.override;
 			}
 		}
@@ -93,10 +93,7 @@ export class DeterministicMediaManager {
 		if (!payload) {
 			const provider = this.#provider;
 			if (!provider) {
-				this.#lastResolvedByComponent.set(request.componentId, {
-					frameIndex: request.frameIndex,
-					override: null
-				});
+				this.#lastResolvedByComponent.delete(request.componentId);
 				return null;
 			}
 
@@ -105,19 +102,13 @@ export class DeterministicMediaManager {
 				this.#recordProviderCall(payload !== null, startedAt);
 			} catch {
 				this.#recordProviderCall(false, startedAt);
-				this.#lastResolvedByComponent.set(request.componentId, {
-					frameIndex: request.frameIndex,
-					override: null
-				});
+				this.#lastResolvedByComponent.delete(request.componentId);
 				return null;
 			}
 		}
 
 		if (!payload) {
-			this.#lastResolvedByComponent.set(request.componentId, {
-				frameIndex: request.frameIndex,
-				override: null
-			});
+			this.#lastResolvedByComponent.delete(request.componentId);
 			return null;
 		}
 
@@ -135,10 +126,7 @@ export class DeterministicMediaManager {
 
 		const built = await this.#buildOverride(payload);
 		if (!built) {
-			this.#lastResolvedByComponent.set(request.componentId, {
-				frameIndex: request.frameIndex,
-				override: null
-			});
+			this.#lastResolvedByComponent.delete(request.componentId);
 			return null;
 		}
 

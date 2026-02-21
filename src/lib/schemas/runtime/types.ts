@@ -356,6 +356,7 @@ export interface SceneBuilder {
 		options?: boolean | AddEventListenerOptions
 	): void;
 	scale(scale: number): void;
+	markDirty(): void;
 	initialize(): Promise<void>;
 	seek(time: number): Promise<void>;
 	replaceSourceOnTime(time: number, componentId: string, base64data: string): Promise<void>;

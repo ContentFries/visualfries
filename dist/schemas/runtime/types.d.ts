@@ -253,6 +253,7 @@ export interface SceneBuilder {
     addEventListener<K extends keyof EventMap>(event: K, callback: (event: CustomEvent<EventMap[K]>) => void, options?: boolean | AddEventListenerOptions): void;
     removeEventListener<K extends keyof EventMap>(event: K, callback: (event: CustomEvent<EventMap[K]>) => void, options?: boolean | AddEventListenerOptions): void;
     scale(scale: number): void;
+    markDirty(): void;
     initialize(): Promise<void>;
     seek(time: number): Promise<void>;
     replaceSourceOnTime(time: number, componentId: string, base64data: string): Promise<void>;

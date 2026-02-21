@@ -65,6 +65,7 @@ export declare class SceneBuilder implements ISceneBuilder {
     syncChanges(): void;
     setStartAt(start: number | undefined): void;
     setEndAt(end: number | undefined): void;
+    markDirty(): void;
     updateSubtitlesSettings(settings: Partial<SceneSubtitlesSettings>): void;
     dispatchEvent<T extends EventType>(event: T, props?: EventPayload<T>): void;
     addEventListener<K extends keyof EventMap>(event: K, callback: (event: CustomEvent<EventMap[K]>) => void, options?: boolean | AddEventListenerOptions): void;

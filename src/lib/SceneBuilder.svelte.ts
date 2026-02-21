@@ -199,6 +199,10 @@ export class SceneBuilder implements ISceneBuilder {
 		this.stateManager.setEndAt(end ? this.stateManager.transformTime(end) : undefined);
 	}
 
+	markDirty() {
+		this.stateManager.markDirty();
+	}
+
 	updateSubtitlesSettings(settings: Partial<SceneSubtitlesSettings>) {
 		const currentSubtitlesSettincs = this.stateManager.data.settings.subtitles
 			? this.stateManager.data.settings.subtitles

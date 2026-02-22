@@ -45,6 +45,10 @@ export type DeterministicMediaConfig = {
 	strict: boolean;
 	diagnostics: boolean;
 	maxCachedTextures?: number;
+	seekMaxAttempts?: number;
+	loadingMaxAttempts?: number;
+	readyYieldMs?: number;
+	blurDownscale?: number;
 	provider?: DeterministicFrameProvider;
 };
 
@@ -53,6 +57,10 @@ export const DeterministicMediaConfigShape = z.object({
 	strict: z.boolean().prefault(false),
 	diagnostics: z.boolean().prefault(false),
 	maxCachedTextures: z.number().int().positive().optional(),
+	seekMaxAttempts: z.number().int().positive().prefault(4),
+	loadingMaxAttempts: z.number().int().positive().prefault(2),
+	readyYieldMs: z.number().int().nonnegative().prefault(0),
+	blurDownscale: z.number().positive().max(1).prefault(0.33),
 	provider: z.custom<DeterministicFrameProvider>().optional()
 }).prefault({});
 
@@ -70,6 +78,17 @@ export type DeterministicDiagnosticsReport = {
 	providerMisses: number;
 	cacheHits: number;
 	cacheHitRatio: number;
+	readyAttempts: number;
+	extraRenderPasses: number;
+	blurRedraws: number;
+	perFrame: Record<
+		string,
+		{
+			readyAttempts: number;
+			extraRenderPasses: number;
+			blurRedraws: number;
+		}
+	>;
 	latency: {
 		minMs: number;
 		maxMs: number;

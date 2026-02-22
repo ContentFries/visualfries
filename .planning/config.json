@@ -3,14 +3,14 @@
 	"depth": "standard",
 	"parallelization": true,
 	"commit_docs": true,
-	"model_profile": "balanced",
+	"model_profile": "quality",
 	"profiles": {
-		"active_profile": "balanced",
+		"active_profile": "quality",
 		"presets": {
 			"quality": {
-				"planning": "opencode/glm-4.7-free",
-				"execution": "opencode/glm-4.7-free",
-				"verification": "opencode/glm-4.7-free"
+				"planning": "github-copilot/claude-sonnet-4.6",
+				"execution": "github-copilot/claude-sonnet-4.6",
+				"verification": "github-copilot/claude-sonnet-4.6"
 			},
 			"balanced": {
 				"planning": "opencode/glm-4.7-free",

@@ -38,6 +38,19 @@ const createComponent = (args: {
 };
 
 describe('SeekCommand deterministic readiness', () => {
+	const createDeterministicManagerMock = (overrides?: Partial<any>) =>
+		({
+			isEnabled: () => true,
+			config: {
+				seekMaxAttempts: 4,
+				loadingMaxAttempts: 2,
+				readyYieldMs: 0
+			},
+			recordReadyAttempt: vi.fn(),
+			recordExtraRenderPass: vi.fn(),
+			...overrides
+		}) as any;
+
 	it('prepares first active split frame without external warmup loop', async () => {
 		const state = { environment: 'server', duration: 10, state: 'paused', currentTime: 0 } as any;
 		const component = createComponent({
@@ -70,7 +83,7 @@ describe('SeekCommand deterministic readiness', () => {
 			stateManager: state,
 			renderManager,
 			componentsManager: { getAll: () => [component] } as any,
-			deterministicMediaManager: { isEnabled: () => true } as any
+			deterministicMediaManager: createDeterministicManagerMock()
 		});
 
 		await expect(command.execute({ time: 2 })).resolves.toBeUndefined();
@@ -114,7 +127,7 @@ describe('SeekCommand deterministic readiness', () => {
 			stateManager: state,
 			renderManager,
 			componentsManager: { getAll: () => [component] } as any,
-			deterministicMediaManager: { isEnabled: () => true } as any
+			deterministicMediaManager: createDeterministicManagerMock()
 		});
 
 		await expect(command.execute({ time: 3 })).resolves.toBeUndefined();
@@ -179,7 +192,7 @@ describe('SeekCommand deterministic readiness', () => {
 			stateManager: state,
 			renderManager,
 			componentsManager: { getAll: () => [normal, split, blur] } as any,
-			deterministicMediaManager: { isEnabled: () => true } as any
+			deterministicMediaManager: createDeterministicManagerMock()
 		});
 
 		await expect(command.execute({ time: 0 })).resolves.toBeUndefined();
@@ -194,5 +207,187 @@ describe('SeekCommand deterministic readiness', () => {
 		expect(blur.context.getResource('pixiTexture')).toBeTruthy();
 		expect(blur.context.getResource('pixiRenderObject')).toBeTruthy();
 		expect(blur.context.getResource('imageElement')).toBeTruthy();
+	});
+
+	it('respects configured deterministic seek attempt cap', async () => {
+		const state = { environment: 'server', duration: 10, state: 'paused', currentTime: 0 } as any;
+		const component = createComponent({
+			id: 'video-pending',
+			startAt: 1,
+			endAt: 5,
+			state
+		});
+		const timeline = {
+			seek: vi.fn((time: number) => {
+				state.currentTime = time;
+			})
+		} as any;
+		const renderManager = {
+			render: vi.fn(async () => {
+				// Intentionally keep resources missing to force retries.
+			})
+		} as any;
+		const deterministicMediaManager = createDeterministicManagerMock({
+			config: { seekMaxAttempts: 2, loadingMaxAttempts: 0, readyYieldMs: 0 }
+		});
+
+		const command = new SeekCommand({
+			timelineManager: timeline,
+			stateManager: state,
+			renderManager,
+			componentsManager: { getAll: () => [component] } as any,
+			deterministicMediaManager
+		});
+
+		await expect(command.execute({ time: 1 })).rejects.toThrow(
+			'Deterministic media was not ready after seek for active components'
+		);
+		expect(deterministicMediaManager.recordReadyAttempt).toHaveBeenCalledTimes(2);
+	});
+
+	it('awaits document.fonts.ready only once in deterministic server mode', async () => {
+		const state = { environment: 'server', duration: 10, state: 'paused', currentTime: 0 } as any;
+		const component = createComponent({
+			id: 'video-fonts',
+			startAt: 0,
+			endAt: 10,
+			state
+		});
+		const timeline = {
+			seek: vi.fn((time: number) => {
+				state.currentTime = time;
+			})
+		} as any;
+		const renderManager = {
+			render: vi.fn(async () => {
+				component.context.setResource('pixiTexture', { id: 'tex-fonts' });
+				component.context.setResource('pixiRenderObject', { id: 'obj-fonts' });
+			})
+		} as any;
+		const deterministicMediaManager = createDeterministicManagerMock();
+		const command = new SeekCommand({
+			timelineManager: timeline,
+			stateManager: state,
+			renderManager,
+			componentsManager: { getAll: () => [component] } as any,
+			deterministicMediaManager
+		});
+
+		let readyReads = 0;
+		const originalDocument = globalThis.document;
+		Object.defineProperty(globalThis, 'document', {
+			value: {
+				...originalDocument,
+				fonts: {
+					get ready() {
+						readyReads += 1;
+						return Promise.resolve();
+					}
+				}
+			},
+			configurable: true
+		});
+
+		try {
+			await expect(command.execute({ time: 0 })).resolves.toBeUndefined();
+			const readsAfterFirstSeek = readyReads;
+			await expect(command.execute({ time: 0.2 })).resolves.toBeUndefined();
+			expect(readyReads).toBe(readsAfterFirstSeek);
+		} finally {
+			Object.defineProperty(globalThis, 'document', {
+				value: originalDocument,
+				configurable: true
+			});
+		}
+
+		expect(renderManager.render).toHaveBeenCalled();
+		expect(readyReads).toBe(2);
+	});
+
+	it('uses loading retry loop only while state is loading', async () => {
+		const state = { environment: 'server', duration: 10, state: 'loading', currentTime: 0 } as any;
+		const component = createComponent({
+			id: 'video-loading',
+			startAt: 0,
+			endAt: 10,
+			state
+		});
+		const timeline = {
+			seek: vi.fn((time: number) => {
+				state.currentTime = time;
+			})
+		} as any;
+		let renders = 0;
+		const renderManager = {
+			render: vi.fn(async () => {
+				renders += 1;
+				component.context.setResource('pixiTexture', { id: `tex-${renders}` });
+				component.context.setResource('pixiRenderObject', { id: `obj-${renders}` });
+				if (renders >= 2) {
+					state.state = 'paused';
+				}
+			})
+		} as any;
+		const deterministicMediaManager = createDeterministicManagerMock({
+			config: { seekMaxAttempts: 4, loadingMaxAttempts: 3, readyYieldMs: 0 }
+		});
+		const command = new SeekCommand({
+			timelineManager: timeline,
+			stateManager: state,
+			renderManager,
+			componentsManager: { getAll: () => [component] } as any,
+			deterministicMediaManager
+		});
+
+		await expect(command.execute({ time: 0 })).resolves.toBeUndefined();
+		expect(renders).toBe(2);
+		expect(deterministicMediaManager.recordExtraRenderPass).toHaveBeenCalledTimes(1);
+	});
+
+	it('uses setImmediate for zero-delay deterministic retries when available', async () => {
+		const state = { environment: 'server', duration: 10, state: 'paused', currentTime: 0 } as any;
+		const component = createComponent({
+			id: 'video-set-immediate',
+			startAt: 1,
+			endAt: 5,
+			state
+		});
+		const timeline = {
+			seek: vi.fn((time: number) => {
+				state.currentTime = time;
+			})
+		} as any;
+		const renderManager = {
+			render: vi.fn(async () => {
+				// Keep resources missing to force retries.
+			})
+		} as any;
+		const deterministicMediaManager = createDeterministicManagerMock({
+			config: { seekMaxAttempts: 2, loadingMaxAttempts: 0, readyYieldMs: 0 }
+		});
+		const command = new SeekCommand({
+			timelineManager: timeline,
+			stateManager: state,
+			renderManager,
+			componentsManager: { getAll: () => [component] } as any,
+			deterministicMediaManager
+		});
+
+		const originalSetImmediate = (globalThis as any).setImmediate;
+		const setImmediateMock = vi.fn((cb: () => void) => {
+			cb();
+			return 0;
+		});
+		(globalThis as any).setImmediate = setImmediateMock;
+
+		try {
+			await expect(command.execute({ time: 1 })).rejects.toThrow(
+				'Deterministic media was not ready after seek for active components'
+			);
+		} finally {
+			(globalThis as any).setImmediate = originalSetImmediate;
+		}
+
+		expect(setImmediateMock).toHaveBeenCalled();
 	});
 });

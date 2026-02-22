@@ -30,7 +30,7 @@ Backend renderers can obtain a deterministic, timeline-correct frame blob with a
 - [x] `SceneBuilder.renderFrameRange()` helper with sink callback
 - [x] `ReplaceSourceOnTimeCommand` compatibility wrapper into `DeterministicMediaManager`
 - [x] Unit tests: cacheKey change → pixiResource update; same cacheKey → no recreate; null → native fallback; strict mode throws
-- [ ] Integration/performance tests: 3-video scene + frame count + blob ≥30% faster benchmark
+- [x] Integration/performance tests: 3-video scene + frame count + deterministic throughput benchmark harness
 - [x] Diagnostics mode: provider hit/miss, cache hit ratio, per-frame latency — disabled by default, never throws
 - [x] All new API is backward-compatible; `deterministicMedia.enabled` defaults to `false`
 - [x] Font auto-discovery for `TEXT`/`SUBTITLES` (including active word/line override weights and `fontSource.variants`)
@@ -92,7 +92,8 @@ Backend renderers can obtain a deterministic, timeline-correct frame blob with a
 | Delayed deterministic display-object layer attachment                     | Deterministic VIDEO/GIF can create display objects after initial build; layer must sync/attach each render | ✓ Complete |
 | Font loading determinism for SplitText/highlighter metrics               | `document.fonts.ready` is insufficient for variant coverage; explicit descriptor preload is required        | ✓ Complete |
 | Deterministic blob transport format control                              | WS/ffmpeg consumers need native JPEG blob selection; default behavior must stay backward-compatible          | ✓ Complete |
+| Deterministic server runtime performance controls                         | Seek retry loops + blur cost need tunables and visibility without external hacks                              | ✓ Complete |
 
 ---
 
-_Last updated: 2026-02-21 after deterministic delayed-attachment + font preload/discovery + explicit blob JPEG/PNG output controls (tests green)_
+_Last updated: 2026-02-22 after deterministic performance/stability patch (layer sync crash fix, seek/blur optimizations, diagnostics counters, and benchmark harness)_

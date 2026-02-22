@@ -2,25 +2,25 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-21)
+See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Backend renderers can obtain a deterministic, timeline-correct frame blob with a 5-line loop — no internal patching, correct split-screen and blur effects, no trailing frames.
-**Current focus:** Phase 6/7 closeout + deterministic output hardening (font stability + explicit blob JPEG/PNG controls)
+**Current focus:** Phase 6/7 closeout + post-phase deterministic performance/stability hardening
 
 ## Current Position
 
-Phase: 6 of 7 (renderFrameRange + diagnostics closeout)
-Plan: 0 of 2 in current phase
+Phase: 8 follow-up complete (performance/stability pass)
+Plan: 5 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-21 — Deterministic blob output controls shipped (`imageFormat`, `imageQuality`, callback `mimeType`) with JPEG/PNG signature tests and range-forwarding coverage
+Last activity: 2026-02-22 — Follow-up perf tuning shipped: blur-radius scaling with downscale factor + `setImmediate` zero-yield deterministic retries, full suite still green
 
-Progress: [██████████] 95% (42/44 requirements complete)
+Progress: [██████████] 98% (phase-8 deterministic patch complete; remaining historical roadmap TODOs: REND-02, TEST-05)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 8
+- Total plans completed: 13
 - Average duration: —
 - Total execution time: 0 hours
 
@@ -35,11 +35,12 @@ Progress: [██████████] 95% (42/44 requirements complete)
 | 5     | 1     | 1     | —        |
 | 6     | 0     | 2     | —        |
 | 7     | 1     | 2     | —        |
+| 8     | 5     | 5     | —        |
 
 **Recent Trend:**
 
-- Last 5 plans: 05-01, 07-01 (+ focused deterministic fixes/tests + seek/readiness + delayed-attachment sync pass)
-- Trend: Stable forward progress; remaining work is focused and bounded
+- Last 5 plans: 08-01, 08-02, 08-03, 08-04, 08-05
+- Trend: Stable forward progress; deterministic runtime path is now benchmarked and hardened
 
 _Updated after each plan completion_
 
@@ -56,18 +57,19 @@ Recent decisions affecting current work:
 - Phase 3 (implemented): deterministic VIDEO/GIF server path now omits native media/video hook chain.
 - Font preload (implemented): auto-discover TEXT/SUBTITLES family+weights and preload descriptors with `document.fonts.load` before scene tree build.
 - Blob output controls (implemented): explicit JPG/PNG blob encoding config wired through render APIs with deterministic null-blob error handling.
+- Deterministic performance tuning (implemented): `seekMaxAttempts`, `loadingMaxAttempts`, `readyYieldMs`, `blurDownscale`.
+- Deterministic diagnostics counters (implemented): aggregate + per-frame `readyAttempts`, `extraRenderPasses`, `blurRedraws`.
 
 ### Pending Todos
 
-- Implement explicit `release()` cleanup behavior for `renderFrameRange()` object URL/resource lifecycle.
-- Add TEST-05 benchmark asserting blob path performance target.
+- Close remaining roadmap TODOs: REND-02 release lifecycle semantics and TEST-05 blob/base64 benchmark requirement.
 
 ### Blockers/Concerns
 
-- **Open Q (Phase 7):** Performance test determinism: benchmark threshold may vary by CI machine; define stable test harness/fixture.
+- **Open Q:** Decide whether to enforce perf thresholds in CI or keep benchmark informational-only due machine variance.
 
 ## Session Continuity
 
-Last session: 2026-02-21
-Stopped at: Deterministic blob output fix complete with JPEG/PNG signature coverage and full suite green (280/280)
+Last session: 2026-02-22
+Stopped at: Deterministic phase-8 perf/stability patch complete with full suite green (289/289) and benchmark command output captured
 Resume file: None

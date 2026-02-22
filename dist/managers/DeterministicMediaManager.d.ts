@@ -16,6 +16,9 @@ export declare class DeterministicMediaManager {
     getFingerprint(): string;
     setOneTimeOverride(componentId: string, frameIndex: number, payload: DeterministicFramePayload): void;
     getDiagnosticsReport(): DeterministicDiagnosticsReport | null;
+    recordReadyAttempt(sceneFrameIndex: number, count?: number): void;
+    recordExtraRenderPass(sceneFrameIndex: number, count?: number): void;
+    recordBlurRedraw(sceneFrameIndex: number, count?: number): void;
     destroy(): Promise<void>;
     releaseComponent(componentId: string): Promise<void>;
 }

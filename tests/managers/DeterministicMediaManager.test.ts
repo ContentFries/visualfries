@@ -171,4 +171,31 @@ describe('DeterministicMediaManager', () => {
 
 		expect(manager.getDiagnosticsReport()).toBeNull();
 	});
+
+	it('reports aggregate and per-frame runtime diagnostics counters when enabled', () => {
+		const manager = new DeterministicMediaManager({
+			sceneData: scene,
+			deterministicMediaConfig: { enabled: true, strict: false, diagnostics: true }
+		});
+
+		manager.recordReadyAttempt(12);
+		manager.recordExtraRenderPass(12, 2);
+		manager.recordBlurRedraw(13, 3);
+
+		const report = manager.getDiagnosticsReport();
+		expect(report).not.toBeNull();
+		expect(report?.readyAttempts).toBe(1);
+		expect(report?.extraRenderPasses).toBe(2);
+		expect(report?.blurRedraws).toBe(3);
+		expect(report?.perFrame['12']).toEqual({
+			readyAttempts: 1,
+			extraRenderPasses: 2,
+			blurRedraws: 0
+		});
+		expect(report?.perFrame['13']).toEqual({
+			readyAttempts: 0,
+			extraRenderPasses: 0,
+			blurRedraws: 3
+		});
+	});
 });

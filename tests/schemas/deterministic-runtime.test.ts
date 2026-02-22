@@ -9,5 +9,9 @@ describe('Deterministic runtime schema', () => {
 		expect(parsed.enabled).toBe(false);
 		expect(parsed.strict).toBe(false);
 		expect(parsed.diagnostics).toBe(false);
+		expect(parsed.seekMaxAttempts).toBe(4);
+		expect(parsed.loadingMaxAttempts).toBe(2);
+		expect(parsed.readyYieldMs).toBe(0);
+		expect(parsed.blurDownscale).toBe(0.33);
 	});
 });

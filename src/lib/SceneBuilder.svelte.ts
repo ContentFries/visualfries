@@ -558,13 +558,9 @@ export class SceneBuilder implements ISceneBuilder {
 					isDuplicate = true;
 					framesSkipped += 1;
 				} else {
-					frame = await this.seekAndRenderFrame(
-						frameTime,
-						undefined,
-						format,
-						quality,
-						imageOptions
-					);
+					// isSceneDirty() already sought and prepared server deterministic state.
+					// Render directly to avoid a second seek in the dirty path.
+					frame = await this.renderFrame(undefined, format, quality, imageOptions);
 					previousFrame = frame;
 				}
 			} else {

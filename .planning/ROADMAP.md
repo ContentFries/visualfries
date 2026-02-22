@@ -13,6 +13,7 @@ This milestone adds a first-class deterministic server media rendering API to th
 - [x] **Phase 5: RenderFrameCommand Cache Guard** — Fingerprint-based cache staleness defence
 - [ ] **Phase 6: renderFrameRange() Render Loop** — Public API entry point; sequential frame loop with back-pressure
 - [ ] **Phase 7: ReplaceSourceOnTimeCommand + Diagnostics** — Cleanup, compat wrapper, and opt-in observability
+- [x] **Phase 8: Deterministic Performance + Stability** — Server crash fix + deterministic throughput optimization + perf diagnostics
 
 ---
 
@@ -184,6 +185,32 @@ Plans:
 
 ---
 
+### Phase 8: Deterministic Performance + Stability
+
+**Goal**: Eliminate deterministic server layer ordering crashes, reduce deterministic seek/render hot-path overhead, optimize blur-heavy server rendering, and expose runtime counters for tuning and benchmark visibility.
+
+**Depends on**: Phases 2–7
+
+**Requirements**: PERF-01, PERF-02, PERF-03, PERF-04, PERF-05
+
+**Success Criteria** (what must be TRUE):
+
+1. `Layer.syncDisplayObjects()` and component reordering never throw out-of-bounds `setChildIndex` errors under delayed deterministic display object attach or mixed container children
+2. Deterministic server seek path uses configurable bounded retries (`seekMaxAttempts`, `loadingMaxAttempts`, `readyYieldMs`) and avoids per-seek unconditional font readiness waits
+3. Server blur path uses downscaled offscreen canvas (`blurDownscale`) and avoids redundant same-frame blur redraws
+4. `renderFrameRange(skipDuplicates: true)` avoids redundant dirty-frame double seek while preserving duplicate semantics
+5. Diagnostics report includes aggregate + per-frame runtime counters (`readyAttempts`, `extraRenderPasses`, `blurRedraws`) and benchmark harness reports single + parallel throughput
+
+Plans:
+
+- [x] 08-01: Layer sync safety + ordering hardening (PERF-01)
+- [x] 08-02: SeekCommand deterministic fast path + tunables (PERF-02)
+- [x] 08-03: Server blur downscale + redraw dedupe (PERF-03)
+- [x] 08-04: Deterministic range loop throughput cleanup (PERF-04)
+- [x] 08-05: Diagnostics counters + benchmark harness + regression tests (PERF-05)
+
+---
+
 ## Progress
 
 **Execution Order**: 1 → 2 → 3 → 4 → 5 → 6 → 7 (Phase 5 can run in parallel with Phases 3–4; Phase 7 can run in parallel with Phase 6)
@@ -197,6 +224,7 @@ Plans:
 | 5. RenderFrameCommand Cache Guard           | 1/1            | Complete    | 2026-02-21 |
 | 6. renderFrameRange() Render Loop           | 0/2            | In progress | -         |
 | 7. ReplaceSourceOnTimeCommand + Diagnostics | 1/2            | In progress | -         |
+| 8. Deterministic Performance + Stability    | 5/5            | Complete    | 2026-02-22 |
 
 ### Follow-up Fixes (2026-02-21)
 
@@ -209,8 +237,14 @@ Plans:
 - [x] BLOB-02: `RenderFrameCommand` now maps blob `jpg/png` to deterministic MIME via `canvas.toBlob(cb, mime, quality)`
 - [x] BLOB-03: `renderFrameRange` now forwards blob encoding options and emits `mimeType` metadata in frame callbacks
 - [x] BLOB-04: Added JPEG/PNG signature tests and deterministic `renderFrameRange` JPG-mode coverage
+- [x] PERF-01: Layer/component display-object sync now clamps indexes and safely reattaches delayed deterministic display objects
+- [x] PERF-02: SeekCommand deterministic server path now uses one-time font gate + configurable bounded retries
+- [x] PERF-03: Server blur path now supports configurable downscale and same-frame redraw dedupe
+- [x] PERF-04: `renderFrameRange(skipDuplicates)` dirty path now renders from prepared seek state (no redundant second seek)
+- [x] PERF-05: Added aggregate/per-frame runtime diagnostics counters and deterministic benchmark harness (`bench:deterministic`)
+- [x] PERF-06: Blur radius now scales with blur downscale factor; deterministic zero-yield retries use `setImmediate` when available
 
 ---
 
 _Roadmap created: 2026-02-21_
-_Last synced: 2026-02-21 (deterministic track: 42/44 v1 requirements complete; open: REND-02, TEST-05; follow-up fixes delivered: delayed display-object layer sync, seek/readiness guarantees, same-frame null retry behavior, dirty-state consistency, native font preload/discovery stability, and explicit deterministic blob JPEG/PNG output controls)_
+_Last synced: 2026-02-22 (deterministic track: phase 8 delivered; runtime perf/stability patch complete with crash regression, seek/blur optimizations, runtime diagnostics counters, benchmark harness, and follow-up blur/yield tuning)_

@@ -4,6 +4,10 @@ export const DeterministicMediaConfigShape = z.object({
     strict: z.boolean().prefault(false),
     diagnostics: z.boolean().prefault(false),
     maxCachedTextures: z.number().int().positive().optional(),
+    seekMaxAttempts: z.number().int().positive().prefault(4),
+    loadingMaxAttempts: z.number().int().positive().prefault(2),
+    readyYieldMs: z.number().int().nonnegative().prefault(0),
+    blurDownscale: z.number().positive().max(1).prefault(0.33),
     provider: z.custom().optional()
 }).prefault({});
 export const defaultDeterministicMediaConfig = DeterministicMediaConfigShape.parse(undefined);

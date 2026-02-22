@@ -199,11 +199,38 @@ export class ComponentsManager {
         const displayObject = layer.displayObject;
         if (!displayObject)
             return;
-        // Sync displayObject children order with components array
-        layer.components.forEach((component, index) => {
-            if (component.displayObject) {
-                displayObject.setChildIndex(component.displayObject, index);
+        // Sync displayObject children order with components array while clamping indexes.
+        let nextIndex = 0;
+        layer.components.forEach((component) => {
+            const componentDisplayObject = component.displayObject;
+            if (!componentDisplayObject) {
+                return;
             }
+            const parent = componentDisplayObject.parent;
+            if (parent !== displayObject) {
+                if (parent && typeof parent.removeChild === 'function') {
+                    parent.removeChild(componentDisplayObject);
+                }
+                const insertMax = displayObject.children?.length ?? 0;
+                const insertIndex = Math.max(0, Math.min(nextIndex, insertMax));
+                if (typeof displayObject.addChildAt === 'function') {
+                    displayObject.addChildAt(componentDisplayObject, insertIndex);
+                }
+                else {
+                    displayObject.addChild(componentDisplayObject);
+                }
+            }
+            const childCount = displayObject.children?.length ?? 0;
+            if (childCount > 0 &&
+                typeof displayObject.getChildIndex === 'function' &&
+                typeof displayObject.setChildIndex === 'function') {
+                const currentIndex = displayObject.getChildIndex(componentDisplayObject);
+                const targetIndex = Math.max(0, Math.min(nextIndex, childCount - 1));
+                if (currentIndex >= 0 && currentIndex !== targetIndex) {
+                    displayObject.setChildIndex(componentDisplayObject, targetIndex);
+                }
+            }
+            nextIndex += 1;
         });
     }
     bulkUpdate(updates) {

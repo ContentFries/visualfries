@@ -60,6 +60,7 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 	beforeEach(() => {
 		mockStateManager = {
 			environment: 'browser' as any,
+			currentTime: 0,
 			data: {
 				settings: { fps: 30 }
 			} as any
@@ -92,6 +93,7 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 				state: 'paused'
 			},
 			isActive: true,
+			currentComponentTime: 0,
 			getResource: vi.fn(),
 			setResource: vi.fn(),
 			removeResource: vi.fn()
@@ -387,6 +389,76 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 
 			await expect(hook.handle('update', mockContext)).resolves.not.toThrow();
 			expect(mockContext.setResource).toHaveBeenCalledWith('pixiRenderObject', expect.any(Object));
+		});
+	});
+
+	describe('server blur optimization', () => {
+		it('uses downscaled blur canvas and skips redundant redraws for unchanged frame', async () => {
+			mockStateManager.environment = 'server' as any;
+			const deterministicMediaManager = {
+				config: { blurDownscale: 0.25 },
+				recordBlurRedraw: vi.fn()
+			} as any;
+			hook = new PixiSplitScreenDisplayObjectHook({
+				stateManager: mockStateManager as StateManager,
+				deterministicMediaManager
+			});
+
+			const texture = { id: 'tex-1', width: 1920, height: 1080, baseTexture: {} };
+			const imageElement = {} as any;
+			mockContext.getResource.mockImplementation((key: string) => {
+				if (key === 'pixiTexture') return texture;
+				if (key === 'imageElement') return imageElement;
+				return undefined;
+			});
+			mockContext.data.effects = {
+				enabled: true,
+				map: {
+					fillBackgroundBlur: {
+						type: 'fillBackgroundBlur',
+						enabled: true,
+						blurAmount: 50
+					}
+				}
+			};
+
+			const fakeCtx = {
+				filter: '',
+				clearRect: vi.fn(),
+				drawImage: vi.fn()
+			};
+			const fakeCanvas = {
+				width: 0,
+				height: 0,
+				getContext: vi.fn(() => fakeCtx)
+			} as any;
+			const originalCreateElement = document.createElement.bind(document);
+			const createElementSpy = vi
+				.spyOn(document, 'createElement')
+				.mockImplementation(((tagName: string) => {
+					if (tagName === 'canvas') {
+						return fakeCanvas;
+					}
+					return originalCreateElement(tagName);
+				}) as any);
+
+			try {
+				await hook.handle('update', mockContext);
+				expect(fakeCanvas.width).toBe(853);
+				expect(fakeCanvas.height).toBe(480);
+				expect(fakeCtx.filter).toBe('blur(12.5px)');
+				expect(fakeCtx.drawImage).toHaveBeenCalledTimes(1);
+
+				await hook.handle('update', mockContext);
+				expect(fakeCtx.drawImage).toHaveBeenCalledTimes(1);
+
+				mockContext.currentComponentTime = 1 / 30;
+				await hook.handle('update', mockContext);
+				expect(fakeCtx.drawImage).toHaveBeenCalledTimes(2);
+				expect(deterministicMediaManager.recordBlurRedraw).toHaveBeenCalledTimes(2);
+			} finally {
+				createElementSpy.mockRestore();
+			}
 		});
 	});
 });

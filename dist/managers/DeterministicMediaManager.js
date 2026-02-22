@@ -4,6 +4,10 @@ const createDefaultDiagnosticsState = () => ({
     providerHits: 0,
     providerMisses: 0,
     cacheHits: 0,
+    readyAttempts: 0,
+    extraRenderPasses: 0,
+    blurRedraws: 0,
+    perFrame: new Map(),
     latencyCount: 0,
     latencyTotalMs: 0,
     latencyMinMs: Number.POSITIVE_INFINITY,
@@ -127,17 +131,38 @@ export class DeterministicMediaManager {
             ? this.#diagnostics.latencyTotalMs / this.#diagnostics.latencyCount
             : 0;
         const minLatency = this.#diagnostics.latencyCount > 0 ? this.#diagnostics.latencyMinMs : 0;
+        const perFrame = {};
+        for (const [frameIndex, counters] of [...this.#diagnostics.perFrame.entries()].sort(([a], [b]) => a - b)) {
+            perFrame[String(frameIndex)] = {
+                readyAttempts: counters.readyAttempts,
+                extraRenderPasses: counters.extraRenderPasses,
+                blurRedraws: counters.blurRedraws
+            };
+        }
         return {
             providerHits: this.#diagnostics.providerHits,
             providerMisses: this.#diagnostics.providerMisses,
             cacheHits: this.#diagnostics.cacheHits,
             cacheHitRatio,
+            readyAttempts: this.#diagnostics.readyAttempts,
+            extraRenderPasses: this.#diagnostics.extraRenderPasses,
+            blurRedraws: this.#diagnostics.blurRedraws,
+            perFrame,
             latency: {
                 minMs: minLatency,
                 maxMs: this.#diagnostics.latencyMaxMs,
                 avgMs: avgLatency
             }
         };
+    }
+    recordReadyAttempt(sceneFrameIndex, count = 1) {
+        this.#recordRuntimeCounter(sceneFrameIndex, 'readyAttempts', count);
+    }
+    recordExtraRenderPass(sceneFrameIndex, count = 1) {
+        this.#recordRuntimeCounter(sceneFrameIndex, 'extraRenderPasses', count);
+    }
+    recordBlurRedraw(sceneFrameIndex, count = 1) {
+        this.#recordRuntimeCounter(sceneFrameIndex, 'blurRedraws', count);
     }
     async destroy() {
         for (const [cacheKey, cached] of this.#cacheByCacheKey.entries()) {
@@ -309,6 +334,27 @@ export class DeterministicMediaManager {
         }
         try {
             this.#diagnostics.cacheHits += 1;
+        }
+        catch {
+            // Diagnostics are best-effort and never allowed to fail the render path.
+        }
+    }
+    #recordRuntimeCounter(sceneFrameIndex, counter, count) {
+        if (!this.config.diagnostics) {
+            return;
+        }
+        if (!Number.isFinite(count) || count <= 0) {
+            return;
+        }
+        try {
+            this.#diagnostics[counter] += count;
+            const existing = this.#diagnostics.perFrame.get(sceneFrameIndex) ?? {
+                readyAttempts: 0,
+                extraRenderPasses: 0,
+                blurRedraws: 0
+            };
+            existing[counter] += count;
+            this.#diagnostics.perFrame.set(sceneFrameIndex, existing);
         }
         catch {
             // Diagnostics are best-effort and never allowed to fail the render path.

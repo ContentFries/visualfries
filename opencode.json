@@ -1,16 +1,19 @@
 {
 	"$schema": "https://opencode.ai/config.json",
 	"agent": {
-		"gsd-planner": { "model": "opencode/glm-4.7-free" },
-		"gsd-plan-checker": { "model": "opencode/glm-4.7-free" },
-		"gsd-phase-researcher": { "model": "opencode/glm-4.7-free" },
-		"gsd-roadmapper": { "model": "opencode/glm-4.7-free" },
-		"gsd-project-researcher": { "model": "opencode/glm-4.7-free" },
-		"gsd-research-synthesizer": { "model": "opencode/glm-4.7-free" },
-		"gsd-codebase-mapper": { "model": "opencode/glm-4.7-free" },
-		"gsd-executor": { "model": "opencode/minimax-m2.1-free" },
-		"gsd-debugger": { "model": "opencode/minimax-m2.1-free" },
-		"gsd-verifier": { "model": "opencode/glm-4.7-free" },
-		"gsd-integration-checker": { "model": "opencode/glm-4.7-free" }
+		"gsd-planner": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-plan-checker": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-phase-researcher": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-roadmapper": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-project-researcher": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-research-synthesizer": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-codebase-mapper": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-executor": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-debugger": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-verifier": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-integration-checker": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-set-profile": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-settings": { "model": "github-copilot/claude-sonnet-4.6" },
+		"gsd-set-model": { "model": "github-copilot/claude-sonnet-4.6" }
 	}
 }

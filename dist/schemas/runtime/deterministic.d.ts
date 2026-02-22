@@ -35,6 +35,10 @@ export type DeterministicMediaConfig = {
     strict: boolean;
     diagnostics: boolean;
     maxCachedTextures?: number;
+    seekMaxAttempts?: number;
+    loadingMaxAttempts?: number;
+    readyYieldMs?: number;
+    blurDownscale?: number;
     provider?: DeterministicFrameProvider;
 };
 export declare const DeterministicMediaConfigShape: z.ZodPrefault<z.ZodObject<{
@@ -42,6 +46,10 @@ export declare const DeterministicMediaConfigShape: z.ZodPrefault<z.ZodObject<{
     strict: z.ZodPrefault<z.ZodBoolean>;
     diagnostics: z.ZodPrefault<z.ZodBoolean>;
     maxCachedTextures: z.ZodOptional<z.ZodNumber>;
+    seekMaxAttempts: z.ZodPrefault<z.ZodNumber>;
+    loadingMaxAttempts: z.ZodPrefault<z.ZodNumber>;
+    readyYieldMs: z.ZodPrefault<z.ZodNumber>;
+    blurDownscale: z.ZodPrefault<z.ZodNumber>;
     provider: z.ZodOptional<z.ZodCustom<DeterministicFrameProvider, DeterministicFrameProvider>>;
 }, z.core.$strip>>;
 export declare const defaultDeterministicMediaConfig: DeterministicMediaConfig;
@@ -55,6 +63,14 @@ export type DeterministicDiagnosticsReport = {
     providerMisses: number;
     cacheHits: number;
     cacheHitRatio: number;
+    readyAttempts: number;
+    extraRenderPasses: number;
+    blurRedraws: number;
+    perFrame: Record<string, {
+        readyAttempts: number;
+        extraRenderPasses: number;
+        blurRedraws: number;
+    }>;
     latency: {
         minMs: number;
         maxMs: number;

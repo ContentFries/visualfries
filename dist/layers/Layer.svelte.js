@@ -57,8 +57,8 @@ export class Layer {
         if (!this.#displayObject) {
             return false;
         }
-        for (let index = 0; index < this.components.length; index += 1) {
-            const component = this.components[index];
+        let componentDisplayIndex = 0;
+        for (const component of this.components) {
             const displayObject = component.displayObject;
             if (!displayObject) {
                 continue;
@@ -68,16 +68,51 @@ export class Layer {
                 if (parent && typeof parent.removeChild === 'function') {
                     parent.removeChild(displayObject);
                 }
-                this.#displayObject.addChild(displayObject);
+                const childCount = this.#displayObject.children?.length ?? 0;
+                const insertIndex = Math.max(0, Math.min(componentDisplayIndex, childCount));
+                if (typeof this.#displayObject.addChildAt === 'function') {
+                    this.#displayObject.addChildAt(displayObject, insertIndex);
+                }
+                else {
+                    this.#displayObject.addChild(displayObject);
+                }
                 changed = true;
             }
             if (typeof this.#displayObject.getChildIndex === 'function' &&
                 typeof this.#displayObject.setChildIndex === 'function') {
+                const childCount = this.#displayObject.children?.length ?? 0;
+                if (childCount > 0) {
+                    const currentIndex = this.#displayObject.getChildIndex(displayObject);
+                    const targetIndex = Math.max(0, Math.min(componentDisplayIndex, childCount - 1));
+                    if (currentIndex >= 0 && currentIndex !== targetIndex) {
+                        this.#displayObject.setChildIndex(displayObject, targetIndex);
+                        changed = true;
+                    }
+                }
+            }
+            componentDisplayIndex += 1;
+        }
+        // Ensure deterministic ordering among only component display objects without
+        // assuming a 1:1 mapping with all container children.
+        if (typeof this.#displayObject.getChildIndex === 'function' &&
+            typeof this.#displayObject.setChildIndex === 'function') {
+            let nextIndex = 0;
+            for (const component of this.components) {
+                const displayObject = component.displayObject;
+                if (!displayObject || displayObject.parent !== this.#displayObject) {
+                    continue;
+                }
+                const childCount = this.#displayObject.children?.length ?? 0;
+                if (childCount === 0) {
+                    break;
+                }
                 const currentIndex = this.#displayObject.getChildIndex(displayObject);
-                if (currentIndex !== index) {
-                    this.#displayObject.setChildIndex(displayObject, index);
+                const targetIndex = Math.max(0, Math.min(nextIndex, childCount - 1));
+                if (currentIndex >= 0 && currentIndex !== targetIndex) {
+                    this.#displayObject.setChildIndex(displayObject, targetIndex);
                     changed = true;
                 }
+                nextIndex += 1;
             }
         }
         return changed;

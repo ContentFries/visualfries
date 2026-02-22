@@ -16,6 +16,7 @@ export class SeekCommand implements Command {
 	private renderManager: RenderManager;
 	private componentsManager: ComponentsManager;
 	private deterministicMediaManager: DeterministicMediaManager;
+	#didAwaitFontsReady = false;
 
 	constructor(cradle: {
 		timelineManager: TimelineManager;
@@ -91,18 +92,68 @@ export class SeekCommand implements Command {
 		return pending;
 	}
 
+	#getCurrentSceneFrameIndex(): number {
+		const fps = this.state.data?.settings?.fps || 30;
+		const currentTime = this.state.currentTime ?? 0;
+		return Math.max(0, Math.round(currentTime * fps));
+	}
+
+	async #delay(ms: number): Promise<void> {
+		if (ms <= 0) {
+			const immediate = (globalThis as { setImmediate?: (cb: () => void) => unknown }).setImmediate;
+			if (typeof immediate === 'function') {
+				await new Promise<void>((resolve) => {
+					immediate(resolve);
+				});
+				return;
+			}
+			await Promise.resolve();
+			return;
+		}
+		await new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	async #awaitFontsReadyOnce(): Promise<void> {
+		if (this.#didAwaitFontsReady) {
+			return;
+		}
+		this.#didAwaitFontsReady = true;
+		if (typeof document === 'undefined' || !document.fonts?.ready) {
+			return;
+		}
+
+		try {
+			await Promise.race([
+				document.fonts.ready,
+				new Promise((resolve) => setTimeout(resolve, 2000))
+			]);
+		} catch {
+			// Font readiness is best-effort in seek path.
+		}
+	}
+
 	async #renderUntilDeterministicReady(): Promise<void> {
-		const maxAttempts = 12;
+		const pendingBeforeRetry = this.#getPendingDeterministicComponents();
+		if (pendingBeforeRetry.length === 0) {
+			return;
+		}
+
+		const maxAttempts = this.deterministicMediaManager.config.seekMaxAttempts ?? 4;
+		const readyYieldMs = this.deterministicMediaManager.config.readyYieldMs ?? 0;
+		const sceneFrameIndex = this.#getCurrentSceneFrameIndex();
+		let pending = pendingBeforeRetry;
+
 		for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+			this.deterministicMediaManager.recordReadyAttempt(sceneFrameIndex);
+			this.deterministicMediaManager.recordExtraRenderPass(sceneFrameIndex);
+			await this.#delay(readyYieldMs);
 			await this.renderManager.render();
-			const pending = this.#getPendingDeterministicComponents();
+			pending = this.#getPendingDeterministicComponents();
 			if (pending.length === 0) {
 				return;
 			}
-			await new Promise((resolve) => setTimeout(resolve, 0));
 		}
 
-		const pending = this.#getPendingDeterministicComponents();
 		if (pending.length > 0) {
 			throw new Error(
 				`Deterministic media was not ready after seek for active components: ${pending.join(', ')}`
@@ -121,43 +172,37 @@ export class SeekCommand implements Command {
 
 		// Ensure a deterministic render on server after seek to advance media frames
 		if (this.state.environment === 'server') {
-			// Wait for fonts to be ready before rendering
-			// This is critical for subtitle animations that use SplitText -
-			// if fonts aren't loaded, text measurements will be wrong and
-			// animations may fail silently or not appear on first subtitles
-			if (typeof document !== 'undefined' && document.fonts?.ready) {
-				try {
-					await Promise.race([
-						document.fonts.ready,
-						new Promise((resolve) => setTimeout(resolve, 2000)) // 2s timeout
-					]);
-				} catch {
-					// Ignore font loading errors, continue with rendering
-				}
+			const deterministicEnabled = this.deterministicMediaManager.isEnabled();
+			if (deterministicEnabled) {
+				await this.#awaitFontsReadyOnce();
 			}
-			
-			// Try multiple render passes until loading state clears or attempts exhausted
-			const maxAttempts = 10;
-			for (let i = 0; i < maxAttempts; i += 1) {
-				await this.renderManager.render();
-				if (this.state.state !== 'loading') break;
-				await new Promise((resolve) => setTimeout(resolve, 30));
-			}
-				if (this.state.state === 'loading') {
-					console.warn('SeekCommand: Max render attempts exhausted while still loading');
-				}
-				
-				// Re-seek to apply correct animation state to any animations
-				// that were added during the render passes above.
-				// This fixes the race condition where subtitle animations are added
-				// AFTER the initial seek, causing them to miss their initial state.
-				this.timeline.seek(time);
 
-				if (this.deterministicMediaManager.isEnabled()) {
-					await this.#renderUntilDeterministicReady();
-				} else {
-					await this.renderManager.render();
-				}
+			const readyYieldMs = this.deterministicMediaManager.config.readyYieldMs ?? 0;
+			const loadingMaxAttempts = this.deterministicMediaManager.config.loadingMaxAttempts ?? 2;
+			const sceneFrameIndex = this.#getCurrentSceneFrameIndex();
+
+			await this.renderManager.render();
+			for (let i = 0; i < loadingMaxAttempts && this.state.state === 'loading'; i += 1) {
+				this.deterministicMediaManager.recordExtraRenderPass(sceneFrameIndex);
+				await this.#delay(readyYieldMs);
+				await this.renderManager.render();
 			}
+
+			if (this.state.state === 'loading') {
+				console.warn('SeekCommand: Max render attempts exhausted while still loading');
+			}
+
+			// Re-seek to apply correct animation state to any animations
+			// that were added during the render passes above.
+			// This fixes the race condition where subtitle animations are added
+			// AFTER the initial seek, causing them to miss their initial state.
+			this.timeline.seek(time);
+
+			if (deterministicEnabled) {
+				await this.#renderUntilDeterministicReady();
+			} else {
+				await this.renderManager.render();
+			}
+		}
 	}
 }

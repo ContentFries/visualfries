@@ -20,6 +20,10 @@ type DiagnosticsState = {
 	providerHits: number;
 	providerMisses: number;
 	cacheHits: number;
+	readyAttempts: number;
+	extraRenderPasses: number;
+	blurRedraws: number;
+	perFrame: Map<number, { readyAttempts: number; extraRenderPasses: number; blurRedraws: number }>;
 	latencyCount: number;
 	latencyTotalMs: number;
 	latencyMinMs: number;
@@ -30,6 +34,10 @@ const createDefaultDiagnosticsState = (): DiagnosticsState => ({
 	providerHits: 0,
 	providerMisses: 0,
 	cacheHits: 0,
+	readyAttempts: 0,
+	extraRenderPasses: 0,
+	blurRedraws: 0,
+	perFrame: new Map(),
 	latencyCount: 0,
 	latencyTotalMs: 0,
 	latencyMinMs: Number.POSITIVE_INFINITY,
@@ -181,17 +189,47 @@ export class DeterministicMediaManager {
 				: 0;
 		const minLatency = this.#diagnostics.latencyCount > 0 ? this.#diagnostics.latencyMinMs : 0;
 
+		const perFrame: Record<
+			string,
+			{ readyAttempts: number; extraRenderPasses: number; blurRedraws: number }
+		> = {};
+		for (const [frameIndex, counters] of [...this.#diagnostics.perFrame.entries()].sort(
+			([a], [b]) => a - b
+		)) {
+			perFrame[String(frameIndex)] = {
+				readyAttempts: counters.readyAttempts,
+				extraRenderPasses: counters.extraRenderPasses,
+				blurRedraws: counters.blurRedraws
+			};
+		}
+
 		return {
 			providerHits: this.#diagnostics.providerHits,
 			providerMisses: this.#diagnostics.providerMisses,
 			cacheHits: this.#diagnostics.cacheHits,
 			cacheHitRatio,
+			readyAttempts: this.#diagnostics.readyAttempts,
+			extraRenderPasses: this.#diagnostics.extraRenderPasses,
+			blurRedraws: this.#diagnostics.blurRedraws,
+			perFrame,
 			latency: {
 				minMs: minLatency,
 				maxMs: this.#diagnostics.latencyMaxMs,
 				avgMs: avgLatency
 			}
 		};
+	}
+
+	recordReadyAttempt(sceneFrameIndex: number, count = 1): void {
+		this.#recordRuntimeCounter(sceneFrameIndex, 'readyAttempts', count);
+	}
+
+	recordExtraRenderPass(sceneFrameIndex: number, count = 1): void {
+		this.#recordRuntimeCounter(sceneFrameIndex, 'extraRenderPasses', count);
+	}
+
+	recordBlurRedraw(sceneFrameIndex: number, count = 1): void {
+		this.#recordRuntimeCounter(sceneFrameIndex, 'blurRedraws', count);
 	}
 
 	async destroy(): Promise<void> {
@@ -381,6 +419,32 @@ export class DeterministicMediaManager {
 		}
 		try {
 			this.#diagnostics.cacheHits += 1;
+		} catch {
+			// Diagnostics are best-effort and never allowed to fail the render path.
+		}
+	}
+
+	#recordRuntimeCounter(
+		sceneFrameIndex: number,
+		counter: 'readyAttempts' | 'extraRenderPasses' | 'blurRedraws',
+		count: number
+	): void {
+		if (!this.config.diagnostics) {
+			return;
+		}
+		if (!Number.isFinite(count) || count <= 0) {
+			return;
+		}
+
+		try {
+			this.#diagnostics[counter] += count;
+			const existing = this.#diagnostics.perFrame.get(sceneFrameIndex) ?? {
+				readyAttempts: 0,
+				extraRenderPasses: 0,
+				blurRedraws: 0
+			};
+			existing[counter] += count;
+			this.#diagnostics.perFrame.set(sceneFrameIndex, existing);
 		} catch {
 			// Diagnostics are best-effort and never allowed to fail the render path.
 		}

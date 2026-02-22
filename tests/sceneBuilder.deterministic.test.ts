@@ -153,7 +153,11 @@ describe('SceneBuilder deterministic seek/readiness behavior', () => {
 		const renderCalls = commandRunner.run.mock.calls.filter(
 			([commandType]) => commandType === CommandType.RENDER_FRAME
 		);
+		const seekCalls = commandRunner.run.mock.calls.filter(
+			([commandType]) => commandType === CommandType.SEEK
+		);
 		expect(renderCalls).toHaveLength(1);
+		expect(seekCalls).toHaveLength(2);
 		expect(received[0].isDuplicate).toBe(false);
 		expect(received[1].isDuplicate).toBe(true);
 		expect(received[0].frame).toBe(received[1].frame);
@@ -204,5 +208,34 @@ describe('SceneBuilder deterministic seek/readiness behavior', () => {
 			([commandType]) => commandType === CommandType.RENDER_FRAME
 		);
 		expect(renderCalls).toHaveLength(2);
+	});
+
+	it('renderFrameRange skipDuplicates=false performs exactly one seek and one render per frame', async () => {
+		const { builder, commandRunner } = createSceneBuilder(
+			{},
+			(commandType: CommandType) => {
+				if (commandType === CommandType.RENDER_FRAME) {
+					return 'frame';
+				}
+				return undefined;
+			}
+		);
+
+		await builder.renderFrameRange({
+			fromFrame: 0,
+			toFrame: 3,
+			skipDuplicates: false,
+			format: 'png',
+			onFrame: () => {}
+		});
+
+		const seekCalls = commandRunner.run.mock.calls.filter(
+			([commandType]) => commandType === CommandType.SEEK
+		);
+		const renderCalls = commandRunner.run.mock.calls.filter(
+			([commandType]) => commandType === CommandType.RENDER_FRAME
+		);
+		expect(seekCalls).toHaveLength(3);
+		expect(renderCalls).toHaveLength(3);
 	});
 });

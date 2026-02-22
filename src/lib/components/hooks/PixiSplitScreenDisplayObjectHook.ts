@@ -4,6 +4,7 @@ import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '
 import { ImageComponentShape, LayoutSplitEffectShape, VideoComponentShape } from '$lib';
 import { z } from 'zod';
 import type { StateManager } from '$lib/managers/StateManager.svelte.ts';
+import type { DeterministicMediaManager } from '$lib/managers/DeterministicMediaManager.ts';
 
 export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 	types: HookType[] = ['update', 'destroy', 'refresh', 'refresh:content'];
@@ -22,11 +23,22 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 	#pixiTexture!: PIXI.Texture;
 	#displayObject!: PIXI.Container;
 	#bgCanvas: HTMLCanvasElement | undefined = undefined;
+	#bgSprite: PIXI.Sprite | undefined = undefined;
+	#blurStrength = 50;
+	#blurDownscale = 0.33;
+	#lastBlurFrameKey = '';
+	#resourceIds = new WeakMap<object, number>();
+	#nextResourceId = 1;
 	componentElement!: z.infer<typeof VideoComponentShape> | z.infer<typeof ImageComponentShape>;
 	private sceneState: StateManager;
+	private deterministicMediaManager?: DeterministicMediaManager;
 
-	constructor(cradle: { stateManager: StateManager }) {
+	constructor(cradle: {
+		stateManager: StateManager;
+		deterministicMediaManager?: DeterministicMediaManager;
+	}) {
 		this.sceneState = cradle.stateManager;
+		this.deterministicMediaManager = cradle.deterministicMediaManager;
 	}
 
 	get sceneWidth() {
@@ -39,9 +51,21 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 
 	private initBlurBackground(strength = 50) {
 		const sanitizedStrength = this.#sanitizeBlurStrength(strength);
+		this.#blurDownscale = this.#getBlurDownscale();
+		this.#blurStrength = sanitizedStrength;
+		this.#lastBlurFrameKey = '';
 		const backgroundSprite = new PIXI.Sprite(this.#pixiTexture);
+		this.#bgSprite = backgroundSprite;
 		this.setupBackground(backgroundSprite, sanitizedStrength);
 		this.#displayObject.addChild(backgroundSprite);
+	}
+
+	#getBlurDownscale(): number {
+		const configured = this.deterministicMediaManager?.config.blurDownscale ?? 0.33;
+		if (!Number.isFinite(configured)) {
+			return 0.33;
+		}
+		return Math.max(0.05, Math.min(1, configured));
 	}
 
 	private setupBackground(backgroundSprite: PIXI.Sprite, strength = 50) {
@@ -67,12 +91,12 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		if (this.sceneState.environment === 'server') {
 			// Create a temporary canvas for blur effect
 			const bgCanvas = document.createElement('canvas');
-			bgCanvas.width = backgroundSprite.width;
-			bgCanvas.height = backgroundSprite.height;
+			bgCanvas.width = Math.max(1, Math.round(backgroundSprite.width * this.#blurDownscale));
+			bgCanvas.height = Math.max(1, Math.round(backgroundSprite.height * this.#blurDownscale));
 
 			this.#bgCanvas = bgCanvas;
 
-			this.#drawBlurredBackground(sanitizedStrength);
+			this.#drawBlurredBackground(sanitizedStrength, true);
 			const blurredTexture = PIXI.Texture.from(bgCanvas);
 			backgroundSprite.texture = blurredTexture;
 		} else {
@@ -82,28 +106,66 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		}
 	}
 
-	#drawBlurredBackground(strength = 50) {
+	#drawBlurredBackground(strength = 50, force = false) {
 		if (!this.#bgCanvas) {
-			return;
+			return false;
 		}
 
 		// Validate and sanitize strength parameter
 		const sanitizedStrength = this.#sanitizeBlurStrength(strength);
 
 		const ctx = this.#bgCanvas.getContext('2d')!;
-		// Use sanitized value to prevent XSS
-		ctx.filter = `blur(${sanitizedStrength}px)`;
-
 		// Get the source element (video/image)
 		const sourceElement =
 			this.#context.getResource('videoElement') || this.#context.getResource('imageElement');
 		if (!sourceElement) {
 			// Video or Image element not ready yet - will be called again on next update
-			return;
+			return false;
 		}
 
+		const fps = this.sceneState.data.settings.fps || 30;
+		const componentFrameIndex = Math.max(0, Math.round(this.#context.currentComponentTime * fps));
+		const textureToken = this.#context.getResource('pixiTexture') ?? sourceElement;
+		const frameKey = `${componentFrameIndex}:${this.#resourceToken(textureToken)}`;
+		if (!force && frameKey === this.#lastBlurFrameKey) {
+			return false;
+		}
+		this.#lastBlurFrameKey = frameKey;
+
+		// Use sanitized value to prevent XSS
+		const effectiveBlurStrength = sanitizedStrength * this.#blurDownscale;
+		ctx.filter = `blur(${effectiveBlurStrength}px)`;
+		ctx.clearRect(0, 0, this.#bgCanvas.width, this.#bgCanvas.height);
+
 		// Draw the original texture with blur
-		ctx.drawImage(sourceElement, 0, 0, this.#bgCanvas.width, this.#bgCanvas.height);
+		try {
+			ctx.drawImage(sourceElement, 0, 0, this.#bgCanvas.width, this.#bgCanvas.height);
+		} catch {
+			return false;
+		}
+		const texture = this.#bgSprite?.texture as { baseTexture?: { update?: () => void }; update?: () => void };
+		texture.baseTexture?.update?.();
+		texture.update?.();
+		this.deterministicMediaManager?.recordBlurRedraw(this.#currentSceneFrameIndex());
+		return true;
+	}
+
+	#resourceToken(value: unknown): string {
+		if (typeof value === 'object' && value !== null) {
+			let id = this.#resourceIds.get(value);
+			if (!id) {
+				id = this.#nextResourceId;
+				this.#nextResourceId += 1;
+				this.#resourceIds.set(value, id);
+			}
+			return `obj-${id}`;
+		}
+		return String(value);
+	}
+
+	#currentSceneFrameIndex(): number {
+		const fps = this.sceneState.data.settings.fps || 30;
+		return Math.max(0, Math.round(this.sceneState.currentTime * fps));
 	}
 
 	/**
@@ -225,16 +287,15 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 
 	async #handleUpdate() {
 		const isActive = this.#context.isActive;
-		if (isActive) {
-			this.#drawBlurredBackground();
-		}
-
 		if (this.#displayObject) {
 			// Texture swaps are frequent in deterministic mode; update sprite textures
 			// in-place instead of rebuilding split/blur geometry each frame.
 			const currentTexture = this.#context.getResource('pixiTexture');
 			if (currentTexture && currentTexture !== this.#pixiTexture) {
 				this.#swapDisplayTexture(currentTexture);
+			}
+			if (isActive && this.#bgCanvas) {
+				this.#drawBlurredBackground(this.#blurStrength);
 			}
 
 			// Always re-assert the resource in case the context was cleared or updated
@@ -289,6 +350,8 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 	async #handleDestroy() {
 		// remove event listeners from video
 		this.#bgCanvas = undefined;
+		this.#bgSprite = undefined;
+		this.#lastBlurFrameKey = '';
 	}
 
 	async handle(type: HookType, context: IComponentContext) {

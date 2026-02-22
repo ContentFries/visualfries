@@ -7,6 +7,9 @@ type Config = {
     subtitles: Record<string, Subtitle[]> | Record<string, SubtitleCollection>;
     fonts: FontType[];
     forceCanvas: boolean;
+    serverRendererMode: 'canvas' | 'webgl';
+    preferWebGL2: boolean;
+    powerPreference: 'default' | 'high-performance' | 'low-power';
     scale: number;
     autoPlay?: boolean;
     loop?: boolean;

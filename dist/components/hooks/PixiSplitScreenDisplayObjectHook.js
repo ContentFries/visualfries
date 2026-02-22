@@ -25,9 +25,11 @@ export class PixiSplitScreenDisplayObjectHook {
     componentElement;
     sceneState;
     deterministicMediaManager;
+    appManager;
     constructor(cradle) {
         this.sceneState = cradle.stateManager;
         this.deterministicMediaManager = cradle.deterministicMediaManager;
+        this.appManager = cradle.appManager;
     }
     get sceneWidth() {
         return this.#context.sceneState.width;
@@ -70,7 +72,7 @@ export class PixiSplitScreenDisplayObjectHook {
         // Center the background sprite
         backgroundSprite.x = (this.sceneWidth - backgroundSprite.width) / 2;
         backgroundSprite.y = (this.sceneHeight - backgroundSprite.height) / 2;
-        if (this.sceneState.environment === 'server') {
+        if (this.sceneState.environment === 'server' && !this.#isWebGLRendererActive()) {
             // Create a temporary canvas for blur effect
             const bgCanvas = document.createElement('canvas');
             bgCanvas.width = Math.max(1, Math.round(backgroundSprite.width * this.#blurDownscale));
@@ -81,10 +83,18 @@ export class PixiSplitScreenDisplayObjectHook {
             backgroundSprite.texture = blurredTexture;
         }
         else {
-            // Create new PIXI texture from blurred canvas
+            // Client mode and server webgl mode both use PIXI blur filter.
+            this.#bgCanvas = undefined;
             const blurFilter = new PIXI.BlurFilter(sanitizedStrength, 50, 1, 7);
             backgroundSprite.filters = [blurFilter];
         }
+    }
+    #isWebGLRendererActive() {
+        const renderer = this.appManager?.app?.renderer;
+        if (renderer?.gl || renderer?.context?.gl || renderer?.context?.webGLVersion) {
+            return true;
+        }
+        return this.deterministicMediaManager?.getSelectedRendererType?.() === 'webgl';
     }
     #drawBlurredBackground(strength = 50, force = false) {
         if (!this.#bgCanvas) {

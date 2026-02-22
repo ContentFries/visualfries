@@ -20,6 +20,9 @@ type DiagnosticsState = {
 	providerHits: number;
 	providerMisses: number;
 	cacheHits: number;
+	selectedRendererType: 'canvas' | 'webgl';
+	rendererFallbackOccurred: boolean;
+	rendererFallbackReason?: string;
 	readyAttempts: number;
 	extraRenderPasses: number;
 	blurRedraws: number;
@@ -34,6 +37,9 @@ const createDefaultDiagnosticsState = (): DiagnosticsState => ({
 	providerHits: 0,
 	providerMisses: 0,
 	cacheHits: 0,
+	selectedRendererType: 'canvas',
+	rendererFallbackOccurred: false,
+	rendererFallbackReason: undefined,
 	readyAttempts: 0,
 	extraRenderPasses: 0,
 	blurRedraws: 0,
@@ -208,6 +214,9 @@ export class DeterministicMediaManager {
 			providerMisses: this.#diagnostics.providerMisses,
 			cacheHits: this.#diagnostics.cacheHits,
 			cacheHitRatio,
+			selectedRendererType: this.#diagnostics.selectedRendererType,
+			rendererFallbackOccurred: this.#diagnostics.rendererFallbackOccurred,
+			rendererFallbackReason: this.#diagnostics.rendererFallbackReason,
 			readyAttempts: this.#diagnostics.readyAttempts,
 			extraRenderPasses: this.#diagnostics.extraRenderPasses,
 			blurRedraws: this.#diagnostics.blurRedraws,
@@ -218,6 +227,24 @@ export class DeterministicMediaManager {
 				avgMs: avgLatency
 			}
 		};
+	}
+
+	getSelectedRendererType(): 'canvas' | 'webgl' {
+		return this.#diagnostics.selectedRendererType;
+	}
+
+	recordRendererSelection(args: {
+		rendererType: 'canvas' | 'webgl';
+		fallbackOccurred?: boolean;
+		fallbackReason?: string;
+	}): void {
+		try {
+			this.#diagnostics.selectedRendererType = args.rendererType;
+			this.#diagnostics.rendererFallbackOccurred = Boolean(args.fallbackOccurred);
+			this.#diagnostics.rendererFallbackReason = args.fallbackReason;
+		} catch {
+			// Diagnostics are best-effort and never allowed to fail the render path.
+		}
 	}
 
 	recordReadyAttempt(sceneFrameIndex: number, count = 1): void {

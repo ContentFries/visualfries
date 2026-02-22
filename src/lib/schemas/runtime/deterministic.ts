@@ -78,6 +78,9 @@ export type DeterministicDiagnosticsReport = {
 	providerMisses: number;
 	cacheHits: number;
 	cacheHitRatio: number;
+	selectedRendererType: 'canvas' | 'webgl';
+	rendererFallbackOccurred: boolean;
+	rendererFallbackReason?: string;
 	readyAttempts: number;
 	extraRenderPasses: number;
 	blurRedraws: number;

@@ -34,6 +34,9 @@ type Config = {
 	subtitles: Record<string, Subtitle[]> | Record<string, SubtitleCollection>;
 	fonts: FontType[];
 	forceCanvas: boolean;
+	serverRendererMode: 'canvas' | 'webgl';
+	preferWebGL2: boolean;
+	powerPreference: 'default' | 'high-performance' | 'low-power';
 	scale: number;
 	autoPlay?: boolean;
 	loop?: boolean;
@@ -46,6 +49,9 @@ const defaultConfig: Config = {
 	subtitles: {},
 	fonts: [],
 	forceCanvas: false,
+	serverRendererMode: 'canvas',
+	preferWebGL2: true,
+	powerPreference: 'high-performance',
 	scale: 1,
 	autoPlay: false,
 	loop: false,
@@ -71,6 +77,9 @@ export const createSceneBuilder = async function (
 		['subtitles', subs],
 		['fonts', sceneConfig.fonts],
 		['forceCanvas', sceneConfig.forceCanvas],
+		['serverRendererMode', sceneConfig.serverRendererMode],
+		['preferWebGL2', sceneConfig.preferWebGL2],
+		['powerPreference', sceneConfig.powerPreference],
 		['scale', sceneConfig.scale],
 		['autoPlay', sceneConfig.autoPlay],
 		['loop', sceneConfig.loop],

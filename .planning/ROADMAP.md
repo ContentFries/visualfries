@@ -243,8 +243,12 @@ Plans:
 - [x] PERF-04: `renderFrameRange(skipDuplicates)` dirty path now renders from prepared seek state (no redundant second seek)
 - [x] PERF-05: Added aggregate/per-frame runtime diagnostics counters and deterministic benchmark harness (`bench:deterministic`)
 - [x] PERF-06: Blur radius now scales with blur downscale factor; deterministic zero-yield retries use `setImmediate` when available
+- [x] GPU-01: Added server renderer mode config (`serverRendererMode: 'canvas' | 'webgl'`) with backward-compatible default `canvas`
+- [x] GPU-02: Added server webgl fallback-to-canvas behavior with non-throwing deterministic diagnostics capture
+- [x] GPU-03: Added server renderer preference knobs (`preferWebGL2`, `powerPreference`) and integration coverage for deterministic normal/split/blur under server webgl mode
+- [x] GPU-04: Added client-parity blur behavior in server webgl mode (`PIXI.BlurFilter`), while keeping canvas blur optimization for server canvas mode
 
 ---
 
 _Roadmap created: 2026-02-21_
-_Last synced: 2026-02-22 (deterministic track: phase 8 delivered; runtime perf/stability patch complete with crash regression, seek/blur optimizations, runtime diagnostics counters, benchmark harness, and follow-up blur/yield tuning)_
+_Last synced: 2026-02-22 (deterministic track: phase 8 delivered; runtime perf/stability patch complete with crash regression, seek/blur optimizations, runtime diagnostics counters, benchmark harness, follow-up blur/yield tuning, server GPU renderer opt-in with safe fallback diagnostics, and server-webgl native blur parity)_

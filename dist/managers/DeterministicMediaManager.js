@@ -4,6 +4,9 @@ const createDefaultDiagnosticsState = () => ({
     providerHits: 0,
     providerMisses: 0,
     cacheHits: 0,
+    selectedRendererType: 'canvas',
+    rendererFallbackOccurred: false,
+    rendererFallbackReason: undefined,
     readyAttempts: 0,
     extraRenderPasses: 0,
     blurRedraws: 0,
@@ -144,6 +147,9 @@ export class DeterministicMediaManager {
             providerMisses: this.#diagnostics.providerMisses,
             cacheHits: this.#diagnostics.cacheHits,
             cacheHitRatio,
+            selectedRendererType: this.#diagnostics.selectedRendererType,
+            rendererFallbackOccurred: this.#diagnostics.rendererFallbackOccurred,
+            rendererFallbackReason: this.#diagnostics.rendererFallbackReason,
             readyAttempts: this.#diagnostics.readyAttempts,
             extraRenderPasses: this.#diagnostics.extraRenderPasses,
             blurRedraws: this.#diagnostics.blurRedraws,
@@ -154,6 +160,19 @@ export class DeterministicMediaManager {
                 avgMs: avgLatency
             }
         };
+    }
+    getSelectedRendererType() {
+        return this.#diagnostics.selectedRendererType;
+    }
+    recordRendererSelection(args) {
+        try {
+            this.#diagnostics.selectedRendererType = args.rendererType;
+            this.#diagnostics.rendererFallbackOccurred = Boolean(args.fallbackOccurred);
+            this.#diagnostics.rendererFallbackReason = args.fallbackReason;
+        }
+        catch {
+            // Diagnostics are best-effort and never allowed to fail the render path.
+        }
     }
     recordReadyAttempt(sceneFrameIndex, count = 1) {
         this.#recordRuntimeCounter(sceneFrameIndex, 'readyAttempts', count);

@@ -78,3 +78,8 @@ All notable changes to this project will be documented in this file. See [Conven
 
 - Initial release setup with release-please automation
 - Test feature to verify release automation works
+- Add server renderer opt-in mode: `serverRendererMode: "canvas" | "webgl"` (default `canvas`)
+- Add server webgl tuning options: `preferWebGL2` and `powerPreference`
+- Add automatic server webgl fallback to canvas when unsupported/init fails (with warning)
+- Extend deterministic diagnostics with renderer metadata: `selectedRendererType`, `rendererFallbackOccurred`, `rendererFallbackReason`
+- In `serverRendererMode: "webgl"`, use native `PIXI.BlurFilter` for `fillBackgroundBlur` (client-parity path)

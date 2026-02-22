@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Backend renderers can obtain a deterministic, timeline-correct frame blob with a 5-line loop — no internal patching, correct split-screen and blur effects, no trailing frames.
-**Current focus:** Phase 6/7 closeout + post-phase deterministic performance/stability hardening
+**Current focus:** Phase 6/7 closeout + post-phase deterministic performance/stability and server GPU renderer enablement
 
 ## Current Position
 
-Phase: 8 follow-up complete (performance/stability pass)
+Phase: 8 follow-up complete (performance/stability pass + server renderer mode extension)
 Plan: 5 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-22 — Follow-up perf tuning shipped: blur-radius scaling with downscale factor + `setImmediate` zero-yield deterministic retries, full suite still green
+Last activity: 2026-02-22 — Added server-webgl blur parity: `fillBackgroundBlur` now uses `PIXI.BlurFilter` when renderer is webgl (client-parity), while server canvas mode keeps downscaled canvas blur path
 
-Progress: [██████████] 98% (phase-8 deterministic patch complete; remaining historical roadmap TODOs: REND-02, TEST-05)
+Progress: [██████████] 99% (phase-8 deterministic patch complete; server renderer mode extension complete; remaining historical roadmap TODOs: REND-02, TEST-05)
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Recent decisions affecting current work:
 - Blob output controls (implemented): explicit JPG/PNG blob encoding config wired through render APIs with deterministic null-blob error handling.
 - Deterministic performance tuning (implemented): `seekMaxAttempts`, `loadingMaxAttempts`, `readyYieldMs`, `blurDownscale`.
 - Deterministic diagnostics counters (implemented): aggregate + per-frame `readyAttempts`, `extraRenderPasses`, `blurRedraws`.
+- Server renderer mode controls (implemented): `serverRendererMode`, `preferWebGL2`, `powerPreference` with automatic webgl->canvas fallback.
 
 ### Pending Todos
 

@@ -42,6 +42,11 @@ Backend renderers can obtain a deterministic, timeline-correct frame blob with a
 - [x] Blob output MIME control wired through `RenderFrameCommand` (`jpg/png` mapping) + null-blob deterministic error
 - [x] `renderFrameRange` now forwards blob encoding config and emits `mimeType` callback metadata
 - [x] Blob encoding regression tests: JPEG signature, PNG signature, default behavior, deterministic range JPG mode
+- [x] Server renderer mode config for headless deterministic rendering (`serverRendererMode: 'canvas' | 'webgl'`, default `canvas`)
+- [x] Server webgl capability probe + init-failure fallback to canvas with warning/diagnostics instead of render-job crash
+- [x] Renderer diagnostics now expose renderer selection and fallback reason (`selectedRendererType`, `rendererFallbackOccurred`, `rendererFallbackReason`)
+- [x] Integration test coverage for deterministic normal/split/blur rendering under server `webgl` mode
+- [x] Server webgl blur parity: `fillBackgroundBlur` uses `PIXI.BlurFilter` in webgl mode; downscaled canvas blur remains server-canvas fallback path
 
 ### Out of Scope
 
@@ -93,7 +98,9 @@ Backend renderers can obtain a deterministic, timeline-correct frame blob with a
 | Font loading determinism for SplitText/highlighter metrics               | `document.fonts.ready` is insufficient for variant coverage; explicit descriptor preload is required        | ✓ Complete |
 | Deterministic blob transport format control                              | WS/ffmpeg consumers need native JPEG blob selection; default behavior must stay backward-compatible          | ✓ Complete |
 | Deterministic server runtime performance controls                         | Seek retry loops + blur cost need tunables and visibility without external hacks                              | ✓ Complete |
+| Server renderer backend selection for headless jobs                      | Server mode needs explicit, backward-compatible GPU opt-in with robust fallback behavior                      | ✓ Complete |
+| Server blur parity under GPU renderer                                    | Visual parity with client path requires PIXI filter blur in server webgl mode                                 | ✓ Complete |
 
 ---
 
-_Last updated: 2026-02-22 after deterministic performance/stability patch (layer sync crash fix, seek/blur optimizations, diagnostics counters, and benchmark harness)_
+_Last updated: 2026-02-22 after deterministic performance/stability patch and server renderer mode extension (webgl opt-in, fallback diagnostics, integration coverage, and server-webgl native blur parity)_

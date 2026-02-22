@@ -5,6 +5,7 @@ import { ImageComponentShape, LayoutSplitEffectShape, VideoComponentShape } from
 import { z } from 'zod';
 import type { StateManager } from '$lib/managers/StateManager.svelte.ts';
 import type { DeterministicMediaManager } from '$lib/managers/DeterministicMediaManager.ts';
+import type { AppManager } from '$lib/managers/AppManager.svelte.ts';
 
 export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 	types: HookType[] = ['update', 'destroy', 'refresh', 'refresh:content'];
@@ -32,13 +33,16 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 	componentElement!: z.infer<typeof VideoComponentShape> | z.infer<typeof ImageComponentShape>;
 	private sceneState: StateManager;
 	private deterministicMediaManager?: DeterministicMediaManager;
+	private appManager?: AppManager;
 
 	constructor(cradle: {
 		stateManager: StateManager;
 		deterministicMediaManager?: DeterministicMediaManager;
+		appManager?: AppManager;
 	}) {
 		this.sceneState = cradle.stateManager;
 		this.deterministicMediaManager = cradle.deterministicMediaManager;
+		this.appManager = cradle.appManager;
 	}
 
 	get sceneWidth() {
@@ -88,7 +92,7 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		backgroundSprite.x = (this.sceneWidth - backgroundSprite.width) / 2;
 		backgroundSprite.y = (this.sceneHeight - backgroundSprite.height) / 2;
 
-		if (this.sceneState.environment === 'server') {
+		if (this.sceneState.environment === 'server' && !this.#isWebGLRendererActive()) {
 			// Create a temporary canvas for blur effect
 			const bgCanvas = document.createElement('canvas');
 			bgCanvas.width = Math.max(1, Math.round(backgroundSprite.width * this.#blurDownscale));
@@ -100,10 +104,21 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 			const blurredTexture = PIXI.Texture.from(bgCanvas);
 			backgroundSprite.texture = blurredTexture;
 		} else {
-			// Create new PIXI texture from blurred canvas
+			// Client mode and server webgl mode both use PIXI blur filter.
+			this.#bgCanvas = undefined;
 			const blurFilter = new PIXI.BlurFilter(sanitizedStrength, 50, 1, 7);
 			backgroundSprite.filters = [blurFilter];
 		}
+	}
+
+	#isWebGLRendererActive(): boolean {
+		const renderer = this.appManager?.app?.renderer as
+			| { gl?: unknown; context?: { gl?: unknown; webGLVersion?: unknown } }
+			| undefined;
+		if (renderer?.gl || renderer?.context?.gl || renderer?.context?.webGLVersion) {
+			return true;
+		}
+		return this.deterministicMediaManager?.getSelectedRendererType?.() === 'webgl';
 	}
 
 	#drawBlurredBackground(strength = 50, force = false) {

@@ -184,6 +184,8 @@ describe('DeterministicMediaManager', () => {
 
 		const report = manager.getDiagnosticsReport();
 		expect(report).not.toBeNull();
+		expect(report?.selectedRendererType).toBe('canvas');
+		expect(report?.rendererFallbackOccurred).toBe(false);
 		expect(report?.readyAttempts).toBe(1);
 		expect(report?.extraRenderPasses).toBe(2);
 		expect(report?.blurRedraws).toBe(3);
@@ -197,5 +199,23 @@ describe('DeterministicMediaManager', () => {
 			extraRenderPasses: 0,
 			blurRedraws: 3
 		});
+	});
+
+	it('stores renderer selection fallback metadata in diagnostics', () => {
+		const manager = new DeterministicMediaManager({
+			sceneData: scene,
+			deterministicMediaConfig: { enabled: true, strict: false, diagnostics: true }
+		});
+
+		manager.recordRendererSelection({
+			rendererType: 'canvas',
+			fallbackOccurred: true,
+			fallbackReason: 'WebGL unavailable'
+		});
+
+		const report = manager.getDiagnosticsReport();
+		expect(report?.selectedRendererType).toBe('canvas');
+		expect(report?.rendererFallbackOccurred).toBe(true);
+		expect(report?.rendererFallbackReason).toBe('WebGL unavailable');
 	});
 });

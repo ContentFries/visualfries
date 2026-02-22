@@ -16,6 +16,12 @@ export declare class DeterministicMediaManager {
     getFingerprint(): string;
     setOneTimeOverride(componentId: string, frameIndex: number, payload: DeterministicFramePayload): void;
     getDiagnosticsReport(): DeterministicDiagnosticsReport | null;
+    getSelectedRendererType(): 'canvas' | 'webgl';
+    recordRendererSelection(args: {
+        rendererType: 'canvas' | 'webgl';
+        fallbackOccurred?: boolean;
+        fallbackReason?: string;
+    }): void;
     recordReadyAttempt(sceneFrameIndex: number, count?: number): void;
     recordExtraRenderPass(sceneFrameIndex: number, count?: number): void;
     recordBlurRedraw(sceneFrameIndex: number, count?: number): void;

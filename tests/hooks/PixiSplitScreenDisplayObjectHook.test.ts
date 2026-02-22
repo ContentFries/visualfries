@@ -50,6 +50,7 @@ vi.mock('pixi.js-legacy', async (importOriginal) => {
 });
 
 // Import after mock
+import * as PIXI from 'pixi.js-legacy';
 import { PixiSplitScreenDisplayObjectHook } from '$lib/components/hooks/PixiSplitScreenDisplayObjectHook.ts';
 
 describe('PixiSplitScreenDisplayObjectHook', () => {
@@ -58,6 +59,7 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 	let mockStateManager: Partial<StateManager>;
 
 	beforeEach(() => {
+		vi.clearAllMocks();
 		mockStateManager = {
 			environment: 'browser' as any,
 			currentTime: 0,
@@ -253,6 +255,46 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 	});
 
 	describe('IMAGE components', () => {
+		it('uses PIXI BlurFilter in server mode when webgl renderer is active', async () => {
+			mockStateManager.environment = 'server' as any;
+			const mockTexture = { width: 1920, height: 1080, baseTexture: {} };
+			mockContext.getResource.mockImplementation((key: string) => {
+				if (key === 'pixiTexture') return mockTexture;
+				if (key === 'imageElement') return {} as any;
+				return undefined;
+			});
+
+			mockContext.contextData = {
+				id: 'test-image-webgl',
+				type: 'IMAGE',
+				source: { url: 'https://example.com/image.png' },
+				timeline: { startAt: 0, endAt: 10 },
+				appearance: { x: 0, y: 0, width: 1920, height: 1080 },
+				animations: {},
+				effects: {
+					enabled: true,
+					map: { fillBackgroundBlur: { type: 'fillBackgroundBlur', enabled: true, blurAmount: 50 } }
+				},
+				visible: true,
+				order: 0
+			} as any;
+			mockContext.data.effects = mockContext.contextData.effects;
+
+			hook = new PixiSplitScreenDisplayObjectHook({
+				stateManager: mockStateManager as StateManager,
+				appManager: {
+					app: {
+						renderer: { gl: {} }
+					}
+				} as any
+			});
+
+			await hook.handle('update', mockContext);
+
+			expect(PIXI.BlurFilter).toHaveBeenCalledTimes(1);
+			expect(PIXI.Texture.from).not.toHaveBeenCalled();
+		});
+
 		it('should process IMAGE components and use imageElement for blur', async () => {
 			mockStateManager.environment = 'server' as any;
 			const mockTexture = { width: 1920, height: 1080, baseTexture: {} };

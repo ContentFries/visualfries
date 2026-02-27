@@ -217,10 +217,12 @@ export class AppManager {
 
 	#checkWebGLSupport(): { supported: boolean; reason: string } {
 		try {
-			if (typeof document === 'undefined') {
-				return { supported: false, reason: 'WebGL unavailable: no document in server environment' };
+			const probe =
+				this.dom?.canvas ??
+				(typeof document !== 'undefined' ? document.createElement('canvas') : null);
+			if (!probe || typeof probe.getContext !== 'function') {
+				return { supported: false, reason: 'WebGL unavailable: no canvas available for probing' };
 			}
-			const probe = document.createElement('canvas');
 			if (this.preferWebGL2 && probe.getContext('webgl2')) {
 				return { supported: true, reason: '' };
 			}

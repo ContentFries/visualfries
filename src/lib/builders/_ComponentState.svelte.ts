@@ -149,6 +149,9 @@ export class ComponentState implements ComponentProps {
 				source = { startAt: 0 };
 				(this.#data! as any).source = source;
 			}
+			if (source.startAt === undefined || source.startAt === null) {
+				source.startAt = 0;
+			}
 
 			if (source.startAt !== undefined && source.startAt !== null) {
 				source.startAt += diff;
@@ -200,7 +203,7 @@ export class ComponentState implements ComponentProps {
 			if (this.type === 'VIDEO' || this.type === 'AUDIO') {
 				this.#changeVideoEnd(diff);
 			}
-			this.#data!.timeline.endAt = this.sceneState.transformTime(end);
+			this.#data!.timeline.endAt = newEnd;
 			this.#emitChange();
 		}
 	}

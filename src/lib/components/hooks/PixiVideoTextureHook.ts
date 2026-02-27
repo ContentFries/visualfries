@@ -65,11 +65,11 @@ export class PixiVideoTextureHook implements IComponentHook {
 		if (this.#videoTexture) {
 			// Destroy the texture and its base texture to free GPU memory
 			this.#videoTexture.destroy(true);
-			this.#videoTexture = undefined;
-			this.#videoElement = undefined;
-			this.#pixiResource = undefined;
-			this.#context.removeResource('pixiTexture');
 		}
+		this.#videoTexture = undefined;
+		this.#videoElement = undefined;
+		this.#pixiResource = undefined;
+		this.#context.removeResource('pixiTexture');
 	}
 
 	async #handleRefreshContent() {

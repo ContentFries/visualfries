@@ -67,6 +67,8 @@ export class DeterministicMediaFrameHook implements IComponentHook {
 		this.#context.setResource('pixiResource', override.pixiResource);
 		if (override.imageElement) {
 			this.#context.setResource('imageElement', override.imageElement);
+		} else {
+			this.#context.removeResource('imageElement');
 		}
 
 		const cacheKeyChanged = this.#manager.commitCacheKey(data.id, override.cacheKey);

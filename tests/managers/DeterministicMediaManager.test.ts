@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('pixi.js-legacy', () => {
 	class ImageBitmapResource {
@@ -44,6 +44,10 @@ describe('DeterministicMediaManager', () => {
 
 	beforeEach(() => {
 		scene = createScene();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
 	});
 
 	it('returns cached override on repeated same-frame resolve without re-calling provider', async () => {
@@ -217,5 +221,45 @@ describe('DeterministicMediaManager', () => {
 		expect(report?.selectedRendererType).toBe('canvas');
 		expect(report?.rendererFallbackOccurred).toBe(true);
 		expect(report?.rendererFallbackReason).toBe('WebGL unavailable');
+	});
+
+	it('times out hanging URL image loads', async () => {
+		vi.useFakeTimers();
+		const originalImage = globalThis.Image;
+		class HangingImage {
+			crossOrigin = '';
+			onload: ((this: GlobalEventHandlers, ev: Event) => any) | null = null;
+			onerror: OnErrorEventHandler | null = null;
+			set src(_value: string) {}
+		}
+		Object.defineProperty(globalThis, 'Image', {
+			value: HangingImage,
+			configurable: true
+		});
+
+		const provider: DeterministicFrameProvider = {
+			getFrame: vi.fn().mockResolvedValue({
+				kind: 'url',
+				cacheKey: 'timeout-url',
+				url: 'https://example.com/hangs.png'
+			})
+		};
+		const manager = new DeterministicMediaManager({
+			sceneData: scene,
+			deterministicMediaConfig: { enabled: true, strict: false, diagnostics: false, provider }
+		});
+
+		try {
+			const pending = expect(manager.resolveOverride(createRequest(0))).rejects.toThrow(
+				'Timed out loading deterministic frame'
+			);
+			await vi.advanceTimersByTimeAsync(5000);
+			await pending;
+		} finally {
+			Object.defineProperty(globalThis, 'Image', {
+				value: originalImage,
+				configurable: true
+			});
+		}
 	});
 });

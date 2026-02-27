@@ -14,4 +14,12 @@ describe('Deterministic runtime schema', () => {
 		expect(parsed.readyYieldMs).toBe(0);
 		expect(parsed.blurDownscale).toBe(0.33);
 	});
+
+	it('rejects providers without getFrame', () => {
+		expect(() =>
+			DeterministicMediaConfigShape.parse({
+				provider: {}
+			})
+		).toThrow(/provider must implement getFrame/);
+	});
 });

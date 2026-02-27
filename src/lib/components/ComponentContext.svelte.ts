@@ -8,6 +8,7 @@ import type {
 	HookType,
 	ComponentProps
 } from '$lib';
+import { DeterministicRenderError } from '$lib/schemas/runtime/deterministic.js';
 
 export class ComponentContext implements IComponentContext {
 	#data!: ComponentProps;
@@ -139,21 +140,24 @@ export class ComponentContext implements IComponentContext {
 			try {
 				await handler.handle(type, this);
 			} catch (error) {
-				// Log the error but continue to next hook
+				const normalizedError = error instanceof Error ? error : new Error(String(error));
 				const hookName = handler.constructor?.name ?? `Hook[${i}]`;
 				console.warn(
 					`[ComponentContext] Hook "${hookName}" failed during "${type}" for component "${this.id}":`,
-					error instanceof Error ? error.message : String(error)
+					normalizedError.message
 				);
-				
-				// Emit error event for debugging/monitoring
+
 				this.eventManager.emit('hookerror', {
 					hookName,
 					hookType: type,
-					error: error instanceof Error ? error : new Error(String(error)),
+					error: normalizedError,
 					componentId: this.id,
 					timestamp: Date.now()
 				});
+
+				if (normalizedError instanceof DeterministicRenderError) {
+					throw normalizedError;
+				}
 			}
 		}
 	}

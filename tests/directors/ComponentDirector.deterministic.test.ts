@@ -68,6 +68,7 @@ describe('ComponentDirector deterministic media branching', () => {
 
 		expect(builder.withDeterministicMedia).toHaveBeenCalledTimes(1);
 		expect(builder.withTexture).toHaveBeenCalledTimes(1);
+		expect(builder.withSplitScreen).toHaveBeenCalledTimes(1);
 		expect(builder.withDisplayObject).toHaveBeenCalledTimes(1);
 		expect(builder.withGif).not.toHaveBeenCalled();
 	});

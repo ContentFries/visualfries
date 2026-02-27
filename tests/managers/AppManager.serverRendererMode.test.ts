@@ -158,4 +158,42 @@ describe('AppManager server renderer mode', () => {
 			})
 		);
 	});
+
+	it('uses dom canvas to probe webgl when document is unavailable', async () => {
+		const cradle = createCradle({
+			serverRendererMode: 'webgl',
+			forceCanvas: false,
+			domManager: {
+				canvas: {
+					getContext: vi.fn((type: string) => {
+						if (type === 'webgl2') {
+							return {};
+						}
+						if (type === '2d') {
+							return {};
+						}
+						return null;
+					})
+				}
+			}
+		});
+		const originalDocument = globalThis.document;
+		Object.defineProperty(globalThis, 'document', {
+			value: undefined,
+			configurable: true
+		});
+
+		try {
+			const manager = new AppManager(cradle as any);
+			await manager.initialize();
+		} finally {
+			Object.defineProperty(globalThis, 'document', {
+				value: originalDocument,
+				configurable: true
+			});
+		}
+
+		expect(hoisted.applicationCtor).toHaveBeenCalledTimes(1);
+		expect(hoisted.applicationCtor.mock.calls[0][0].forceCanvas).toBe(false);
+	});
 });

@@ -86,6 +86,15 @@ describe('DeterministicMediaFrameHook', () => {
 		expect(stateManager.markDirty).not.toHaveBeenCalled();
 	});
 
+	it('clears stale imageElement when override does not include one', async () => {
+		manager.resolveOverride.mockResolvedValue({ cacheKey: 'v1', pixiResource: {} });
+		manager.commitCacheKey.mockReturnValue(false);
+
+		await hook.handle('update', context);
+
+		expect(context.removeResource).toHaveBeenCalledWith('imageElement');
+	});
+
 	it('falls back without throwing when provider returns null and strict mode is disabled', async () => {
 		manager.resolveOverride.mockResolvedValue(null);
 		manager.clearCacheKey.mockReturnValue(false);

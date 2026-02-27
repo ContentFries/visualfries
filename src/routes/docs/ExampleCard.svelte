@@ -23,11 +23,20 @@
 	let isPlaying = $state(false);
 	let error = $state<string | null>(null);
 	let copied = $state(false);
+	let interval: ReturnType<typeof setInterval> | undefined;
 
 	// Parse scene data if it's a string
-	function getSceneData(): Scene {
+	function getSceneData(): Scene | null {
 		if (typeof sceneData === 'string') {
-			return JSON.parse(sceneData);
+			try {
+				return JSON.parse(sceneData) as Scene;
+			} catch (parseError) {
+				error =
+					parseError instanceof Error
+						? `Invalid scene JSON: ${parseError.message}`
+						: 'Invalid scene JSON';
+				return null;
+			}
 		}
 		return sceneData;
 	}
@@ -42,6 +51,9 @@
 		if (!canvas) return;
 		try {
 			const data = getSceneData();
+			if (!data) {
+				return;
+			}
 			sceneBuilder = await createSceneBuilder(data, canvas, {
 				fonts,
 				scale,
@@ -54,7 +66,7 @@
 			}
 
 			// Time update listener using interval since timeupdate event may not exist
-			const interval = setInterval(() => {
+			interval = setInterval(() => {
 				if (sceneBuilder) {
 					currentTime = sceneBuilder.currentTime;
 					// Loop at duration
@@ -64,8 +76,6 @@
 				}
 			}, 100);
 
-			// Store for cleanup
-			(canvas as any)._interval = interval;
 		} catch (e) {
 			console.error('Failed to initialize scene:', e);
 			error = e instanceof Error ? e.message : String(e);
@@ -73,8 +83,8 @@
 	});
 
 	onDestroy(() => {
-		if (canvas && (canvas as any)._interval) {
-			clearInterval((canvas as any)._interval);
+		if (interval) {
+			clearInterval(interval);
 		}
 		if (sceneBuilder) {
 			sceneBuilder.destroy();
@@ -102,12 +112,23 @@
 		const target = e.currentTarget as HTMLElement;
 		const rect = target.getBoundingClientRect();
 		const data = getSceneData();
+		if (!data || rect.width <= 0) {
+			return;
+		}
+		const duration = data.settings.duration;
 		const percent = (e.clientX - rect.left) / rect.width;
-		seek(percent * data.settings.duration);
+		if (duration <= 0) {
+			seek(0);
+			return;
+		}
+		seek(percent * duration);
 	}
 
 	async function copyToClipboard() {
 		const data = getSceneData();
+		if (!data) {
+			return;
+		}
 		const json = JSON.stringify(data, null, 2);
 		await navigator.clipboard.writeText(json);
 		copied = true;
@@ -116,6 +137,9 @@
 
 	function downloadJSON() {
 		const data = getSceneData();
+		if (!data) {
+			return;
+		}
 		const json = JSON.stringify(data, null, 2);
 		const blob = new Blob([json], { type: 'application/json' });
 		const url = URL.createObjectURL(blob);
@@ -128,19 +152,20 @@
 
 	function openInNewTab() {
 		const data = getSceneData();
+		if (!data) {
+			return;
+		}
 		const json = JSON.stringify(data, null, 2);
 		const blob = new Blob([json], { type: 'application/json' });
 		const url = URL.createObjectURL(blob);
 		window.open(url, '_blank');
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
 	}
 
 	// Get formatted duration
 	function getDuration(): number {
-		try {
-			return getSceneData().settings.duration;
-		} catch {
-			return 5;
-		}
+		const data = getSceneData();
+		return data && data.settings.duration > 0 ? data.settings.duration : 5;
 	}
 </script>
 

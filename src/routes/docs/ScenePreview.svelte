@@ -9,6 +9,8 @@
 	let sceneBuilder: ISceneBuilder | undefined = $state();
 	let error: string | undefined = $state();
 	let isPlaying = $state(false);
+	let currentTime = $state(0);
+	let interval: ReturnType<typeof setInterval> | undefined;
 
 	onMount(async () => {
 		if (!container) return;
@@ -17,6 +19,11 @@
 				autoPlay: false,
 				loop: true
 			});
+			interval = setInterval(() => {
+				if (sceneBuilder) {
+					currentTime = sceneBuilder.currentTime;
+				}
+			}, 100);
 		} catch (e) {
 			console.error('Failed to initialize scene:', e);
 			error = e instanceof Error ? e.message : String(e);
@@ -24,6 +31,9 @@
 	});
 
 	onDestroy(() => {
+		if (interval) {
+			clearInterval(interval);
+		}
 		if (sceneBuilder) {
 			sceneBuilder.destroy();
 		}
@@ -43,6 +53,7 @@
 		const target = e.target as HTMLInputElement;
 		const time = parseFloat(target.value);
 		sceneBuilder?.seek(time);
+		currentTime = time;
 	}
 </script>
 
@@ -74,13 +85,13 @@
 			min="0" 
 			max={sceneData.settings.duration} 
 			step="0.01"
-			value={sceneBuilder?.currentTime || 0}
+			value={currentTime}
 			oninput={seek}
 			class="range range-xs range-primary flex-1"
 		/>
 		
 		<span class="text-xs font-mono text-zinc-500 w-12 text-right">
-			{(sceneBuilder?.currentTime || 0).toFixed(2)}s
+			{currentTime.toFixed(2)}s
 		</span>
 	</div>
 </div>

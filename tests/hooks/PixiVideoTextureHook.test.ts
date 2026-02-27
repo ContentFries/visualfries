@@ -149,6 +149,7 @@ describe('PixiVideoTextureHook', () => {
 
 			// Should not throw when destroying without a texture
 			await expect(hook.handle('destroy', mockContext)).resolves.not.toThrow();
+			expect(mockContext.removeResource).toHaveBeenCalledWith('pixiTexture');
 		});
 	});
 
@@ -185,6 +186,7 @@ describe('PixiVideoTextureHook', () => {
 			// Create initial texture
 			await hook.handle('update', mockContext);
 			expect(mockContext.setResource).toHaveBeenCalledTimes(1);
+			mockContext.removeResource.mockClear();
 
 			// Plain 'refresh' should NOT destroy texture (not in types array)
 			await hook.handle('refresh', mockContext);

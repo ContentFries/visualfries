@@ -18,6 +18,7 @@
 	let isPlaying = $state(false);
 	let error = $state<string | null>(null);
 	let expandedSections = $state<Set<string>>(new Set(['settings', 'layers', 'components']));
+	let interval: ReturnType<typeof setInterval> | undefined;
 
 	const fonts = [
 		{ alias: 'Inter', source: 'google' as const, data: { family: 'Inter:400,500,600,700,800,900' } },
@@ -35,10 +36,9 @@
 			});
 			if (autoPlay) isPlaying = true;
 
-			const interval = setInterval(() => {
+			interval = setInterval(() => {
 				if (sceneBuilder) currentTime = sceneBuilder.currentTime;
 			}, 100);
-			(canvas as any)._interval = interval;
 		} catch (e) {
 			console.error('Failed to initialize scene:', e);
 			error = e instanceof Error ? e.message : String(e);
@@ -46,7 +46,7 @@
 	});
 
 	onDestroy(() => {
-		if (canvas && (canvas as any)._interval) clearInterval((canvas as any)._interval);
+		if (interval) clearInterval(interval);
 		if (sceneBuilder) sceneBuilder.destroy();
 	});
 
@@ -87,8 +87,24 @@
 	function handleTimelineClick(e: MouseEvent) {
 		const target = e.currentTarget as HTMLElement;
 		const rect = target.getBoundingClientRect();
+		if (rect.width <= 0) {
+			return;
+		}
 		const percent = (e.clientX - rect.left) / rect.width;
-		seek(percent * sceneData.settings.duration);
+		const duration = sceneData.settings.duration;
+		if (duration <= 0) {
+			seek(0);
+			return;
+		}
+		seek(percent * duration);
+	}
+
+	function getTimelineProgressPercent(): number {
+		const duration = sceneData.settings.duration;
+		if (duration <= 0) {
+			return 0;
+		}
+		return (currentTime / duration) * 100;
 	}
 </script>
 
@@ -215,7 +231,7 @@
 					{/if}
 				</button>
 				<div class="timeline" onclick={handleTimelineClick}>
-					<div class="progress" style="width: {(currentTime / sceneData.settings.duration) * 100}%"></div>
+					<div class="progress" style="width: {getTimelineProgressPercent()}%"></div>
 				</div>
 				<span class="time">{currentTime.toFixed(1)}s</span>
 			</div>

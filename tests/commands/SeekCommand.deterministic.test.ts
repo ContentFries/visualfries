@@ -239,10 +239,79 @@ describe('SeekCommand deterministic readiness', () => {
 			deterministicMediaManager
 		});
 
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+		try {
+			await expect(command.execute({ time: 1 })).resolves.toBeUndefined();
+			expect(warnSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Deterministic media was not ready after seek for active components')
+			);
+		} finally {
+			warnSpy.mockRestore();
+		}
+		expect(deterministicMediaManager.recordReadyAttempt).toHaveBeenCalledTimes(2);
+	});
+
+	it('throws after deterministic seek retries in strict mode', async () => {
+		const state = { environment: 'server', duration: 10, state: 'paused', currentTime: 0 } as any;
+		const component = createComponent({
+			id: 'video-pending-strict',
+			startAt: 1,
+			endAt: 5,
+			state
+		});
+		const command = new SeekCommand({
+			timelineManager: {
+				seek: vi.fn((time: number) => {
+					state.currentTime = time;
+				})
+			} as any,
+			stateManager: state,
+			renderManager: { render: vi.fn(async () => undefined) } as any,
+			componentsManager: { getAll: () => [component] } as any,
+			deterministicMediaManager: createDeterministicManagerMock({
+				config: { seekMaxAttempts: 2, loadingMaxAttempts: 0, readyYieldMs: 0, strict: true }
+			})
+		});
+
 		await expect(command.execute({ time: 1 })).rejects.toThrow(
 			'Deterministic media was not ready after seek for active components'
 		);
-		expect(deterministicMediaManager.recordReadyAttempt).toHaveBeenCalledTimes(2);
+	});
+
+	it('uses floor when computing the current scene frame index', async () => {
+		const state = { environment: 'server', duration: 10, state: 'paused', currentTime: 0 } as any;
+		const component = createComponent({
+			id: 'video-floor',
+			startAt: 1.9,
+			endAt: 5,
+			state
+		});
+		const deterministicMediaManager = createDeterministicManagerMock({
+			config: { seekMaxAttempts: 1, loadingMaxAttempts: 0, readyYieldMs: 0 }
+		});
+		let renderCalls = 0;
+		const command = new SeekCommand({
+			timelineManager: {
+				seek: vi.fn((time: number) => {
+					state.currentTime = time;
+				})
+			} as any,
+			stateManager: state,
+			renderManager: {
+				render: vi.fn(async () => {
+					renderCalls += 1;
+					if (renderCalls >= 2) {
+						component.context.setResource('pixiTexture', { id: 'tex-floor' });
+						component.context.setResource('pixiRenderObject', { id: 'obj-floor' });
+					}
+				})
+			} as any,
+			componentsManager: { getAll: () => [component] } as any,
+			deterministicMediaManager
+		});
+
+		await expect(command.execute({ time: 1.99 })).resolves.toBeUndefined();
+		expect(deterministicMediaManager.recordReadyAttempt).toHaveBeenCalledWith(59);
 	});
 
 	it('awaits document.fonts.ready only once in deterministic server mode', async () => {
@@ -381,9 +450,7 @@ describe('SeekCommand deterministic readiness', () => {
 		(globalThis as any).setImmediate = setImmediateMock;
 
 		try {
-			await expect(command.execute({ time: 1 })).rejects.toThrow(
-				'Deterministic media was not ready after seek for active components'
-			);
+			await expect(command.execute({ time: 1 })).resolves.toBeUndefined();
 		} finally {
 			(globalThis as any).setImmediate = originalSetImmediate;
 		}

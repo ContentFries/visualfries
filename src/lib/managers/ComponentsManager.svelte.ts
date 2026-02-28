@@ -259,11 +259,42 @@ export class ComponentsManager
 		const displayObject = layer.displayObject;
 		if (!displayObject) return;
 
-		// Sync displayObject children order with components array
-		layer.components.forEach((component, index) => {
-			if (component.displayObject) {
-				displayObject.setChildIndex(component.displayObject, index);
+		// Sync displayObject children order with components array while clamping indexes.
+		let nextIndex = 0;
+		layer.components.forEach((component) => {
+			const componentDisplayObject = component.displayObject;
+			if (!componentDisplayObject) {
+				return;
 			}
+
+			const parent = (componentDisplayObject as any).parent;
+			if (parent !== displayObject) {
+				if (parent && typeof parent.removeChild === 'function') {
+					parent.removeChild(componentDisplayObject);
+				}
+				const insertMax = displayObject.children?.length ?? 0;
+				const insertIndex = Math.max(0, Math.min(nextIndex, insertMax));
+				if (typeof (displayObject as any).addChildAt === 'function') {
+					(displayObject as any).addChildAt(componentDisplayObject, insertIndex);
+				} else {
+					displayObject.addChild(componentDisplayObject);
+				}
+			}
+
+			const childCount = displayObject.children?.length ?? 0;
+			if (
+				childCount > 0 &&
+				typeof (displayObject as any).getChildIndex === 'function' &&
+				typeof (displayObject as any).setChildIndex === 'function'
+			) {
+				const currentIndex = (displayObject as any).getChildIndex(componentDisplayObject);
+				const targetIndex = Math.max(0, Math.min(nextIndex, childCount - 1));
+				if (currentIndex >= 0 && currentIndex !== targetIndex) {
+					(displayObject as any).setChildIndex(componentDisplayObject, targetIndex);
+				}
+			}
+
+			nextIndex += 1;
 		});
 	}
 

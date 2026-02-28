@@ -1557,9 +1557,9 @@ export declare const ComponentBaseShape: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     type: z.ZodEnum<{
-        IMAGE: "IMAGE";
-        GIF: "GIF";
         VIDEO: "VIDEO";
+        GIF: "GIF";
+        IMAGE: "IMAGE";
         TEXT: "TEXT";
         SHAPE: "SHAPE";
         AUDIO: "AUDIO";

@@ -8,7 +8,9 @@ import { DomManager } from './managers/DomManager.js';
 import { AppManager } from './managers/AppManager.svelte.js';
 import { ComponentsManager } from './managers/ComponentsManager.svelte.js';
 import type { EventMap, EventType, EventPayload, BuilderState, ISceneBuilder } from './';
+import type { DeterministicFrameProvider, DeterministicMediaConfig, DeterministicDiagnosticsReport, FrameImageEncodingOptions, RenderFrameRangeOptions, RenderFrameRangeSummary } from './';
 import { MediaManager } from './managers/MediaManager.js';
+import { DeterministicMediaManager } from './managers/DeterministicMediaManager.js';
 import { LayersManager } from './managers/LayersManager.svelte.js';
 import { SubtitlesManager } from './managers/SubtitlesManager.svelte.js';
 import type { Component } from './components/Component.svelte.js';
@@ -24,6 +26,7 @@ export declare class SceneBuilder implements ISceneBuilder {
     private stateManager;
     private commandRunner;
     private mediaManager;
+    private deterministicMediaManager;
     private subtitlesManager;
     private fonts;
     constructor(cradle: {
@@ -36,6 +39,7 @@ export declare class SceneBuilder implements ISceneBuilder {
         stateManager: StateManager;
         commandRunner: CommandRunner;
         mediaManager: MediaManager;
+        deterministicMediaManager: DeterministicMediaManager;
         subtitlesManager: SubtitlesManager;
         fonts: FontType[];
     });
@@ -65,6 +69,7 @@ export declare class SceneBuilder implements ISceneBuilder {
     syncChanges(): void;
     setStartAt(start: number | undefined): void;
     setEndAt(end: number | undefined): void;
+    markDirty(): void;
     updateSubtitlesSettings(settings: Partial<SceneSubtitlesSettings>): void;
     dispatchEvent<T extends EventType>(event: T, props?: EventPayload<T>): void;
     addEventListener<K extends keyof EventMap>(event: K, callback: (event: CustomEvent<EventMap[K]>) => void, options?: boolean | AddEventListenerOptions): void;
@@ -5368,7 +5373,11 @@ export declare class SceneBuilder implements ISceneBuilder {
     splitComponent(component: Component): Promise<boolean>;
     seek(time: number): Promise<void>;
     replaceSourceOnTime(time: number, componentId: string, base64data: string): Promise<void>;
-    seekAndRenderFrame(time: number, target?: PIXI.DisplayObject | PIXI.RenderTexture, format?: string, quality?: number): Promise<string | ArrayBuffer | Blob>;
+    setDeterministicFrameProvider(provider: DeterministicFrameProvider | null): void;
+    getDeterministicFrameProvider(): DeterministicFrameProvider | null;
+    getDeterministicMediaConfig(): DeterministicMediaConfig;
+    getDiagnosticsReport(): DeterministicDiagnosticsReport | null;
+    seekAndRenderFrame(time: number, target?: PIXI.DisplayObject | PIXI.RenderTexture, format?: string, quality?: number, imageOptions?: FrameImageEncodingOptions): Promise<string | ArrayBuffer | Blob>;
     /**
      * Check if seeking to a specific time would result in visual changes
      * without actually extracting frame data.
@@ -5393,7 +5402,8 @@ export declare class SceneBuilder implements ISceneBuilder {
      * }
      */
     isSceneDirty(time: number): Promise<boolean>;
-    renderFrame(target?: PIXI.DisplayObject | PIXI.RenderTexture, format?: string, quality?: number): Promise<string | ArrayBuffer | Blob>;
+    renderFrame(target?: PIXI.DisplayObject | PIXI.RenderTexture, format?: string, quality?: number, imageOptions?: FrameImageEncodingOptions): Promise<string | ArrayBuffer | Blob>;
+    renderFrameRange(options: RenderFrameRangeOptions): Promise<RenderFrameRangeSummary>;
     log(message: string): void;
     play(changeState?: boolean): void;
     pause(changeState?: boolean): void;

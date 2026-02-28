@@ -1,22 +1,55 @@
 import { z } from 'zod';
+import { StateManager } from '../managers/StateManager.svelte.js';
+import { DeterministicMediaManager } from '../managers/DeterministicMediaManager.js';
 const replaceSourceOnTimeSchema = z.object({
     componentId: z.string(),
     base64data: z.string(),
     time: z.number()
 });
 export class ReplaceSourceOnTimeCommand {
+    stateManager;
+    deterministicMediaManager;
+    constructor(cradle) {
+        this.stateManager = cradle.stateManager;
+        this.deterministicMediaManager = cradle.deterministicMediaManager;
+    }
     async execute(args) {
-        // TODO: Complete implementation - this is work in progress
-        // if (this.sceneBuilder.environment != 'server') {
-        // 	this.sceneBuilder.log('replaceSource is only available in server environment');
-        // 	return;
-        // }
         const check = replaceSourceOnTimeSchema.safeParse(args);
         if (!check.success) {
-            // this.sceneBuilder.log('ReplaceSourceOnTimeCommand failed with error: ' + check.error);
             return;
         }
-        // WIP: Need to implement the actual source replacement logic
+        const { componentId, base64data, time } = check.data;
+        if (!this.deterministicMediaManager.isEnabled()) {
+            return;
+        }
+        const frameIndex = Math.max(0, Math.round(time * (this.stateManager.data.settings.fps || 30)));
+        const blob = this.#base64ToBlob(base64data);
+        if (!blob) {
+            return;
+        }
+        const cacheKey = `replace:${componentId}:${frameIndex}:${base64data.length}`;
+        this.deterministicMediaManager.setOneTimeOverride(componentId, frameIndex, {
+            kind: 'blob',
+            cacheKey,
+            blob
+        });
+        this.stateManager.markDirty();
         return;
+    }
+    #base64ToBlob(base64Data) {
+        try {
+            const [header, encoded] = base64Data.split(',', 2);
+            const mimeMatch = /data:(.*?);base64/.exec(header ?? '');
+            const mimeType = mimeMatch?.[1] || 'image/png';
+            const binary = atob(encoded ?? base64Data);
+            const bytes = new Uint8Array(binary.length);
+            for (let index = 0; index < binary.length; index += 1) {
+                bytes[index] = binary.charCodeAt(index);
+            }
+            return new Blob([bytes], { type: mimeType });
+        }
+        catch {
+            return null;
+        }
     }
 }

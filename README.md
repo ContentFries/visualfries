@@ -198,6 +198,31 @@ const builder = await createSceneBuilder(sceneData, container, {
 });
 ```
 
+## Server Renderer Mode (Canvas vs WebGL)
+
+Server mode remains canvas-first by default for backward compatibility:
+
+```typescript
+await createSceneBuilder(sceneData, container, {
+	environment: 'server'
+	// serverRendererMode defaults to "canvas"
+});
+```
+
+To opt into GPU rendering on server/headless runtimes:
+
+```typescript
+await createSceneBuilder(sceneData, container, {
+	environment: 'server',
+	serverRendererMode: 'webgl',
+	preferWebGL2: true,
+	powerPreference: 'high-performance'
+});
+```
+
+If WebGL is unavailable or initialization fails, Visualfries automatically falls back to canvas so deterministic render jobs keep running. When deterministic diagnostics are enabled, renderer selection and fallback reason are included in `getDiagnosticsReport()`.
+In `serverRendererMode: 'webgl'`, `fillBackgroundBlur` uses native `PIXI.BlurFilter` (same rendering path as client mode).
+
 ## Contributing
 
 As an early-stage, solo-developed project, contributions are highly encouraged! The best way to contribute right now is by:

@@ -143,33 +143,41 @@ export class ComponentState implements ComponentProps {
 	}
 
 	#changeVideoStart(diff: number) {
-		if (this.type === 'VIDEO') {
-			let source = (this.#data! as VideoComponent).source;
+		if (this.type === 'VIDEO' || this.type === 'AUDIO') {
+			let source = (this.#data! as any).source;
 			if (!source) {
-				source = {
-					startAt: 0
-				};
-				(this.#data! as VideoComponent).source = source;
+				source = { startAt: 0 };
+				(this.#data! as any).source = source;
+			}
+			if (source.startAt === undefined || source.startAt === null) {
+				source.startAt = 0;
 			}
 
 			if (source.startAt !== undefined && source.startAt !== null) {
 				source.startAt += diff;
 				source.startAt = Math.max(0, source.startAt);
 			}
+		}
+	}
+
+	#changeVideoEnd(diff: number) {
+		if (this.type === 'VIDEO' || this.type === 'AUDIO') {
+			let source = (this.#data! as any).source;
+			if (!source) {
+				source = { startAt: 0 };
+				(this.#data! as any).source = source;
+			}
+
+			const currentDuration = this.#data!.timeline.endAt - this.#data!.timeline.startAt;
+
 			if (source.endAt !== undefined && source.endAt !== null) {
 				source.endAt += diff;
+			} else {
+				// Initialize the implicit end bound via start bound prior to truncation
+				const startAt = source.startAt || 0;
+				source.endAt = startAt + currentDuration + diff;
 			}
 		}
-		// TODO verify starting time is not beyond video duration
-		// const metadata = this.#data!.metadata
-		// 	? (this.#data!.metadata as Metadata)
-		// 	: ({ starting_time: 0 } as Metadata);
-		// let startingTime = metadata.starting_time ? (metadata.starting_time as number) : 0;
-		// startingTime += diff;
-		// startingTime = Math.max(0, startingTime);
-		// this.updateMetadata({
-		// 	starting_time: startingTime
-		// });
 	}
 
 	setStart(start: number) {
@@ -178,7 +186,7 @@ export class ComponentState implements ComponentProps {
 		const diff = newStart - beforeStart;
 
 		if (diff !== 0) {
-			if (this.type === 'VIDEO') {
+			if (this.type === 'VIDEO' || this.type === 'AUDIO') {
 				this.#changeVideoStart(diff);
 			}
 			this.#data!.timeline.startAt = this.sceneState.transformTime(start);
@@ -187,8 +195,17 @@ export class ComponentState implements ComponentProps {
 	}
 
 	setEnd(end: number) {
-		this.#data!.timeline.endAt = this.sceneState.transformTime(end);
-		this.#emitChange();
+		const beforeEnd = this.sceneState.transformTime(this.#data!.timeline.endAt);
+		const newEnd = this.sceneState.transformTime(end);
+		const diff = newEnd - beforeEnd;
+
+		if (diff !== 0) {
+			if (this.type === 'VIDEO' || this.type === 'AUDIO') {
+				this.#changeVideoEnd(diff);
+			}
+			this.#data!.timeline.endAt = newEnd;
+			this.#emitChange();
+		}
 	}
 
 	setStreamPath(path: string) {
@@ -222,8 +239,10 @@ export class ComponentState implements ComponentProps {
 	}
 
 	async updateAppearance(appearance: Partial<AppearanceInput>): Promise<void> {
-		const mergedAppearance = merge({}, this.#data!.appearance, appearance);
-		this.#data = { ...this.#data!, appearance: mergedAppearance } as ComponentData;
+		// Use $state.snapshot() to properly extract all properties from the reactive proxy
+		const currentData = $state.snapshot(this.#data!);
+		const mergedAppearance = merge({}, currentData.appearance, appearance);
+		this.#data = { ...currentData, appearance: mergedAppearance } as ComponentData;
 
 		this.#emitChange();
 		await this.maybeAutoRefresh();

@@ -5,6 +5,11 @@ import type {
 	FontType,
 	SubtitleCollection
 } from '$lib';
+import type { DeterministicMediaConfig } from '$lib/schemas/runtime/deterministic.js';
+import {
+	DeterministicMediaConfigShape,
+	defaultDeterministicMediaConfig
+} from '$lib/schemas/runtime/deterministic.js';
 import { asClass, Lifetime } from 'awilix/browser';
 import { registerNewContainer } from '$lib/DIContainer.js';
 import { SceneBuilder } from '$lib/SceneBuilder.svelte.js';
@@ -29,10 +34,14 @@ type Config = {
 	subtitles: Record<string, Subtitle[]> | Record<string, SubtitleCollection>;
 	fonts: FontType[];
 	forceCanvas: boolean;
+	serverRendererMode: 'canvas' | 'webgl';
+	preferWebGL2: boolean;
+	powerPreference: 'default' | 'high-performance' | 'low-power';
 	scale: number;
 	autoPlay?: boolean;
 	loop?: boolean;
 	fontProviders?: FontProvider[];
+	deterministicMedia: DeterministicMediaConfig;
 };
 
 const defaultConfig: Config = {
@@ -40,9 +49,13 @@ const defaultConfig: Config = {
 	subtitles: {},
 	fonts: [],
 	forceCanvas: false,
+	serverRendererMode: 'canvas',
+	preferWebGL2: true,
+	powerPreference: 'high-performance',
 	scale: 1,
 	autoPlay: false,
-	loop: false
+	loop: false,
+	deterministicMedia: defaultDeterministicMediaConfig
 };
 
 export const createSceneBuilder = async function (
@@ -52,6 +65,9 @@ export const createSceneBuilder = async function (
 ) {
 	setFontProviders(config?.fontProviders);
 	const sceneConfig = config ? { ...defaultConfig, ...config } : defaultConfig;
+	sceneConfig.deterministicMedia = DeterministicMediaConfigShape.parse(
+		config?.deterministicMedia ?? defaultConfig.deterministicMedia
+	);
 	const sceneSubs = get(sceneData, 'settings.subtitles.data', null);
 	const subs = sceneSubs ? sceneSubs : sceneConfig.subtitles;
 
@@ -61,9 +77,13 @@ export const createSceneBuilder = async function (
 		['subtitles', subs],
 		['fonts', sceneConfig.fonts],
 		['forceCanvas', sceneConfig.forceCanvas],
+		['serverRendererMode', sceneConfig.serverRendererMode],
+		['preferWebGL2', sceneConfig.preferWebGL2],
+		['powerPreference', sceneConfig.powerPreference],
 		['scale', sceneConfig.scale],
 		['autoPlay', sceneConfig.autoPlay],
-		['loop', sceneConfig.loop]
+		['loop', sceneConfig.loop],
+		['deterministicMediaConfig', sceneConfig.deterministicMedia]
 	] as const);
 
 	// Register the factory

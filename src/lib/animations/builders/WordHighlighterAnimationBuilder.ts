@@ -186,6 +186,12 @@ export class WordHighlighterAnimationBuilder {
 	}
 
 	private static createBackgroundElement(target: HTMLElement): HTMLElement {
+		// Clean up any existing highlighter-bg element from previous builds
+		const existingBg = target.querySelector('#highlighter-bg');
+		if (existingBg) {
+			existingBg.remove();
+		}
+
 		const bgHighlighter = document.createElement('div');
 		bgHighlighter.id = 'highlighter-bg';
 		bgHighlighter.style.position = 'absolute';

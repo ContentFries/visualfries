@@ -28,6 +28,14 @@ import type {
 	GifComponentShape,
 	Subtitle
 } from '$lib';
+import type {
+	DeterministicMediaConfig,
+	DeterministicFrameProvider,
+	DeterministicDiagnosticsReport,
+	FrameImageEncodingOptions,
+	RenderFrameRangeOptions,
+	RenderFrameRangeSummary
+} from './deterministic.js';
 
 const SCENE_LAYER_COMPONENT_TYPE = [
 	'IMAGE',
@@ -77,6 +85,13 @@ export interface LayerEvents {
 export interface ComponentEvents {
 	componentschange: void;
 	componentchange: ComponentData;
+	hookerror: {
+		hookName: string;
+		hookType: string;
+		error: Error;
+		componentId: string;
+		timestamp: number;
+	};
 }
 
 export interface SubtitlesEvents {
@@ -196,6 +211,7 @@ export interface ComponentBuilder {
 
 	withMedia(): ComponentBuilder;
 	withMediaSeeking(): ComponentBuilder;
+	withDeterministicMedia(): ComponentBuilder;
 	withVideoTexture(): ComponentBuilder;
 	withSplitScreen(): ComponentBuilder;
 	withHtmlText(): ComponentBuilder;
@@ -252,6 +268,7 @@ export interface Layer {
 	update(layerData: Partial<SceneLayerInput>): void;
 	addComponent(component: Component): void;
 	removeComponent(component: Component): void;
+	syncDisplayObjects(): boolean;
 	build(): Promise<void>;
 	setOrder(order: number): void;
 	getData(): SceneLayer;
@@ -262,7 +279,7 @@ export interface Layer {
 export interface ResourceTypes {
 	videoElement: HTMLVideoElement | undefined;
 	audioElement: HTMLAudioElement | undefined;
-	imageElement: HTMLImageElement | undefined;
+	imageElement: HTMLImageElement | ImageBitmap | undefined;
 	pixiResource: TextureSource | undefined;
 	pixiTexture: Texture | undefined;
 	pixiSprite: Sprite | undefined;
@@ -349,20 +366,28 @@ export interface SceneBuilder {
 		options?: boolean | AddEventListenerOptions
 	): void;
 	scale(scale: number): void;
+	markDirty(): void;
 	initialize(): Promise<void>;
 	seek(time: number): Promise<void>;
 	replaceSourceOnTime(time: number, componentId: string, base64data: string): Promise<void>;
+	setDeterministicFrameProvider(provider: DeterministicFrameProvider | null): void;
+	getDeterministicFrameProvider(): DeterministicFrameProvider | null;
+	getDeterministicMediaConfig(): DeterministicMediaConfig;
+	getDiagnosticsReport(): DeterministicDiagnosticsReport | null;
 	seekAndRenderFrame(
 		time: number,
 		target?: DisplayObject | RenderTexture,
 		format?: string,
-		quality?: number
+		quality?: number,
+		imageOptions?: FrameImageEncodingOptions
 	): Promise<string | ArrayBuffer | Blob>;
+	renderFrameRange(options: RenderFrameRangeOptions): Promise<RenderFrameRangeSummary>;
 	isSceneDirty(time: number): Promise<boolean>;
 	renderFrame(
 		target?: DisplayObject | RenderTexture,
 		format?: string,
-		quality?: number
+		quality?: number,
+		imageOptions?: FrameImageEncodingOptions
 	): Promise<string | ArrayBuffer | Blob>;
 	log(message: string): void;
 	play(changeState?: boolean): void;

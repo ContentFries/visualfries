@@ -80,9 +80,9 @@ export declare const AssetSubtitleShape: z.ZodObject<{
 export declare const SceneAssetShape: z.ZodObject<{
     id: z.ZodString;
     type: z.ZodEnum<{
-        IMAGE: "IMAGE";
-        GIF: "GIF";
         VIDEO: "VIDEO";
+        GIF: "GIF";
+        IMAGE: "IMAGE";
         AUDIO: "AUDIO";
         FONT: "FONT";
     }>;
@@ -10820,9 +10820,9 @@ export declare const SceneShape: z.ZodObject<{
     assets: z.ZodPrefault<z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         type: z.ZodEnum<{
-            IMAGE: "IMAGE";
-            GIF: "GIF";
             VIDEO: "VIDEO";
+            GIF: "GIF";
+            IMAGE: "IMAGE";
             AUDIO: "AUDIO";
             FONT: "FONT";
         }>;

@@ -34,6 +34,27 @@ export type {
 	HookHandlers,
 } from './types.js';
 
+export {
+	DeterministicMediaConfigShape,
+	defaultDeterministicMediaConfig,
+	DeterministicRenderError,
+	RenderFrameEncodingError
+} from './deterministic.js';
+
+export type {
+	DeterministicMediaConfig,
+	DeterministicFrameRequest,
+	DeterministicFramePayload,
+	DeterministicFrameProvider,
+	DeterministicFrameOverride,
+	DeterministicDiagnosticsReport,
+	FrameImageFormat,
+	FrameImageEncodingOptions,
+	RenderFrameRangeOptions,
+	RenderFrameRangeItem,
+	RenderFrameRangeSummary
+} from './deterministic.js';
+
 // Main runtime interfaces - prefixed with "I" for clarity
 export type {
 	Component as IComponent,
@@ -45,4 +66,3 @@ export type {
 	ComponentHook as IComponentHook,
 	ComponentBuildStrategy as IComponentBuildStrategy,
 } from './types.js';
-

@@ -1,6 +1,6 @@
 import { ImageComponentShape } from '../..';
 export class VerifyImageHook {
-    types = ['setup', 'refresh'];
+    types = ['setup', 'refresh', 'refresh:content'];
     priority = 1;
     #context;
     async #handleSetup() {
@@ -20,7 +20,7 @@ export class VerifyImageHook {
         if (type === 'setup') {
             return await this.#handleSetup();
         }
-        else if (type === 'refresh') {
+        else if (type === 'refresh' || type === 'refresh:content') {
             return await this.#handleRefresh();
         }
     }

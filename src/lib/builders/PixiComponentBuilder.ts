@@ -25,6 +25,7 @@ type PixiComponentCradle = {
 	pixiProgressShapeHook: ComponentHook;
 	htmlToCanvasHook: ComponentHook;
 	mediaSeekingHook: ComponentHook;
+	deterministicMediaFrameHook: ComponentHook;
 };
 
 export class PixiComponentBuilder implements IComponentBuilder {
@@ -47,6 +48,7 @@ export class PixiComponentBuilder implements IComponentBuilder {
 	private htmlToCanvasHook: ComponentHook;
 	private animationHook: ComponentHook;
 	private mediaSeekingHook: ComponentHook;
+	private deterministicMediaFrameHook: ComponentHook;
 	constructor(cradle: PixiComponentCradle) {
 		this.component = cradle.component;
 		this.mediaHook = cradle.mediaHook;
@@ -67,6 +69,7 @@ export class PixiComponentBuilder implements IComponentBuilder {
 		this.pixiProgressShapeHook = cradle.pixiProgressShapeHook;
 		this.htmlToCanvasHook = cradle.htmlToCanvasHook;
 		this.mediaSeekingHook = cradle.mediaSeekingHook;
+		this.deterministicMediaFrameHook = cradle.deterministicMediaFrameHook;
 	}
 
 	withCanvasShape() {
@@ -87,6 +90,11 @@ export class PixiComponentBuilder implements IComponentBuilder {
 
 	withMediaSeeking() {
 		this.component.addHook(this.mediaSeekingHook);
+		return this;
+	}
+
+	withDeterministicMedia() {
+		this.component.addHook(this.deterministicMediaFrameHook, 4);
 		return this;
 	}
 

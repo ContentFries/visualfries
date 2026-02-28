@@ -75,6 +75,54 @@ export class Layer implements ILayer {
 		this.#emit('layerschange');
 	}
 
+	syncDisplayObjects(): boolean {
+		let changed = false;
+		if (!this.#displayObject) {
+			return false;
+		}
+
+		let componentDisplayIndex = 0;
+		for (const component of this.components) {
+			const displayObject = component.displayObject;
+			if (!displayObject) {
+				continue;
+			}
+
+			const parent = (displayObject as any).parent;
+			if (parent !== this.#displayObject) {
+				if (parent && typeof parent.removeChild === 'function') {
+					parent.removeChild(displayObject);
+				}
+				const childCount = this.#displayObject.children?.length ?? 0;
+				const insertIndex = Math.max(0, Math.min(componentDisplayIndex, childCount));
+				if (typeof this.#displayObject.addChildAt === 'function') {
+					this.#displayObject.addChildAt(displayObject, insertIndex);
+				} else {
+					this.#displayObject.addChild(displayObject);
+				}
+				changed = true;
+			}
+
+			if (
+				typeof this.#displayObject.getChildIndex === 'function' &&
+				typeof this.#displayObject.setChildIndex === 'function'
+			) {
+				const childCount = this.#displayObject.children?.length ?? 0;
+				if (childCount > 0) {
+					const currentIndex = this.#displayObject.getChildIndex(displayObject);
+					const targetIndex = Math.max(0, Math.min(componentDisplayIndex, childCount - 1));
+					if (currentIndex >= 0 && currentIndex !== targetIndex) {
+						this.#displayObject.setChildIndex(displayObject, targetIndex);
+						changed = true;
+					}
+				}
+			}
+			componentDisplayIndex += 1;
+		}
+
+		return changed;
+	}
+
 	removeComponent(component: IComponent) {
 		const hasComponent = this.components.find((c) => c.id === component.id);
 		if (hasComponent) {

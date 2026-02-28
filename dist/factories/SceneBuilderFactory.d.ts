@@ -1,4 +1,5 @@
 import type { Scene, RenderEnvironment, Subtitle, FontType, SubtitleCollection } from '..';
+import type { DeterministicMediaConfig } from '../schemas/runtime/deterministic.js';
 import { SceneBuilder } from '../SceneBuilder.svelte.js';
 import type { FontProvider } from '../fonts/types.js';
 type Config = {
@@ -6,10 +7,14 @@ type Config = {
     subtitles: Record<string, Subtitle[]> | Record<string, SubtitleCollection>;
     fonts: FontType[];
     forceCanvas: boolean;
+    serverRendererMode: 'canvas' | 'webgl';
+    preferWebGL2: boolean;
+    powerPreference: 'default' | 'high-performance' | 'low-power';
     scale: number;
     autoPlay?: boolean;
     loop?: boolean;
     fontProviders?: FontProvider[];
+    deterministicMedia: DeterministicMediaConfig;
 };
 export declare const createSceneBuilder: (sceneData: Scene, container: HTMLDivElement, config?: Partial<Config>) => Promise<SceneBuilder>;
 export {};

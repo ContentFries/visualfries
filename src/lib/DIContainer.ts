@@ -42,10 +42,12 @@ import { Layer } from './layers/Layer.svelte.js';
 import { LayersManager } from './managers/LayersManager.svelte.js';
 import { MediaSeekingHook } from './components/hooks/MediaSeekingHook.js';
 import { VerifyGifHook } from './components/hooks/VerifyGifHook.js';
+import { DeterministicMediaFrameHook } from './components/hooks/DeterministicMediaFrameHook.js';
 import { ComponentAnimationTransformer } from './animations/transformers/AnimationReferenceTransformer.js';
 import { AnimationPresetsRegister } from './animations/AnimationPresetsRegister.js';
 import { SplitTextCache } from './animations/SplitTextCache.js';
 import { TimeManager } from './managers/TimeManager.svelte.js';
+import { DeterministicMediaManager } from './managers/DeterministicMediaManager.js';
 
 const containers: Map<string, AwilixContainer> = new Map();
 
@@ -87,6 +89,9 @@ export const registerNewContainer = function (
 		renderManager: asClass(RenderManager, { lifetime: Lifetime.SINGLETON }),
 		domManager: asClass(DomManager, { lifetime: Lifetime.SINGLETON }),
 		mediaManager: asClass(MediaManager, { lifetime: Lifetime.SINGLETON }),
+		deterministicMediaManager: asClass(DeterministicMediaManager, {
+			lifetime: Lifetime.SINGLETON
+		}),
 		sceneBuilder: asClass(SceneBuilder, { lifetime: Lifetime.SINGLETON }),
 		layersManager: asClass(LayersManager, { lifetime: Lifetime.SINGLETON }),
 
@@ -100,6 +105,9 @@ export const registerNewContainer = function (
 		imageHook: asClass(ImageHook, { lifetime: Lifetime.TRANSIENT }),
 		verifyImageHook: asClass(VerifyImageHook, { lifetime: Lifetime.TRANSIENT }),
 		verifyGifHook: asClass(VerifyGifHook, { lifetime: Lifetime.TRANSIENT }),
+		deterministicMediaFrameHook: asClass(DeterministicMediaFrameHook, {
+			lifetime: Lifetime.TRANSIENT
+		}),
 		videoTextureHook: asClass(PixiVideoTextureHook, { lifetime: Lifetime.TRANSIENT }),
 		splitScreenHook: asClass(PixiSplitScreenDisplayObjectHook, { lifetime: Lifetime.TRANSIENT }),
 		htmlTextHook: asClass(HtmlTextHook, { lifetime: Lifetime.TRANSIENT }),

@@ -18,6 +18,7 @@ export declare class Layer implements ILayer {
     });
     build(): Promise<void>;
     addComponent(component: IComponent): void;
+    syncDisplayObjects(): boolean;
     removeComponent(component: IComponent): void;
     update(props: Partial<SceneLayerInput>): void;
     setOrder(order: number): void;
@@ -5320,5 +5321,5 @@ export declare class Layer implements ILayer {
     get displayObject(): Container<import("pixi.js-legacy").DisplayObject>;
     get id(): string;
     get checksum(): string;
-    get type(): "IMAGE" | "GIF" | "VIDEO" | "TEXT" | "SHAPE" | "AUDIO" | "COLOR" | "GRADIENT" | "SUBTITLES" | undefined;
+    get type(): "VIDEO" | "GIF" | "IMAGE" | "TEXT" | "SHAPE" | "AUDIO" | "COLOR" | "GRADIENT" | "SUBTITLES" | undefined;
 }

@@ -108,39 +108,42 @@ export class ComponentState {
         this.#emitChange();
     }
     #changeVideoStart(diff) {
-        if (this.type === 'VIDEO') {
+        if (this.type === 'VIDEO' || this.type === 'AUDIO') {
             let source = this.#data.source;
             if (!source) {
-                source = {
-                    startAt: 0
-                };
+                source = { startAt: 0 };
                 this.#data.source = source;
             }
             if (source.startAt !== undefined && source.startAt !== null) {
                 source.startAt += diff;
                 source.startAt = Math.max(0, source.startAt);
             }
+        }
+    }
+    #changeVideoEnd(diff) {
+        if (this.type === 'VIDEO' || this.type === 'AUDIO') {
+            let source = this.#data.source;
+            if (!source) {
+                source = { startAt: 0 };
+                this.#data.source = source;
+            }
+            const currentDuration = this.#data.timeline.endAt - this.#data.timeline.startAt;
             if (source.endAt !== undefined && source.endAt !== null) {
                 source.endAt += diff;
             }
+            else {
+                // Initialize the implicit end bound via start bound prior to truncation
+                const startAt = source.startAt || 0;
+                source.endAt = startAt + currentDuration + diff;
+            }
         }
-        // TODO verify starting time is not beyond video duration
-        // const metadata = this.#data!.metadata
-        // 	? (this.#data!.metadata as Metadata)
-        // 	: ({ starting_time: 0 } as Metadata);
-        // let startingTime = metadata.starting_time ? (metadata.starting_time as number) : 0;
-        // startingTime += diff;
-        // startingTime = Math.max(0, startingTime);
-        // this.updateMetadata({
-        // 	starting_time: startingTime
-        // });
     }
     setStart(start) {
         const beforeStart = this.sceneState.transformTime(this.#data.timeline.startAt);
         const newStart = this.sceneState.transformTime(start);
         const diff = newStart - beforeStart;
         if (diff !== 0) {
-            if (this.type === 'VIDEO') {
+            if (this.type === 'VIDEO' || this.type === 'AUDIO') {
                 this.#changeVideoStart(diff);
             }
             this.#data.timeline.startAt = this.sceneState.transformTime(start);
@@ -148,8 +151,16 @@ export class ComponentState {
         }
     }
     setEnd(end) {
-        this.#data.timeline.endAt = this.sceneState.transformTime(end);
-        this.#emitChange();
+        const beforeEnd = this.sceneState.transformTime(this.#data.timeline.endAt);
+        const newEnd = this.sceneState.transformTime(end);
+        const diff = newEnd - beforeEnd;
+        if (diff !== 0) {
+            if (this.type === 'VIDEO' || this.type === 'AUDIO') {
+                this.#changeVideoEnd(diff);
+            }
+            this.#data.timeline.endAt = this.sceneState.transformTime(end);
+            this.#emitChange();
+        }
     }
     setStreamPath(path) {
         // if (this.type === 'VIDEO' || this.type === 'AUDIO') {
@@ -179,8 +190,10 @@ export class ComponentState {
         // }
     }
     async updateAppearance(appearance) {
-        const mergedAppearance = merge({}, this.#data.appearance, appearance);
-        this.#data = { ...this.#data, appearance: mergedAppearance };
+        // Use $state.snapshot() to properly extract all properties from the reactive proxy
+        const currentData = $state.snapshot(this.#data);
+        const mergedAppearance = merge({}, currentData.appearance, appearance);
+        this.#data = { ...currentData, appearance: mergedAppearance };
         this.#emitChange();
         await this.maybeAutoRefresh();
     }

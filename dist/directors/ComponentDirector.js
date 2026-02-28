@@ -1,10 +1,16 @@
 import { StateManager } from '../managers/StateManager.svelte.js';
+import { DeterministicMediaManager } from '../managers/DeterministicMediaManager.js';
 export class ComponentDirector {
     builder;
     data;
     sceneState;
+    deterministicMediaManager;
     constructor(cradle) {
         this.sceneState = cradle.stateManager;
+        this.deterministicMediaManager = cradle.deterministicMediaManager;
+    }
+    get shouldUseDeterministicMedia() {
+        return this.sceneState.environment === 'server' && this.deterministicMediaManager.isEnabled();
     }
     setBuilder(builder) {
         this.builder = builder;
@@ -36,10 +42,11 @@ export class ComponentDirector {
         }
     }
     constructVideo() {
+        if (this.shouldUseDeterministicMedia) {
+            this.builder.withDeterministicMedia().withTexture().withSplitScreen();
+            return this.builder.getComponent();
+        }
         this.builder.withMedia().withMediaSeeking();
-        // if (this.sceneState.environment === 'server') {
-        // 	this.builder.withMediaSeeking();
-        // }
         this.builder.withVideoTexture().withSplitScreen();
         return this.builder.getComponent();
     }
@@ -48,10 +55,14 @@ export class ComponentDirector {
         return this.builder.getComponent();
     }
     constructImage() {
-        this.builder.withImage().withTexture().withDisplayObject();
+        this.builder.withImage().withTexture().withSplitScreen();
         return this.builder.getComponent();
     }
     constructGif() {
+        if (this.shouldUseDeterministicMedia) {
+            this.builder.withDeterministicMedia().withTexture().withDisplayObject();
+            return this.builder.getComponent();
+        }
         this.builder.withGif(); //.withDisplayObject();
         return this.builder.getComponent();
     }

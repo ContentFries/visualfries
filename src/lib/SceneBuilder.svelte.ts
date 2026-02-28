@@ -15,6 +15,7 @@ import { ComponentShape } from '$lib';
 
 import { buildCharactersListFromComponentsAndSubtitles, changeIdDeep } from './utils/utils.js';
 import { loadFonts } from './utils/document.js';
+import { discoverRequiredFontVariants } from './fonts/fontDiscovery.js';
 
 import { CommandType } from './commands/CommandTypes.js';
 import { CommandRunner } from './commands/CommandRunner.js';
@@ -28,8 +29,17 @@ import { ComponentsManager } from './managers/ComponentsManager.svelte.js';
 import { v4 as uuidv4 } from 'uuid';
 
 import type { EventMap, EventType, EventPayload, BuilderState, ISceneBuilder } from '$lib';
+import type {
+	DeterministicFrameProvider,
+	DeterministicMediaConfig,
+	DeterministicDiagnosticsReport,
+	FrameImageEncodingOptions,
+	RenderFrameRangeOptions,
+	RenderFrameRangeSummary
+} from '$lib';
 
 import { MediaManager } from './managers/MediaManager.js';
+import { DeterministicMediaManager } from './managers/DeterministicMediaManager.js';
 import { LayersManager } from './managers/LayersManager.svelte.js';
 import { SubtitlesManager } from './managers/SubtitlesManager.svelte.js';
 import type { Component } from './components/Component.svelte.js';
@@ -48,6 +58,7 @@ export class SceneBuilder implements ISceneBuilder {
 	private stateManager: StateManager;
 	private commandRunner: CommandRunner;
 	private mediaManager: MediaManager;
+	private deterministicMediaManager: DeterministicMediaManager;
 	private subtitlesManager: SubtitlesManager;
 	private fonts: FontType[];
 
@@ -62,6 +73,7 @@ export class SceneBuilder implements ISceneBuilder {
 		stateManager: StateManager;
 		commandRunner: CommandRunner;
 		mediaManager: MediaManager;
+		deterministicMediaManager: DeterministicMediaManager;
 		subtitlesManager: SubtitlesManager;
 		fonts: FontType[];
 	}) {
@@ -74,6 +86,7 @@ export class SceneBuilder implements ISceneBuilder {
 		this.stateManager = cradle.stateManager;
 		this.commandRunner = cradle.commandRunner;
 		this.mediaManager = cradle.mediaManager;
+		this.deterministicMediaManager = cradle.deterministicMediaManager;
 		this.subtitlesManager = cradle.subtitlesManager;
 		this.fonts = cradle.fonts;
 
@@ -199,6 +212,10 @@ export class SceneBuilder implements ISceneBuilder {
 		this.stateManager.setEndAt(end ? this.stateManager.transformTime(end) : undefined);
 	}
 
+	markDirty() {
+		this.stateManager.markDirty();
+	}
+
 	updateSubtitlesSettings(settings: Partial<SceneSubtitlesSettings>) {
 		const currentSubtitlesSettincs = this.stateManager.data.settings.subtitles
 			? this.stateManager.data.settings.subtitles
@@ -253,7 +270,8 @@ export class SceneBuilder implements ISceneBuilder {
 	}
 
 	private async loadFonts(fonts: FontType[]) {
-		return await loadFonts(fonts);
+		const variants = discoverRequiredFontVariants(this.sceneData, fonts);
+		return await loadFonts(fonts, variants);
 	}
 
 	async initialize() {
@@ -266,9 +284,7 @@ export class SceneBuilder implements ISceneBuilder {
 		this.renderTicker = () => {
 			this.render();
 		};
-		if (this.fonts.length > 0) {
-			await this.loadFonts(this.fonts);
-		}
+		await this.loadFonts(this.fonts);
 
 		this.layersManager.setAppManager(this.appManager);
 		await this.appManager.initialize();
@@ -375,16 +391,11 @@ export class SceneBuilder implements ISceneBuilder {
 			return false;
 		}
 
-		// Create clone of component data with adjusted times
-		const originalEndAt = component.props.timeline.endAt;
+		// Create clone of component data EXACTLY as it is
 		const newData = changeIdDeep(component.props.getData());
 		const cloneData: ComponentData = {
 			...newData,
 			id: uuidv4(), // Generate new ID for clone
-			timeline: {
-				...newData.timeline,
-				endAt: originalEndAt
-			},
 			checksum: 'new-' + uuidv4()
 		};
 
@@ -414,16 +425,36 @@ export class SceneBuilder implements ISceneBuilder {
 		});
 	}
 
+	public setDeterministicFrameProvider(provider: DeterministicFrameProvider | null): void {
+		this.deterministicMediaManager.setProvider(provider);
+	}
+
+	public getDeterministicFrameProvider(): DeterministicFrameProvider | null {
+		return this.deterministicMediaManager.getProvider();
+	}
+
+	public getDeterministicMediaConfig(): DeterministicMediaConfig {
+		return this.deterministicMediaManager.config;
+	}
+
+	public getDiagnosticsReport(): DeterministicDiagnosticsReport | null {
+		return this.deterministicMediaManager.getDiagnosticsReport();
+	}
+
 	public async seekAndRenderFrame(
 		time: number,
 		target?: PIXI.DisplayObject | PIXI.RenderTexture,
 		format = 'png',
-		quality = 1
+		quality = 1,
+		imageOptions?: FrameImageEncodingOptions
 	): Promise<string | ArrayBuffer | Blob> {
 		await this.seek(time);
-		// Ensure scene is rendered after seek so media hooks apply their updates
-		this.render();
-		const frame = await this.renderFrame(target, format, quality);
+		// In server mode SeekCommand performs awaited render preparation.
+		// Keep client render behavior unchanged.
+		if (this.environment !== 'server') {
+			this.render();
+		}
+		const frame = await this.renderFrame(target, format, quality, imageOptions);
 		return frame;
 	}
 
@@ -451,28 +482,32 @@ export class SceneBuilder implements ISceneBuilder {
 	 * }
 	 */
 	public async isSceneDirty(time: number): Promise<boolean> {
-		// Seek to the specified time to trigger component/hook updates
 		await this.seek(time);
 
-		// Get current dirty state BEFORE calling render()
-		// This prevents render() from clearing the dirty flag
+		// In server mode seek already ran awaited render preparation, so read
+		// dirty state after seek to capture deterministic frame changes.
+		if (this.environment === 'server') {
+			return this.stateManager.isDirty;
+		}
+
 		const wasDirty = this.stateManager.isDirty;
-
-		// Render to update all display objects and let hooks detect changes
-		// This triggers all hook updates but doesn't extract frame data
 		this.render();
-
-		// Return the dirty state we captured before render()
-		// Don't clear the dirty flag - let actual frame extraction handle that
-		return wasDirty;
+		return wasDirty || this.stateManager.isDirty;
 	}
 
 	public async renderFrame(
 		target?: PIXI.DisplayObject | PIXI.RenderTexture,
 		format = 'png',
-		quality = 1
+		quality = 1,
+		imageOptions?: FrameImageEncodingOptions
 	): Promise<string | ArrayBuffer | Blob> {
-		const frame = (await this.run(CommandType.RENDER_FRAME, { target, format, quality })) as
+		const frame = (await this.run(CommandType.RENDER_FRAME, {
+			target,
+			format,
+			quality,
+			imageFormat: imageOptions?.imageFormat,
+			imageQuality: imageOptions?.imageQuality
+		})) as
 			| string
 			| ArrayBuffer
 			| Blob
@@ -481,6 +516,96 @@ export class SceneBuilder implements ISceneBuilder {
 			throw new Error('Rendering frame failed');
 		}
 		return frame;
+	}
+
+	public async renderFrameRange(options: RenderFrameRangeOptions): Promise<RenderFrameRangeSummary> {
+		if (this.environment !== 'server') {
+			throw new Error('renderFrameRange is only available in server environment');
+		}
+
+		const format = options.format ?? 'blob';
+		const quality = options.quality ?? 1;
+		const imageOptions = {
+			imageFormat: options.imageFormat,
+			imageQuality: options.imageQuality
+		} as const;
+		const skipDuplicates = options.skipDuplicates ?? false;
+		const fromFrame = Math.max(0, Math.floor(options.fromFrame));
+		const toFrame = Math.max(fromFrame, Math.floor(options.toFrame));
+
+		let framesRendered = 0;
+		let framesSkipped = 0;
+		let aborted = false;
+		let previousFrame: string | ArrayBuffer | Blob | null = null;
+		let previousMimeType: string | undefined;
+
+		for (let frameIndex = fromFrame; frameIndex < toFrame; frameIndex += 1) {
+			if (options.signal?.aborted) {
+				aborted = true;
+				break;
+			}
+
+			let frame: string | ArrayBuffer | Blob;
+			let isDuplicate = false;
+			let mimeType: string | undefined;
+			const frameTime = frameIndex / this.fps;
+
+			if (skipDuplicates) {
+				const isDirty = await this.isSceneDirty(frameTime);
+				if (!isDirty && previousFrame) {
+					frame = previousFrame;
+					mimeType = previousMimeType;
+					isDuplicate = true;
+					framesSkipped += 1;
+				} else {
+					// isSceneDirty() already sought and prepared server deterministic state.
+					// Render directly to avoid a second seek in the dirty path.
+					frame = await this.renderFrame(undefined, format, quality, imageOptions);
+					previousFrame = frame;
+				}
+			} else {
+				frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality, imageOptions);
+				previousFrame = frame;
+			}
+
+			if (!mimeType && frame instanceof Blob) {
+				mimeType = frame.type || undefined;
+			}
+			if (!mimeType && format === 'blob') {
+				const imageFormat = imageOptions.imageFormat ?? 'png';
+				mimeType = imageFormat === 'jpg' || imageFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+			}
+			if (!isDuplicate) {
+				previousMimeType = mimeType;
+			}
+
+			// Current frame payloads are strings, ArrayBuffers, or Blobs, so release() is a no-op today.
+			let released = false;
+			const release = () => {
+				if (released) {
+					return;
+				}
+				released = true;
+			};
+
+			await options.onFrame({
+				frameIndex,
+				frame,
+				isDuplicate,
+				mimeType,
+				release
+			});
+
+			release();
+			framesRendered += 1;
+		}
+
+		return {
+			framesRendered,
+			framesSkipped,
+			aborted,
+			diagnostics: this.getDiagnosticsReport()
+		};
 	}
 
 	public log(message: string) {
@@ -558,6 +683,9 @@ export class SceneBuilder implements ISceneBuilder {
 
 		// media manages should be destroyed last
 		this.mediaManager.destroy();
+		this.deterministicMediaManager.destroy().catch((error) => {
+			console.error('Failed to destroy deterministic media manager:', error);
+		});
 
 		// Remove the container from the DI container cache
 		removeContainer(this.sceneData.id);

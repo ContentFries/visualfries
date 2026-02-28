@@ -4,12 +4,14 @@ import type { ResourceManager, IComponent, ComponentData } from '$lib';
 import type { AppearanceInput } from '$lib';
 
 import { AppManager } from './AppManager.svelte.js';
+import { LayersManager } from './LayersManager.svelte.js';
 
 export class RenderManager {
 	private state: StateManager;
 	private componentsManager: ResourceManager<IComponent, ComponentData, AppearanceInput>;
 	private eventManager: EventManager;
 	private appManager: AppManager;
+	private layersManager: LayersManager;
 	// Track last visibility to ensure we run one more update to hide components that just became invisible
 	private lastActiveById: Map<string, boolean> = new Map();
 	private lastRenderTime: number = -1;
@@ -19,11 +21,13 @@ export class RenderManager {
 		componentsManager: ResourceManager<IComponent, ComponentData, AppearanceInput>;
 		eventManager: EventManager;
 		appManager: AppManager;
+		layersManager: LayersManager;
 	}) {
 		this.state = cradle.stateManager;
 		this.componentsManager = cradle.componentsManager;
 		this.eventManager = cradle.eventManager;
 		this.appManager = cradle.appManager;
+		this.layersManager = cradle.layersManager;
 		this.initializeEventListeners();
 	}
 
@@ -39,6 +43,20 @@ export class RenderManager {
 	}
 
 	private async handleBeforeRender(): Promise<void> {}
+
+	#syncLayerDisplayObjects(): void {
+		const layers = this.layersManager.getAll();
+		let changed = false;
+		for (const layer of layers) {
+			if (layer.syncDisplayObjects()) {
+				changed = true;
+			}
+		}
+
+		if (changed) {
+			this.state.markDirty();
+		}
+	}
 
 	async render(): Promise<void> {
 		const components: IComponent[] = this.componentsManager.getAll();
@@ -67,6 +85,7 @@ export class RenderManager {
 			this.lastActiveById.set(e.component.id, e.shouldBeVisible);
 		}
 
+		this.#syncLayerDisplayObjects();
 		this.appManager.render();
 		this.lastRenderTime = currentTime;
 	}

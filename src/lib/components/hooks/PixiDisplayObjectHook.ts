@@ -1,23 +1,19 @@
 import * as PIXI from 'pixi.js-legacy';
 
-import type {
-	IComponentContext,
-	IComponentHook,
-	HookType,
-	HookHandlers
-} from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
 import { setPlacementAndOpacity } from '$lib/utils/utils.js';
 import type { Appearance } from '$lib';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 
 export class PixiDisplayObjectHook implements IComponentHook {
-	types: HookType[] = ['update', 'destroy', 'refresh'];
+	types: HookType[] = ['update', 'destroy', 'refresh', 'refresh:content'];
 
 	#handlers: HookHandlers = {
 		update: this.#handleUpdate.bind(this),
 		destroy: this.#handleDestroy.bind(this),
 		refresh: this.#handleRefresh.bind(this),
-		'refresh:config': this.#handleRefresh.bind(this)
+		'refresh:config': this.#handleRefresh.bind(this),
+		'refresh:content': this.#handleRefresh.bind(this)
 	} as const;
 
 	priority: number = 1;
@@ -49,14 +45,38 @@ export class PixiDisplayObjectHook implements IComponentHook {
 	}
 
 	async #handleRefresh() {
-		await this.#handleDestroy();
-		this.#initDisplayObject();
-		await this.#handleUpdate();
+		// Check if texture has changed (e.g., video source change)
+		const currentTexture = this.#context.getResource('pixiTexture');
+
+		if (currentTexture && currentTexture !== this.#pixiTexture) {
+			// Texture changed - need to recreate sprite with new texture
+			await this.#handleDestroy();
+			this.#pixiTexture = currentTexture;
+			this.#initDisplayObject();
+		} else if (this.#displayObject?.children?.length > 0) {
+			// Same texture - just update sprite properties (position, size, opacity, etc.)
+			const sprite = this.#displayObject.children[0] as PIXI.Sprite;
+			if (sprite) {
+				setPlacementAndOpacity(sprite, this.#context.data.appearance as Appearance);
+				this.state.markDirty();
+			}
+		}
+		// If no texture yet, #handleUpdate will handle initial creation
 	}
 
 	async #handleUpdate() {
 		const isActive = this.#context.isActive;
+
 		if (this.#displayObject) {
+			// If the texture was swapped (e.g. by refresh:content), rebuild the sprite
+			const currentTexture = this.#context.getResource('pixiTexture');
+			if (currentTexture && currentTexture !== this.#pixiTexture) {
+				await this.#handleRefresh();
+			}
+
+			// Always re-assert the resource in case the context was cleared or updated
+			this.#context.setResource('pixiRenderObject', this.#displayObject);
+
 			// Only mark dirty if visibility actually changed
 			if (this.#displayObject.visible !== isActive) {
 				this.#displayObject.visible = isActive;
@@ -77,6 +97,10 @@ export class PixiDisplayObjectHook implements IComponentHook {
 		// Regular shapes need texture to create sprite
 		const texture = this.#context.getResource('pixiTexture');
 		if (!texture) {
+			const type = this.#context.contextData.type;
+			if (type === 'VIDEO' || type === 'GIF') {
+				return;
+			}
 			throw new Error('pixiTexture not found in resources.');
 		}
 
@@ -87,7 +111,9 @@ export class PixiDisplayObjectHook implements IComponentHook {
 	}
 
 	async #handleDestroy() {
-		this.#displayObject.removeChildren();
+		if (this.#displayObject) {
+			this.#displayObject.removeChildren();
+		}
 	}
 
 	async handle(type: HookType, context: IComponentContext) {

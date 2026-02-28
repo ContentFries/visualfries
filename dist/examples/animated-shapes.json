@@ -1,0 +1,148 @@
+{
+	"id": "animated-shapes-example",
+	"version": "2.0",
+	"name": "Animated Shapes",
+	"settings": {
+		"width": 1080,
+		"height": 1920,
+		"duration": 3,
+		"fps": 30,
+		"backgroundColor": "#0a0a0a"
+	},
+	"assets": [],
+	"layers": [
+		{
+			"id": "layer-main",
+			"name": "Main Layer",
+			"order": 0,
+			"visible": true,
+			"muted": false,
+			"components": [
+				{
+					"id": "bg",
+					"name": "Background",
+					"type": "SHAPE",
+					"timeline": { "startAt": 0, "endAt": 3 },
+					"visible": true,
+					"order": 0,
+					"shape": { "type": "rectangle" },
+					"appearance": {
+						"x": 0,
+						"y": 0,
+						"width": 1080,
+						"height": 1920,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1,
+						"color": "#0a0a0a"
+					},
+					"animations": { "enabled": true, "list": [] },
+					"effects": { "enabled": true, "map": {} }
+				},
+				{
+					"id": "circle-1",
+					"name": "Circle",
+					"type": "SHAPE",
+					"timeline": { "startAt": 0, "endAt": 3 },
+					"visible": true,
+					"order": 1,
+					"shape": { "type": "circle" },
+					"appearance": {
+						"x": 290,
+						"y": 710,
+						"width": 500,
+						"height": 500,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1,
+						"background": {
+							"colors": ["#f472b6", "#a855f7"],
+							"angle": 45
+						}
+					},
+					"animations": {
+						"enabled": true,
+						"list": [
+							{
+								"id": "circle-scale",
+								"name": "Pulse",
+								"animation": {
+									"id": "pulse",
+									"timeline": [
+										{
+											"tweens": [
+												{
+													"method": "from",
+													"vars": { "duration": 0.5, "scale": 0 }
+												},
+												{
+													"method": "to",
+													"vars": { "duration": 0.5, "scale": 1.1 }
+												},
+												{
+													"method": "to",
+													"vars": { "duration": 0.3, "scale": 1 }
+												}
+											]
+										}
+									]
+								}
+							}
+						]
+					},
+					"effects": { "enabled": true, "map": {} }
+				},
+				{
+					"id": "star-1",
+					"name": "Star",
+					"type": "SHAPE",
+					"timeline": { "startAt": 0.5, "endAt": 3 },
+					"visible": true,
+					"order": 2,
+					"shape": { "type": "star" },
+					"appearance": {
+						"x": 640,
+						"y": 300,
+						"width": 300,
+						"height": 300,
+						"opacity": 1,
+						"rotation": 0,
+						"scaleX": 1,
+						"scaleY": 1,
+						"background": {
+							"colors": ["#fbbf24", "#f59e0b"],
+							"angle": 90
+						}
+					},
+					"animations": {
+						"enabled": true,
+						"list": [
+							{
+								"id": "star-spin",
+								"name": "Spin",
+								"animation": {
+									"id": "spin",
+									"timeline": [
+										{
+											"tweens": [
+												{
+													"method": "from",
+													"vars": { "duration": 0.6, "rotation": 180, "scale": 0 }
+												}
+											]
+										}
+									]
+								}
+							}
+						]
+					},
+					"effects": { "enabled": true, "map": {} }
+				}
+			]
+		}
+	],
+	"transitions": [],
+	"audioTracks": []
+}

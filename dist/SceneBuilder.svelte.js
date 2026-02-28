@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { ComponentShape } from './';
 import { buildCharactersListFromComponentsAndSubtitles, changeIdDeep } from './utils/utils.js';
 import { loadFonts } from './utils/document.js';
+import { discoverRequiredFontVariants } from './fonts/fontDiscovery.js';
 import { CommandType } from './commands/CommandTypes.js';
 import { CommandRunner } from './commands/CommandRunner.js';
 import { StateManager } from './managers/StateManager.svelte.js';
@@ -13,6 +14,7 @@ import { AppManager } from './managers/AppManager.svelte.js';
 import { ComponentsManager } from './managers/ComponentsManager.svelte.js';
 import { v4 as uuidv4 } from 'uuid';
 import { MediaManager } from './managers/MediaManager.js';
+import { DeterministicMediaManager } from './managers/DeterministicMediaManager.js';
 import { LayersManager } from './managers/LayersManager.svelte.js';
 import { SubtitlesManager } from './managers/SubtitlesManager.svelte.js';
 import { removeContainer } from './DIContainer.js';
@@ -28,6 +30,7 @@ export class SceneBuilder {
     stateManager;
     commandRunner;
     mediaManager;
+    deterministicMediaManager;
     subtitlesManager;
     fonts;
     // Replace constructor with cradle pattern
@@ -41,6 +44,7 @@ export class SceneBuilder {
         this.stateManager = cradle.stateManager;
         this.commandRunner = cradle.commandRunner;
         this.mediaManager = cradle.mediaManager;
+        this.deterministicMediaManager = cradle.deterministicMediaManager;
         this.subtitlesManager = cradle.subtitlesManager;
         this.fonts = cradle.fonts;
         // TODO - check scene is v2
@@ -135,6 +139,9 @@ export class SceneBuilder {
     setEndAt(end) {
         this.stateManager.setEndAt(end ? this.stateManager.transformTime(end) : undefined);
     }
+    markDirty() {
+        this.stateManager.markDirty();
+    }
     updateSubtitlesSettings(settings) {
         const currentSubtitlesSettincs = this.stateManager.data.settings.subtitles
             ? this.stateManager.data.settings.subtitles
@@ -166,7 +173,8 @@ export class SceneBuilder {
         this.domManager.scale(clampedScale);
     }
     async loadFonts(fonts) {
-        return await loadFonts(fonts);
+        const variants = discoverRequiredFontVariants(this.sceneData, fonts);
+        return await loadFonts(fonts, variants);
     }
     async initialize() {
         if (this.initialized) {
@@ -177,9 +185,7 @@ export class SceneBuilder {
         this.renderTicker = () => {
             this.render();
         };
-        if (this.fonts.length > 0) {
-            await this.loadFonts(this.fonts);
-        }
+        await this.loadFonts(this.fonts);
         this.layersManager.setAppManager(this.appManager);
         await this.appManager.initialize();
         if (this.stateManager.scale !== 1) {
@@ -264,16 +270,11 @@ export class SceneBuilder {
         if (!layer) {
             return false;
         }
-        // Create clone of component data with adjusted times
-        const originalEndAt = component.props.timeline.endAt;
+        // Create clone of component data EXACTLY as it is
         const newData = changeIdDeep(component.props.getData());
         const cloneData = {
             ...newData,
             id: uuidv4(), // Generate new ID for clone
-            timeline: {
-                ...newData.timeline,
-                endAt: originalEndAt
-            },
             checksum: 'new-' + uuidv4()
         };
         // Update original component's end time
@@ -297,11 +298,26 @@ export class SceneBuilder {
             base64data
         });
     }
-    async seekAndRenderFrame(time, target, format = 'png', quality = 1) {
+    setDeterministicFrameProvider(provider) {
+        this.deterministicMediaManager.setProvider(provider);
+    }
+    getDeterministicFrameProvider() {
+        return this.deterministicMediaManager.getProvider();
+    }
+    getDeterministicMediaConfig() {
+        return this.deterministicMediaManager.config;
+    }
+    getDiagnosticsReport() {
+        return this.deterministicMediaManager.getDiagnosticsReport();
+    }
+    async seekAndRenderFrame(time, target, format = 'png', quality = 1, imageOptions) {
         await this.seek(time);
-        // Ensure scene is rendered after seek so media hooks apply their updates
-        this.render();
-        const frame = await this.renderFrame(target, format, quality);
+        // In server mode SeekCommand performs awaited render preparation.
+        // Keep client render behavior unchanged.
+        if (this.environment !== 'server') {
+            this.render();
+        }
+        const frame = await this.renderFrame(target, format, quality, imageOptions);
         return frame;
     }
     /**
@@ -328,24 +344,108 @@ export class SceneBuilder {
      * }
      */
     async isSceneDirty(time) {
-        // Seek to the specified time to trigger component/hook updates
         await this.seek(time);
-        // Get current dirty state BEFORE calling render()
-        // This prevents render() from clearing the dirty flag
+        // In server mode seek already ran awaited render preparation, so read
+        // dirty state after seek to capture deterministic frame changes.
+        if (this.environment === 'server') {
+            return this.stateManager.isDirty;
+        }
         const wasDirty = this.stateManager.isDirty;
-        // Render to update all display objects and let hooks detect changes
-        // This triggers all hook updates but doesn't extract frame data
         this.render();
-        // Return the dirty state we captured before render()
-        // Don't clear the dirty flag - let actual frame extraction handle that
-        return wasDirty;
+        return wasDirty || this.stateManager.isDirty;
     }
-    async renderFrame(target, format = 'png', quality = 1) {
-        const frame = (await this.run(CommandType.RENDER_FRAME, { target, format, quality }));
+    async renderFrame(target, format = 'png', quality = 1, imageOptions) {
+        const frame = (await this.run(CommandType.RENDER_FRAME, {
+            target,
+            format,
+            quality,
+            imageFormat: imageOptions?.imageFormat,
+            imageQuality: imageOptions?.imageQuality
+        }));
         if (!frame) {
             throw new Error('Rendering frame failed');
         }
         return frame;
+    }
+    async renderFrameRange(options) {
+        if (this.environment !== 'server') {
+            throw new Error('renderFrameRange is only available in server environment');
+        }
+        const format = options.format ?? 'blob';
+        const quality = options.quality ?? 1;
+        const imageOptions = {
+            imageFormat: options.imageFormat,
+            imageQuality: options.imageQuality
+        };
+        const skipDuplicates = options.skipDuplicates ?? false;
+        const fromFrame = Math.max(0, Math.floor(options.fromFrame));
+        const toFrame = Math.max(fromFrame, Math.floor(options.toFrame));
+        let framesRendered = 0;
+        let framesSkipped = 0;
+        let aborted = false;
+        let previousFrame = null;
+        let previousMimeType;
+        for (let frameIndex = fromFrame; frameIndex < toFrame; frameIndex += 1) {
+            if (options.signal?.aborted) {
+                aborted = true;
+                break;
+            }
+            let frame;
+            let isDuplicate = false;
+            let mimeType;
+            const frameTime = frameIndex / this.fps;
+            if (skipDuplicates) {
+                const isDirty = await this.isSceneDirty(frameTime);
+                if (!isDirty && previousFrame) {
+                    frame = previousFrame;
+                    mimeType = previousMimeType;
+                    isDuplicate = true;
+                    framesSkipped += 1;
+                }
+                else {
+                    // isSceneDirty() already sought and prepared server deterministic state.
+                    // Render directly to avoid a second seek in the dirty path.
+                    frame = await this.renderFrame(undefined, format, quality, imageOptions);
+                    previousFrame = frame;
+                }
+            }
+            else {
+                frame = await this.seekAndRenderFrame(frameTime, undefined, format, quality, imageOptions);
+                previousFrame = frame;
+            }
+            if (!mimeType && frame instanceof Blob) {
+                mimeType = frame.type || undefined;
+            }
+            if (!mimeType && format === 'blob') {
+                const imageFormat = imageOptions.imageFormat ?? 'png';
+                mimeType = imageFormat === 'jpg' || imageFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+            }
+            if (!isDuplicate) {
+                previousMimeType = mimeType;
+            }
+            let released = false;
+            const release = () => {
+                if (released) {
+                    return;
+                }
+                released = true;
+            };
+            await options.onFrame({
+                frameIndex,
+                frame,
+                isDuplicate,
+                mimeType,
+                release
+            });
+            release();
+            framesRendered += 1;
+        }
+        return {
+            framesRendered,
+            framesSkipped,
+            aborted,
+            diagnostics: this.getDiagnosticsReport()
+        };
     }
     log(message) {
         $effect.root(function () {
@@ -403,6 +503,7 @@ export class SceneBuilder {
         this.componentsManager.destroy();
         // media manages should be destroyed last
         this.mediaManager.destroy();
+        void this.deterministicMediaManager.destroy();
         // Remove the container from the DI container cache
         removeContainer(this.sceneData.id);
     }

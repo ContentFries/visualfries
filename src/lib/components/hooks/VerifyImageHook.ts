@@ -2,7 +2,7 @@ import type { IComponentContext, IComponentHook, HookType } from '$lib';
 import { ImageComponentShape } from '$lib';
 
 export class VerifyImageHook implements IComponentHook {
-	types: HookType[] = ['setup', 'refresh'];
+	types: HookType[] = ['setup', 'refresh', 'refresh:content'];
 	priority: number = 1;
 	#context!: IComponentContext;
 
@@ -26,7 +26,7 @@ export class VerifyImageHook implements IComponentHook {
 
 		if (type === 'setup') {
 			return await this.#handleSetup();
-		} else if (type === 'refresh') {
+		} else if (type === 'refresh' || type === 'refresh:content') {
 			return await this.#handleRefresh();
 		}
 	}

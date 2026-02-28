@@ -16,7 +16,7 @@ export declare class ComponentContext implements IComponentContext {
     get contextData(): ComponentData;
     get data(): ComponentData;
     get id(): string;
-    get type(): "IMAGE" | "GIF" | "VIDEO" | "TEXT" | "SHAPE" | "AUDIO" | "COLOR" | "GRADIENT" | "SUBTITLES";
+    get type(): "VIDEO" | "GIF" | "IMAGE" | "TEXT" | "SHAPE" | "AUDIO" | "COLOR" | "GRADIENT" | "SUBTITLES";
     get isActive(): boolean;
     get progress(): number;
     get currentComponentTime(): number;

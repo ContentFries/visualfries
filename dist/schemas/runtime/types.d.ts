@@ -5,6 +5,7 @@ import type { LayersManager } from '../../managers/LayersManager.svelte.js';
 import type { SubtitlesManager } from '../../managers/SubtitlesManager.svelte.js';
 import type { EventManager } from '../../managers/EventManager.js';
 import type { Component as SceneLayerComponent, ComponentBase, AppearanceInput, Scene, RenderEnvironment, ComponentInput, SceneLayerInput, SceneLayer, VideoComponentShape, ImageComponentShape, GifComponentShape, Subtitle } from '../..';
+import type { DeterministicMediaConfig, DeterministicFrameProvider, DeterministicDiagnosticsReport, FrameImageEncodingOptions, RenderFrameRangeOptions, RenderFrameRangeSummary } from './deterministic.js';
 declare const SCENE_LAYER_COMPONENT_TYPE: readonly ["IMAGE", "GIF", "VIDEO", "TEXT", "SHAPE", "AUDIO", "COLOR", "GRADIENT", "SUBTITLES"];
 export type SceneLayerComponentType = (typeof SCENE_LAYER_COMPONENT_TYPE)[number];
 type MediaShape = z.infer<typeof VideoComponentShape>;
@@ -37,6 +38,13 @@ export interface LayerEvents {
 export interface ComponentEvents {
     componentschange: void;
     componentchange: ComponentData;
+    hookerror: {
+        hookName: string;
+        hookType: string;
+        error: Error;
+        componentId: string;
+        timestamp: number;
+    };
 }
 export interface SubtitlesEvents {
     subtitleschange: void;
@@ -117,6 +125,7 @@ export interface ComponentBuilder {
     getComponent(): Component;
     withMedia(): ComponentBuilder;
     withMediaSeeking(): ComponentBuilder;
+    withDeterministicMedia(): ComponentBuilder;
     withVideoTexture(): ComponentBuilder;
     withSplitScreen(): ComponentBuilder;
     withHtmlText(): ComponentBuilder;
@@ -168,6 +177,7 @@ export interface Layer {
     update(layerData: Partial<SceneLayerInput>): void;
     addComponent(component: Component): void;
     removeComponent(component: Component): void;
+    syncDisplayObjects(): boolean;
     build(): Promise<void>;
     setOrder(order: number): void;
     getData(): SceneLayer;
@@ -176,7 +186,7 @@ export interface Layer {
 export interface ResourceTypes {
     videoElement: HTMLVideoElement | undefined;
     audioElement: HTMLAudioElement | undefined;
-    imageElement: HTMLImageElement | undefined;
+    imageElement: HTMLImageElement | ImageBitmap | undefined;
     pixiResource: TextureSource | undefined;
     pixiTexture: Texture | undefined;
     pixiSprite: Sprite | undefined;
@@ -246,12 +256,18 @@ export interface SceneBuilder {
     addEventListener<K extends keyof EventMap>(event: K, callback: (event: CustomEvent<EventMap[K]>) => void, options?: boolean | AddEventListenerOptions): void;
     removeEventListener<K extends keyof EventMap>(event: K, callback: (event: CustomEvent<EventMap[K]>) => void, options?: boolean | AddEventListenerOptions): void;
     scale(scale: number): void;
+    markDirty(): void;
     initialize(): Promise<void>;
     seek(time: number): Promise<void>;
     replaceSourceOnTime(time: number, componentId: string, base64data: string): Promise<void>;
-    seekAndRenderFrame(time: number, target?: DisplayObject | RenderTexture, format?: string, quality?: number): Promise<string | ArrayBuffer | Blob>;
+    setDeterministicFrameProvider(provider: DeterministicFrameProvider | null): void;
+    getDeterministicFrameProvider(): DeterministicFrameProvider | null;
+    getDeterministicMediaConfig(): DeterministicMediaConfig;
+    getDiagnosticsReport(): DeterministicDiagnosticsReport | null;
+    seekAndRenderFrame(time: number, target?: DisplayObject | RenderTexture, format?: string, quality?: number, imageOptions?: FrameImageEncodingOptions): Promise<string | ArrayBuffer | Blob>;
+    renderFrameRange(options: RenderFrameRangeOptions): Promise<RenderFrameRangeSummary>;
     isSceneDirty(time: number): Promise<boolean>;
-    renderFrame(target?: DisplayObject | RenderTexture, format?: string, quality?: number): Promise<string | ArrayBuffer | Blob>;
+    renderFrame(target?: DisplayObject | RenderTexture, format?: string, quality?: number, imageOptions?: FrameImageEncodingOptions): Promise<string | ArrayBuffer | Blob>;
     log(message: string): void;
     play(changeState?: boolean): void;
     pause(changeState?: boolean): void;

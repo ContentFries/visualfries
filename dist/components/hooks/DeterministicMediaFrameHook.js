@@ -57,6 +57,9 @@ export class DeterministicMediaFrameHook {
         if (override.imageElement) {
             this.#context.setResource('imageElement', override.imageElement);
         }
+        else {
+            this.#context.removeResource('imageElement');
+        }
         const cacheKeyChanged = this.#manager.commitCacheKey(data.id, override.cacheKey);
         if (cacheKeyChanged) {
             this.#state.markDirty();

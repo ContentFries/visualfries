@@ -60,7 +60,7 @@ export class ComponentDirector {
     }
     constructGif() {
         if (this.shouldUseDeterministicMedia) {
-            this.builder.withDeterministicMedia().withTexture().withDisplayObject();
+            this.builder.withDeterministicMedia().withTexture().withSplitScreen().withDisplayObject();
             return this.builder.getComponent();
         }
         this.builder.withGif(); //.withDisplayObject();

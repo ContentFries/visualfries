@@ -114,6 +114,9 @@ export class ComponentState {
                 source = { startAt: 0 };
                 this.#data.source = source;
             }
+            if (source.startAt === undefined || source.startAt === null) {
+                source.startAt = 0;
+            }
             if (source.startAt !== undefined && source.startAt !== null) {
                 source.startAt += diff;
                 source.startAt = Math.max(0, source.startAt);
@@ -158,7 +161,7 @@ export class ComponentState {
             if (this.type === 'VIDEO' || this.type === 'AUDIO') {
                 this.#changeVideoEnd(diff);
             }
-            this.#data.timeline.endAt = this.sceneState.transformTime(end);
+            this.#data.timeline.endAt = newEnd;
             this.#emitChange();
         }
     }

@@ -8,7 +8,11 @@ export const DeterministicMediaConfigShape = z.object({
     loadingMaxAttempts: z.number().int().positive().prefault(2),
     readyYieldMs: z.number().int().nonnegative().prefault(0),
     blurDownscale: z.number().positive().max(1).prefault(0.33),
-    provider: z.custom().optional()
+    provider: z
+        .custom((value) => typeof value === 'object' &&
+        value !== null &&
+        typeof value.getFrame === 'function', 'provider must implement getFrame(request)')
+        .optional()
 }).prefault({});
 export const defaultDeterministicMediaConfig = DeterministicMediaConfigShape.parse(undefined);
 export class DeterministicRenderError extends Error {

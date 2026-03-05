@@ -16,6 +16,7 @@ const createDefaultDiagnosticsState = () => ({
     latencyMinMs: Number.POSITIVE_INFINITY,
     latencyMaxMs: 0
 });
+const IMAGE_LOAD_TIMEOUT_MS = 5000;
 export class DeterministicMediaManager {
     config;
     #provider;
@@ -319,10 +320,44 @@ export class DeterministicMediaManager {
     async #loadImage(url) {
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        img.src = url;
         await new Promise((resolve, reject) => {
-            img.onload = () => resolve();
-            img.onerror = () => reject(new Error(`Failed to load deterministic frame: ${url}`));
+            let settled = false;
+            const timeoutId = setTimeout(() => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                cleanup();
+                try {
+                    img.src = '';
+                }
+                catch {
+                    // Ignore cancellation failures.
+                }
+                reject(new Error(`Timed out loading deterministic frame after ${IMAGE_LOAD_TIMEOUT_MS}ms: ${url}`));
+            }, IMAGE_LOAD_TIMEOUT_MS);
+            const cleanup = () => {
+                clearTimeout(timeoutId);
+                img.onload = null;
+                img.onerror = null;
+            };
+            img.onload = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                cleanup();
+                resolve();
+            };
+            img.onerror = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                cleanup();
+                reject(new Error(`Failed to load deterministic frame: ${url}`));
+            };
+            img.src = url;
         });
         return img;
     }

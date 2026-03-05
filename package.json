@@ -1,6 +1,6 @@
 {
 	"name": "visualfries",
-	"version": "0.1.11",
+	"version": "0.1.102",
 	"license": "MIT",
 	"author": "ContentFries",
 	"repository": {
@@ -20,7 +20,6 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "pnpm run test:unit -- --run",
 		"test:unit": "vitest",
-		"bench:deterministic": "pnpm vitest tests/perf/deterministic-server-render.perf.test.ts --run",
 		"lint": "eslint . && prettier --check .",
 		"format": "prettier --write .",
 		"knip": "knip",

@@ -10698,13 +10698,9 @@ export declare const SceneTransitionShape: z.ZodObject<{
  * Schema for the main scene structure in v2.0
  */
 export declare const SceneShape: z.ZodObject<{
-    /** Unique identifier for the scene */
     id: z.ZodString;
-    /** Schema version */
     version: z.ZodOptional<z.ZodCoercedString<unknown>>;
-    /** Optional name for the scene */
     name: z.ZodOptional<z.ZodString>;
-    /** Scene settings */
     settings: z.ZodObject<{
         width: z.ZodNumber;
         height: z.ZodNumber;
@@ -10816,7 +10812,6 @@ export declare const SceneShape: z.ZodObject<{
             }, z.core.$strip>]>>>>>;
         }, z.core.$strip>>;
     }, z.core.$strip>;
-    /** Assets registry */
     assets: z.ZodPrefault<z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         type: z.ZodEnum<{
@@ -10902,7 +10897,6 @@ export declare const SceneShape: z.ZodObject<{
             }, z.core.$strip>>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>>;
-    /** Layers in the scene */
     layers: z.ZodPrefault<z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         name: z.ZodOptional<z.ZodString>;
@@ -21213,7 +21207,6 @@ export declare const SceneShape: z.ZodObject<{
             }, z.core.$strip>;
         }, z.core.$strict>], "type">>>;
     }, z.core.$strip>>>;
-    /** Scene transitions */
     transitions: z.ZodPrefault<z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         name: z.ZodOptional<z.ZodString>;
@@ -21224,7 +21217,6 @@ export declare const SceneShape: z.ZodObject<{
         duration: z.ZodPipe<z.ZodNumber, z.ZodTransform<number, number>>;
         parameters: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     }, z.core.$strip>>>;
-    /** Audio tracks */
     audioTracks: z.ZodPrefault<z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         name: z.ZodOptional<z.ZodString>;
@@ -21234,9 +21226,8 @@ export declare const SceneShape: z.ZodObject<{
         endAt: z.ZodPipe<z.ZodOptional<z.ZodNumber>, z.ZodTransform<number | undefined, number | undefined>>;
         muted: z.ZodPrefault<z.ZodBoolean>;
     }, z.core.$strip>>>;
-    /** Optional checksum */
     checksum: z.ZodOptional<z.ZodString>;
-}, z.core.$strict>;
+}, z.core.$strip>;
 export type SceneAssetMetadata = z.infer<typeof SceneAssetMetadataShape>;
 export type SceneAsset = z.infer<typeof SceneAssetShape>;
 export type SceneSettings = z.infer<typeof SceneSettingsShape>;

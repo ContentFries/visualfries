@@ -1,5 +1,6 @@
 import { StateManager } from '../managers/StateManager.svelte.js';
 import { EventManager } from '../managers/EventManager.js';
+import { DeterministicRenderError } from '../schemas/runtime/deterministic.js';
 export class ComponentContext {
     #data;
     // context data replacement, useful for modifiing context of subtitles
@@ -102,17 +103,19 @@ export class ComponentContext {
                 await handler.handle(type, this);
             }
             catch (error) {
-                // Log the error but continue to next hook
+                const normalizedError = error instanceof Error ? error : new Error(String(error));
                 const hookName = handler.constructor?.name ?? `Hook[${i}]`;
-                console.warn(`[ComponentContext] Hook "${hookName}" failed during "${type}" for component "${this.id}":`, error instanceof Error ? error.message : String(error));
-                // Emit error event for debugging/monitoring
+                console.warn(`[ComponentContext] Hook "${hookName}" failed during "${type}" for component "${this.id}":`, normalizedError.message);
                 this.eventManager.emit('hookerror', {
                     hookName,
                     hookType: type,
-                    error: error instanceof Error ? error : new Error(String(error)),
+                    error: normalizedError,
                     componentId: this.id,
                     timestamp: Date.now()
                 });
+                if (normalizedError instanceof DeterministicRenderError) {
+                    throw normalizedError;
+                }
             }
         }
     }

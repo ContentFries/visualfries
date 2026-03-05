@@ -65,7 +65,7 @@ export class SeekCommand {
     #getCurrentSceneFrameIndex() {
         const fps = this.state.data?.settings?.fps || 30;
         const currentTime = this.state.currentTime ?? 0;
-        return Math.max(0, Math.round(currentTime * fps));
+        return Math.max(0, Math.floor(currentTime * fps));
     }
     async #delay(ms) {
         if (ms <= 0) {
@@ -119,7 +119,11 @@ export class SeekCommand {
             }
         }
         if (pending.length > 0) {
-            throw new Error(`Deterministic media was not ready after seek for active components: ${pending.join(', ')}`);
+            const message = `Deterministic media was not ready after seek for active components: ${pending.join(', ')}`;
+            if (this.deterministicMediaManager.config.strict) {
+                throw new Error(message);
+            }
+            console.warn(message);
         }
     }
     async execute(args) {

@@ -140,7 +140,7 @@ export const SceneTransitionShape = z.object({
 /**
  * Schema for the main scene structure in v2.0
  */
-export const SceneShape = z.strictObject({
+export const SceneShape = z.object({
     /** Unique identifier for the scene */
     id: z.string(),
     /** Schema version */

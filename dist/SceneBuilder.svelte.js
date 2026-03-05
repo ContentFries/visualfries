@@ -423,6 +423,7 @@ export class SceneBuilder {
             if (!isDuplicate) {
                 previousMimeType = mimeType;
             }
+            // Current frame payloads are strings, ArrayBuffers, or Blobs, so release() is a no-op today.
             let released = false;
             const release = () => {
                 if (released) {
@@ -503,7 +504,9 @@ export class SceneBuilder {
         this.componentsManager.destroy();
         // media manages should be destroyed last
         this.mediaManager.destroy();
-        void this.deterministicMediaManager.destroy();
+        this.deterministicMediaManager.destroy().catch((error) => {
+            console.error('Failed to destroy deterministic media manager:', error);
+        });
         // Remove the container from the DI container cache
         removeContainer(this.sceneData.id);
     }

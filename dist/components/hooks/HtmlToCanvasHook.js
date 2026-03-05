@@ -67,7 +67,8 @@ export class HtmlToCanvasHook {
         }
         const { width, height } = this.state;
         if (!this.svgBase) {
-            const { base, content, end } = await svgGenerator.generateSVG(this.#htmlEl, this.#context.data.appearance.text, width, height, 'svg-' + this.#context.contextData.id, encodeURIComponent(this.state.getCharactersList().join('')));
+            const { base, content, end } = await svgGenerator.generateSVG(this.#htmlEl, this.#context.data.appearance.text, width, height, 'svg-' + this.#context.contextData.id, encodeURIComponent(this.state.getCharactersList().join('')) // current component text encoded
+            );
             this.svgBase = base;
             this.svgEnd = end;
             this.svg = base + content + end;

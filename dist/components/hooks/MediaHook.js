@@ -2,7 +2,7 @@ import { MediaManager } from '../../managers/MediaManager.js';
 import { z } from 'zod';
 import { StateManager } from '../../managers/StateManager.svelte.js';
 export class MediaHook {
-    types = ['setup', 'update', 'destroy'];
+    types = ['setup', 'update', 'destroy', 'refresh'];
     priority = 1;
     #context;
     #mediaElement;

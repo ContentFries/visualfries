@@ -27,7 +27,7 @@ export class ReplaceSourceOnTimeCommand {
         if (!blob) {
             return;
         }
-        const cacheKey = `replace:${componentId}:${frameIndex}:${base64data.length}`;
+        const cacheKey = `replace:${componentId}:${frameIndex}:${this.#hashBase64(base64data)}`;
         this.deterministicMediaManager.setOneTimeOverride(componentId, frameIndex, {
             kind: 'blob',
             cacheKey,
@@ -51,5 +51,13 @@ export class ReplaceSourceOnTimeCommand {
         catch {
             return null;
         }
+    }
+    #hashBase64(value) {
+        let hash = 0x811c9dc5;
+        for (let index = 0; index < value.length; index += 1) {
+            hash ^= value.charCodeAt(index);
+            hash = Math.imul(hash, 0x01000193) >>> 0;
+        }
+        return hash.toString(16).padStart(8, '0');
     }
 }

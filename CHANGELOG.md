@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.11](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.10...visualfries-v0.1.11) (2026-02-28)
+
+
+### Bug Fixes
+
+* video elements rendering improvements and deterministic server-side rendering ([#31](https://github.com/ContentFries/visualfries/issues/31)) ([c40cad2](https://github.com/ContentFries/visualfries/commit/c40cad20ad9ae77ce6a318b5ea705aea5b3326c7))
+
 ## [0.1.10](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.9...visualfries-v0.1.10) (2025-12-10)
 
 

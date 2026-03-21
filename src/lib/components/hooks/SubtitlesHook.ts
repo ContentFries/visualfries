@@ -109,7 +109,7 @@ export class SubtitlesHook implements IComponentHook {
 				currentTime >= this.#currentSubtitle.start_at &&
 				currentTime <= this.#currentSubtitle.end_at
 			) {
-				return this.#currentSubtitle.visible ? this.#currentSubtitle : undefined;
+				return this.#currentSubtitle.visible !== false ? this.#currentSubtitle : undefined;
 			}
 		}
 

@@ -116,9 +116,9 @@ export class ComponentContext implements IComponentContext {
 		const componentType = this.#contextData?.type ?? this.#getBaseType();
 		const startAt = this.state.transformTime(timeline.startAt);
 		let startAtModifier = 0;
-		if (componentType === 'VIDEO') {
+		if (componentType === 'VIDEO' || componentType === 'AUDIO') {
 			startAtModifier =
-				this.#contextData?.type === 'VIDEO'
+				this.#contextData?.type === 'VIDEO' || this.#contextData?.type === 'AUDIO'
 					? this.#contextData.source.startAt ?? 0
 					: this.#getBaseSourceStartAt() ?? 0;
 		}

@@ -156,4 +156,39 @@ describe('ComponentContext timeline activity', () => {
 		expect(outgoing.isActive).toBe(false);
 		expect(incoming.isActive).toBe(true);
 	});
+
+	it('keeps source.startAt offset for trimmed audio clips', () => {
+		const eventManager = {
+			emit: vi.fn()
+		};
+		const stateManager = {
+			currentTime: 12,
+			transformTime: (value: number, inverse?: boolean) => value
+		} as any;
+
+		const audio = new ComponentContext({
+			stateManager,
+			eventManager: eventManager as any
+		});
+		audio.setComponentProps({
+			id: 'audio',
+			type: 'AUDIO',
+			duration: 10,
+			timeline: { startAt: 10, endAt: 20 },
+			getData: () =>
+				({
+					id: 'audio',
+					type: 'AUDIO',
+					timeline: { startAt: 10, endAt: 20 },
+					source: { url: 'https://example.com/audio.mp3', startAt: 30 },
+					appearance: {},
+					animations: {},
+					effects: {},
+					visible: true,
+					order: 0
+				}) as any
+		} as any);
+
+		expect(audio.currentComponentTime).toBe(32);
+	});
 });

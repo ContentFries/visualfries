@@ -103,23 +103,44 @@ export class SubtitlesHook implements IComponentHook {
 	}
 
 	get activeSubtitle() {
+		const currentTime = this.state.currentTime;
 		if (this.#currentSubtitle) {
 			if (
-				this.state.currentTime >= this.#currentSubtitle.start_at &&
-				this.state.currentTime <= this.#currentSubtitle.end_at
+				currentTime >= this.#currentSubtitle.start_at &&
+				currentTime <= this.#currentSubtitle.end_at
 			) {
 				return this.#currentSubtitle.visible ? this.#currentSubtitle : undefined;
 			}
 		}
 
-		const subtitle = this.#subtitles.find(
-			(sub) =>
-				this.state.currentTime >= sub.start_at &&
-				this.state.currentTime <= sub.end_at &&
-				sub.visible !== false
-		);
+		let low = 0;
+		let high = this.#subtitles.length - 1;
+		let candidateIndex = -1;
 
-		return subtitle;
+		while (low <= high) {
+			const mid = Math.floor((low + high) / 2);
+			const subtitle = this.#subtitles[mid];
+			if (subtitle.start_at <= currentTime) {
+				candidateIndex = mid;
+				low = mid + 1;
+			} else {
+				high = mid - 1;
+			}
+		}
+
+		if (candidateIndex === -1) {
+			this.#currentSubtitle = undefined;
+			return undefined;
+		}
+
+		const subtitle = this.#subtitles[candidateIndex];
+		if (currentTime <= subtitle.end_at && subtitle.visible !== false) {
+			this.#currentSubtitle = subtitle;
+			return subtitle;
+		}
+
+		this.#currentSubtitle = undefined;
+		return undefined;
 	}
 
 	#buildFakeContext() {
@@ -165,6 +186,7 @@ export class SubtitlesHook implements IComponentHook {
 			(this.activeSubtitle && this.activeSubtitle.id !== this.#context.contextData.id) ||
 			(this.activeSubtitle && this.#refreshed)
 		) {
+			this.#currentSubtitle = this.activeSubtitle;
 			this.#currentId = this.activeSubtitle.id;
 			const startTime = this.activeSubtitle?.start_at ?? 0;
 			const endTime = this.activeSubtitle?.end_at ?? 0;

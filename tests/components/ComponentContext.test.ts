@@ -96,3 +96,64 @@ describe('ComponentContext.runHooks', () => {
 		expect(trailingHook.handle).not.toHaveBeenCalled();
 	});
 });
+
+describe('ComponentContext timeline activity', () => {
+	it('treats endAt as exclusive for back-to-back clips', () => {
+		const eventManager = {
+			emit: vi.fn()
+		};
+		const stateManager = {
+			currentTime: 10,
+			transformTime: (value: number) => value
+		} as any;
+
+		const outgoing = new ComponentContext({
+			stateManager,
+			eventManager: eventManager as any
+		});
+		outgoing.setComponentProps({
+			id: 'outgoing',
+			type: 'VIDEO',
+			duration: 10,
+			timeline: { startAt: 0, endAt: 10 },
+			getData: () =>
+				({
+					id: 'outgoing',
+					type: 'VIDEO',
+					timeline: { startAt: 0, endAt: 10 },
+					source: { url: 'https://example.com/video.mp4', startAt: 0 },
+					appearance: {},
+					animations: {},
+					effects: {},
+					visible: true,
+					order: 0
+				}) as any
+		} as any);
+
+		const incoming = new ComponentContext({
+			stateManager,
+			eventManager: eventManager as any
+		});
+		incoming.setComponentProps({
+			id: 'incoming',
+			type: 'VIDEO',
+			duration: 10,
+			timeline: { startAt: 10, endAt: 20 },
+			getData: () =>
+				({
+					id: 'incoming',
+					type: 'VIDEO',
+					timeline: { startAt: 10, endAt: 20 },
+					source: { url: 'https://example.com/video.mp4', startAt: 10 },
+					appearance: {},
+					animations: {},
+					effects: {},
+					visible: true,
+					order: 0
+				}) as any
+		} as any);
+
+		expect(outgoing.isActive).toBe(false);
+		expect(incoming.isActive).toBe(true);
+	});
+});

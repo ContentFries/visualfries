@@ -6,9 +6,10 @@ const createComponent = (id: string, data: any, updateImpl?: () => Promise<void>
 	({
 		id,
 		type: data.type,
-		props: {
+	props: {
 			visible: data.visible,
 			timeline: data.timeline,
+			sourceUrl: data.source?.url,
 			getData: () => data
 		},
 		update: vi.fn(updateImpl ?? (async () => {}))
@@ -60,6 +61,86 @@ describe('RenderManager', () => {
 		expect(nearVideo.update).toHaveBeenCalledTimes(1);
 		expect(farVideo.update).not.toHaveBeenCalled();
 		expect(text.update).not.toHaveBeenCalled();
+	});
+
+	it('does not require getData() for media warm-window checks', async () => {
+		const video = {
+			id: 'video',
+			type: 'VIDEO',
+			props: {
+				visible: true,
+				timeline: { startAt: 10, endAt: 20 },
+				sourceUrl: 'https://example.com/video.mp4',
+				getData: vi.fn(() => {
+					throw new Error('getData should not be used in render hot path');
+				})
+			},
+			update: vi.fn(async () => {})
+		} as any;
+
+		const renderManager = new RenderManager({
+			stateManager: {
+				currentTime: 9.5,
+				duration: 60,
+				markDirty: vi.fn()
+			} as any,
+			componentsManager: {
+				getAll: () => [video]
+			} as any,
+			eventManager: {
+				on: vi.fn(),
+				removeEventListener: vi.fn()
+			} as any,
+			appManager: {
+				render: vi.fn()
+			} as any,
+			layersManager: {
+				getAll: () => []
+			} as any
+		});
+
+		await expect(renderManager.render()).resolves.toBeUndefined();
+		expect(video.update).toHaveBeenCalledTimes(1);
+		expect(video.props.getData).not.toHaveBeenCalled();
+	});
+
+	it('treats endAt as exclusive so adjacent clips do not overlap at the cut', async () => {
+		const outgoing = createComponent('outgoing', {
+			type: 'TEXT',
+			visible: true,
+			timeline: { startAt: 0, endAt: 10 }
+		});
+		const incoming = createComponent('incoming', {
+			type: 'TEXT',
+			visible: true,
+			timeline: { startAt: 10, endAt: 20 }
+		});
+
+		const renderManager = new RenderManager({
+			stateManager: {
+				currentTime: 10,
+				duration: 60,
+				markDirty: vi.fn()
+			} as any,
+			componentsManager: {
+				getAll: () => [outgoing, incoming]
+			} as any,
+			eventManager: {
+				on: vi.fn(),
+				removeEventListener: vi.fn()
+			} as any,
+			appManager: {
+				render: vi.fn()
+			} as any,
+			layersManager: {
+				getAll: () => []
+			} as any
+		});
+
+		await renderManager.render();
+
+		expect(outgoing.update).toHaveBeenCalledTimes(0);
+		expect(incoming.update).toHaveBeenCalledTimes(1);
 	});
 
 	it('serializes async renders and drains one queued rerender after completion', async () => {

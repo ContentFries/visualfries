@@ -78,6 +78,7 @@ export class Component implements IComponent {
 
 		hook.priority = priority ? priority : maxPriority + 1;
 		this.#hooks.push(hook);
+		this.#hooks.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
 	}
 
 	async #handle(type: HookType) {

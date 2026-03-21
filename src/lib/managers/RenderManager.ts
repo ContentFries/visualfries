@@ -6,6 +6,7 @@ import type { AppearanceInput } from '$lib';
 import { AppManager } from './AppManager.svelte.js';
 import { LayersManager } from './LayersManager.svelte.js';
 import { shouldPrepareMediaAtTime } from '$lib/utils/mediaWindow.js';
+import { isTimeWithinTimeline } from '$lib/utils/timelineWindow.js';
 
 export class RenderManager {
 	private state: StateManager;
@@ -93,16 +94,23 @@ export class RenderManager {
 			wasVisible: boolean;
 		}> =
 			components.map((component: IComponent) => {
-				const data =
-					typeof component.props.getData === 'function'
-						? component.props.getData()
-						: (component.props as unknown as ComponentData);
 				const startAt = component.props.timeline.startAt ?? 0;
 				const endAt = component.props.timeline.endAt ?? this.state.duration;
-				const isVisibleByTime = currentTime >= startAt && currentTime <= endAt;
+				const isVisibleByTime = isTimeWithinTimeline(currentTime, startAt, endAt);
 				const isExplicitlyVisible = component.props.visible !== false;
 				const shouldBeVisible = isVisibleByTime && isExplicitlyVisible;
-				const shouldPrepareMedia = shouldPrepareMediaAtTime(data, currentTime);
+				const shouldPrepareMedia =
+					component.type === 'VIDEO' || component.type === 'AUDIO'
+						? shouldPrepareMediaAtTime(
+								{
+									type: component.type,
+									visible: component.props.visible,
+									timeline: component.props.timeline,
+									source: { url: component.props.sourceUrl }
+								},
+								currentTime
+							)
+						: false;
 				const wasVisible = this.lastActiveById.get(component.id) === true;
 				return { component, shouldBeVisible, shouldPrepareMedia, wasVisible };
 			});

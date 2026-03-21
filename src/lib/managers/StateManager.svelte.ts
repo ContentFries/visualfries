@@ -31,6 +31,8 @@ export class StateManager implements IStateManager {
 	private loop = false;
 	private timeManager: TimeManager;
 	private layersManager: LayersManager;
+	private disabledTimeZonesCache: Zone[] = [];
+	private disabledTimeZonesCacheKey = '';
 
 	constructor(cradle: {
 		sceneData: SceneData; // SceneData
@@ -149,67 +151,72 @@ export class StateManager implements IStateManager {
 	}
 
 	public get disabledTimeZones(): Zone[] {
-		const start = $derived(this.data.settings.startAt);
-		const end = $derived(this.data.settings.endAt);
-		const excluded_timestamps = $derived(this.data.settings.trimZones);
-		const duration = $derived(this.data.settings.duration);
+		const start = this.data.settings.startAt;
+		const end = this.data.settings.endAt;
+		const excludedTimestamps = this.data.settings.trimZones ?? [];
+		const duration = this.data.settings.duration;
+		const cacheKey = [
+			start ?? '',
+			end ?? '',
+			duration,
+			excludedTimestamps.map((zone) => `${zone.start}:${zone.end}`).join('|')
+		].join('::');
 
-		const zones: Zone[] = $derived.by(() => {
-			const output: Zone[] = [];
+		if (cacheKey === this.disabledTimeZonesCacheKey) {
+			return this.disabledTimeZonesCache;
+		}
 
-			if (start && start > 0) {
-				output.push({
-					start: 0,
-					end: start
-				});
-			}
+		const output: Zone[] = [];
 
-			if (excluded_timestamps && excluded_timestamps.length) {
-				for (const disabledZone of excluded_timestamps) {
-					const { start, end } = disabledZone;
-					if (end < duration) {
-						output.push({
-							start,
-							end
-						});
-					}
+		if (start && start > 0) {
+			output.push({
+				start: 0,
+				end: start
+			});
+		}
+
+		if (excludedTimestamps.length) {
+			for (const disabledZone of excludedTimestamps) {
+				const { start, end } = disabledZone;
+				if (end < duration) {
+					output.push({
+						start,
+						end
+					});
 				}
 			}
+		}
 
-			if (end && end < duration) {
-				output.push({
-					start: end,
-					end: duration
-				});
-			}
+		if (end && end < duration) {
+			output.push({
+				start: end,
+				end: duration
+			});
+		}
 
-			// Sort zones by start time
-			output.sort((a, b) => a.start - b.start);
+		output.sort((a, b) => a.start - b.start);
 
-			// Merge overlapping zones
-			const mergedZones: Zone[] = [];
-			let currentZone: Zone | null = null;
+		const mergedZones: Zone[] = [];
+		let currentZone: Zone | null = null;
 
-			for (const zone of output) {
-				if (!currentZone) {
-					currentZone = { ...zone };
-				} else if (zone.start <= currentZone.end) {
-					// Zones overlap, extend the current zone
-					currentZone.end = Math.max(currentZone.end, zone.end);
-				} else {
-					// No overlap, push current zone and start a new one
-					mergedZones.push(currentZone);
-					currentZone = { ...zone };
-				}
-			}
-
-			if (currentZone) {
+		for (const zone of output) {
+			if (!currentZone) {
+				currentZone = { ...zone };
+			} else if (zone.start <= currentZone.end) {
+				currentZone.end = Math.max(currentZone.end, zone.end);
+			} else {
 				mergedZones.push(currentZone);
+				currentZone = { ...zone };
 			}
+		}
 
-			return mergedZones;
-		});
-		return zones;
+		if (currentZone) {
+			mergedZones.push(currentZone);
+		}
+
+		this.disabledTimeZonesCacheKey = cacheKey;
+		this.disabledTimeZonesCache = mergedZones;
+		return this.disabledTimeZonesCache;
 	}
 
 	public changeState(updateState: 'playing' | 'paused'): void {

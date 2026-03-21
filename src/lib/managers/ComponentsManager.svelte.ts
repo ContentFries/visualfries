@@ -15,6 +15,7 @@ import { ComponentState } from '$lib/builders/_ComponentState.svelte.js';
 import { asClass, asValue, type AwilixContainer } from 'awilix/browser';
 import type { LayersManager } from './LayersManager.svelte.js';
 import { debounce, type DebouncedFunc } from 'lodash-es';
+import { isTimeWithinTimeline } from '$lib/utils/timelineWindow.js';
 // import { builtTextComponentForSubtitle } from '$lib/utils/subtitles.js';
 
 export class ComponentsManager
@@ -68,7 +69,7 @@ export class ComponentsManager
 
 		const startAt = component.props.timeline.startAt || 0;
 		const endAt = component.props.timeline.endAt || duration;
-		return currentTime >= startAt && currentTime <= endAt;
+		return isTimeWithinTimeline(currentTime, startAt, endAt);
 	}
 
 	getAll() {

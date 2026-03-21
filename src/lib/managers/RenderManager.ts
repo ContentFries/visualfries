@@ -5,6 +5,7 @@ import type { AppearanceInput } from '$lib';
 
 import { AppManager } from './AppManager.svelte.js';
 import { LayersManager } from './LayersManager.svelte.js';
+import { shouldPrepareMediaAtTime } from '$lib/utils/mediaWindow.js';
 
 export class RenderManager {
 	private state: StateManager;
@@ -15,6 +16,8 @@ export class RenderManager {
 	// Track last visibility to ensure we run one more update to hide components that just became invisible
 	private lastActiveById: Map<string, boolean> = new Map();
 	private lastRenderTime: number = -1;
+	private renderInFlight: Promise<void> | null = null;
+	private rerenderRequested = false;
 
 	constructor(cradle: {
 		stateManager: StateManager;
@@ -59,23 +62,53 @@ export class RenderManager {
 	}
 
 	async render(): Promise<void> {
+		if (this.renderInFlight) {
+			this.rerenderRequested = true;
+			return this.renderInFlight;
+		}
+
+		this.renderInFlight = this.#drainRenderQueue();
+		return this.renderInFlight;
+	}
+
+	async #drainRenderQueue(): Promise<void> {
+		try {
+			do {
+				this.rerenderRequested = false;
+				await this.#renderOnce();
+			} while (this.rerenderRequested);
+		} finally {
+			this.renderInFlight = null;
+		}
+	}
+
+	async #renderOnce(): Promise<void> {
 		const components: IComponent[] = this.componentsManager.getAll();
 		const currentTime = this.state.currentTime;
 
-		const entries: Array<{ component: IComponent; shouldBeVisible: boolean; wasVisible: boolean }> =
+		const entries: Array<{
+			component: IComponent;
+			shouldBeVisible: boolean;
+			shouldPrepareMedia: boolean;
+			wasVisible: boolean;
+		}> =
 			components.map((component: IComponent) => {
+				const data =
+					typeof component.props.getData === 'function'
+						? component.props.getData()
+						: (component.props as unknown as ComponentData);
 				const startAt = component.props.timeline.startAt ?? 0;
 				const endAt = component.props.timeline.endAt ?? this.state.duration;
 				const isVisibleByTime = currentTime >= startAt && currentTime <= endAt;
 				const isExplicitlyVisible = component.props.visible !== false;
-				const shouldBeVisible =
-					(isVisibleByTime && isExplicitlyVisible) || component.type === 'VIDEO';
+				const shouldBeVisible = isVisibleByTime && isExplicitlyVisible;
+				const shouldPrepareMedia = shouldPrepareMediaAtTime(data, currentTime);
 				const wasVisible = this.lastActiveById.get(component.id) === true;
-				return { component, shouldBeVisible, wasVisible };
+				return { component, shouldBeVisible, shouldPrepareMedia, wasVisible };
 			});
 
 		const toUpdate: IComponent[] = entries
-			.filter((e) => e.shouldBeVisible || e.wasVisible)
+			.filter((e) => e.shouldBeVisible || e.wasVisible || e.shouldPrepareMedia)
 			.map((e) => e.component);
 
 		await Promise.all(toUpdate.map((component) => component.update()));

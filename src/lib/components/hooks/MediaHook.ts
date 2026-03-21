@@ -1,7 +1,7 @@
 import { MediaManager } from '$lib/managers/MediaManager.js';
 import type { IComponentContext, IComponentHook, HookType } from '$lib';
-import { z } from 'zod';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
+import { shouldPrepareMediaAtTime } from '$lib/utils/mediaWindow.js';
 
 export class MediaHook implements IComponentHook {
 	types: HookType[] = ['setup', 'update', 'destroy', 'refresh'];
@@ -23,12 +23,49 @@ export class MediaHook implements IComponentHook {
 		this.state = cradle.stateManager;
 	}
 
-	async #handleSetup() {
+	#shouldPrepareMedia(): boolean {
+		return shouldPrepareMediaAtTime(this.#context.contextData, this.#context.sceneState.currentTime);
+	}
+
+	async #releaseMediaElement(markDestroyed = false): Promise<void> {
+		const source = (this.#context.contextData as any).source;
+		const mediaType = this.#context.type === 'VIDEO' ? 'video' : 'audio';
+
+		if (source?.url) {
+			const isController =
+				this.mediaManager.getMediaController(source.url, mediaType) === this.#context.contextData.id;
+			if (isController) {
+				await this.#pause('releasing media element');
+				this.mediaManager.setMediaController(source.url, undefined, mediaType);
+			}
+		}
+
+		if (this.#mediaElement) {
+			if (source?.url) {
+				this.mediaManager.releaseMediaElement(source.url, mediaType);
+			}
+
+			this.#context.removeResource(mediaType === 'video' ? 'videoElement' : 'audioElement');
+		}
+
+		this.#mediaElement = undefined;
+		this.#lastTargetTime = null;
+		this.#destroyed = markDestroyed;
+	}
+
+	async #handleSetup(force = false) {
 		if (this.#mediaElement && !this.#destroyed) {
+			this.#context.setResource(
+				this.#context.type === 'VIDEO' ? 'videoElement' : 'audioElement',
+				this.#mediaElement
+			);
 			return;
 		}
 		if (this.#context.contextData.type !== 'VIDEO' && this.#context.contextData.type !== 'AUDIO')
 			return;
+		if (!force && !this.#shouldPrepareMedia()) {
+			return;
+		}
 		const mediaType = this.#context.type === 'VIDEO' ? 'video' : 'audio';
 		const source = (this.#context.contextData as any).source; // TODO: remove as any
 		if (!source || !source.url) {
@@ -183,8 +220,6 @@ export class MediaHook implements IComponentHook {
 	}
 
 	async #handleUpdate(): Promise<void> {
-		// On server, seeking is handled by MediaSeekingHook. Avoid duplicate logic/races.
-		if (this.state.environment === 'server') return;
 		if (this.#context.contextData.type !== 'VIDEO' && this.#context.contextData.type !== 'AUDIO')
 			return;
 		const isActive = this.#context.isActive;
@@ -200,6 +235,16 @@ export class MediaHook implements IComponentHook {
 		const isController =
 			this.mediaManager.getMediaController(source.url, mediaType) === this.#context.contextData.id;
 
+		const shouldPrepareMedia = this.#shouldPrepareMedia();
+		if (!shouldPrepareMedia) {
+			await this.#releaseMediaElement();
+			return;
+		}
+
+		if (!this.#mediaElement) {
+			await this.#handleSetup(true);
+		}
+
 		if (!isActive) {
 			if (isController) {
 				await this.#pause('!isActive isController');
@@ -209,8 +254,11 @@ export class MediaHook implements IComponentHook {
 		}
 
 		if (!this.#mediaElement) {
-			await this.#handleRefresh();
+			return;
 		}
+
+		// On server, seeking is handled by MediaSeekingHook. Avoid duplicate logic/races.
+		if (this.state.environment === 'server') return;
 
 		// Make sure we're still marked as the controller (debounced)
 		if (!isController && shouldCheckController) {
@@ -274,25 +322,11 @@ export class MediaHook implements IComponentHook {
 
 	async #handleRefresh() {
 		await this.#handleDestroy();
-		await this.#handleSetup();
+		await this.#handleSetup(true);
 	}
 
 	async #handleDestroy() {
-		this.#destroyed = true;
-		this.#lastTargetTime = null;
-
-		// Release the media element back to the MediaManager
-		if (this.#mediaElement) {
-			const mediaType = this.#context.type === 'VIDEO' ? 'video' : 'audio';
-			const source = (this.#context.contextData as any).source;
-			if (source && source.url) {
-				this.mediaManager.releaseMediaElement(source.url, mediaType);
-			}
-
-			this.#context.removeResource(mediaType === 'video' ? 'videoElement' : 'audioElement');
-		}
-
-		this.#mediaElement = undefined as any;
+		await this.#releaseMediaElement(true);
 	}
 
 	async handle(type: HookType, context: IComponentContext) {

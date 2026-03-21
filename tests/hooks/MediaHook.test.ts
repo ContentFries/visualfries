@@ -29,13 +29,17 @@ const createContext = (currentTime: number) =>
 			source: { url: 'https://example.com/video.mp4', startAt: 10 }
 		},
 		currentComponentTime: Math.max(0, currentTime - 10) + 10,
-		sceneState: {
-			currentTime,
-			state: 'paused'
-		},
-		setResource: vi.fn(),
-		removeResource: vi.fn()
-	}) as any;
+			sceneState: {
+				currentTime,
+				state: 'paused'
+			},
+			eventManager: {
+				emit: vi.fn()
+			},
+			getResource: vi.fn(),
+			setResource: vi.fn(),
+			removeResource: vi.fn()
+		}) as any;
 
 describe('MediaHook', () => {
 	let mediaElement: HTMLVideoElement;
@@ -94,5 +98,80 @@ describe('MediaHook', () => {
 			'video'
 		);
 		expect(coldContext.removeResource).toHaveBeenCalledWith('videoElement');
+	});
+
+	it('claims the controller immediately when active media has no owner', async () => {
+		const nowSpy = vi.spyOn(performance, 'now').mockReturnValue(0);
+		mediaElement.paused = true;
+		(mediaElement as any).requestVideoFrameCallback = vi.fn((callback: Function) => {
+			callback(0, { mediaTime: mediaElement.currentTime });
+			return 1;
+		});
+		mediaManager.getMediaController.mockReturnValue(undefined);
+
+		const context = createContext(10.5);
+		context.sceneState.state = 'playing';
+
+		await hook.handle('update', context);
+		nowSpy.mockRestore();
+
+		expect(mediaManager.setMediaController).toHaveBeenCalledWith(
+			'https://example.com/video.mp4',
+			'video-1',
+			'video'
+		);
+		expect(mediaElement.play).toHaveBeenCalledTimes(1);
+	});
+
+	it('refreshes the pixi texture after a paused seek', async () => {
+		const baseTextureUpdate = vi.fn();
+		(mediaElement as any).requestVideoFrameCallback = vi.fn((callback: Function) => {
+			callback(0, { mediaTime: mediaElement.currentTime });
+			return 1;
+		});
+		mediaManager.getMediaController.mockReturnValue(undefined);
+
+		const context = createContext(10.5);
+		context.getResource.mockImplementation((name: string) =>
+			name === 'pixiTexture' ? { baseTexture: { update: baseTextureUpdate } } : undefined
+		);
+
+		await hook.handle('update', context);
+
+		expect(baseTextureUpdate).toHaveBeenCalledTimes(1);
+	});
+
+	it('re-renders when a paused seek completes after the optimistic timeout', async () => {
+		vi.useFakeTimers();
+		try {
+			const baseTextureUpdate = vi.fn();
+			(mediaElement as any).requestVideoFrameCallback = vi.fn();
+			let seekedHandler: (() => void) | undefined;
+			mediaElement.addEventListener = vi.fn((event: string, handler: () => void) => {
+				if (event === 'seeked') {
+					seekedHandler = handler;
+				}
+			});
+			mediaElement.removeEventListener = vi.fn();
+			mediaManager.getMediaController.mockReturnValue(undefined);
+
+			const context = createContext(10.5);
+			context.getResource.mockImplementation((name: string) =>
+				name === 'pixiTexture' ? { baseTexture: { update: baseTextureUpdate } } : undefined
+			);
+
+			const updatePromise = hook.handle('update', context);
+			await vi.advanceTimersByTimeAsync(121);
+			await updatePromise;
+
+			expect(context.eventManager.emit).not.toHaveBeenCalledWith('rerender');
+
+			seekedHandler?.();
+
+			expect(baseTextureUpdate).toHaveBeenCalledTimes(2);
+			expect(context.eventManager.emit).toHaveBeenCalledWith('rerender');
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

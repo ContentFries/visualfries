@@ -17,6 +17,7 @@ export class MediaHook implements IComponentHook {
 	#playRequested = false;
 	#lastControllerCheck = 0;
 	#CONTROLLER_CHECK_INTERVAL = 100; // ms
+	#seekVersion = 0;
 
 	constructor(cradle: { mediaManager: MediaManager; stateManager: StateManager }) {
 		this.mediaManager = cradle.mediaManager;
@@ -113,6 +114,20 @@ export class MediaHook implements IComponentHook {
 		await this.#seek(target);
 	}
 
+	#refreshPixiTexture() {
+		try {
+			const texture = this.#context.getResource('pixiTexture') as any;
+			const baseTexture = texture?.baseTexture;
+			if (baseTexture?.resource && typeof baseTexture.resource.update === 'function') {
+				baseTexture.resource.update();
+			} else if (typeof baseTexture?.update === 'function') {
+				baseTexture.update();
+			} else if (typeof texture?.update === 'function') {
+				texture.update();
+			}
+		} catch {}
+	}
+
 	async #seek(time: number) {
 		if (!this.#mediaElement) {
 			return;
@@ -135,26 +150,58 @@ export class MediaHook implements IComponentHook {
 			element.currentTime = time;
 		}
 
+		const seekVersion = ++this.#seekVersion;
+		const shouldRerenderWhenReady =
+			this.state.environment !== 'server' &&
+			this.#context.sceneState.state !== 'playing' &&
+			this.#context.sceneState.state !== 'loading';
+
+		if (shouldRerenderWhenReady) {
+			let cleanedUp = false;
+			const cleanup = () => {
+				if (cleanedUp) return;
+				cleanedUp = true;
+				element.removeEventListener('seeked', handleReady);
+				element.removeEventListener('canplay', handleReady);
+			};
+			const handleReady = () => {
+				if (seekVersion !== this.#seekVersion) {
+					cleanup();
+					return;
+				}
+				this.#refreshPixiTexture();
+				this.#context.eventManager.emit('rerender');
+				cleanup();
+			};
+			element.addEventListener('seeked', handleReady);
+			element.addEventListener('canplay', handleReady);
+		}
+
+		let settled: Promise<unknown>;
+
 		// Prefer requestVideoFrameCallback when available (videos only)
 		const anyElement = element as any;
 		if (typeof anyElement.requestVideoFrameCallback === 'function') {
-			return new Promise((resolve) => {
+			settled = new Promise((resolve) => {
 				const timeout = setTimeout(() => resolve(true), 120);
 				anyElement.requestVideoFrameCallback((_now: number, _metadata: { mediaTime: number }) => {
 					clearTimeout(timeout);
 					resolve(true);
 				});
 			});
+		} else {
+			// Fallback to seeked event
+			settled = new Promise((resolve) => {
+				const onSeeked = () => {
+					element.removeEventListener('seeked', onSeeked);
+					resolve(true);
+				};
+				element.addEventListener('seeked', onSeeked);
+			});
 		}
 
-		// Fallback to seeked event
-		return new Promise((resolve) => {
-			const onSeeked = () => {
-				element.removeEventListener('seeked', onSeeked);
-				resolve(true);
-			};
-			element.addEventListener('seeked', onSeeked);
-		});
+		await settled;
+		this.#refreshPixiTexture();
 	}
 
 	#isOutOfSync() {
@@ -260,22 +307,24 @@ export class MediaHook implements IComponentHook {
 		// On server, seeking is handled by MediaSeekingHook. Avoid duplicate logic/races.
 		if (this.state.environment === 'server') return;
 
-		// Make sure we're still marked as the controller (debounced)
-		if (!isController && shouldCheckController) {
-			// Only set controller if no other component is currently controlling this media
-			const currentController = this.mediaManager.getMediaController(source.url, mediaType);
-			if (!currentController) {
-				this.mediaManager.setMediaController(source.url, this.#context.contextData.id, mediaType);
-				await this.#autoSeek();
-				this.#lastControllerCheck = now;
+			// Make sure we're still marked as the controller. If nobody owns the shared media,
+			// claim it immediately; otherwise keep the debounce to avoid controller thrash.
+			if (!isController) {
+				const currentController = this.mediaManager.getMediaController(source.url, mediaType);
+				if (!currentController || shouldCheckController) {
+					if (!currentController) {
+						this.mediaManager.setMediaController(source.url, this.#context.contextData.id, mediaType);
+						await this.#autoSeek();
+						this.#lastControllerCheck = now;
 
-				// Safari-specific: Ensure audio is properly restored when taking control
-				if (this.#mediaElement && !isMuted) {
-					this.#mediaElement.muted = false;
-					this.#mediaElement.volume = componentVolume;
+						// Safari-specific: Ensure audio is properly restored when taking control
+						if (this.#mediaElement && !isMuted) {
+							this.#mediaElement.muted = false;
+							this.#mediaElement.volume = componentVolume;
+						}
+					}
 				}
 			}
-		}
 
 		// Check if component is loading using the StateManager
 		if (this.state.isLoadingComponent(this.#context.contextData.id)) {

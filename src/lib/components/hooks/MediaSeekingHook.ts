@@ -7,6 +7,7 @@ export class MediaSeekingHook implements IComponentHook {
 
 	#context!: IComponentContext;
 	#mediaElement: HTMLVideoElement | HTMLAudioElement | undefined;
+	#detachMediaEventHandlers: (() => void) | undefined;
 
 	state: StateManager;
 
@@ -14,7 +15,7 @@ export class MediaSeekingHook implements IComponentHook {
 		this.state = cradle.stateManager;
 	}
 
-	#attachMediaEventHandlers(media: HTMLVideoElement | HTMLAudioElement) {
+	#attachMediaEventHandlers(media: HTMLVideoElement | HTMLAudioElement): () => void {
 		const seekStatus = {
 			start: null as number | null,
 			end: null as number | null,
@@ -23,14 +24,18 @@ export class MediaSeekingHook implements IComponentHook {
 		let canPlayTime: number | null = null;
 		let fullyReady = false;
 		let needCheckState = false;
+		let detached = false;
 
 		const checkReadyState = async () => {
-			if (!needCheckState) {
+			if (detached || !needCheckState) {
 				return;
 			}
 
 			if (media.readyState < 3) {
 				await new Promise((resolve) => setTimeout(resolve, 500));
+				if (detached) {
+					return;
+				}
 				needCheckState = true;
 				return checkReadyState();
 			}
@@ -43,7 +48,8 @@ export class MediaSeekingHook implements IComponentHook {
 			}
 		};
 
-		media.onseeking = () => {
+		const onseeking = () => {
+			if (detached) return;
 			const mediaTime = parseFloat(media.currentTime.toFixed(1));
 			if (!seekStatus.isSeeking && seekStatus.start != mediaTime) {
 				seekStatus.start = mediaTime;
@@ -55,7 +61,8 @@ export class MediaSeekingHook implements IComponentHook {
 			}
 		};
 
-		media.onseeked = () => {
+		const onseeked = () => {
+			if (detached) return;
 			const mediaTime = parseFloat(media.currentTime.toFixed(1));
 			if (seekStatus.isSeeking) {
 				seekStatus.end = mediaTime;
@@ -68,7 +75,8 @@ export class MediaSeekingHook implements IComponentHook {
 			}
 		};
 
-		media.onwaiting = () => {
+		const onwaiting = () => {
+			if (detached) return;
 			if (!fullyReady) {
 				this.state.addLoadingComponent(this.#context.contextData.id, 'waiting');
 				needCheckState = true;
@@ -76,7 +84,8 @@ export class MediaSeekingHook implements IComponentHook {
 			}
 		};
 
-		media.oncanplay = () => {
+		const oncanplay = () => {
+			if (detached) return;
 			const mediaTime = parseFloat(media.currentTime.toFixed(1));
 			if (canPlayTime != mediaTime) {
 				this.state.removeLoadingComponent(this.#context.contextData.id);
@@ -89,11 +98,43 @@ export class MediaSeekingHook implements IComponentHook {
 			}
 		};
 
-		media.onerror = () => {
+		const onerror = () => {
+			if (detached) return;
 			if (media.error && media.error.code !== 4) {
 				console.error('Media error:', media.src, media.error);
 			}
 		};
+
+		media.onseeking = onseeking;
+		media.onseeked = onseeked;
+		media.onwaiting = onwaiting;
+		media.oncanplay = oncanplay;
+		media.onerror = onerror;
+
+		return () => {
+			detached = true;
+			needCheckState = false;
+			if (media.onseeking === onseeking) {
+				media.onseeking = null;
+			}
+			if (media.onseeked === onseeked) {
+				media.onseeked = null;
+			}
+			if (media.onwaiting === onwaiting) {
+				media.onwaiting = null;
+			}
+			if (media.oncanplay === oncanplay) {
+				media.oncanplay = null;
+			}
+			if (media.onerror === onerror) {
+				media.onerror = null;
+			}
+		};
+	}
+
+	#clearMediaEventHandlers() {
+		this.#detachMediaEventHandlers?.();
+		this.#detachMediaEventHandlers = undefined;
 	}
 
 	async #handleSetup() {
@@ -112,6 +153,7 @@ export class MediaSeekingHook implements IComponentHook {
 			return;
 		}
 
+		this.#clearMediaEventHandlers();
 		this.#mediaElement = media;
 	}
 
@@ -121,6 +163,7 @@ export class MediaSeekingHook implements IComponentHook {
 	}
 
 	async #handleDestroy() {
+		this.#clearMediaEventHandlers();
 		// Clear media element reference - MediaHook will handle releaseMediaElement
 		this.#mediaElement = undefined;
 	}
@@ -131,6 +174,7 @@ export class MediaSeekingHook implements IComponentHook {
 
 		const resource = this.#context.getResource('videoElement') as HTMLVideoElement | undefined;
 		if (!resource) {
+			this.#clearMediaEventHandlers();
 			this.#mediaElement = undefined;
 			return;
 		}
@@ -142,8 +186,13 @@ export class MediaSeekingHook implements IComponentHook {
 		const media = this.#mediaElement as HTMLVideoElement | undefined;
 		if (!media) return;
 
-		if (this.#context.isActive) {
-			this.#attachMediaEventHandlers(media);
+		if (!this.#context.isActive) {
+			this.#clearMediaEventHandlers();
+			return;
+		}
+
+		if (!this.#detachMediaEventHandlers) {
+			this.#detachMediaEventHandlers = this.#attachMediaEventHandlers(media);
 		}
 
 		const fps = this.state.data.settings.fps || 30;

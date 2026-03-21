@@ -196,4 +196,42 @@ describe('RenderManager', () => {
 
 		expect(component.update).toHaveBeenCalledTimes(2);
 	});
+
+	it('keeps media components in the update set for one final tick after warm window exit', async () => {
+		const component = createComponent('video', {
+			type: 'VIDEO',
+			visible: true,
+			timeline: { startAt: 10, endAt: 20 },
+			source: { url: 'https://example.com/video.mp4' }
+		});
+
+		const stateManager = {
+			currentTime: 20.1,
+			duration: 60,
+			markDirty: vi.fn()
+		} as any;
+
+		const renderManager = new RenderManager({
+			stateManager,
+			componentsManager: {
+				getAll: () => [component]
+			} as any,
+			eventManager: {
+				on: vi.fn(),
+				removeEventListener: vi.fn()
+			} as any,
+			appManager: {
+				render: vi.fn()
+			} as any,
+			layersManager: {
+				getAll: () => []
+			} as any
+		});
+
+		await renderManager.render();
+		stateManager.currentTime = 20.5;
+		await renderManager.render();
+
+		expect(component.update).toHaveBeenCalledTimes(2);
+	});
 });

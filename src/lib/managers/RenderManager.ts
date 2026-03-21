@@ -14,8 +14,8 @@ export class RenderManager {
 	private eventManager: EventManager;
 	private appManager: AppManager;
 	private layersManager: LayersManager;
-	// Track last visibility to ensure we run one more update to hide components that just became invisible
-	private lastActiveById: Map<string, boolean> = new Map();
+		// Track last prepared/visible state so media hooks get one final update to release resources.
+		private lastActiveById: Map<string, boolean> = new Map();
 	private lastRenderTime: number = -1;
 	private renderInFlight: Promise<void> | null = null;
 	private rerenderRequested = false;
@@ -121,9 +121,9 @@ export class RenderManager {
 
 		await Promise.all(toUpdate.map((component) => component.update()));
 
-		// Update visibility cache after updates
+		// Keep one extra tick after the warm window ends so media hooks can release pooled resources.
 		for (const e of entries) {
-			this.lastActiveById.set(e.component.id, e.shouldBeVisible);
+			this.lastActiveById.set(e.component.id, e.shouldBeVisible || e.shouldPrepareMedia);
 		}
 
 		this.#syncLayerDisplayObjects();

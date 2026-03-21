@@ -29,17 +29,17 @@ const createContext = (currentTime: number) =>
 			source: { url: 'https://example.com/video.mp4', startAt: 10 }
 		},
 		currentComponentTime: Math.max(0, currentTime - 10) + 10,
-			sceneState: {
-				currentTime,
-				state: 'paused'
-			},
-			eventManager: {
-				emit: vi.fn()
-			},
-			getResource: vi.fn(),
-			setResource: vi.fn(),
-			removeResource: vi.fn()
-		}) as any;
+		sceneState: {
+			currentTime,
+			state: 'paused'
+		},
+		eventManager: {
+			emit: vi.fn()
+		},
+		getResource: vi.fn(),
+		setResource: vi.fn(),
+		removeResource: vi.fn()
+	}) as any;
 
 describe('MediaHook', () => {
 	let mediaElement: HTMLVideoElement;
@@ -173,5 +173,32 @@ describe('MediaHook', () => {
 		} finally {
 			vi.useRealTimers();
 		}
+	});
+
+	it('cancels pending paused seek listeners when media is released', async () => {
+		mediaElement.addEventListener = vi.fn();
+		mediaElement.removeEventListener = vi.fn();
+		mediaManager.getMediaController.mockReturnValue(undefined);
+
+		const warmContext = createContext(10.5);
+		delete (mediaElement as any).requestVideoFrameCallback;
+		let resolved = false;
+		const updatePromise = hook.handle('update', warmContext);
+		void updatePromise.then(() => {
+			resolved = true;
+		});
+
+		await Promise.resolve();
+		expect(resolved).toBe(false);
+
+		const coldContext = createContext(25);
+		await hook.handle('update', coldContext);
+		await updatePromise;
+
+		expect(resolved).toBe(true);
+		expect(mediaManager.releaseMediaElement).toHaveBeenCalledWith(
+			'https://example.com/video.mp4',
+			'video'
+		);
 	});
 });

@@ -135,6 +135,7 @@ export class MediaSeekingHook implements IComponentHook {
 	#clearMediaEventHandlers() {
 		this.#detachMediaEventHandlers?.();
 		this.#detachMediaEventHandlers = undefined;
+		this.state.removeLoadingComponent(this.#context.contextData.id);
 	}
 
 	async #handleSetup() {

@@ -117,10 +117,11 @@ export class ComponentContext implements IComponentContext {
 		const startAt = this.state.transformTime(timeline.startAt);
 		let startAtModifier = 0;
 		if (componentType === 'VIDEO' || componentType === 'AUDIO') {
-			startAtModifier =
+			const overrideSourceStartAt =
 				this.#contextData?.type === 'VIDEO' || this.#contextData?.type === 'AUDIO'
-					? this.#contextData.source.startAt ?? 0
-					: this.#getBaseSourceStartAt() ?? 0;
+					? this.#contextData.source.startAt
+					: undefined;
+			startAtModifier = overrideSourceStartAt ?? this.#getBaseSourceStartAt() ?? 0;
 		}
 
 		// Calculate relative time from start of component
@@ -134,13 +135,13 @@ export class ComponentContext implements IComponentContext {
 		const timeline = this.#contextData?.timeline ?? this.#getBaseTimeline();
 		const startAt = timeline.startAt;
 		const endAt = timeline.endAt;
-		const duration = endAt - startAt;
-		const relativeTime = this.sceneState.currentTime - startAt;
-
-		if (relativeTime < 0 || relativeTime > duration) {
+		if (
+			!isTimeWithinTimeline(this.sceneState.currentTime, startAt, endAt, TIMELINE_BOUNDARY_EPSILON)
+		) {
 			return undefined;
 		}
 
+		const relativeTime = this.sceneState.currentTime - startAt;
 		return this.state.transformTime(relativeTime);
 	}
 
@@ -173,10 +174,10 @@ export class ComponentContext implements IComponentContext {
 	}
 
 	async runHooks(hooks: IComponentHook[], type: HookType) {
-		let sortedHooks = hooks;
-		for (let i = 1; i < hooks.length; i += 1) {
-			if ((hooks[i - 1].priority ?? 0) > (hooks[i].priority ?? 0)) {
-				sortedHooks = [...hooks].sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+		const sortedHooks = [...hooks];
+		for (let i = 1; i < sortedHooks.length; i += 1) {
+			if ((sortedHooks[i - 1].priority ?? 0) > (sortedHooks[i].priority ?? 0)) {
+				sortedHooks.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
 				break;
 			}
 		}

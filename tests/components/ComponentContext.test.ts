@@ -191,4 +191,63 @@ describe('ComponentContext timeline activity', () => {
 
 		expect(audio.currentComponentTime).toBe(32);
 	});
+
+	it('falls back to the base source.startAt when an override omits it', () => {
+		const { context } = createContext();
+		(context as any).state.currentTime = 2;
+
+		context.updateContextData({
+			id: 'component-1',
+			type: 'VIDEO',
+			timeline: { startAt: 0, endAt: 10 },
+			source: { url: 'https://example.com/video.mp4' },
+			appearance: { x: 0, y: 0, width: 1920, height: 1080 },
+			animations: {},
+			effects: {},
+			visible: true,
+			order: 0
+		} as any);
+
+		expect(context.currentComponentTime).toBe(2);
+	});
+
+	it('keeps componentTimelineTime aligned with exclusive end boundaries', () => {
+		const { context } = createContext();
+		(context as any).state.currentTime = 10;
+
+		expect(context.isActive).toBe(false);
+		expect(context.componentTimelineTime).toBeUndefined();
+	});
+
+	it('snapshots the hook list before awaiting handlers', async () => {
+		const { context } = createContext();
+		const hooks: any[] = [];
+		const callOrder: string[] = [];
+
+		hooks.push(
+			{
+				priority: 1,
+				handle: vi.fn(async () => {
+					callOrder.push('first');
+					hooks.push({
+						priority: 0,
+						handle: vi.fn(async () => {
+							callOrder.push('inserted');
+						})
+					});
+				})
+			},
+			{
+				priority: 2,
+				handle: vi.fn(async () => {
+					callOrder.push('second');
+				})
+			}
+		);
+
+		await context.runHooks(hooks as any, 'update');
+
+		expect(callOrder).toEqual(['first', 'second']);
+		expect(hooks).toHaveLength(3);
+	});
 });

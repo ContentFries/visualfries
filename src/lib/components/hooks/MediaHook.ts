@@ -18,6 +18,7 @@ export class MediaHook implements IComponentHook {
 	#lastControllerCheck = 0;
 	#CONTROLLER_CHECK_INTERVAL = 100; // ms
 	#seekVersion = 0;
+	#cleanupPendingSeek: (() => void) | undefined;
 
 	constructor(cradle: { mediaManager: MediaManager; stateManager: StateManager }) {
 		this.mediaManager = cradle.mediaManager;
@@ -25,16 +26,24 @@ export class MediaHook implements IComponentHook {
 	}
 
 	#shouldPrepareMedia(): boolean {
-		return shouldPrepareMediaAtTime(this.#context.contextData, this.#context.sceneState.currentTime);
+		return shouldPrepareMediaAtTime(
+			this.#context.contextData,
+			this.#context.sceneState.currentTime
+		);
 	}
 
 	async #releaseMediaElement(markDestroyed = false): Promise<void> {
+		this.#seekVersion += 1;
+		this.#cleanupPendingSeek?.();
+		this.#cleanupPendingSeek = undefined;
+
 		const source = (this.#context.contextData as any).source;
 		const mediaType = this.#context.type === 'VIDEO' ? 'video' : 'audio';
 
 		if (source?.url) {
 			const isController =
-				this.mediaManager.getMediaController(source.url, mediaType) === this.#context.contextData.id;
+				this.mediaManager.getMediaController(source.url, mediaType) ===
+				this.#context.contextData.id;
 			if (isController) {
 				await this.#pause('releasing media element');
 				this.mediaManager.setMediaController(source.url, undefined, mediaType);
@@ -133,6 +142,9 @@ export class MediaHook implements IComponentHook {
 			return;
 		}
 
+		this.#cleanupPendingSeek?.();
+		this.#cleanupPendingSeek = undefined;
+
 		const element = this.#mediaElement;
 		const frameDuration = 1 / (this.state.data.settings.fps || 30);
 
@@ -155,10 +167,44 @@ export class MediaHook implements IComponentHook {
 			this.state.environment !== 'server' &&
 			this.#context.sceneState.state !== 'playing' &&
 			this.#context.sceneState.state !== 'loading';
+		let settleSeek: (() => void) | undefined;
+		let settleResolved = false;
+		let settleTimeout: ReturnType<typeof setTimeout> | undefined;
+		let onSeeked: (() => void) | undefined;
+		let frameCallbackId: number | undefined;
+		const anyElement = element as any;
+		let readinessCleanup = () => {};
+
+		const resolveSettled = () => {
+			if (settleResolved) return;
+			settleResolved = true;
+			settleSeek?.();
+		};
+
+		const cleanupPendingSeek = () => {
+			readinessCleanup();
+			if (settleTimeout !== undefined) {
+				clearTimeout(settleTimeout);
+				settleTimeout = undefined;
+			}
+			if (onSeeked) {
+				element.removeEventListener('seeked', onSeeked);
+				onSeeked = undefined;
+			}
+			if (
+				frameCallbackId !== undefined &&
+				typeof anyElement.cancelVideoFrameCallback === 'function'
+			) {
+				anyElement.cancelVideoFrameCallback(frameCallbackId);
+				frameCallbackId = undefined;
+			}
+			resolveSettled();
+		};
+		this.#cleanupPendingSeek = cleanupPendingSeek;
 
 		if (shouldRerenderWhenReady) {
 			let cleanedUp = false;
-			const cleanup = () => {
+			readinessCleanup = () => {
 				if (cleanedUp) return;
 				cleanedUp = true;
 				element.removeEventListener('seeked', handleReady);
@@ -166,12 +212,12 @@ export class MediaHook implements IComponentHook {
 			};
 			const handleReady = () => {
 				if (seekVersion !== this.#seekVersion) {
-					cleanup();
+					readinessCleanup();
 					return;
 				}
 				this.#refreshPixiTexture();
 				this.#context.eventManager.emit('rerender');
-				cleanup();
+				readinessCleanup();
 			};
 			element.addEventListener('seeked', handleReady);
 			element.addEventListener('canplay', handleReady);
@@ -180,27 +226,41 @@ export class MediaHook implements IComponentHook {
 		let settled: Promise<unknown>;
 
 		// Prefer requestVideoFrameCallback when available (videos only)
-		const anyElement = element as any;
 		if (typeof anyElement.requestVideoFrameCallback === 'function') {
 			settled = new Promise((resolve) => {
-				const timeout = setTimeout(() => resolve(true), 120);
-				anyElement.requestVideoFrameCallback((_now: number, _metadata: { mediaTime: number }) => {
-					clearTimeout(timeout);
-					resolve(true);
-				});
+				settleSeek = () => resolve(true);
+				settleTimeout = setTimeout(() => resolveSettled(), 120);
+				frameCallbackId = anyElement.requestVideoFrameCallback(
+					(_now: number, _metadata: { mediaTime: number }) => {
+						if (settleTimeout !== undefined) {
+							clearTimeout(settleTimeout);
+							settleTimeout = undefined;
+						}
+						frameCallbackId = undefined;
+						resolveSettled();
+					}
+				);
 			});
 		} else {
 			// Fallback to seeked event
 			settled = new Promise((resolve) => {
-				const onSeeked = () => {
-					element.removeEventListener('seeked', onSeeked);
-					resolve(true);
+				settleSeek = () => resolve(true);
+				onSeeked = () => {
+					element.removeEventListener('seeked', onSeeked!);
+					onSeeked = undefined;
+					resolveSettled();
 				};
 				element.addEventListener('seeked', onSeeked);
 			});
 		}
 
 		await settled;
+		if (this.#cleanupPendingSeek === cleanupPendingSeek) {
+			this.#cleanupPendingSeek = undefined;
+		}
+		if (seekVersion !== this.#seekVersion || this.#mediaElement !== element) {
+			return;
+		}
 		this.#refreshPixiTexture();
 	}
 
@@ -307,24 +367,24 @@ export class MediaHook implements IComponentHook {
 		// On server, seeking is handled by MediaSeekingHook. Avoid duplicate logic/races.
 		if (this.state.environment === 'server') return;
 
-			// Make sure we're still marked as the controller. If nobody owns the shared media,
-			// claim it immediately; otherwise keep the debounce to avoid controller thrash.
-			if (!isController) {
-				const currentController = this.mediaManager.getMediaController(source.url, mediaType);
-				if (!currentController || shouldCheckController) {
-					if (!currentController) {
-						this.mediaManager.setMediaController(source.url, this.#context.contextData.id, mediaType);
-						await this.#autoSeek();
-						this.#lastControllerCheck = now;
+		// Make sure we're still marked as the controller. If nobody owns the shared media,
+		// claim it immediately; otherwise keep the debounce to avoid controller thrash.
+		if (!isController) {
+			const currentController = this.mediaManager.getMediaController(source.url, mediaType);
+			if (!currentController || shouldCheckController) {
+				if (!currentController) {
+					this.mediaManager.setMediaController(source.url, this.#context.contextData.id, mediaType);
+					await this.#autoSeek();
+					this.#lastControllerCheck = now;
 
-						// Safari-specific: Ensure audio is properly restored when taking control
-						if (this.#mediaElement && !isMuted) {
-							this.#mediaElement.muted = false;
-							this.#mediaElement.volume = componentVolume;
-						}
+					// Safari-specific: Ensure audio is properly restored when taking control
+					if (this.#mediaElement && !isMuted) {
+						this.#mediaElement.muted = false;
+						this.#mediaElement.volume = componentVolume;
 					}
 				}
 			}
+		}
 
 		// Check if component is loading using the StateManager
 		if (this.state.isLoadingComponent(this.#context.contextData.id)) {

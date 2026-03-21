@@ -76,4 +76,23 @@ describe('MediaSeekingHook', () => {
 		expect(secondMedia.onseeking).not.toBeNull();
 		expect(secondMedia.onseeking).not.toBe(firstSeekingHandler);
 	});
+
+	it('clears loading state when handlers are detached', async () => {
+		const media = createMediaElement();
+		const stateManager = {
+			environment: 'client',
+			data: { settings: { fps: 30 } },
+			state: 'paused',
+			addLoadingComponent: vi.fn(),
+			removeLoadingComponent: vi.fn()
+		} as any;
+		const hook = new MediaSeekingHook({ stateManager });
+		const activeContext = createContext(media, true);
+		const inactiveContext = createContext(media, false);
+
+		await hook.handle('update', activeContext);
+		await hook.handle('update', inactiveContext);
+
+		expect(stateManager.removeLoadingComponent).toHaveBeenCalledWith('video-1');
+	});
 });

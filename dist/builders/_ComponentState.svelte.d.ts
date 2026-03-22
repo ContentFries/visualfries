@@ -429,6 +429,8 @@ export declare class ComponentState implements ComponentProps {
             dashArray?: number[] | undefined;
         }>;
     };
+    get sourceUrl(): string | undefined;
+    get sourceStartAt(): number | undefined;
     get checksum(): string;
     getData(): ComponentData;
     setData(data: ComponentData): void;

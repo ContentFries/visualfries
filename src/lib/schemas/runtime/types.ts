@@ -183,6 +183,8 @@ export type ComponentData = SceneLayerComponent;
 export type ComponentProps = ComponentBase & {
 	checksum: string;
 	duration: number;
+	sourceUrl?: string | undefined;
+	sourceStartAt?: number | undefined;
 
 	setStart(start: number): void;
 	setEnd(end: number): void;

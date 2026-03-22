@@ -1,17 +1,8 @@
-import type {
-	HookType,
-	IComponentContext,
-	HookHandlers,
-	IComponentHook
-} from '$lib';
+import type { HookType, IComponentContext, HookHandlers, IComponentHook } from '$lib';
 import type { StateManager } from '$lib/managers/StateManager.svelte.ts';
 import type { SubtitlesManager } from '$lib/managers/SubtitlesManager.svelte.ts';
 import type { EventManager } from '$lib/managers/EventManager.ts';
-import type {
-	Subtitle,
-	SubtitleComponent,
-	TextComponent
-} from '$lib';
+import type { Subtitle, SubtitleComponent, TextComponent } from '$lib';
 import { gsap } from 'gsap';
 import { get } from 'lodash-es';
 
@@ -92,7 +83,7 @@ export class SubtitlesHook implements IComponentHook {
 
 		const subtitleArray =
 			(assetSubtitles as any)[languageCode] || Object.values(assetSubtitles)[0] || [];
-		this.#subtitles = subtitleArray;
+		this.#subtitles = [...subtitleArray].sort((a, b) => a.start_at - b.start_at);
 
 		// const el = this.#buildHtmlElement();
 		// this.#context.setResource('wrapperHtmlEl', el);
@@ -103,23 +94,44 @@ export class SubtitlesHook implements IComponentHook {
 	}
 
 	get activeSubtitle() {
+		const currentTime = this.state.currentTime;
 		if (this.#currentSubtitle) {
 			if (
-				this.state.currentTime >= this.#currentSubtitle.start_at &&
-				this.state.currentTime <= this.#currentSubtitle.end_at
+				currentTime >= this.#currentSubtitle.start_at &&
+				currentTime <= this.#currentSubtitle.end_at
 			) {
-				return this.#currentSubtitle.visible ? this.#currentSubtitle : undefined;
+				return this.#currentSubtitle.visible !== false ? this.#currentSubtitle : undefined;
 			}
 		}
 
-		const subtitle = this.#subtitles.find(
-			(sub) =>
-				this.state.currentTime >= sub.start_at &&
-				this.state.currentTime <= sub.end_at &&
-				sub.visible !== false
-		);
+		let low = 0;
+		let high = this.#subtitles.length - 1;
+		let candidateIndex = -1;
 
-		return subtitle;
+		while (low <= high) {
+			const mid = Math.floor((low + high) / 2);
+			const subtitle = this.#subtitles[mid];
+			if (subtitle.start_at <= currentTime) {
+				candidateIndex = mid;
+				low = mid + 1;
+			} else {
+				high = mid - 1;
+			}
+		}
+
+		if (candidateIndex === -1) {
+			this.#currentSubtitle = undefined;
+			return undefined;
+		}
+
+		const subtitle = this.#subtitles[candidateIndex];
+		if (currentTime <= subtitle.end_at && subtitle.visible !== false) {
+			this.#currentSubtitle = subtitle;
+			return subtitle;
+		}
+
+		this.#currentSubtitle = undefined;
+		return undefined;
 	}
 
 	#buildFakeContext() {
@@ -156,23 +168,25 @@ export class SubtitlesHook implements IComponentHook {
 	}
 
 	async #handleUpdate() {
-		const contextId = this.activeSubtitle ? this.activeSubtitle.id : undefined;
+		const activeSubtitle = this.activeSubtitle;
+		const contextId = activeSubtitle?.id;
 		if (contextId === this.#currentId && !this.#refreshed) {
 			return;
 		}
 
 		if (
-			(this.activeSubtitle && this.activeSubtitle.id !== this.#context.contextData.id) ||
-			(this.activeSubtitle && this.#refreshed)
+			(activeSubtitle && activeSubtitle.id !== this.#context.contextData.id) ||
+			(activeSubtitle && this.#refreshed)
 		) {
-			this.#currentId = this.activeSubtitle.id;
-			const startTime = this.activeSubtitle?.start_at ?? 0;
-			const endTime = this.activeSubtitle?.end_at ?? 0;
+			this.#currentSubtitle = activeSubtitle;
+			this.#currentId = activeSubtitle.id;
+			const startTime = activeSubtitle.start_at ?? 0;
+			const endTime = activeSubtitle.end_at ?? 0;
 			const duration = endTime - startTime;
 
 			const animationData: Record<string, any> = {};
 			const wordTimings: number[] = [];
-			this.activeSubtitle?.words?.forEach((word) => {
+			activeSubtitle.words?.forEach((word) => {
 				wordTimings.push(
 					gsap.utils.clamp(0, duration, (word as [string, number, number])[1] - startTime)
 				); // timings is relative to the start of the subtitle
@@ -198,14 +212,14 @@ export class SubtitlesHook implements IComponentHook {
 				'appearance.text.fontSize.value',
 				get(this.#context.data, 'appearance.text.fontSize', 50)
 			) as number;
-			const colorOverride = this.activeSubtitle.color ? { color: this.activeSubtitle.color } : {};
+			const colorOverride = activeSubtitle.color ? { color: activeSubtitle.color } : {};
 			const visibleOverride =
-				'visible' in this.activeSubtitle ? { visible: this.activeSubtitle.visible } : {};
+				'visible' in activeSubtitle ? { visible: activeSubtitle.visible } : {};
 			const fontSizeOverride =
-				'enlarge' in this.activeSubtitle && currentSize
+				'enlarge' in activeSubtitle && currentSize
 					? {
 							fontSize: {
-								value: currentSize * ((this.activeSubtitle.enlarge as number) / 100),
+								value: currentSize * ((activeSubtitle.enlarge as number) / 100),
 								unit: this.#context.data.appearance.text?.fontSize?.unit
 							}
 						}
@@ -213,12 +227,12 @@ export class SubtitlesHook implements IComponentHook {
 
 			const subtitleContextData = {
 				...this.#context.data,
-				id: this.activeSubtitle.id,
+				id: activeSubtitle.id,
 				type: 'TEXT',
-				text: this.#removePunctuation(this.activeSubtitle.text || ''),
+				text: this.#removePunctuation(activeSubtitle.text || ''),
 				timeline: {
-					startAt: this.activeSubtitle.start_at,
-					endAt: this.activeSubtitle.end_at
+					startAt: activeSubtitle.start_at,
+					endAt: activeSubtitle.end_at
 				},
 				appearance: {
 					...this.#context.data.appearance,
@@ -237,7 +251,7 @@ export class SubtitlesHook implements IComponentHook {
 			}
 		}
 
-		if (!this.activeSubtitle) {
+		if (!activeSubtitle) {
 			this.#buildFakeContext();
 		}
 	}

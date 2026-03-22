@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import type { HookType, IComponentContext, IComponentHook } from '$lib';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 
@@ -8,6 +7,7 @@ export class MediaSeekingHook implements IComponentHook {
 
 	#context!: IComponentContext;
 	#mediaElement: HTMLVideoElement | HTMLAudioElement | undefined;
+	#detachMediaEventHandlers: (() => void) | undefined;
 
 	state: StateManager;
 
@@ -15,10 +15,130 @@ export class MediaSeekingHook implements IComponentHook {
 		this.state = cradle.stateManager;
 	}
 
+	#attachMediaEventHandlers(media: HTMLVideoElement | HTMLAudioElement): () => void {
+		const seekStatus = {
+			start: null as number | null,
+			end: null as number | null,
+			isSeeking: false
+		};
+		let canPlayTime: number | null = null;
+		let fullyReady = false;
+		let needCheckState = false;
+		let detached = false;
+
+		const checkReadyState = async () => {
+			if (detached || !needCheckState) {
+				return;
+			}
+
+			if (media.readyState < 3) {
+				await new Promise((resolve) => setTimeout(resolve, 500));
+				if (detached) {
+					return;
+				}
+				needCheckState = true;
+				return checkReadyState();
+			}
+
+			this.state.removeLoadingComponent(this.#context.contextData.id);
+			needCheckState = false;
+
+			if (media.readyState === 4) {
+				fullyReady = true;
+			}
+		};
+
+		const onseeking = () => {
+			if (detached) return;
+			const mediaTime = parseFloat(media.currentTime.toFixed(1));
+			if (!seekStatus.isSeeking && seekStatus.start != mediaTime) {
+				seekStatus.start = mediaTime;
+				seekStatus.end = null;
+				seekStatus.isSeeking = true;
+				this.state.addLoadingComponent(this.#context.contextData.id, 'seeking');
+				needCheckState = true;
+				checkReadyState();
+			}
+		};
+
+		const onseeked = () => {
+			if (detached) return;
+			const mediaTime = parseFloat(media.currentTime.toFixed(1));
+			if (seekStatus.isSeeking) {
+				seekStatus.end = mediaTime;
+				seekStatus.isSeeking = false;
+
+				if (media.readyState === 4) {
+					fullyReady = true;
+				}
+				needCheckState = false;
+			}
+		};
+
+		const onwaiting = () => {
+			if (detached) return;
+			if (!fullyReady) {
+				this.state.addLoadingComponent(this.#context.contextData.id, 'waiting');
+				needCheckState = true;
+				checkReadyState();
+			}
+		};
+
+		const oncanplay = () => {
+			if (detached) return;
+			const mediaTime = parseFloat(media.currentTime.toFixed(1));
+			if (canPlayTime != mediaTime) {
+				this.state.removeLoadingComponent(this.#context.contextData.id);
+				canPlayTime = mediaTime;
+				needCheckState = false;
+			}
+
+			if (media.readyState === 4) {
+				fullyReady = true;
+			}
+		};
+
+		const onerror = () => {
+			if (detached) return;
+			if (media.error && media.error.code !== 4) {
+				console.error('Media error:', media.src, media.error);
+			}
+		};
+
+		media.onseeking = onseeking;
+		media.onseeked = onseeked;
+		media.onwaiting = onwaiting;
+		media.oncanplay = oncanplay;
+		media.onerror = onerror;
+
+		return () => {
+			detached = true;
+			needCheckState = false;
+			if (media.onseeking === onseeking) {
+				media.onseeking = null;
+			}
+			if (media.onseeked === onseeked) {
+				media.onseeked = null;
+			}
+			if (media.onwaiting === onwaiting) {
+				media.onwaiting = null;
+			}
+			if (media.oncanplay === oncanplay) {
+				media.oncanplay = null;
+			}
+			if (media.onerror === onerror) {
+				media.onerror = null;
+			}
+		};
+	}
+
+	#clearMediaEventHandlers() {
+		this.#detachMediaEventHandlers?.();
+		this.#detachMediaEventHandlers = undefined;
+		this.state.removeLoadingComponent(this.#context.contextData.id);
+	}
+
 	async #handleSetup() {
-		if (this.#mediaElement) {
-			return;
-		}
 		if (this.#context.contextData.type !== 'VIDEO' && this.#context.contextData.type !== 'AUDIO')
 			return;
 		const mediaType = this.#context.type === 'VIDEO' ? 'video' : 'audio';
@@ -27,98 +147,15 @@ export class MediaSeekingHook implements IComponentHook {
 		);
 
 		if (!media) {
-			console.error('MediaSeekingHook: No media element found');
 			return;
 		}
 
-		this.#mediaElement = media;
-
-		if (media && this.#context.isActive) {
-			const seekStatus = {
-				start: null as number | null,
-				end: null as number | null,
-				isSeeking: false
-			};
-			let canPlayTime: number | null = null;
-			let fullyReady = false;
-			let needCheckState = false;
-
-			const checkReadyState = async () => {
-				if (!needCheckState) {
-					return;
-				}
-
-				if (media.readyState < 3) {
-					await new Promise((resolve) => setTimeout(resolve, 500));
-					needCheckState = true;
-					return checkReadyState();
-				}
-
-				this.state.removeLoadingComponent(this.#context.contextData.id);
-				needCheckState = false;
-
-				if (media.readyState === 4) {
-					fullyReady = true;
-				}
-			};
-
-			media.onseeking = () => {
-				const mediaTime = parseFloat(media.currentTime.toFixed(1));
-				if (!seekStatus.isSeeking && seekStatus.start != mediaTime) {
-					seekStatus.start = mediaTime;
-					seekStatus.end = null;
-					seekStatus.isSeeking = true;
-					this.state.addLoadingComponent(this.#context.contextData.id, 'seeking');
-					needCheckState = true;
-					checkReadyState();
-				}
-			};
-
-			media.onseeked = () => {
-				const mediaTime = parseFloat(media.currentTime.toFixed(1));
-				if (seekStatus.isSeeking) {
-					seekStatus.end = mediaTime;
-					seekStatus.isSeeking = false;
-
-					if (media.readyState === 4) {
-						fullyReady = true;
-					}
-					needCheckState = false;
-				}
-			};
-
-			// Loading states
-			media.onwaiting = () => {
-				if (!fullyReady) {
-					this.state.addLoadingComponent(this.#context.contextData.id, 'waiting');
-					needCheckState = true;
-					checkReadyState();
-				}
-			};
-
-			media.oncanplay = () => {
-				const mediaTime = parseFloat(media.currentTime.toFixed(1));
-				if (canPlayTime != mediaTime) {
-					this.state.removeLoadingComponent(this.#context.contextData.id);
-					canPlayTime = mediaTime;
-					needCheckState = false;
-				}
-
-				if (media.readyState === 4) {
-					fullyReady = true;
-				}
-
-				// Don't try to play here - let MediaHook handle play/pause logic
-				// This prevents conflicts and race conditions, especially on Safari
-			};
-
-			// Add error event handling
-			media.onerror = () => {
-				if (media.error && media.error.code !== 4) {
-					console.error('Media error:', media.src, media.error);
-				}
-			};
+		if (this.#mediaElement === media) {
+			return;
 		}
+
+		this.#clearMediaEventHandlers();
+		this.#mediaElement = media;
 	}
 
 	async #handleRefresh() {
@@ -127,6 +164,7 @@ export class MediaSeekingHook implements IComponentHook {
 	}
 
 	async #handleDestroy() {
+		this.#clearMediaEventHandlers();
 		// Clear media element reference - MediaHook will handle releaseMediaElement
 		this.#mediaElement = undefined;
 	}
@@ -135,14 +173,28 @@ export class MediaSeekingHook implements IComponentHook {
 		// Only handle video components as requested
 		if (this.#context.contextData.type !== 'VIDEO') return;
 
-		// Get the HTMLVideoElement from resources or cached reference
-		let media = this.#mediaElement as HTMLVideoElement | undefined;
-		if (!media) {
-			const res = this.#context.getResource('videoElement');
-			media = res as HTMLVideoElement | undefined;
-			this.#mediaElement = media; // cache for later
+		const resource = this.#context.getResource('videoElement') as HTMLVideoElement | undefined;
+		if (!resource) {
+			this.#clearMediaEventHandlers();
+			this.#mediaElement = undefined;
+			return;
 		}
+
+		if (resource !== this.#mediaElement) {
+			await this.#handleSetup();
+		}
+
+		const media = this.#mediaElement as HTMLVideoElement | undefined;
 		if (!media) return;
+
+		if (!this.#context.isActive) {
+			this.#clearMediaEventHandlers();
+			return;
+		}
+
+		if (!this.#detachMediaEventHandlers) {
+			this.#detachMediaEventHandlers = this.#attachMediaEventHandlers(media);
+		}
 
 		const fps = this.state.data.settings.fps || 30;
 		const targetTime = this.#context.currentComponentTime;

@@ -165,7 +165,7 @@ describe('Component Auto-Refresh', () => {
 		});
 	});
 
-	describe('Backward compatibility', () => {
+		describe('Backward compatibility', () => {
 		it('should maintain existing behavior when autoRefresh is disabled', async () => {
 			component.setAutoRefresh(false);
 			
@@ -194,6 +194,18 @@ describe('Component Auto-Refresh', () => {
 			component.setAutoRefresh(false);
 			await component.refresh();
 			expect(refreshSpy).toHaveBeenCalledTimes(2);
+			});
+		});
+
+		describe('Hook priorities', () => {
+			it('preserves an explicit priority of 0', () => {
+				const firstHook = { handle: vi.fn(), types: ['update'], priority: 3 } as any;
+				const zeroHook = { handle: vi.fn(), types: ['update'], priority: 99 } as any;
+
+				component.addHook(firstHook);
+				component.addHook(zeroHook, 0);
+
+				expect(zeroHook.priority).toBe(0);
+			});
 		});
 	});
-});

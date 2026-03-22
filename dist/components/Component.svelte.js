@@ -47,8 +47,9 @@ export class Component {
     }
     addHook(hook, priority) {
         const maxPriority = this.#hooks.length > 0 ? Math.max(...this.#hooks.map((h) => h.priority ?? 0)) : 0;
-        hook.priority = priority ? priority : maxPriority + 1;
+        hook.priority = priority ?? (maxPriority + 1);
         this.#hooks.push(hook);
+        this.#hooks.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
     }
     async #handle(type) {
         const hooks = this.#hooks.filter((hook) => hook.types.includes(type));

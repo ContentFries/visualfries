@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.12](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.11...visualfries-v0.1.12) (2026-03-22)
+
+
+### Features
+
+* optimize video playback with media warm windows ([#34](https://github.com/ContentFries/visualfries/issues/34)) ([4b090ca](https://github.com/ContentFries/visualfries/commit/4b090caf7890290c8aa3925bb00ab5a34ecddb92))
+
 ## [0.1.11](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.10...visualfries-v0.1.11) (2026-02-28)
 
 

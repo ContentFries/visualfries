@@ -13,6 +13,8 @@ export declare class RenderManager {
     private layersManager;
     private lastActiveById;
     private lastRenderTime;
+    private renderInFlight;
+    private rerenderRequested;
     constructor(cradle: {
         stateManager: StateManager;
         componentsManager: ResourceManager<IComponent, ComponentData, AppearanceInput>;

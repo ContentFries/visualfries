@@ -15,6 +15,8 @@ export class StateManager {
     loop = false;
     timeManager;
     layersManager;
+    disabledTimeZonesCache = [];
+    disabledTimeZonesCacheKey = '';
     constructor(cradle) {
         const sceneDataRune = $state(cradle.sceneData);
         this.currentSceneData = sceneDataRune;
@@ -104,60 +106,64 @@ export class StateManager {
         return Math.round(this.currentTime * this.data.settings.fps);
     }
     get disabledTimeZones() {
-        const start = $derived(this.data.settings.startAt);
-        const end = $derived(this.data.settings.endAt);
-        const excluded_timestamps = $derived(this.data.settings.trimZones);
-        const duration = $derived(this.data.settings.duration);
-        const zones = $derived.by(() => {
-            const output = [];
-            if (start && start > 0) {
-                output.push({
-                    start: 0,
-                    end: start
-                });
-            }
-            if (excluded_timestamps && excluded_timestamps.length) {
-                for (const disabledZone of excluded_timestamps) {
-                    const { start, end } = disabledZone;
-                    if (end < duration) {
-                        output.push({
-                            start,
-                            end
-                        });
-                    }
+        const start = this.data.settings.startAt;
+        const end = this.data.settings.endAt;
+        const excludedTimestamps = this.data.settings.trimZones ?? [];
+        const duration = this.data.settings.duration;
+        const cacheKey = [
+            start ?? '',
+            end ?? '',
+            duration,
+            excludedTimestamps.map((zone) => `${zone.start}:${zone.end}`).join('|')
+        ].join('::');
+        if (cacheKey === this.disabledTimeZonesCacheKey) {
+            return this.disabledTimeZonesCache;
+        }
+        const output = [];
+        if (start && start > 0) {
+            output.push({
+                start: 0,
+                end: start
+            });
+        }
+        if (excludedTimestamps.length) {
+            for (const disabledZone of excludedTimestamps) {
+                const { start, end } = disabledZone;
+                if (end < duration) {
+                    output.push({
+                        start,
+                        end
+                    });
                 }
             }
-            if (end && end < duration) {
-                output.push({
-                    start: end,
-                    end: duration
-                });
+        }
+        if (end && end < duration) {
+            output.push({
+                start: end,
+                end: duration
+            });
+        }
+        output.sort((a, b) => a.start - b.start);
+        const mergedZones = [];
+        let currentZone = null;
+        for (const zone of output) {
+            if (!currentZone) {
+                currentZone = { ...zone };
             }
-            // Sort zones by start time
-            output.sort((a, b) => a.start - b.start);
-            // Merge overlapping zones
-            const mergedZones = [];
-            let currentZone = null;
-            for (const zone of output) {
-                if (!currentZone) {
-                    currentZone = { ...zone };
-                }
-                else if (zone.start <= currentZone.end) {
-                    // Zones overlap, extend the current zone
-                    currentZone.end = Math.max(currentZone.end, zone.end);
-                }
-                else {
-                    // No overlap, push current zone and start a new one
-                    mergedZones.push(currentZone);
-                    currentZone = { ...zone };
-                }
+            else if (zone.start <= currentZone.end) {
+                currentZone.end = Math.max(currentZone.end, zone.end);
             }
-            if (currentZone) {
+            else {
                 mergedZones.push(currentZone);
+                currentZone = { ...zone };
             }
-            return mergedZones;
-        });
-        return zones;
+        }
+        if (currentZone) {
+            mergedZones.push(currentZone);
+        }
+        this.disabledTimeZonesCacheKey = cacheKey;
+        this.disabledTimeZonesCache = mergedZones;
+        return this.disabledTimeZonesCache;
     }
     changeState(updateState) {
         let newState = this.determineNewState(updateState);

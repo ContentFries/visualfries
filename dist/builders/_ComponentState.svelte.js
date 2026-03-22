@@ -77,6 +77,18 @@ export class ComponentState {
     get effects() {
         return this.#data.effects ?? {};
     }
+    get sourceUrl() {
+        if ('source' in this.#data && this.#data.source && 'url' in this.#data.source) {
+            return this.#data.source.url ?? undefined;
+        }
+        return undefined;
+    }
+    get sourceStartAt() {
+        if ('source' in this.#data && this.#data.source && 'startAt' in this.#data.source) {
+            return this.#data.source.startAt ?? undefined;
+        }
+        return undefined;
+    }
     get checksum() {
         return (this.id +
             '-' +

@@ -6,6 +6,7 @@ import { PixiComponentBuilder } from '../builders/PixiComponentBuilder.js';
 import { ComponentState } from '../builders/_ComponentState.svelte.js';
 import { asClass, asValue } from 'awilix/browser';
 import { debounce } from 'lodash-es';
+import { isTimeWithinTimeline } from '../utils/timelineWindow.js';
 // import { builtTextComponentForSubtitle } from '../utils/subtitles.js';
 export class ComponentsManager {
     components = $state(new Map());
@@ -43,7 +44,7 @@ export class ComponentsManager {
         const { currentTime, duration } = this.state;
         const startAt = component.props.timeline.startAt || 0;
         const endAt = component.props.timeline.endAt || duration;
-        return currentTime >= startAt && currentTime <= endAt;
+        return isTimeWithinTimeline(currentTime, startAt, endAt);
     }
     getAll() {
         return Array.from(this.components.values());

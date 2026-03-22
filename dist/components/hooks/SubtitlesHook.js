@@ -58,7 +58,7 @@ export class SubtitlesHook {
         const assetSubtitles = this.subtitlesManager.getAssetSubtitles(assetId);
         const languageCode = source?.languageCode || 'default';
         const subtitleArray = assetSubtitles[languageCode] || Object.values(assetSubtitles)[0] || [];
-        this.#subtitles = subtitleArray;
+        this.#subtitles = [...subtitleArray].sort((a, b) => a.start_at - b.start_at);
         // const el = this.#buildHtmlElement();
         // this.#context.setResource('wrapperHtmlEl', el);
         if (this.activeSubtitle === undefined) {
@@ -66,16 +66,38 @@ export class SubtitlesHook {
         }
     }
     get activeSubtitle() {
+        const currentTime = this.state.currentTime;
         if (this.#currentSubtitle) {
-            if (this.state.currentTime >= this.#currentSubtitle.start_at &&
-                this.state.currentTime <= this.#currentSubtitle.end_at) {
-                return this.#currentSubtitle.visible ? this.#currentSubtitle : undefined;
+            if (currentTime >= this.#currentSubtitle.start_at &&
+                currentTime <= this.#currentSubtitle.end_at) {
+                return this.#currentSubtitle.visible !== false ? this.#currentSubtitle : undefined;
             }
         }
-        const subtitle = this.#subtitles.find((sub) => this.state.currentTime >= sub.start_at &&
-            this.state.currentTime <= sub.end_at &&
-            sub.visible !== false);
-        return subtitle;
+        let low = 0;
+        let high = this.#subtitles.length - 1;
+        let candidateIndex = -1;
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            const subtitle = this.#subtitles[mid];
+            if (subtitle.start_at <= currentTime) {
+                candidateIndex = mid;
+                low = mid + 1;
+            }
+            else {
+                high = mid - 1;
+            }
+        }
+        if (candidateIndex === -1) {
+            this.#currentSubtitle = undefined;
+            return undefined;
+        }
+        const subtitle = this.#subtitles[candidateIndex];
+        if (currentTime <= subtitle.end_at && subtitle.visible !== false) {
+            this.#currentSubtitle = subtitle;
+            return subtitle;
+        }
+        this.#currentSubtitle = undefined;
+        return undefined;
     }
     #buildFakeContext() {
         let background = this.#context.data.appearance.background;
@@ -108,19 +130,21 @@ export class SubtitlesHook {
         this.#context.updateContextData(updateData);
     }
     async #handleUpdate() {
-        const contextId = this.activeSubtitle ? this.activeSubtitle.id : undefined;
+        const activeSubtitle = this.activeSubtitle;
+        const contextId = activeSubtitle?.id;
         if (contextId === this.#currentId && !this.#refreshed) {
             return;
         }
-        if ((this.activeSubtitle && this.activeSubtitle.id !== this.#context.contextData.id) ||
-            (this.activeSubtitle && this.#refreshed)) {
-            this.#currentId = this.activeSubtitle.id;
-            const startTime = this.activeSubtitle?.start_at ?? 0;
-            const endTime = this.activeSubtitle?.end_at ?? 0;
+        if ((activeSubtitle && activeSubtitle.id !== this.#context.contextData.id) ||
+            (activeSubtitle && this.#refreshed)) {
+            this.#currentSubtitle = activeSubtitle;
+            this.#currentId = activeSubtitle.id;
+            const startTime = activeSubtitle.start_at ?? 0;
+            const endTime = activeSubtitle.end_at ?? 0;
             const duration = endTime - startTime;
             const animationData = {};
             const wordTimings = [];
-            this.activeSubtitle?.words?.forEach((word) => {
+            activeSubtitle.words?.forEach((word) => {
                 wordTimings.push(gsap.utils.clamp(0, duration, word[1] - startTime)); // timings is relative to the start of the subtitle
             });
             // reorder wordTimings by start_at
@@ -135,24 +159,24 @@ export class SubtitlesHook {
             this.#context.setResource('animationData', animationData);
             // we need to rebuild subtitle component as text component
             const currentSize = get(this.#context.data, 'appearance.text.fontSize.value', get(this.#context.data, 'appearance.text.fontSize', 50));
-            const colorOverride = this.activeSubtitle.color ? { color: this.activeSubtitle.color } : {};
-            const visibleOverride = 'visible' in this.activeSubtitle ? { visible: this.activeSubtitle.visible } : {};
-            const fontSizeOverride = 'enlarge' in this.activeSubtitle && currentSize
+            const colorOverride = activeSubtitle.color ? { color: activeSubtitle.color } : {};
+            const visibleOverride = 'visible' in activeSubtitle ? { visible: activeSubtitle.visible } : {};
+            const fontSizeOverride = 'enlarge' in activeSubtitle && currentSize
                 ? {
                     fontSize: {
-                        value: currentSize * (this.activeSubtitle.enlarge / 100),
+                        value: currentSize * (activeSubtitle.enlarge / 100),
                         unit: this.#context.data.appearance.text?.fontSize?.unit
                     }
                 }
                 : {};
             const subtitleContextData = {
                 ...this.#context.data,
-                id: this.activeSubtitle.id,
+                id: activeSubtitle.id,
                 type: 'TEXT',
-                text: this.#removePunctuation(this.activeSubtitle.text || ''),
+                text: this.#removePunctuation(activeSubtitle.text || ''),
                 timeline: {
-                    startAt: this.activeSubtitle.start_at,
-                    endAt: this.activeSubtitle.end_at
+                    startAt: activeSubtitle.start_at,
+                    endAt: activeSubtitle.end_at
                 },
                 appearance: {
                     ...this.#context.data.appearance,
@@ -169,7 +193,7 @@ export class SubtitlesHook {
                 this.#refreshed = false;
             }
         }
-        if (!this.activeSubtitle) {
+        if (!activeSubtitle) {
             this.#buildFakeContext();
         }
     }

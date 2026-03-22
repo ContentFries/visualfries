@@ -22,6 +22,8 @@ export declare class StateManager implements IStateManager {
     private loop;
     private timeManager;
     private layersManager;
+    private disabledTimeZonesCache;
+    private disabledTimeZonesCacheKey;
     constructor(cradle: {
         sceneData: SceneData;
         environment: RenderEnvironment;

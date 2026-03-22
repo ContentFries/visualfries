@@ -1,6 +1,7 @@
 import { StateManager } from '../managers/StateManager.svelte.js';
 import { EventManager } from '../managers/EventManager.js';
 import { DeterministicRenderError } from '../schemas/runtime/deterministic.js';
+import { isTimeWithinTimeline, TIMELINE_BOUNDARY_EPSILON } from '../utils/timelineWindow.js';
 export class ComponentContext {
     #data;
     // context data replacement, useful for modifiing context of subtitles
@@ -17,6 +18,37 @@ export class ComponentContext {
         this.#data = props;
         this.#contextData = undefined;
     }
+    #getBaseData() {
+        return this.#data.getData();
+    }
+    #getBaseId() {
+        if ('id' in this.#data && typeof this.#data.id === 'string') {
+            return this.#data.id;
+        }
+        return this.#getBaseData().id;
+    }
+    #getBaseType() {
+        if ('type' in this.#data && typeof this.#data.type === 'string') {
+            return this.#data.type;
+        }
+        return this.#getBaseData().type;
+    }
+    #getBaseTimeline() {
+        if ('timeline' in this.#data && this.#data.timeline) {
+            return this.#data.timeline;
+        }
+        return this.#getBaseData().timeline;
+    }
+    #getBaseSourceStartAt() {
+        if ('sourceStartAt' in this.#data) {
+            return this.#data.sourceStartAt;
+        }
+        const data = this.#getBaseData();
+        if (data.type === 'VIDEO' || data.type === 'AUDIO') {
+            return data.source.startAt ?? undefined;
+        }
+        return undefined;
+    }
     get duration() {
         // TODO maybe we will need to get duration from the contextData
         return this.#data.duration;
@@ -28,23 +60,23 @@ export class ComponentContext {
         return this.#data.getData();
     }
     get id() {
-        return this.data.id;
+        return this.#contextData?.id ?? this.#getBaseId();
     }
     get type() {
-        return this.data.type;
+        return this.#contextData?.type ?? this.#getBaseType();
     }
     get isActive() {
         const currentTime = this.sceneState.currentTime;
-        const startAt = this.data.timeline.startAt;
-        const endAt = this.data.timeline.endAt;
-        // Add small tolerance to handle floating point precision issues
-        const tolerance = 1e-10;
-        return currentTime >= startAt - tolerance && currentTime <= endAt + tolerance;
+        const timeline = this.#contextData?.timeline ?? this.#getBaseTimeline();
+        const startAt = timeline.startAt;
+        const endAt = timeline.endAt;
+        return isTimeWithinTimeline(currentTime, startAt, endAt, TIMELINE_BOUNDARY_EPSILON);
     }
     get progress() {
         const currentTime = this.sceneState.currentTime;
-        const startAt = this.data.timeline.startAt;
-        const endAt = this.data.timeline.endAt;
+        const timeline = this.#contextData?.timeline ?? this.#getBaseTimeline();
+        const startAt = timeline.startAt;
+        const endAt = timeline.endAt;
         const duration = endAt - startAt;
         if (duration === 0)
             return 0;
@@ -53,10 +85,15 @@ export class ComponentContext {
         return progress;
     }
     get currentComponentTime() {
-        const startAt = this.state.transformTime(this.data.timeline.startAt);
+        const timeline = this.#contextData?.timeline ?? this.#getBaseTimeline();
+        const componentType = this.#contextData?.type ?? this.#getBaseType();
+        const startAt = this.state.transformTime(timeline.startAt);
         let startAtModifier = 0;
-        if (this.data.type === 'VIDEO') {
-            startAtModifier = this.data.source.startAt ?? 0;
+        if (componentType === 'VIDEO' || componentType === 'AUDIO') {
+            const overrideSourceStartAt = this.#contextData?.type === 'VIDEO' || this.#contextData?.type === 'AUDIO'
+                ? this.#contextData.source.startAt
+                : undefined;
+            startAtModifier = overrideSourceStartAt ?? this.#getBaseSourceStartAt() ?? 0;
         }
         // Calculate relative time from start of component
         const relativeTime = this.sceneState.currentTime - startAt;
@@ -64,13 +101,13 @@ export class ComponentContext {
         return this.state.transformTime(startAtModifier, true) + relativeTime;
     }
     get componentTimelineTime() {
-        const startAt = this.data.timeline.startAt;
-        const endAt = this.data.timeline.endAt;
-        const duration = endAt - startAt;
-        const relativeTime = this.sceneState.currentTime - startAt;
-        if (relativeTime < 0 || relativeTime > duration) {
+        const timeline = this.#contextData?.timeline ?? this.#getBaseTimeline();
+        const startAt = timeline.startAt;
+        const endAt = timeline.endAt;
+        if (!isTimeWithinTimeline(this.sceneState.currentTime, startAt, endAt, TIMELINE_BOUNDARY_EPSILON)) {
             return undefined;
         }
+        const relativeTime = this.sceneState.currentTime - startAt;
         return this.state.transformTime(relativeTime);
     }
     get currentTime() {
@@ -95,8 +132,13 @@ export class ComponentContext {
         this.resources.delete(type);
     }
     async runHooks(hooks, type) {
-        // Sort handlers by priority (low to high, meaning 1 has higher priority then 100)
-        const sortedHooks = [...hooks].sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+        const sortedHooks = [...hooks];
+        for (let i = 1; i < sortedHooks.length; i += 1) {
+            if ((sortedHooks[i - 1].priority ?? 0) > (sortedHooks[i].priority ?? 0)) {
+                sortedHooks.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+                break;
+            }
+        }
         for (let i = 0; i < sortedHooks.length; i += 1) {
             const handler = sortedHooks[i];
             try {

@@ -32,6 +32,12 @@ export class PixiVideoTextureHook {
             return;
         }
         const media = this.#context.getResource('videoElement');
+        if (!media) {
+            if (this.#videoTexture || this.#videoElement) {
+                await this.#handleDestroy();
+            }
+            return;
+        }
         // If element changed or texture is missing, recreate it
         if (media && (media !== this.#videoElement || !this.#videoTexture)) {
             await this.#handleDestroy();

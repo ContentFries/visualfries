@@ -13,6 +13,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,7 +23,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release Please
-        uses: google-github-actions/release-please-action@v4
+        id: release
+        uses: googleapis/release-please-action@v4
         with:
           config-file: release-please-config.json
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -29,9 +32,10 @@ jobs:
   publish:
     needs: release
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: ${{ github.event_name == 'push' && needs.release.outputs.release_created == 'true' }}
     permissions:
       contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,5 +60,3 @@ jobs:
 
       - name: Publish to npm
         run: pnpm publish --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

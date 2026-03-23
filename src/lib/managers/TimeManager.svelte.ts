@@ -3,7 +3,7 @@ import type { EventManager } from '$lib/managers/EventManager.js';
 export class TimeManager {
 	fps = $state<number>(30); // Default
 	duration = $state<number>(0);
-	private static readonly FRAME_EPSILON = 1e-9;
+	private static readonly FRAME_EPSILON = 1e-4;
 
 	getFrameIndex(
 		time: number,
@@ -34,7 +34,7 @@ export class TimeManager {
 	}
 
 	transformTime(time: number, skipDurationCheck = false): number {
-		const frame = this.getFrameIndex(time, 'nearest', skipDurationCheck);
+		const frame = this.getFrameIndex(time, 'current', skipDurationCheck);
 		return this.getTimeForFrame(frame, skipDurationCheck);
 	}
 

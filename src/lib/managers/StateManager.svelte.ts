@@ -70,7 +70,8 @@ export class StateManager implements IStateManager {
 
 	public get currentTime() {
 		const clampedTime = Math.max(this.startTime, Math.min(this.currentTimeRune, this.endTime));
-		return this.timeManager.getCurrentFrameTime(clampedTime, true);
+		const frameTime = this.timeManager.getCurrentFrameTime(clampedTime, true);
+		return Math.min(frameTime, this.endTime);
 	}
 
 	public get data() {
@@ -140,7 +141,7 @@ export class StateManager implements IStateManager {
 
 	public get currentFrame() {
 		const clampedTime = Math.max(this.startTime, Math.min(this.currentTimeRune, this.endTime));
-		return this.timeManager.getFrameIndex(clampedTime, 'nearest', true);
+		return this.timeManager.getFrameIndex(clampedTime, 'current', true);
 	}
 
 	public get disabledTimeZones(): Zone[] {

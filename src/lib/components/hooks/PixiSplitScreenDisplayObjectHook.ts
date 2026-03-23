@@ -321,13 +321,24 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		return false;
 	}
 
+	#destroyChildren() {
+		const removed = this.#displayObject.removeChildren();
+		if (Array.isArray(removed)) {
+			for (const child of removed) {
+				if (typeof child.destroy === 'function') {
+					child.destroy({ children: true });
+				}
+			}
+		}
+	}
+
 	#rebuild(texture: PIXI.Texture) {
 		this.#mainSprite = undefined;
 		this.#bgCanvas = undefined;
 		this.#bgSprite = undefined;
 		this.#lastBlurFrameKey = '';
 		this.#pixiTexture = texture;
-		this.#displayObject.removeChildren();
+		this.#destroyChildren();
 		this.#initDisplayObject();
 	}
 
@@ -399,14 +410,14 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 			await this.#handleDestroy();
 			this.#pixiTexture = currentTexture;
 			if (this.#displayObject) {
-				this.#displayObject.removeChildren();
+				this.#destroyChildren();
 				this.#initDisplayObject();
 			}
 		} else if (this.#displayObject?.children?.length > 0) {
 			// Same texture - just update sprite properties (position, size, etc.)
 			// For split screen, we may need to rebuild if effects changed
 			// For now, trigger a full rebuild on refresh
-			this.#displayObject.removeChildren();
+			this.#destroyChildren();
 			if (currentTexture) {
 				this.#pixiTexture = currentTexture;
 				this.#initDisplayObject();

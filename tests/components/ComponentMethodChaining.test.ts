@@ -34,10 +34,10 @@ describe('Component Method Chaining', () => {
 			setEnd: vi.fn(),
 			getData: vi.fn(),
 			update: vi.fn(),
-			updateText: vi.fn().mockResolvedValue(undefined),
-			updateAppearance: vi.fn().mockResolvedValue(undefined),
-			setVisible: vi.fn().mockResolvedValue(undefined),
-			setOrder: vi.fn().mockResolvedValue(undefined),
+			updateText: vi.fn(),
+			updateAppearance: vi.fn(),
+			setVisible: vi.fn(),
+			setOrder: vi.fn(),
 			setRefreshCallback: vi.fn()
 		} as any;
 
@@ -72,17 +72,17 @@ describe('Component Method Chaining', () => {
 	});
 
 	describe('updateAppearance method chaining', () => {
-		it('should return Component instance for chaining', async () => {
-			const result = await component.updateAppearance({ opacity: 0.5 });
+		it('should return Component instance for chaining', () => {
+			const result = component.updateAppearance({ opacity: 0.5 });
 			expect(result).toBe(component);
 			expect(mockComponentState.updateAppearance).toHaveBeenCalledWith({ opacity: 0.5 });
 		});
 
-		it('should allow chaining multiple appearance updates', async () => {
-			const result = await component
+		it('should allow chaining multiple appearance updates', () => {
+			const result = component
 				.updateAppearance({ opacity: 0.5 })
-				.then(c => c.updateAppearance({ x: 100 }));
-			
+				.updateAppearance({ x: 100 });
+
 			expect(result).toBe(component);
 			expect(mockComponentState.updateAppearance).toHaveBeenCalledTimes(2);
 			expect(mockComponentState.updateAppearance).toHaveBeenNthCalledWith(1, { opacity: 0.5 });
@@ -91,17 +91,17 @@ describe('Component Method Chaining', () => {
 	});
 
 	describe('updateText method chaining', () => {
-		it('should return Component instance for chaining', async () => {
-			const result = await component.updateText('new text');
+		it('should return Component instance for chaining', () => {
+			const result = component.updateText('new text');
 			expect(result).toBe(component);
 			expect(mockComponentState.updateText).toHaveBeenCalledWith('new text');
 		});
 
-		it('should allow chaining with other methods', async () => {
-			const result = await component
+		it('should allow chaining with other methods', () => {
+			const result = component
 				.updateText('hello')
-				.then(c => c.setVisible(false));
-			
+				.setVisible(false);
+
 			expect(result).toBe(component);
 			expect(mockComponentState.updateText).toHaveBeenCalledWith('hello');
 			expect(mockComponentState.setVisible).toHaveBeenCalledWith(false);
@@ -109,30 +109,30 @@ describe('Component Method Chaining', () => {
 	});
 
 	describe('setText method chaining', () => {
-		it('should return Component instance for chaining', async () => {
-			const result = await component.setText('test text');
+		it('should return Component instance for chaining', () => {
+			const result = component.setText('test text');
 			expect(result).toBe(component);
 			expect(mockComponentState.updateText).toHaveBeenCalledWith('test text');
 		});
 
-		it('should be an alias for updateText', async () => {
-			await component.setText('alias test');
+		it('should be an alias for updateText', () => {
+			component.setText('alias test');
 			expect(mockComponentState.updateText).toHaveBeenCalledWith('alias test');
 		});
 	});
 
 	describe('setVisible method chaining', () => {
-		it('should return Component instance for chaining', async () => {
-			const result = await component.setVisible(false);
+		it('should return Component instance for chaining', () => {
+			const result = component.setVisible(false);
 			expect(result).toBe(component);
 			expect(mockComponentState.setVisible).toHaveBeenCalledWith(false);
 		});
 
-		it('should allow chaining with other methods', async () => {
-			const result = await component
+		it('should allow chaining with other methods', () => {
+			const result = component
 				.setVisible(true)
-				.then(c => c.setOrder(5));
-			
+				.setOrder(5);
+
 			expect(result).toBe(component);
 			expect(mockComponentState.setVisible).toHaveBeenCalledWith(true);
 			expect(mockComponentState.setOrder).toHaveBeenCalledWith(5);
@@ -140,17 +140,17 @@ describe('Component Method Chaining', () => {
 	});
 
 	describe('setOrder method chaining', () => {
-		it('should return Component instance for chaining', async () => {
-			const result = await component.setOrder(3);
+		it('should return Component instance for chaining', () => {
+			const result = component.setOrder(3);
 			expect(result).toBe(component);
 			expect(mockComponentState.setOrder).toHaveBeenCalledWith(3);
 		});
 
-		it('should allow chaining with appearance updates', async () => {
-			const result = await component
+		it('should allow chaining with appearance updates', () => {
+			const result = component
 				.setOrder(2)
-				.then(c => c.updateAppearance({ opacity: 0.8 }));
-			
+				.updateAppearance({ opacity: 0.8 });
+
 			expect(result).toBe(component);
 			expect(mockComponentState.setOrder).toHaveBeenCalledWith(2);
 			expect(mockComponentState.updateAppearance).toHaveBeenCalledWith({ opacity: 0.8 });
@@ -158,13 +158,13 @@ describe('Component Method Chaining', () => {
 	});
 
 	describe('Complex method chaining', () => {
-		it('should allow chaining multiple different methods', async () => {
-			const result = await component
+		it('should allow chaining multiple different methods', () => {
+			const result = component
 				.setText('chained text')
-				.then(c => c.setVisible(true))
-				.then(c => c.setOrder(1))
-				.then(c => c.updateAppearance({ opacity: 0.9 }));
-			
+				.setVisible(true)
+				.setOrder(1)
+				.updateAppearance({ opacity: 0.9 });
+
 			expect(result).toBe(component);
 			expect(mockComponentState.updateText).toHaveBeenCalledWith('chained text');
 			expect(mockComponentState.setVisible).toHaveBeenCalledWith(true);
@@ -172,49 +172,49 @@ describe('Component Method Chaining', () => {
 			expect(mockComponentState.updateAppearance).toHaveBeenCalledWith({ opacity: 0.9 });
 		});
 
-		it('should maintain method call order in chains', async () => {
+		it('should maintain method call order in chains', () => {
 			const callOrder: string[] = [];
-			
+
 			// Mock methods to track call order
-			mockComponentState.updateText = vi.fn().mockImplementation(async () => {
+			mockComponentState.updateText = vi.fn().mockImplementation(() => {
 				callOrder.push('updateText');
 			});
-			mockComponentState.setVisible = vi.fn().mockImplementation(async () => {
+			mockComponentState.setVisible = vi.fn().mockImplementation(() => {
 				callOrder.push('setVisible');
 			});
-			mockComponentState.updateAppearance = vi.fn().mockImplementation(async () => {
+			mockComponentState.updateAppearance = vi.fn().mockImplementation(() => {
 				callOrder.push('updateAppearance');
 			});
 
-			await component
+			component
 				.updateText('first')
-				.then(c => c.setVisible(false))
-				.then(c => c.updateAppearance({ x: 50 }));
+				.setVisible(false)
+				.updateAppearance({ x: 50 });
 
 			expect(callOrder).toEqual(['updateText', 'setVisible', 'updateAppearance']);
 		});
 	});
 
 	describe('Method chaining with auto-refresh', () => {
-		it('should work with auto-refresh enabled', async () => {
+		it('should work with auto-refresh enabled', () => {
 			component.setAutoRefresh(true);
-			
-			const result = await component
+
+			const result = component
 				.setText('auto-refresh text')
-				.then(c => c.setVisible(true));
-			
+				.setVisible(true);
+
 			expect(result).toBe(component);
 			expect(mockComponentState.updateText).toHaveBeenCalledWith('auto-refresh text');
 			expect(mockComponentState.setVisible).toHaveBeenCalledWith(true);
 		});
 
-		it('should work with auto-refresh disabled', async () => {
+		it('should work with auto-refresh disabled', () => {
 			component.setAutoRefresh(false);
-			
-			const result = await component
+
+			const result = component
 				.updateAppearance({ opacity: 0.3 })
-				.then(c => c.setOrder(4));
-			
+				.setOrder(4);
+
 			expect(result).toBe(component);
 			expect(mockComponentState.updateAppearance).toHaveBeenCalledWith({ opacity: 0.3 });
 			expect(mockComponentState.setOrder).toHaveBeenCalledWith(4);
@@ -222,21 +222,25 @@ describe('Component Method Chaining', () => {
 	});
 
 	describe('Error handling in method chains', () => {
-		it('should handle errors in chained methods gracefully', async () => {
+		it('should propagate errors from chained methods', () => {
 			// Mock a method to throw an error
-			mockComponentState.updateText = vi.fn().mockRejectedValue(new Error('Update failed'));
+			mockComponentState.updateText = vi.fn().mockImplementation(() => {
+				throw new Error('Update failed');
+			});
 
-			await expect(component.setText('error test')).rejects.toThrow('Update failed');
+			expect(() => component.setText('error test')).toThrow('Update failed');
 		});
 
-		it('should stop chain execution on error', async () => {
+		it('should stop chain execution on error', () => {
 			// Mock first method to throw error
-			mockComponentState.updateText = vi.fn().mockRejectedValue(new Error('First method failed'));
+			mockComponentState.updateText = vi.fn().mockImplementation(() => {
+				throw new Error('First method failed');
+			});
 
 			try {
-				await component
+				component
 					.setText('will fail')
-					.then(c => c.setVisible(true));
+					.setVisible(true);
 			} catch (error: any) {
 				expect(error.message).toBe('First method failed');
 			}
@@ -247,41 +251,21 @@ describe('Component Method Chaining', () => {
 	});
 
 	describe('Fluent API integration', () => {
-		it('should support fluent chaining syntax', async () => {
+		it('should support fluent chaining syntax', () => {
 			// Test that we can chain methods in a fluent manner
-			const result = await component
+			const result = component
 				.setText('Hello World')
-				.then(c => c.updateAppearance({ x: 10, y: 20 }))
-				.then(c => c.setVisible(true))
-				.then(c => c.setOrder(5));
+				.updateAppearance({ x: 10, y: 20 })
+				.setVisible(true)
+				.setOrder(5);
 
 			expect(result).toBe(component);
-			
+
 			// Verify all methods were called with correct parameters
 			expect(mockComponentState.updateText).toHaveBeenCalledWith('Hello World');
 			expect(mockComponentState.updateAppearance).toHaveBeenCalledWith({ x: 10, y: 20 });
 			expect(mockComponentState.setVisible).toHaveBeenCalledWith(true);
 			expect(mockComponentState.setOrder).toHaveBeenCalledWith(5);
-		});
-
-		it('should work with Promise.all for parallel operations', async () => {
-			// Test parallel execution of independent operations
-			const promises = [
-				component.setText('Parallel 1'),
-				component.setVisible(true),
-				component.setOrder(10)
-			];
-
-			const results = await Promise.all(promises);
-			
-			// All results should be the same component instance
-			results.forEach(result => {
-				expect(result).toBe(component);
-			});
-
-			expect(mockComponentState.updateText).toHaveBeenCalledWith('Parallel 1');
-			expect(mockComponentState.setVisible).toHaveBeenCalledWith(true);
-			expect(mockComponentState.setOrder).toHaveBeenCalledWith(10);
 		});
 	});
 });

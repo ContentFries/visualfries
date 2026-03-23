@@ -21,13 +21,13 @@ export declare class Component implements IComponent {
     update(): Promise<void>;
     refresh(type?: ComponentRefreshType): Promise<void>;
     destroy(): Promise<void>;
-    updateAppearance(appearance: Partial<AppearanceInput>): Promise<Component>;
+    updateAppearance(appearance: Partial<AppearanceInput>): Component;
     setStart(start: number): Component;
     setEnd(end: number): Component;
-    updateText(text: string): Promise<Component>;
-    setText(text: string): Promise<Component>;
-    setVisible(visible: boolean): Promise<Component>;
-    setOrder(order: number): Promise<Component>;
+    updateText(text: string): Component;
+    setText(text: string): Component;
+    setVisible(visible: boolean): Component;
+    setOrder(order: number): Component;
     onChange(callback: (changes: ComponentData) => void): () => void;
     onTimelineChange(callback: (time: number) => void): () => void;
 }

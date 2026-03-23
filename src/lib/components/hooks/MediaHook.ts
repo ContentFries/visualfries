@@ -4,7 +4,7 @@ import { StateManager } from '$lib/managers/StateManager.svelte.js';
 import { shouldPrepareMediaAtTime } from '$lib/utils/mediaWindow.js';
 
 export class MediaHook implements IComponentHook {
-	types: HookType[] = ['setup', 'update', 'destroy', 'refresh'];
+	types: HookType[] = ['setup', 'update', 'destroy', 'refresh:content'];
 	priority: number = 1;
 	#context!: IComponentContext;
 	#mediaElement: HTMLMediaElement | undefined;
@@ -451,10 +451,10 @@ export class MediaHook implements IComponentHook {
 			return await this.#handleSetup();
 		} else if (type === 'destroy') {
 			return await this.#handleDestroy();
-		} else if (type === 'refresh') {
+		} else if (type === 'refresh:content') {
 			return await this.#handleRefresh();
+		} else if (type === 'update') {
+			await this.#handleUpdate();
 		}
-
-		await this.#handleUpdate();
 	}
 }

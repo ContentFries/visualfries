@@ -437,9 +437,9 @@ export declare class ComponentState implements ComponentProps {
     setStart(start: number): void;
     setEnd(end: number): void;
     setStreamPath(path: string): void;
-    updateText(text: string): Promise<void>;
+    updateText(text: string): void;
     update(data: Partial<AppearanceInput>): void;
-    updateAppearance(appearance: Partial<AppearanceInput>): Promise<void>;
-    setVisible(visible: boolean): Promise<void>;
-    setOrder(order: number): Promise<void>;
+    updateAppearance(appearance: Partial<AppearanceInput>): void;
+    setVisible(visible: boolean): void;
+    setOrder(order: number): void;
 }

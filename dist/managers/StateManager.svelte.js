@@ -37,14 +37,8 @@ export class StateManager {
         this.currentSceneData.settings.subtitles = subtitlesSettings;
     }
     get currentTime() {
-        if (this.currentTimeRune >= this.endTime) {
-            return this.endTime;
-        }
-        else if (this.currentTimeRune <= this.startTime) {
-            return this.startTime;
-        }
-        // Could cache fps if it doesn't change frequently
-        return this.timeManager.transformTime(this.currentTimeRune);
+        const clampedTime = Math.max(this.startTime, Math.min(this.currentTimeRune, this.endTime));
+        return this.timeManager.getCurrentFrameTime(clampedTime, true);
     }
     get data() {
         return this.currentSceneData;
@@ -73,7 +67,7 @@ export class StateManager {
         return Math.min(this.data.settings.endAt || this.duration, this.duration);
     }
     setCurrentTime(time) {
-        const currentTime = this.timeManager.transformTime(Math.max(this.startTime, Math.min(time, this.endTime)));
+        const currentTime = Math.max(this.startTime, Math.min(time, this.endTime));
         this.currentTimeRune = currentTime;
         if (time >= this.endTime && this.isPlaying) {
             if (this.loop) {
@@ -103,7 +97,8 @@ export class StateManager {
         }
     }
     get currentFrame() {
-        return Math.round(this.currentTime * this.data.settings.fps);
+        const clampedTime = Math.max(this.startTime, Math.min(this.currentTimeRune, this.endTime));
+        return this.timeManager.getFrameIndex(clampedTime, 'current', true);
     }
     get disabledTimeZones() {
         const start = this.data.settings.startAt;

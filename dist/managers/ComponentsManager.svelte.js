@@ -61,7 +61,7 @@ export class ComponentsManager {
     async update(componentId, data, refreshType = 'refresh') {
         const component = this.get(componentId);
         if (component) {
-            await component.props.updateAppearance(data);
+            component.props.updateAppearance(data);
             // Only manually refresh if auto-refresh is not enabled
             if (!component.autoRefresh) {
                 this.#refreshComponent(component, refreshType);
@@ -240,22 +240,22 @@ export class ComponentsManager {
     bulkDelete(ids) {
         ids.forEach((id) => this.delete(id));
     }
-    async hide(id) {
+    hide(id) {
         const component = this.get(id);
         if (component) {
-            await component.props.setVisible(false);
+            component.props.setVisible(false);
         }
     }
-    async show(id) {
+    show(id) {
         const component = this.get(id);
         if (component) {
-            await component.props.setVisible(true);
+            component.props.setVisible(true);
         }
     }
-    async toggle(id) {
+    toggle(id) {
         const component = this.get(id);
         if (component) {
-            await component.props.setVisible(!component.props.visible);
+            component.props.setVisible(!component.props.visible);
         }
     }
     filter(predicate) {

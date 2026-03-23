@@ -69,14 +69,9 @@ export class StateManager implements IStateManager {
 	}
 
 	public get currentTime() {
-		if (this.currentTimeRune >= this.endTime) {
-			return this.endTime;
-		} else if (this.currentTimeRune <= this.startTime) {
-			return this.startTime;
-		}
-
-		// Could cache fps if it doesn't change frequently
-		return this.timeManager.transformTime(this.currentTimeRune);
+		const clampedTime = Math.max(this.startTime, Math.min(this.currentTimeRune, this.endTime));
+		const frameTime = this.timeManager.getCurrentFrameTime(clampedTime, true);
+		return Math.min(frameTime, this.endTime);
 	}
 
 	public get data() {
@@ -114,9 +109,7 @@ export class StateManager implements IStateManager {
 	}
 
 	public setCurrentTime(time: number) {
-		const currentTime = this.timeManager.transformTime(
-			Math.max(this.startTime, Math.min(time, this.endTime))
-		);
+		const currentTime = Math.max(this.startTime, Math.min(time, this.endTime));
 
 		this.currentTimeRune = currentTime;
 		if (time >= this.endTime && this.isPlaying) {
@@ -147,7 +140,8 @@ export class StateManager implements IStateManager {
 	}
 
 	public get currentFrame() {
-		return Math.round(this.currentTime * this.data.settings.fps);
+		const clampedTime = Math.max(this.startTime, Math.min(this.currentTimeRune, this.endTime));
+		return this.timeManager.getFrameIndex(clampedTime, 'current', true);
 	}
 
 	public get disabledTimeZones(): Zone[] {

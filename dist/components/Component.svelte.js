@@ -4,6 +4,7 @@ export class Component {
     #context;
     #hooks = [];
     #autoRefresh = false;
+    #hookLock = Promise.resolve();
     #eventUnsubscribers = [];
     constructor(cradle) {
         this.#properties = cradle.componentState;
@@ -47,13 +48,28 @@ export class Component {
     }
     addHook(hook, priority) {
         const maxPriority = this.#hooks.length > 0 ? Math.max(...this.#hooks.map((h) => h.priority ?? 0)) : 0;
-        hook.priority = priority ?? (maxPriority + 1);
+        hook.priority = priority ?? maxPriority + 1;
         this.#hooks.push(hook);
         this.#hooks.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
     }
     async #handle(type) {
-        const hooks = this.#hooks.filter((hook) => hook.types.includes(type));
-        await this.#context.runHooks(hooks, type);
+        // Serialize all hook executions via a promise-based mutex.
+        // Each call waits for the previous one to finish before running,
+        // so hooks on the same component never interleave.
+        let release;
+        const nextLock = new Promise((r) => {
+            release = r;
+        });
+        const prevLock = this.#hookLock;
+        this.#hookLock = nextLock;
+        await prevLock;
+        try {
+            const hooks = this.#hooks.filter((hook) => hook.types.includes(type));
+            await this.#context.runHooks(hooks, type);
+        }
+        finally {
+            release();
+        }
     }
     async setup() {
         this.#context.setComponentProps(this.#properties);
@@ -65,7 +81,6 @@ export class Component {
     async refresh(type = 'refresh') {
         this.#context.setComponentProps(this.#properties);
         await this.#handle(type);
-        await this.update(); // also auto update to fix timing bug
     }
     async destroy() {
         // Clean up all event listeners automatically
@@ -79,8 +94,8 @@ export class Component {
         }
     }
     // Fluent method chaining - modify existing methods to return Component instance
-    async updateAppearance(appearance) {
-        await this.#properties.updateAppearance(appearance);
+    updateAppearance(appearance) {
+        this.#properties.updateAppearance(appearance);
         return this;
     }
     setStart(start) {
@@ -91,20 +106,20 @@ export class Component {
         this.#properties.setEnd(end);
         return this;
     }
-    async updateText(text) {
-        await this.#properties.updateText(text);
+    updateText(text) {
+        this.#properties.updateText(text);
         return this;
     }
     // Simple fluent wrapper methods
-    async setText(text) {
+    setText(text) {
         return this.updateText(text);
     }
-    async setVisible(visible) {
-        await this.#properties.setVisible(visible);
+    setVisible(visible) {
+        this.#properties.setVisible(visible);
         return this;
     }
-    async setOrder(order) {
-        await this.#properties.setOrder(order);
+    setOrder(order) {
+        this.#properties.setOrder(order);
         return this;
     }
     // Component-scoped event filtering methods

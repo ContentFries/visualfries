@@ -2,7 +2,7 @@ import type { HookType, IComponentContext, IComponentHook } from '$lib';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 
 export class MediaSeekingHook implements IComponentHook {
-	types: HookType[] = ['setup', 'destroy', 'refresh', 'update'];
+	types: HookType[] = ['setup', 'destroy', 'refresh:content', 'update'];
 	priority: number = 1;
 
 	#context!: IComponentContext;
@@ -50,7 +50,7 @@ export class MediaSeekingHook implements IComponentHook {
 
 		const onseeking = () => {
 			if (detached) return;
-			const mediaTime = parseFloat(media.currentTime.toFixed(1));
+			const mediaTime = parseFloat(media.currentTime.toFixed(3));
 			if (!seekStatus.isSeeking && seekStatus.start != mediaTime) {
 				seekStatus.start = mediaTime;
 				seekStatus.end = null;
@@ -63,7 +63,7 @@ export class MediaSeekingHook implements IComponentHook {
 
 		const onseeked = () => {
 			if (detached) return;
-			const mediaTime = parseFloat(media.currentTime.toFixed(1));
+			const mediaTime = parseFloat(media.currentTime.toFixed(3));
 			if (seekStatus.isSeeking) {
 				seekStatus.end = mediaTime;
 				seekStatus.isSeeking = false;
@@ -86,7 +86,7 @@ export class MediaSeekingHook implements IComponentHook {
 
 		const oncanplay = () => {
 			if (detached) return;
-			const mediaTime = parseFloat(media.currentTime.toFixed(1));
+			const mediaTime = parseFloat(media.currentTime.toFixed(3));
 			if (canPlayTime != mediaTime) {
 				this.state.removeLoadingComponent(this.#context.contextData.id);
 				canPlayTime = mediaTime;
@@ -232,6 +232,7 @@ export class MediaSeekingHook implements IComponentHook {
 						const fps = this.state.data.settings.fps || 30;
 						const desiredFrame = Math.round(seekTo * fps);
 						const currFrame = Math.round(media!.currentTime * fps);
+
 						if (desiredFrame === currFrame && media!.readyState >= 2) {
 							return resolve();
 						}
@@ -275,7 +276,7 @@ export class MediaSeekingHook implements IComponentHook {
 			return await this.#handleSetup();
 		} else if (type === 'destroy') {
 			return await this.#handleDestroy();
-		} else if (type === 'refresh') {
+		} else if (type === 'refresh:content') {
 			return await this.#handleRefresh();
 		} else if (type === 'update') {
 			return await this.#handleUpdate();

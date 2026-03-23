@@ -15,15 +15,11 @@ export class ComponentState {
     setRefreshCallback(callback) {
         this.refreshCallback = callback;
     }
-    async maybeAutoRefresh() {
+    maybeAutoRefresh() {
         if (this.refreshCallback) {
-            try {
-                await this.refreshCallback();
-            }
-            catch (error) {
+            this.refreshCallback().catch((error) => {
                 console.warn('Auto-refresh callback failed:', error);
-                // Don't re-throw to avoid breaking the update operation
-            }
+            });
         }
     }
     get id() {
@@ -183,11 +179,11 @@ export class ComponentState {
         //     this.#emitChange();
         // }
     }
-    async updateText(text) {
+    updateText(text) {
         if (this.type === 'TEXT') {
             this.#data.text = text;
             this.#emitChange();
-            await this.maybeAutoRefresh();
+            this.maybeAutoRefresh();
         }
     }
     update(data) {
@@ -204,28 +200,26 @@ export class ComponentState {
         // 	console.error('Error updating component data', res.error);
         // }
     }
-    async updateAppearance(appearance) {
+    updateAppearance(appearance) {
         // Use $state.snapshot() to properly extract all properties from the reactive proxy
         const currentData = $state.snapshot(this.#data);
         const mergedAppearance = merge({}, currentData.appearance, appearance);
         this.#data = { ...currentData, appearance: mergedAppearance };
         this.#emitChange();
-        await this.maybeAutoRefresh();
+        this.maybeAutoRefresh();
     }
-    async setVisible(visible) {
+    setVisible(visible) {
         if (this.#data.visible !== visible) {
             this.#data.visible = visible;
             this.#emitChange();
-            await this.maybeAutoRefresh();
+            this.maybeAutoRefresh();
         }
     }
-    async setOrder(order) {
+    setOrder(order) {
         if (this.#data.order !== order) {
             this.#data.order = order;
-            // Note: Emitting change here might trigger frequent updates if order changes often.
-            // Consider if the parent manager should handle order changes and emit less frequently.
             this.#emitChange();
-            await this.maybeAutoRefresh();
+            this.maybeAutoRefresh();
         }
     }
 }

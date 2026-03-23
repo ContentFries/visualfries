@@ -15,6 +15,7 @@ export class PixiSplitScreenDisplayObjectHook {
     #context;
     #pixiTexture;
     #displayObject;
+    #mainSprite = undefined;
     #bgCanvas = undefined;
     #bgSprite = undefined;
     #blurStrength = 50;
@@ -208,6 +209,7 @@ export class PixiSplitScreenDisplayObjectHook {
         mainSprite.height = appearance.height;
         mainSprite.x = appearance.x;
         mainSprite.y = appearance.y;
+        this.#mainSprite = mainSprite;
         this.#displayObject.addChild(mainSprite);
     }
     #initDisplayObject() {
@@ -250,17 +252,74 @@ export class PixiSplitScreenDisplayObjectHook {
         walk(this.#displayObject);
         this.#pixiTexture = nextTexture;
     }
+    #isTextureValid(texture) {
+        if (!texture)
+            return false;
+        // PIXI textures expose valid/baseTexture after destroy
+        const tex = texture;
+        if (tex.valid === false)
+            return false;
+        if (tex.baseTexture?.valid === false || tex.baseTexture?.destroyed === true)
+            return false;
+        return true;
+    }
+    #needsRebuild(currentTexture) {
+        // No display object yet — needs initial build (handled by creation path)
+        if (!this.#displayObject)
+            return false;
+        // Tracked texture was destroyed or became invalid
+        if (!this.#isTextureValid(this.#pixiTexture))
+            return true;
+        // Display object lost its children (shouldn't happen, but defensive)
+        if (this.#displayObject.children.length === 0)
+            return true;
+        // Current context texture differs and old one is gone
+        if (currentTexture && currentTexture !== this.#pixiTexture && !this.#isTextureValid(this.#pixiTexture)) {
+            return true;
+        }
+        return false;
+    }
+    #rebuild(texture) {
+        this.#mainSprite = undefined;
+        this.#bgCanvas = undefined;
+        this.#bgSprite = undefined;
+        this.#lastBlurFrameKey = '';
+        this.#pixiTexture = texture;
+        this.#displayObject.removeChildren();
+        this.#initDisplayObject();
+    }
     async #handleUpdate() {
         const isActive = this.#context.isActive;
         if (this.#displayObject) {
-            // Texture swaps are frequent in deterministic mode; update sprite textures
-            // in-place instead of rebuilding split/blur geometry each frame.
             const currentTexture = this.#context.getResource('pixiTexture');
-            if (currentTexture && currentTexture !== this.#pixiTexture) {
+            // Auto-heal: if the tracked texture is destroyed or children are missing,
+            // rebuild the display object from the current valid texture.
+            if (this.#needsRebuild(currentTexture)) {
+                if (currentTexture && this.#isTextureValid(currentTexture)) {
+                    this.#rebuild(currentTexture);
+                }
+                else {
+                    // No valid texture available — hide and wait for next tick
+                    this.#displayObject.visible = false;
+                    this.#context.setResource('pixiRenderObject', this.#displayObject);
+                    return;
+                }
+            }
+            else if (currentTexture && currentTexture !== this.#pixiTexture) {
+                // Texture swaps are frequent in deterministic mode; update sprite textures
+                // in-place instead of rebuilding split/blur geometry each frame.
                 this.#swapDisplayTexture(currentTexture);
             }
             if (isActive && this.#bgCanvas) {
                 this.#drawBlurredBackground(this.#blurStrength);
+            }
+            // Update main sprite position/size from appearance data
+            if (this.#mainSprite) {
+                const appearance = this.#context.data.appearance;
+                this.#mainSprite.x = appearance.x;
+                this.#mainSprite.y = appearance.y;
+                this.#mainSprite.width = appearance.width;
+                this.#mainSprite.height = appearance.height;
             }
             // Always re-assert the resource in case the context was cleared or updated
             this.#context.setResource('pixiRenderObject', this.#displayObject);
@@ -307,7 +366,7 @@ export class PixiSplitScreenDisplayObjectHook {
         // If no texture yet, #handleUpdate will handle initial creation
     }
     async #handleDestroy() {
-        // remove event listeners from video
+        this.#mainSprite = undefined;
         this.#bgCanvas = undefined;
         this.#bgSprite = undefined;
         this.#lastBlurFrameKey = '';

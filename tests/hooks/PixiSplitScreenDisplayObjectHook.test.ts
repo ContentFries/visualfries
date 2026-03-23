@@ -503,4 +503,86 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 			}
 		});
 	});
+
+	describe('Auto-heal: rebuilds display when texture is destroyed', () => {
+		it('rebuilds display object when tracked texture becomes invalid', async () => {
+			// Initial valid texture
+			const textureA = { width: 1920, height: 1080, baseTexture: { valid: true }, valid: true };
+			mockContext.getResource.mockImplementation((key: string) => {
+				if (key === 'pixiTexture') return textureA;
+				return undefined;
+			});
+
+			// First update creates the display object
+			await hook.handle('update', mockContext);
+			expect(mockContext.setResource).toHaveBeenCalledWith('pixiRenderObject', expect.any(Object));
+			const displayObject = mockContext.setResource.mock.calls.find(
+				([k]) => k === 'pixiRenderObject'
+			)?.[1] as any;
+			expect(displayObject.children.length).toBeGreaterThan(0);
+
+			// Simulate texture destruction (like PixiVideoTextureHook.destroy(true))
+			textureA.valid = false;
+			textureA.baseTexture.valid = false;
+
+			// Provide a new valid texture
+			const textureB = { width: 1920, height: 1080, baseTexture: { valid: true }, valid: true };
+			mockContext.getResource.mockImplementation((key: string) => {
+				if (key === 'pixiTexture') return textureB;
+				return undefined;
+			});
+
+			// Update should detect invalid texture and rebuild
+			await hook.handle('update', mockContext);
+
+			// Display object should have been rebuilt (removeChildren + re-init)
+			expect(displayObject.removeChildren).toHaveBeenCalled();
+			expect(displayObject.children.length).toBeGreaterThan(0);
+		});
+
+		it('hides display object when texture is destroyed and no replacement available', async () => {
+			const textureA = { width: 1920, height: 1080, baseTexture: { valid: true }, valid: true };
+			mockContext.getResource.mockImplementation((key: string) => {
+				if (key === 'pixiTexture') return textureA;
+				return undefined;
+			});
+
+			await hook.handle('update', mockContext);
+			const displayObject = mockContext.setResource.mock.calls.find(
+				([k]) => k === 'pixiRenderObject'
+			)?.[1] as any;
+
+			// Destroy texture and provide no replacement
+			textureA.valid = false;
+			textureA.baseTexture.valid = false;
+			mockContext.getResource.mockReturnValue(undefined);
+
+			await hook.handle('update', mockContext);
+
+			// Should be hidden, not crashed
+			expect(displayObject.visible).toBe(false);
+		});
+
+		it('rebuilds when display object has no children', async () => {
+			const texture = { width: 1920, height: 1080, baseTexture: { valid: true }, valid: true };
+			mockContext.getResource.mockImplementation((key: string) => {
+				if (key === 'pixiTexture') return texture;
+				return undefined;
+			});
+
+			await hook.handle('update', mockContext);
+			const displayObject = mockContext.setResource.mock.calls.find(
+				([k]) => k === 'pixiRenderObject'
+			)?.[1] as any;
+
+			// Simulate children being lost
+			displayObject.children = [];
+
+			await hook.handle('update', mockContext);
+
+			// Should have rebuilt children
+			expect(displayObject.removeChildren).toHaveBeenCalled();
+			expect(displayObject.children.length).toBeGreaterThan(0);
+		});
+	});
 });

@@ -25,14 +25,11 @@ export class ComponentState implements ComponentProps {
 		this.refreshCallback = callback;
 	}
 
-	private async maybeAutoRefresh(): Promise<void> {
+	private maybeAutoRefresh(): void {
 		if (this.refreshCallback) {
-			try {
-				await this.refreshCallback();
-			} catch (error) {
+			this.refreshCallback().catch((error) => {
 				console.warn('Auto-refresh callback failed:', error);
-				// Don't re-throw to avoid breaking the update operation
-			}
+			});
 		}
 	}
 
@@ -229,11 +226,11 @@ export class ComponentState implements ComponentProps {
 		// }
 	}
 
-	async updateText(text: string): Promise<void> {
+	updateText(text: string): void {
 		if (this.type === 'TEXT') {
 			(this.#data as TextComponent).text = text;
 			this.#emitChange();
-			await this.maybeAutoRefresh();
+			this.maybeAutoRefresh();
 		}
 	}
 
@@ -252,31 +249,29 @@ export class ComponentState implements ComponentProps {
 		// }
 	}
 
-	async updateAppearance(appearance: Partial<AppearanceInput>): Promise<void> {
+	updateAppearance(appearance: Partial<AppearanceInput>): void {
 		// Use $state.snapshot() to properly extract all properties from the reactive proxy
 		const currentData = $state.snapshot(this.#data!);
 		const mergedAppearance = merge({}, currentData.appearance, appearance);
 		this.#data = { ...currentData, appearance: mergedAppearance } as ComponentData;
 
 		this.#emitChange();
-		await this.maybeAutoRefresh();
+		this.maybeAutoRefresh();
 	}
 
-	async setVisible(visible: boolean): Promise<void> {
+	setVisible(visible: boolean): void {
 		if (this.#data!.visible !== visible) {
 			this.#data!.visible = visible;
 			this.#emitChange();
-			await this.maybeAutoRefresh();
+			this.maybeAutoRefresh();
 		}
 	}
 
-	async setOrder(order: number): Promise<void> {
+	setOrder(order: number): void {
 		if (this.#data!.order !== order) {
 			this.#data!.order = order;
-			// Note: Emitting change here might trigger frequent updates if order changes often.
-			// Consider if the parent manager should handle order changes and emit less frequently.
 			this.#emitChange();
-			await this.maybeAutoRefresh();
+			this.maybeAutoRefresh();
 		}
 	}
 }

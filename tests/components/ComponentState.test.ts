@@ -199,10 +199,13 @@ describe('ComponentState Auto-Refresh', () => {
 			const errorCallback = vi.fn().mockRejectedValue(new Error('Refresh failed'));
 			componentState.setRefreshCallback(errorCallback);
 
-			// Should not throw even if refresh callback fails
-			await expect(componentState.updateAppearance({ opacity: 0.5 })).resolves.toBeUndefined();
+			// Should not throw even if refresh callback fails (fire-and-forget)
+			expect(() => componentState.updateAppearance({ opacity: 0.5 })).not.toThrow();
 
-			expect(errorCallback).toHaveBeenCalledTimes(1);
+			// Wait for the async callback to settle
+			await vi.waitFor(() => {
+				expect(errorCallback).toHaveBeenCalledTimes(1);
+			});
 			expect(mockEventManager.emit).toHaveBeenCalledWith('componentchange', expect.any(Object));
 		});
 	});

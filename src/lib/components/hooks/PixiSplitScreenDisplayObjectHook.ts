@@ -23,6 +23,7 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 	#context!: IComponentContext;
 	#pixiTexture!: PIXI.Texture;
 	#displayObject!: PIXI.Container;
+	#mainSprite: PIXI.Sprite | undefined = undefined;
 	#bgCanvas: HTMLCanvasElement | undefined = undefined;
 	#bgSprite: PIXI.Sprite | undefined = undefined;
 	#blurStrength = 50;
@@ -246,6 +247,7 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		mainSprite.height = appearance.height;
 		mainSprite.x = appearance.x;
 		mainSprite.y = appearance.y;
+		this.#mainSprite = mainSprite;
 		this.#displayObject.addChild(mainSprite);
 	}
 
@@ -300,17 +302,72 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		this.#pixiTexture = nextTexture;
 	}
 
+	#isTextureValid(texture: PIXI.Texture | undefined): boolean {
+		if (!texture) return false;
+		// PIXI textures expose valid/baseTexture after destroy
+		const tex = texture as { valid?: boolean; baseTexture?: { valid?: boolean; destroyed?: boolean } };
+		if (tex.valid === false) return false;
+		if (tex.baseTexture?.valid === false || tex.baseTexture?.destroyed === true) return false;
+		return true;
+	}
+
+	#needsRebuild(currentTexture: PIXI.Texture | undefined): boolean {
+		// No display object yet — needs initial build (handled by creation path)
+		if (!this.#displayObject) return false;
+		// Tracked texture was destroyed or became invalid
+		if (!this.#isTextureValid(this.#pixiTexture)) return true;
+		// Display object lost its children (shouldn't happen, but defensive)
+		if (this.#displayObject.children.length === 0) return true;
+		// Current context texture differs and old one is gone
+		if (currentTexture && currentTexture !== this.#pixiTexture && !this.#isTextureValid(this.#pixiTexture)) {
+			return true;
+		}
+		return false;
+	}
+
+	#rebuild(texture: PIXI.Texture) {
+		this.#mainSprite = undefined;
+		this.#bgCanvas = undefined;
+		this.#bgSprite = undefined;
+		this.#lastBlurFrameKey = '';
+		this.#pixiTexture = texture;
+		this.#displayObject.removeChildren();
+		this.#initDisplayObject();
+	}
+
 	async #handleUpdate() {
 		const isActive = this.#context.isActive;
 		if (this.#displayObject) {
-			// Texture swaps are frequent in deterministic mode; update sprite textures
-			// in-place instead of rebuilding split/blur geometry each frame.
 			const currentTexture = this.#context.getResource('pixiTexture');
-			if (currentTexture && currentTexture !== this.#pixiTexture) {
+
+			// Auto-heal: if the tracked texture is destroyed or children are missing,
+			// rebuild the display object from the current valid texture.
+			if (this.#needsRebuild(currentTexture)) {
+				if (currentTexture && this.#isTextureValid(currentTexture)) {
+					this.#rebuild(currentTexture);
+				} else {
+					// No valid texture available — hide and wait for next tick
+					this.#displayObject.visible = false;
+					this.#context.setResource('pixiRenderObject', this.#displayObject);
+					return;
+				}
+			} else if (currentTexture && currentTexture !== this.#pixiTexture) {
+				// Texture swaps are frequent in deterministic mode; update sprite textures
+				// in-place instead of rebuilding split/blur geometry each frame.
 				this.#swapDisplayTexture(currentTexture);
 			}
+
 			if (isActive && this.#bgCanvas) {
 				this.#drawBlurredBackground(this.#blurStrength);
+			}
+
+			// Update main sprite position/size from appearance data
+			if (this.#mainSprite) {
+				const appearance = this.#context.data.appearance;
+				this.#mainSprite.x = appearance.x;
+				this.#mainSprite.y = appearance.y;
+				this.#mainSprite.width = appearance.width;
+				this.#mainSprite.height = appearance.height;
 			}
 
 			// Always re-assert the resource in case the context was cleared or updated
@@ -363,7 +420,7 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 	}
 
 	async #handleDestroy() {
-		// remove event listeners from video
+		this.#mainSprite = undefined;
 		this.#bgCanvas = undefined;
 		this.#bgSprite = undefined;
 		this.#lastBlurFrameKey = '';

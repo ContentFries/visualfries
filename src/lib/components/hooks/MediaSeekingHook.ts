@@ -2,7 +2,7 @@ import type { HookType, IComponentContext, IComponentHook } from '$lib';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 
 export class MediaSeekingHook implements IComponentHook {
-	types: HookType[] = ['setup', 'destroy', 'refresh', 'update'];
+	types: HookType[] = ['setup', 'destroy', 'refresh:content', 'update'];
 	priority: number = 1;
 
 	#context!: IComponentContext;
@@ -283,7 +283,7 @@ export class MediaSeekingHook implements IComponentHook {
 			return await this.#handleSetup();
 		} else if (type === 'destroy') {
 			return await this.#handleDestroy();
-		} else if (type === 'refresh') {
+		} else if (type === 'refresh:content') {
 			return await this.#handleRefresh();
 		} else if (type === 'update') {
 			return await this.#handleUpdate();

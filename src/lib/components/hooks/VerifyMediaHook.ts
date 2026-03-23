@@ -2,7 +2,7 @@ import type { IComponentContext, IComponentHook, HookType } from '$lib';
 import { VideoComponentShape } from '$lib';
 
 export class VerifyMediaHook implements IComponentHook {
-	types: HookType[] = ['setup', 'refresh'];
+	types: HookType[] = ['setup', 'refresh:content'];
 	priority: number = 1;
 	#context!: IComponentContext;
 
@@ -20,7 +20,7 @@ export class VerifyMediaHook implements IComponentHook {
 	async handle(type: HookType, context: IComponentContext) {
 		this.#context = context;
 
-		if (type === 'setup' || type === 'refresh') {
+		if (type === 'setup' || type === 'refresh:content') {
 			return await this.#handleSetup();
 		}
 	}

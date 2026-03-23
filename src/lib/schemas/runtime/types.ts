@@ -193,15 +193,15 @@ export type ComponentProps = ComponentBase & {
 	getData(): ComponentData;
 	update(data: Partial<AppearanceInput>): void;
 	// updateMetadata(data: Partial<Metadata>): void;
-	updateText(text: string): Promise<void>;
+	updateText(text: string): void;
 	// addKeyframe(keyframe: SceneLayerComponentKeyframeData): void;
 	// updateKeyframe(keyframeId: string, keyframe: Partial<SceneLayerComponentKeyframeData>): void;
 	// deleteKeyframe(keyframeId: string): void;
 	// TODO - animations, appearance,
 
-	updateAppearance(appearance: Partial<AppearanceInput>): Promise<void>;
-	setVisible(visible: boolean): Promise<void>;
-	setOrder(order: number): Promise<void>;
+	updateAppearance(appearance: Partial<AppearanceInput>): void;
+	setVisible(visible: boolean): void;
+	setOrder(order: number): void;
 };
 
 export interface PixiComponent {
@@ -249,11 +249,11 @@ export interface Component {
 
 	setStart(start: number): Component;
 	setEnd(end: number): Component;
-	updateAppearance(appearance: Partial<AppearanceInput>): Promise<Component>;
-	updateText(text: string): Promise<Component>;
-	setText(text: string): Promise<Component>;
-	setVisible(visible: boolean): Promise<Component>;
-	setOrder(order: number): Promise<Component>;
+	updateAppearance(appearance: Partial<AppearanceInput>): Component;
+	updateText(text: string): Component;
+	setText(text: string): Component;
+	setVisible(visible: boolean): Component;
+	setOrder(order: number): Component;
 
 	onChange(callback: (changes: ComponentData) => void): () => void;
 	onTimelineChange(callback: (time: number) => void): () => void;

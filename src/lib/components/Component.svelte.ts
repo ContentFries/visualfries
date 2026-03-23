@@ -17,6 +17,7 @@ export class Component implements IComponent {
 	#context: IComponentContext;
 	#hooks: IComponentHook[] = [];
 	#autoRefresh: boolean = false;
+	#hookLock: Promise<void> = Promise.resolve();
 	#eventUnsubscribers: (() => void)[] = [];
 
 	constructor(cradle: { componentState: ComponentProps; componentContext: ComponentContext }) {
@@ -76,14 +77,30 @@ export class Component implements IComponent {
 		const maxPriority =
 			this.#hooks.length > 0 ? Math.max(...this.#hooks.map((h) => h.priority ?? 0)) : 0;
 
-		hook.priority = priority ?? (maxPriority + 1);
+		hook.priority = priority ?? maxPriority + 1;
 		this.#hooks.push(hook);
 		this.#hooks.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
 	}
 
 	async #handle(type: HookType) {
-		const hooks = this.#hooks.filter((hook) => hook.types.includes(type));
-		await this.#context.runHooks(hooks, type);
+		// Serialize all hook executions via a promise-based mutex.
+		// Each call waits for the previous one to finish before running,
+		// so hooks on the same component never interleave.
+		let release!: () => void;
+		const nextLock = new Promise<void>((r) => {
+			release = r;
+		});
+		const prevLock = this.#hookLock;
+		this.#hookLock = nextLock;
+
+		await prevLock;
+
+		try {
+			const hooks = this.#hooks.filter((hook) => hook.types.includes(type));
+			await this.#context.runHooks(hooks, type);
+		} finally {
+			release();
+		}
 	}
 
 	async setup() {
@@ -98,7 +115,6 @@ export class Component implements IComponent {
 	async refresh(type: ComponentRefreshType = 'refresh') {
 		this.#context.setComponentProps(this.#properties);
 		await this.#handle(type);
-		await this.update(); // also auto update to fix timing bug
 	}
 
 	async destroy() {
@@ -115,8 +131,8 @@ export class Component implements IComponent {
 	}
 
 	// Fluent method chaining - modify existing methods to return Component instance
-	async updateAppearance(appearance: Partial<AppearanceInput>): Promise<Component> {
-		await this.#properties.updateAppearance(appearance);
+	updateAppearance(appearance: Partial<AppearanceInput>): Component {
+		this.#properties.updateAppearance(appearance);
 		return this;
 	}
 
@@ -130,23 +146,23 @@ export class Component implements IComponent {
 		return this;
 	}
 
-	async updateText(text: string): Promise<Component> {
-		await this.#properties.updateText(text);
+	updateText(text: string): Component {
+		this.#properties.updateText(text);
 		return this;
 	}
 
 	// Simple fluent wrapper methods
-	async setText(text: string): Promise<Component> {
+	setText(text: string): Component {
 		return this.updateText(text);
 	}
 
-	async setVisible(visible: boolean): Promise<Component> {
-		await this.#properties.setVisible(visible);
+	setVisible(visible: boolean): Component {
+		this.#properties.setVisible(visible);
 		return this;
 	}
 
-	async setOrder(order: number): Promise<Component> {
-		await this.#properties.setOrder(order);
+	setOrder(order: number): Component {
+		this.#properties.setOrder(order);
 		return this;
 	}
 

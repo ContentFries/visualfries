@@ -1,15 +1,32 @@
 export class TimeManager {
     fps = $state(30); // Default
     duration = $state(0);
-    transformTime(time, skipDurationCheck = false) {
-        // Round to nearest frame boundary (1/fps seconds)
-        let frameAdjustedTime = Math.round(time * this.fps) / this.fps;
-        frameAdjustedTime = Math.max(frameAdjustedTime, 0);
+    static FRAME_EPSILON = 1e-9;
+    getFrameIndex(time, mode = 'nearest', skipDurationCheck = false) {
+        let adjustedTime = Math.max(time, 0);
         if (!skipDurationCheck) {
-            // Keep duration check since endTime is always <= duration
-            return frameAdjustedTime > this.duration ? this.duration : frameAdjustedTime;
+            adjustedTime = Math.min(adjustedTime, this.duration);
         }
-        return frameAdjustedTime;
+        const scaledTime = adjustedTime * this.fps;
+        if (mode === 'current') {
+            return Math.max(0, Math.floor(scaledTime + TimeManager.FRAME_EPSILON));
+        }
+        return Math.max(0, Math.round(scaledTime));
+    }
+    getTimeForFrame(frame, skipDurationCheck = false) {
+        const frameTime = Math.max(0, frame) / this.fps;
+        if (!skipDurationCheck) {
+            return frameTime > this.duration ? this.duration : frameTime;
+        }
+        return frameTime;
+    }
+    transformTime(time, skipDurationCheck = false) {
+        const frame = this.getFrameIndex(time, 'nearest', skipDurationCheck);
+        return this.getTimeForFrame(frame, skipDurationCheck);
+    }
+    getCurrentFrameTime(time, skipDurationCheck = false) {
+        const frame = this.getFrameIndex(time, 'nearest', skipDurationCheck);
+        return this.getTimeForFrame(frame, skipDurationCheck);
     }
     updateTimeConfig(newFps, newDuration) {
         this.fps = newFps;

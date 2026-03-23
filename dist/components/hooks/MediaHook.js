@@ -2,7 +2,7 @@ import { MediaManager } from '../../managers/MediaManager.js';
 import { StateManager } from '../../managers/StateManager.svelte.js';
 import { shouldPrepareMediaAtTime } from '../../utils/mediaWindow.js';
 export class MediaHook {
-    types = ['setup', 'update', 'destroy', 'refresh'];
+    types = ['setup', 'update', 'destroy', 'refresh:content'];
     priority = 1;
     #context;
     #mediaElement;
@@ -395,9 +395,11 @@ export class MediaHook {
         else if (type === 'destroy') {
             return await this.#handleDestroy();
         }
-        else if (type === 'refresh') {
+        else if (type === 'refresh:content') {
             return await this.#handleRefresh();
         }
-        await this.#handleUpdate();
+        else if (type === 'update') {
+            await this.#handleUpdate();
+        }
     }
 }

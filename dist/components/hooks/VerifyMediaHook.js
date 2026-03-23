@@ -1,6 +1,6 @@
 import { VideoComponentShape } from '../..';
 export class VerifyMediaHook {
-    types = ['setup', 'refresh'];
+    types = ['setup', 'refresh:content'];
     priority = 1;
     #context;
     async #handleSetup() {
@@ -14,7 +14,7 @@ export class VerifyMediaHook {
     }
     async handle(type, context) {
         this.#context = context;
-        if (type === 'setup' || type === 'refresh') {
+        if (type === 'setup' || type === 'refresh:content') {
             return await this.#handleSetup();
         }
     }

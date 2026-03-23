@@ -40,9 +40,9 @@ export declare class ComponentsManager implements ResourceManager<IComponent, Co
         data: Partial<AppearanceInput>;
     }[]): void;
     bulkDelete(ids: string[]): void;
-    hide(id: string): Promise<void>;
-    show(id: string): Promise<void>;
-    toggle(id: string): Promise<void>;
+    hide(id: string): void;
+    show(id: string): void;
+    toggle(id: string): void;
     filter(predicate: (component: IComponent) => boolean): IComponent[];
     isComponentVisible(componentId: string): boolean;
     destroy(): void;

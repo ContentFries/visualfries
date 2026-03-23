@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.13](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.12...visualfries-v0.1.13) (2026-03-23)
+
+
+### Features
+
+* **time:** align frame timing and decouple refresh from update execution ([#37](https://github.com/ContentFries/visualfries/issues/37)) ([3bd94be](https://github.com/ContentFries/visualfries/commit/3bd94becd2fc0d6b0b605d5605211cd540c06142))
+
 ## [0.1.12](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.11...visualfries-v0.1.12) (2026-03-22)
 
 

@@ -89,7 +89,7 @@ export class ComponentsManager
 		}
 	}
 
-	async update(
+	update(
 		componentId: string,
 		data: Partial<AppearanceInput>,
 		refreshType: ComponentRefreshType = 'refresh'

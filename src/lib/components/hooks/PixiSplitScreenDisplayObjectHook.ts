@@ -311,17 +311,13 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		return true;
 	}
 
-	#needsRebuild(currentTexture: PIXI.Texture | undefined): boolean {
+	#needsRebuild(): boolean {
 		// No display object yet — needs initial build (handled by creation path)
 		if (!this.#displayObject) return false;
 		// Tracked texture was destroyed or became invalid
 		if (!this.#isTextureValid(this.#pixiTexture)) return true;
 		// Display object lost its children (shouldn't happen, but defensive)
 		if (this.#displayObject.children.length === 0) return true;
-		// Current context texture differs and old one is gone
-		if (currentTexture && currentTexture !== this.#pixiTexture && !this.#isTextureValid(this.#pixiTexture)) {
-			return true;
-		}
 		return false;
 	}
 
@@ -342,7 +338,7 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 
 			// Auto-heal: if the tracked texture is destroyed or children are missing,
 			// rebuild the display object from the current valid texture.
-			if (this.#needsRebuild(currentTexture)) {
+			if (this.#needsRebuild()) {
 				if (currentTexture && this.#isTextureValid(currentTexture)) {
 					this.#rebuild(currentTexture);
 				} else {
@@ -351,7 +347,7 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 					this.#context.setResource('pixiRenderObject', this.#displayObject);
 					return;
 				}
-			} else if (currentTexture && currentTexture !== this.#pixiTexture) {
+			} else if (currentTexture && currentTexture !== this.#pixiTexture && this.#isTextureValid(currentTexture)) {
 				// Texture swaps are frequent in deterministic mode; update sprite textures
 				// in-place instead of rebuilding split/blur geometry each frame.
 				this.#swapDisplayTexture(currentTexture);

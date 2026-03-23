@@ -27,9 +27,13 @@ export class ComponentState implements ComponentProps {
 
 	private maybeAutoRefresh(): void {
 		if (this.refreshCallback) {
-			this.refreshCallback().catch((error) => {
+			try {
+				this.refreshCallback().catch((error) => {
+					console.warn('Auto-refresh callback failed:', error);
+				});
+			} catch (error) {
 				console.warn('Auto-refresh callback failed:', error);
-			});
+			}
 		}
 	}
 

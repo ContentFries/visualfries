@@ -39,8 +39,7 @@ export class TimeManager {
 	}
 
 	getCurrentFrameTime(time: number, skipDurationCheck = false): number {
-		const frame = this.getFrameIndex(time, 'nearest', skipDurationCheck);
-		return this.getTimeForFrame(frame, skipDurationCheck);
+		return this.transformTime(time, skipDurationCheck);
 	}
 
 	updateTimeConfig(newFps: number, newDuration: number) {

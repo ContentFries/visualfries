@@ -62,13 +62,18 @@ const createVideoContext = (
 };
 
 describe('StateManager frame alignment', () => {
-	it('snaps raw times to the current frame boundary instead of rounding into the next frame', () => {
+	it('snaps raw times to the nearest frame boundary consistently for currentTime and currentFrame', () => {
 		const stateManager = createStateManager();
 
+		// With 'nearest' (round) quantization at 30fps:
+		// 650.01*30=19500.3 → round=19500, frame%30=0, time=650+0/30
+		// 650.04*30=19501.2 → round=19501, frame%30=1, time=650+1/30
+		// 650.07*30=19502.1 → round=19502, frame%30=2, time=650+2/30
+		// 650.1*30=19503.0  → round=19503, frame%30=3, time=650+3/30
 		const cases = [
 			{ rawTime: 650.01, expectedFrameInSecond: 0, expectedTime: 650 + 0 / 30 },
-			{ rawTime: 650.05, expectedFrameInSecond: 1, expectedTime: 650 + 1 / 30 },
-			{ rawTime: 650.09, expectedFrameInSecond: 2, expectedTime: 650 + 2 / 30 },
+			{ rawTime: 650.04, expectedFrameInSecond: 1, expectedTime: 650 + 1 / 30 },
+			{ rawTime: 650.07, expectedFrameInSecond: 2, expectedTime: 650 + 2 / 30 },
 			{ rawTime: 650.1, expectedFrameInSecond: 3, expectedTime: 650 + 3 / 30 }
 		];
 
@@ -85,20 +90,23 @@ describe('StateManager frame alignment', () => {
 
 	it('exposes frame-aligned public values even when the internal raw time sits between frame boundaries', () => {
 		const stateManager = createStateManager();
-		(stateManager as any).currentTimeRune = 650.09;
+		(stateManager as any).currentTimeRune = 650.07;
 
+		// 650.07*30=19502.1, round=19502, frame%30=2, time=650+2/30≈650.0667
 		expect(stateManager.currentFrame % stateManager.data.settings.fps).toBe(2);
 		expect(stateManager.currentTime).toBeCloseTo(650 + 2 / 30, 10);
 		expect(stateManager.currentTime).not.toBe(650.1);
 	});
 
-	it('only reports 10:50.03 at the exact frame-3 boundary', () => {
+	it('only reports frame-3 at the exact frame-3 boundary, not before', () => {
 		const stateManager = createStateManager();
 
-		stateManager.setCurrentTime(650.09);
+		// 650.07 rounds to frame 19502 (frame-in-second=2)
+		stateManager.setCurrentTime(650.07);
 		expect(stateManager.currentFrame % stateManager.data.settings.fps).toBe(2);
 		expect(stateManager.currentTime).toBeCloseTo(650 + 2 / 30, 10);
 
+		// 650.1 rounds to frame 19503 (frame-in-second=3)
 		stateManager.setCurrentTime(650.1);
 		expect(stateManager.currentFrame % stateManager.data.settings.fps).toBe(3);
 		expect(stateManager.currentTime).toBeCloseTo(650.1, 10);
@@ -109,10 +117,12 @@ describe('StateManager frame alignment', () => {
 		const outgoing = createVideoContext(stateManager, 'outgoing', 0, 650.1);
 		const incoming = createVideoContext(stateManager, 'incoming', 650.1, 700);
 
-		stateManager.setCurrentTime(650.09);
+		// 650.07 rounds to frame 19502, time≈650.0667 — before the 650.1 boundary
+		stateManager.setCurrentTime(650.07);
 		expect(outgoing.isActive).toBe(true);
 		expect(incoming.isActive).toBe(false);
 
+		// 650.1 rounds to frame 19503, time=650.1 — exactly at the boundary
 		stateManager.setCurrentTime(650.1);
 		expect(outgoing.isActive).toBe(false);
 		expect(incoming.isActive).toBe(true);

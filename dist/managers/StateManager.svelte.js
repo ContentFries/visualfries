@@ -38,7 +38,8 @@ export class StateManager {
     }
     get currentTime() {
         const clampedTime = Math.max(this.startTime, Math.min(this.currentTimeRune, this.endTime));
-        return this.timeManager.getCurrentFrameTime(clampedTime, true);
+        const frameTime = this.timeManager.getCurrentFrameTime(clampedTime, true);
+        return Math.min(frameTime, this.endTime);
     }
     get data() {
         return this.currentSceneData;

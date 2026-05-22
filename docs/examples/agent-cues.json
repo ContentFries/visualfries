@@ -1,0 +1,49 @@
+{
+  "broll": [
+    {
+      "url": "./assets/profile-scroll.mp4",
+      "start": 0.2,
+      "end": 1.4,
+      "type": "VIDEO",
+      "fade": 0.18
+    },
+    {
+      "url": "./assets/chart.png",
+      "start": 1.4,
+      "end": 2.6,
+      "type": "IMAGE",
+      "motion": "slow-zoom-in"
+    }
+  ],
+  "overlays": [
+    {
+      "text": "LOVE THIS \ud83d\ude0d",
+      "start": 0.4,
+      "end": 1.1,
+      "style": "hook-punch"
+    },
+    {
+      "text": "NECK \ud83e\udd2f",
+      "start": 1.1,
+      "end": 1.7,
+      "style": "shock-word"
+    },
+    {
+      "text": "your move",
+      "start": 2.1,
+      "end": 2.7,
+      "style": "cta-card"
+    }
+  ],
+  "transitions": [
+    {
+      "time": 1.4,
+      "style": "dip-to-black"
+    },
+    {
+      "time": 2.3,
+      "style": "swipe-left",
+      "color": "#04483D"
+    }
+  ]
+}

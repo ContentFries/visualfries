@@ -24,7 +24,7 @@ export declare class ComponentsManager implements ResourceManager<IComponent, Co
     private isVisible;
     getAll(): IComponent[];
     getMediaComponents(): (Component & MediaComponent)[];
-    update(componentId: string, data: Partial<AppearanceInput>, refreshType?: ComponentRefreshType): Promise<void>;
+    update(componentId: string, data: Partial<AppearanceInput>, refreshType?: ComponentRefreshType): void;
     get(componentId: string): IComponent | undefined;
     delete(componentId: string): void;
     create(componentData: ComponentData): Promise<IComponent | null>;

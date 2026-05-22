@@ -5,7 +5,7 @@
 	"author": "ContentFries",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/contentfries/visualfries"
+		"url": "git+https://github.com/contentfries/visualfries.git"
 	},
 	"bugs": {
 		"url": "https://github.com/contentfries/visualfries/issues"
@@ -28,11 +28,17 @@
 		"release:bootstrap": "release-please bootstrap"
 	},
 	"files": [
+		"bin",
 		"dist",
+		"skills",
+		"docs",
 		"!dist/**/*.test.*",
 		"!dist/**/*.spec.*",
 		"!dist/stories/**"
 	],
+	"bin": {
+		"visualfries": "bin/visualfries.js"
+	},
 	"sideEffects": [
 		"**/*.css"
 	],
@@ -50,11 +56,29 @@
 			"svelte": "./dist/index.js",
 			"import": "./dist/index.js",
 			"default": "./dist/index.js"
+		},
+		"./agent": {
+			"types": "./dist/agent/index.d.ts",
+			"import": "./dist/agent/index.js",
+			"default": "./dist/agent/index.js"
 		}
 	},
 	"peerDependencies": {
+		"@sveltejs/vite-plugin-svelte": "^4.0.0 || ^5.0.0 || ^6.0.0",
+		"playwright": "^1.40.0",
 		"svelte": "^5.0.0",
-		"zod": "^4.1.12"
+		"vite": "^5.0.0 || ^6.0.0 || ^7.0.0"
+	},
+	"peerDependenciesMeta": {
+		"@sveltejs/vite-plugin-svelte": {
+			"optional": true
+		},
+		"playwright": {
+			"optional": true
+		},
+		"vite": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^3.0.0",
@@ -96,6 +120,7 @@
 		"lodash-es": "^4.17.21",
 		"pixi.js-legacy": "^7.4.3",
 		"tinycolor2": "^1.6.0",
-		"uuid": "^10.0.0"
+		"uuid": "^10.0.0",
+		"zod": "^4.1.12"
 	}
 }

@@ -36,6 +36,90 @@ This means development is driven by a singular vision and you have a direct line
 npm install visualfries
 ```
 
+## Agent CLI
+
+VisualFries includes a small agent-facing CLI for scene JSON workflows that do not require opening the ContentFries UI.
+
+```bash
+visualfries validate scene.json
+visualfries inspect scene.json --json
+visualfries qa scene.json --output ./qa
+visualfries doctor --json
+visualfries catalog --json
+visualfries validate-cues ./cues.json --duration 45 --json
+visualfries caption-scene \
+  --video ./input.mp4 \
+  --transcript ./transcript.srt \
+  --preset hidden-engine-center \
+  --output ./scene.json
+visualfries preset-cues --duration 45 --preset hidden-engine-dynamic --output ./cues.json
+visualfries apply-cues ./scene.json --cues ./cues.json --output ./scene.with-cues.json
+visualfries render ./scene.json --output ./out.mp4
+```
+
+For static-heavy scenes, QA first and then use the faster duplicate-aware render:
+
+```bash
+visualfries render ./scene.json --output ./out.mp4 --skip-duplicates
+```
+
+`visualfries init` also creates a compose-ready package with `scene.json`, `cues.json`, `assets/`, `qa/`, and `notes.md`.
+
+For a one-command agent render:
+
+```bash
+visualfries compose \
+  --video ./input.mp4 \
+  --transcript ./transcript.srt \
+  --cue-preset hidden-engine-dynamic \
+  --cues ./cues.json \
+  --scene-output ./scene.json \
+  --qa-output ./qa/frames \
+  --output ./out.mp4
+```
+
+The `caption-scene` command creates a render-ready VisualFries scene with a full-frame video layer, subtitle layer, asset registry, and subtitle timing data from transcript JSON, SRT, or VTT.
+
+The `render` command opens a controlled browser renderer, captures the scene frame-by-frame, and encodes MP4 with `ffmpeg`. Use `--frames-only` when an agent needs QA frames before encoding.
+
+For Node automations, use the agent-only export:
+
+```ts
+import { createCaptionScene, inspectScene, normalizeTranscript } from 'visualfries/agent';
+```
+
+Agent helpers also include timed text overlays:
+
+```ts
+import { addAgentBrollSequence, addAgentTextOverlays, addAgentTransitions } from 'visualfries/agent';
+
+const sceneWithOverlays = addAgentTextOverlays({
+  scene,
+  overlays: [
+    { text: 'LOVE THIS 😍', start: 0.4, end: 1.1, style: 'hook-punch' },
+    { text: 'NECK 🤯', start: 1.1, end: 1.7, style: 'shock-word' }
+  ]
+});
+
+const sceneWithBroll = addAgentBrollSequence({
+  scene,
+  cues: [
+    { url: './broll/profile.mp4', start: 2.0, end: 5.0, type: 'VIDEO' },
+    { url: './broll/chart.png', start: 5.0, end: 7.0, type: 'IMAGE' }
+  ]
+});
+
+const sceneWithTransitions = addAgentTransitions({
+  scene,
+  transitions: [
+    { time: 2.0, style: 'dip-to-black' },
+    { time: 5.0, style: 'swipe-left', color: '#04483D' }
+  ]
+});
+```
+
+See [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md) and [docs/AGENT_PATTERNS.md](docs/AGENT_PATTERNS.md).
+
 ## Quick Start
 
 The best way to use VisualFries is within a Svelte component.

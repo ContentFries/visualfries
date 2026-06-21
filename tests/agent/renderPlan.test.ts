@@ -93,6 +93,55 @@ describe('agent render plan', () => {
 		expect(plan.blockers).toEqual([]);
 	});
 
+	it('ignores muted layers and invisible media components when planning deterministic media', () => {
+		const scene = {
+			...baseScene,
+			assets: [
+				{ id: 'hidden-asset', type: 'VIDEO', url: 'https://example.com/hidden.mp4' },
+				{ id: 'visible-asset', type: 'VIDEO', url: 'https://example.com/visible.mp4' }
+			],
+			layers: [
+				{
+					id: 'muted-layer',
+					muted: true,
+					components: [
+						{
+							id: 'muted-video',
+							type: 'VIDEO',
+							source: { assetId: 'hidden-asset' },
+							timeline: { startAt: 0, endAt: 3 },
+							appearance: { x: 0, y: 0, width: 1080, height: 1920 }
+						}
+					]
+				},
+				{
+					id: 'visible-layer',
+					components: [
+						{
+							id: 'invisible-video',
+							type: 'VIDEO',
+							visible: false,
+							source: { assetId: 'hidden-asset' },
+							timeline: { startAt: 0, endAt: 3 },
+							appearance: { x: 0, y: 0, width: 1080, height: 1920 }
+						},
+						{
+							id: 'visible-video',
+							type: 'VIDEO',
+							source: { assetId: 'visible-asset' },
+							timeline: { startAt: 0, endAt: 3 },
+							appearance: { x: 0, y: 0, width: 1080, height: 1920 }
+						}
+					]
+				}
+			]
+		};
+
+		expect(collectDeterministicMediaRequirements(scene).map((item) => item.componentId)).toEqual([
+			'visible-video'
+		]);
+	});
+
 	it('permits browser media only when explicitly requested as preview', () => {
 		const scene = {
 			...baseScene,

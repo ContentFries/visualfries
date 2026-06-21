@@ -18,6 +18,23 @@ const normalizeUrl = (value) => {
     }
 };
 const safeFilePart = (value) => value.replace(/[^a-zA-Z0-9._-]/g, '_');
+export const normalizeDeterministicPublicBasePath = (value) => {
+    const normalized = value.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
+    const segments = normalized.split('/').filter(Boolean);
+    if (segments.length === 0 || segments.some((segment) => segment === '.' || segment === '..')) {
+        throw new Error('publicBasePath must be a relative URL path without "." or ".." segments.');
+    }
+    return `/${segments.join('/')}`;
+};
+const resolveSafeAssetRoot = (workDir, publicBasePath) => {
+    const root = path.resolve(workDir);
+    const target = path.resolve(root, publicBasePath.slice(1));
+    const relative = path.relative(root, target);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw new Error('publicBasePath must resolve inside workDir.');
+    }
+    return target;
+};
 const toInputPath = (sourceUrl) => {
     if (sourceUrl.startsWith('file://'))
         return fileURLToPath(sourceUrl);
@@ -103,7 +120,12 @@ export function resolveLocalPredecodedExtractionPlan(sourceStartSec, sourceEndSe
                 sourceEndLimited: true
             };
         }
-        return { sourceStartSec, extractFrameCount: outputFrameCount, outputFrameCount, sourceEndLimited: false };
+        return {
+            sourceStartSec,
+            extractFrameCount: outputFrameCount,
+            outputFrameCount,
+            sourceEndLimited: false
+        };
     }
     const availableFrames = Math.max(1, Math.ceil((sourceEndSec - sourceStartSec) * fps - 1e-6));
     return {
@@ -164,7 +186,9 @@ const extractFrameSequence = async (options) => {
     return listFrameFiles(options.outputDir, options.extension);
 };
 const padTrailingFrames = async (outputDir, extension, frames, expectedFrameCount) => {
-    if (frames.length === expectedFrameCount || frames.length === 0 || frames.length > expectedFrameCount) {
+    if (frames.length === expectedFrameCount ||
+        frames.length === 0 ||
+        frames.length > expectedFrameCount) {
         return frames;
     }
     const lastFrame = frames[frames.length - 1];
@@ -182,10 +206,10 @@ const assignBoundaryFrames = (manifest, componentId, frameIndex, frameUrl, radiu
 export async function prepareLocalDeterministicMedia(input) {
     const scene = cloneScene(SceneShape.parse(input.scene));
     const fps = scene.settings.fps || 30;
-    const publicBasePath = input.publicBasePath ?? '/deterministic-media';
+    const publicBasePath = normalizeDeterministicPublicBasePath(input.publicBasePath ?? '/deterministic-media');
     const frameExtension = input.frameExtension ?? 'jpg';
     const jpegQualityScale = Math.max(1, Math.min(31, Math.floor(input.jpegQualityScale ?? 2)));
-    const assetsRoot = path.join(input.workDir, publicBasePath.replace(/^\/+/, ''));
+    const assetsRoot = resolveSafeAssetRoot(input.workDir, publicBasePath);
     const predecodedRoot = path.join(assetsRoot, 'predecoded');
     await fs.mkdir(predecodedRoot, { recursive: true });
     const mediaComponents = collectLocalDeterministicMediaComponents(scene);
@@ -193,17 +217,17 @@ export async function prepareLocalDeterministicMedia(input) {
     const preparedMedia = [];
     for (const media of mediaComponents) {
         const activeWindow = resolveLocalDeterministicActiveWindow(media, input.fromFrame, input.toFrame, fps);
+        if (!activeWindow)
+            continue;
         const componentDirName = safeFilePart(media.id);
         const componentOutputDir = path.join(predecodedRoot, componentDirName);
         await fs.rm(componentOutputDir, { recursive: true, force: true });
         await fs.mkdir(componentOutputDir, { recursive: true });
-        const activeStartFrame = activeWindow?.activeStartFrame ?? input.fromFrame;
-        const expectedFrameCount = activeWindow
-            ? activeWindow.activeEndFrame - activeWindow.activeStartFrame
-            : 1;
+        const activeStartFrame = activeWindow.activeStartFrame;
+        const expectedFrameCount = activeWindow.activeEndFrame - activeWindow.activeStartFrame;
         if (expectedFrameCount <= 0)
             continue;
-        const extractionPlan = resolveLocalPredecodedExtractionPlan(activeWindow?.sourceStartSec ?? media.sourceStartAt, media.sourceEndAt, expectedFrameCount, fps);
+        const extractionPlan = resolveLocalPredecodedExtractionPlan(activeWindow.sourceStartSec, media.sourceEndAt, expectedFrameCount, fps);
         if (extractionPlan.extractFrameCount <= 0)
             continue;
         const sourceInput = toInputPath(media.sourceUrl);

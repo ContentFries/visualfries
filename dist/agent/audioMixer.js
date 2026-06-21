@@ -20,7 +20,7 @@ const REMOTE_AUDIO_INPUT_OPTIONS = [
     '15000000'
 ];
 const isRemoteUrl = (value) => /^https?:\/\//i.test(value);
-const toFfmpegInput = (value) => (value.startsWith('file://') ? fileURLToPath(value) : value);
+const toFfmpegInput = (value) => value.startsWith('file://') ? fileURLToPath(value) : value;
 const safeVolume = (input) => {
     if (typeof input !== 'number' || Number.isNaN(input))
         return 1;
@@ -191,24 +191,19 @@ const runProcess = async (command, args, label, options = {}) => {
     });
 };
 export async function sourceHasAudio(url) {
-    try {
-        const input = toFfmpegInput(url);
-        const { stdout } = await runProcess(process.env.FFPROBE_PATH || 'ffprobe', [
-            '-v',
-            'error',
-            '-select_streams',
-            'a',
-            '-show_entries',
-            'stream=index',
-            '-of',
-            'csv=p=0',
-            input
-        ], 'ffprobe-audio');
-        return stdout.trim().length > 0;
-    }
-    catch {
-        return false;
-    }
+    const input = toFfmpegInput(url);
+    const { stdout } = await runProcess(process.env.FFPROBE_PATH || 'ffprobe', [
+        '-v',
+        'error',
+        '-select_streams',
+        'a',
+        '-show_entries',
+        'stream=index',
+        '-of',
+        'csv=p=0',
+        input
+    ], 'ffprobe-audio');
+    return stdout.trim().length > 0;
 }
 export function createPrepareSourceAudioArgs(source, outputPath) {
     const input = toFfmpegInput(source.url);

@@ -50,6 +50,7 @@ export function createMuxAudioArgs(input) {
 export class PipeFrameEncoder {
     #options;
     #proc = null;
+    #exitPromise = null;
     #stderrTail = '';
     #startedAt = 0;
     constructor(options) {
@@ -61,6 +62,22 @@ export class PipeFrameEncoder {
         this.#startedAt = Date.now();
         this.#proc = spawn(process.env.FFMPEG_PATH || 'ffmpeg', createFfmpegImagePipeArgs(this.#options), {
             stdio: ['pipe', 'ignore', 'pipe']
+        });
+        this.#exitPromise = new Promise((resolve) => {
+            let settled = false;
+            const settle = (result) => {
+                if (settled)
+                    return;
+                settled = true;
+                resolve(result);
+            };
+            this.#proc?.once('error', (error) => {
+                settle({
+                    code: null,
+                    error: new Error(`PipeFrameEncoder failed to start ffmpeg: ${error.message}`)
+                });
+            });
+            this.#proc?.once('close', (code) => settle({ code }));
         });
         this.#proc.stderr?.on('data', (chunk) => {
             const text = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
@@ -78,10 +95,19 @@ export class PipeFrameEncoder {
     async writeFrame(buffer) {
         if (!this.#proc)
             this.start();
-        const ok = this.#stdin.write(buffer);
+        let ok = false;
+        try {
+            ok = this.#stdin.write(buffer);
+        }
+        catch (error) {
+            const exitResult = await this.#exitPromise;
+            if (exitResult?.error)
+                throw exitResult.error;
+            throw error;
+        }
         if (ok)
             return;
-        await new Promise((resolve, reject) => {
+        const waitForDrain = new Promise((resolve, reject) => {
             const cleanup = () => {
                 this.#stdin.off('drain', onDrain);
                 this.#stdin.off('error', onError);
@@ -97,20 +123,49 @@ export class PipeFrameEncoder {
             this.#stdin.on('drain', onDrain);
             this.#stdin.on('error', onError);
         });
+        const waitForExit = this.#exitPromise?.then((result) => {
+            if (result.error)
+                throw result.error;
+            if (result.code !== 0) {
+                throw new Error(`PipeFrameEncoder failed with exit code ${result.code}. ${this.#stderrTail}`);
+            }
+        });
+        await (waitForExit ? Promise.race([waitForDrain, waitForExit]) : waitForDrain);
     }
     async finish() {
         if (!this.#proc)
             return { elapsedMs: 0 };
         const proc = this.#proc;
-        await new Promise((resolve) => {
-            proc.stdin?.end(() => resolve());
+        await new Promise((resolve, reject) => {
+            if (!proc.stdin || proc.stdin.destroyed) {
+                resolve();
+                return;
+            }
+            const onError = (error) => {
+                proc.stdin?.off('finish', onFinish);
+                reject(error);
+            };
+            const onFinish = () => {
+                proc.stdin?.off('error', onError);
+                resolve();
+            };
+            proc.stdin.once('error', onError);
+            proc.stdin.end(onFinish);
+        }).catch(async (error) => {
+            const exitResult = await this.#exitPromise;
+            if (exitResult?.error)
+                return;
+            throw error;
         });
-        const code = await new Promise((resolve) => {
-            proc.once('close', (exitCode) => resolve(exitCode));
-        });
+        const result = await (this.#exitPromise ??
+            Promise.resolve({ code: null }));
         this.#proc = null;
-        if (code !== 0) {
-            throw new Error(`PipeFrameEncoder failed with exit code ${code}. ${this.#stderrTail}`);
+        this.#exitPromise = null;
+        if (result.error) {
+            throw new Error(`${result.error.message}. ${this.#stderrTail}`.trim());
+        }
+        if (result.code !== 0) {
+            throw new Error(`PipeFrameEncoder failed with exit code ${result.code}. ${this.#stderrTail}`);
         }
         return { elapsedMs: Date.now() - this.#startedAt };
     }

@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
 	collectLocalDeterministicMediaComponents,
+	normalizeDeterministicPublicBasePath,
+	prepareLocalDeterministicMedia,
 	resolveLocalDeterministicActiveWindow,
 	resolveLocalPredecodedExtractionPlan,
 	toLocalDeterministicFrameIndex
 } from '$lib/agent';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
 const scene = {
 	id: 'det-media-test',
@@ -74,5 +79,30 @@ describe('agent deterministic media helpers', () => {
 			outputFrameCount: 10,
 			sourceEndLimited: true
 		});
+	});
+
+	it('rejects deterministic public base paths that can escape the work directory', () => {
+		expect(normalizeDeterministicPublicBasePath('/deterministic-media')).toBe(
+			'/deterministic-media'
+		);
+		expect(() => normalizeDeterministicPublicBasePath('../escape')).toThrow(/publicBasePath/);
+		expect(() => normalizeDeterministicPublicBasePath('/safe/../escape')).toThrow(/publicBasePath/);
+	});
+
+	it('skips deterministic media outside the requested frame window without probing sources', async () => {
+		const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'visualfries-det-media-'));
+		try {
+			const result = await prepareLocalDeterministicMedia({
+				scene,
+				workDir,
+				fromFrame: 0,
+				toFrame: 30
+			});
+
+			expect(result.media).toEqual([]);
+			expect(result.payload.frameManifest).toEqual({});
+		} finally {
+			await fs.rm(workDir, { recursive: true, force: true });
+		}
 	});
 });

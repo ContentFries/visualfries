@@ -63,7 +63,9 @@ export type LocalRenderResult = {
 	};
 	output: string;
 	encoded: boolean;
-	encoding: { mode: 'none' | 'frame-sequence' } | { mode: 'image2pipe'; elapsedMs: number; audioMuxed: boolean };
+	encoding:
+		| { mode: 'none' | 'frame-sequence' }
+		| { mode: 'image2pipe'; elapsedMs: number; audioMuxed: boolean };
 	audio: {
 		mode: 'none' | 'override' | 'mixed' | 'primary-fallback';
 		selectedSources: number;
@@ -107,7 +109,9 @@ export const normalizeImageQuality = (value: number | undefined, fallback = 0.92
 	throw new Error('imageQuality must be in 0..1 or 0..100 percent form.');
 };
 
-const contiguousFrameRange = (frameIndices: number[]): { fromFrame: number; toFrame: number } | null => {
+const contiguousFrameRange = (
+	frameIndices: number[]
+): { fromFrame: number; toFrame: number } | null => {
 	if (!frameIndices.length) return null;
 	const fromFrame = frameIndices[0];
 	for (let index = 1; index < frameIndices.length; index += 1) {
@@ -147,7 +151,13 @@ const encodeFrames = async (input: {
 	imageFormat: 'png' | 'jpg';
 	audioInput?: string;
 }): Promise<void> => {
-	const args = ['-y', '-framerate', String(input.fps), '-i', framePattern(input.framesDir, input.imageFormat)];
+	const args = [
+		'-y',
+		'-framerate',
+		String(input.fps),
+		'-i',
+		framePattern(input.framesDir, input.imageFormat)
+	];
 	if (input.audioInput) {
 		args.push('-i', input.audioInput, '-map', '0:v:0', '-map', '1:a:0?', '-shortest');
 	}
@@ -162,7 +172,7 @@ const encodeFrames = async (input: {
 		'18',
 		input.output
 	);
-	await runCommand('ffmpeg', args);
+	await runCommand(process.env.FFMPEG_PATH || 'ffmpeg', args);
 };
 
 const importFromOptionalPaths = async (
@@ -181,9 +191,12 @@ const importFromOptionalPaths = async (
 					: moduleName === 'playwright'
 						? modulePaths.playwright
 						: undefined;
-		const extraPaths = [configured, modulePaths.nodeModules, process.env[envName], process.env.VISUALFRIES_NODE_MODULES].filter(
-			Boolean
-		) as string[];
+		const extraPaths = [
+			configured,
+			modulePaths.nodeModules,
+			process.env[envName],
+			process.env.VISUALFRIES_NODE_MODULES
+		].filter(Boolean) as string[];
 		for (const moduleDir of extraPaths) {
 			try {
 				const require = createRequire(import.meta.url);
@@ -211,9 +224,12 @@ const resolveModulePathFromOptionalPaths = (
 				: moduleName === 'playwright'
 					? modulePaths.playwright
 					: undefined;
-	const extraPaths = [configured, modulePaths.nodeModules, process.env[envName], process.env.VISUALFRIES_NODE_MODULES].filter(
-		Boolean
-	) as string[];
+	const extraPaths = [
+		configured,
+		modulePaths.nodeModules,
+		process.env[envName],
+		process.env.VISUALFRIES_NODE_MODULES
+	].filter(Boolean) as string[];
 	const require = createRequire(import.meta.url);
 	for (const moduleDir of extraPaths) {
 		try {
@@ -226,11 +242,17 @@ const resolveModulePathFromOptionalPaths = (
 		return require.resolve(moduleName);
 	} catch {
 		if (fallback) return fallback;
-		throw new Error(`Could not resolve ${moduleName}. Pass modulePaths.nodeModules or set VISUALFRIES_NODE_MODULES.`);
+		throw new Error(
+			`Could not resolve ${moduleName}. Pass modulePaths.nodeModules or set VISUALFRIES_NODE_MODULES.`
+		);
 	}
 };
 
-const copyLocalMediaToRenderRoot = async (scene: Scene, renderRoot: string, baseUrl: string): Promise<Scene> => {
+const copyLocalMediaToRenderRoot = async (
+	scene: Scene,
+	renderRoot: string,
+	baseUrl: string
+): Promise<Scene> => {
 	const cloned = structuredClone(scene);
 	const mediaDir = path.join(renderRoot, 'media');
 	await fs.mkdir(mediaDir, { recursive: true });
@@ -256,12 +278,17 @@ const copyLocalMediaToRenderRoot = async (scene: Scene, renderRoot: string, base
 		asset.url = (await rewriteUrl(asset.url)) ?? asset.url;
 	}
 	if (cloned.settings.audio?.src) {
-		cloned.settings.audio.src = (await rewriteUrl(cloned.settings.audio.src)) ?? cloned.settings.audio.src;
+		cloned.settings.audio.src =
+			(await rewriteUrl(cloned.settings.audio.src)) ?? cloned.settings.audio.src;
 	}
 	for (const layer of cloned.layers ?? []) {
 		for (const component of layer.components ?? []) {
 			if ('source' in component && component.source?.url) {
 				component.source.url = (await rewriteUrl(component.source.url)) ?? component.source.url;
+			}
+			if ('source' in component && component.source?.streamUrl) {
+				component.source.streamUrl =
+					(await rewriteUrl(component.source.streamUrl)) ?? component.source.streamUrl;
 			}
 		}
 	}
@@ -350,7 +377,11 @@ const writeEarcutShim = async (rootDir: string, earcutEntry: string): Promise<vo
 		.replace(/['"]use strict['"];?\s*/, '')
 		.replace(/module\.exports\s*=\s*earcut;\s*/, '')
 		.replace(/module\.exports\.default\s*=\s*earcut;\s*/, '');
-	await fs.writeFile(path.join(rootDir, 'earcut-shim.js'), `${esmSource}\nexport default earcut;\n`, 'utf8');
+	await fs.writeFile(
+		path.join(rootDir, 'earcut-shim.js'),
+		`${esmSource}\nexport default earcut;\n`,
+		'utf8'
+	);
 };
 
 const findBrowserExecutable = (explicit?: string): string | undefined => {
@@ -378,7 +409,10 @@ const resolveRenderAudioInput = async (input: {
 	audioMix: LocalRenderResult['audio'];
 }> => {
 	if (input.audioOverride === 'none') {
-		return { audioInput: undefined, audioMix: { mode: 'none', selectedSources: 0, skippedSources: 0, plannedSources: 0 } };
+		return {
+			audioInput: undefined,
+			audioMix: { mode: 'none', selectedSources: 0, skippedSources: 0, plannedSources: 0 }
+		};
 	}
 	if (input.audioOverride) {
 		return {
@@ -426,7 +460,10 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 	const parsed = SceneShape.parse(options.scene);
 	const normalizedImageFormat = normalizeImageFormat(options.imageFormat);
 	const imageQuality = normalizeImageQuality(options.imageQuality);
-	const tmpParent = options.tmpDir || process.env.VISUALFRIES_TMPDIR || (existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir());
+	const tmpParent =
+		options.tmpDir ||
+		process.env.VISUALFRIES_TMPDIR ||
+		(existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir());
 	const tempRoot = await fs.mkdtemp(path.join(tmpParent, 'visualfries-render-'));
 	const framesOnly = options.framesOnly ?? false;
 	const framesDir = framesOnly ? path.resolve(options.output) : path.join(tempRoot, 'frames');
@@ -446,10 +483,56 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 				}).ranges
 			: [];
 		const renderPlan = options.renderPlan ?? resolveAgentRenderPlan(parsed);
+		if (activeRange && effectiveRanges.length === 0) {
+			if (!framesOnly) {
+				throw new Error('All requested frames are removed by trimZones; no frames to encode.');
+			}
+			return {
+				ok: true,
+				scene: {
+					id: parsed.id,
+					width: parsed.settings.width,
+					height: parsed.settings.height,
+					duration: parsed.settings.duration,
+					fps: parsed.settings.fps
+				},
+				frames: {
+					count: 0,
+					dir: framesDir,
+					items: [],
+					transport: 'range-binding',
+					skippedDuplicates: 0
+				},
+				output: path.resolve(options.output),
+				encoded: false,
+				encoding: { mode: 'none' },
+				audio: {
+					mode: 'none',
+					selectedSources: 0,
+					skippedSources: 0,
+					plannedSources: 0
+				},
+				mediaDiagnosticsPath: null,
+				mediaDiagnostics: options.mediaDiagnostics
+					? [
+							{
+								kind: 'visualfries-local-render',
+								engine: renderPlan.engine,
+								frameCount: 0,
+								requestedFrameCount: options.frameIndices.length,
+								trimAwareRanges: effectiveRanges,
+								serverRendererMode: options.serverRendererMode ?? 'canvas',
+								transport: 'range-binding'
+							}
+						]
+					: []
+			};
+		}
 		let sceneForRender = parsed;
 		let deterministicMediaDiagnostics: Array<Record<string, unknown>> = [];
 		if (renderPlan.engine === 'deterministic-local') {
-			if (!activeRange) throw new Error('Local deterministic media render requires a contiguous frame range.');
+			if (!activeRange)
+				throw new Error('Local deterministic media render requires a contiguous frame range.');
 			const deterministicMedia = await prepareLocalDeterministicMedia({
 				scene: parsed,
 				workDir: tempRoot,
@@ -467,7 +550,10 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 				framesPrepared: media.framesPrepared,
 				strategy: deterministicMedia.strategyUsed
 			}));
-			await fs.writeFile(path.join(tempRoot, 'deterministic-media.json'), `${JSON.stringify(deterministicMedia.payload, null, 2)}\n`);
+			await fs.writeFile(
+				path.join(tempRoot, 'deterministic-media.json'),
+				`${JSON.stringify(deterministicMedia.payload, null, 2)}\n`
+			);
 		} else {
 			await fs.writeFile(path.join(tempRoot, 'deterministic-media.json'), 'null\n');
 		}
@@ -486,7 +572,11 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 
 		await writeRenderClient(tempRoot);
 		const packageRoot = options.packageRoot ?? defaultPackageRoot;
-		const { createServer } = await importFromOptionalPaths('vite', 'VISUALFRIES_VITE_MODULES', options.modulePaths);
+		const { createServer } = await importFromOptionalPaths(
+			'vite',
+			'VISUALFRIES_VITE_MODULES',
+			options.modulePaths
+		);
 		const sveltePluginModule = await importFromOptionalPaths(
 			'@sveltejs/vite-plugin-svelte',
 			'VISUALFRIES_SVELTE_VITE_MODULES',
@@ -517,23 +607,26 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 			path.join(packageRoot, 'node_modules/earcut/src/earcut.js')
 		);
 		await writeEarcutShim(tempRoot, earcutEntry);
+		const resolveAliases: Record<string, string> = {
+			'visualfries-runtime': runtimeEntry,
+			$lib: libRoot,
+			url: path.join(tempRoot, 'node-url-shim.js'),
+			eventemitter3: path.join(tempRoot, 'eventemitter3-shim.js'),
+			earcut: path.join(tempRoot, 'earcut-shim.js'),
+			md5: path.join(tempRoot, 'md5-shim.js'),
+			'svelte/internal/client': svelteClientEntry,
+			'svelte/internal/server': svelteServerEntry
+		};
+		if (renderPlan.engine === 'deterministic-local') {
+			resolveAliases['gifuct-js'] = path.join(tempRoot, 'gifuct-js-shim.js');
+		}
 		server = await createServer({
 			root: tempRoot,
 			logLevel: 'error',
 			plugins: [sveltePluginModule.svelte()],
 			server: { host: '127.0.0.1', port: 0, fs: { allow: [tempRoot, packageRoot] } },
 			resolve: {
-				alias: {
-					'visualfries-runtime': runtimeEntry,
-					$lib: libRoot,
-					url: path.join(tempRoot, 'node-url-shim.js'),
-					eventemitter3: path.join(tempRoot, 'eventemitter3-shim.js'),
-					earcut: path.join(tempRoot, 'earcut-shim.js'),
-					md5: path.join(tempRoot, 'md5-shim.js'),
-					'gifuct-js': path.join(tempRoot, 'gifuct-js-shim.js'),
-					'svelte/internal/client': svelteClientEntry,
-					'svelte/internal/server': svelteServerEntry
-				},
+				alias: resolveAliases,
 				conditions: ['browser', 'svelte']
 			},
 			optimizeDeps: { exclude: ['visualfries-runtime'], include: ['earcut'] }
@@ -542,13 +635,23 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 		const url = server.resolvedUrls?.local?.[0];
 		if (!url) throw new Error('Vite renderer did not expose a local URL.');
 		const renderScene = await copyLocalMediaToRenderRoot(sceneForRender, tempRoot, url);
-		await fs.writeFile(path.join(tempRoot, 'scene.json'), `${JSON.stringify(renderScene, null, 2)}\n`);
+		await fs.writeFile(
+			path.join(tempRoot, 'scene.json'),
+			`${JSON.stringify(renderScene, null, 2)}\n`
+		);
 
-		const playwright = await importFromOptionalPaths('playwright', 'VISUALFRIES_PLAYWRIGHT_MODULES', options.modulePaths);
+		const playwright = await importFromOptionalPaths(
+			'playwright',
+			'VISUALFRIES_PLAYWRIGHT_MODULES',
+			options.modulePaths
+		);
 		const chromium = playwright.chromium ?? playwright.default?.chromium;
 		if (!chromium) throw new Error('playwright was found, but chromium is not available.');
 		const executablePath = findBrowserExecutable(options.chromiumPath);
-		browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
+		browser = await chromium.launch({
+			headless: true,
+			...(executablePath ? { executablePath } : {})
+		});
 		const page = await browser.newPage({
 			viewport: { width: parsed.settings.width, height: parsed.settings.height },
 			deviceScaleFactor: 1
@@ -563,7 +666,8 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 		});
 		const outputPath = path.resolve(options.output);
 		const useStreamEncode = Boolean(options.streamEncode && !framesOnly);
-		if (useStreamEncode && !activeRange) throw new Error('streamEncode requires a contiguous frame range.');
+		if (useStreamEncode && !activeRange)
+			throw new Error('streamEncode requires a contiguous frame range.');
 		const streamedSilentOutput = audioInput ? path.join(tempRoot, 'silent-stream.mp4') : outputPath;
 		activeStreamEncoder = useStreamEncode
 			? new PipeFrameEncoder({
@@ -582,14 +686,21 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 		let outputFrameIndex = 0;
 		let streamEncodeMs = 0;
 		await page.exposeFunction('__VISUALFRIES_FRAME_WRITER__', async (payload: any) => {
-			if (!activeRange) throw new Error('VisualFries frame writer is only available for contiguous frame ranges.');
+			if (!activeRange)
+				throw new Error('VisualFries frame writer is only available for contiguous frame ranges.');
 			outputFrameIndex += 1;
 			const outputIndex = outputFrameIndex;
-			const framePath = path.join(framesDir, `frame-${String(outputIndex).padStart(6, '0')}.${normalizedImageFormat}`);
+			const framePath = path.join(
+				framesDir,
+				`frame-${String(outputIndex).padStart(6, '0')}.${normalizedImageFormat}`
+			);
 			if (streamEncoder) {
 				let frameBuffer: Buffer;
 				if (payload.isDuplicate) {
-					if (!previousFrameBuffer) throw new Error(`Frame ${payload.frameIndex} was marked duplicate without a previous frame.`);
+					if (!previousFrameBuffer)
+						throw new Error(
+							`Frame ${payload.frameIndex} was marked duplicate without a previous frame.`
+						);
 					frameBuffer = previousFrameBuffer;
 				} else if (payload.dataUrl) {
 					frameBuffer = dataUrlToBuffer(payload.dataUrl);
@@ -600,7 +711,10 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 				previousFrameBuffer = frameBuffer;
 			} else {
 				if (payload.isDuplicate) {
-					if (!previousFramePath) throw new Error(`Frame ${payload.frameIndex} was marked duplicate without a previous frame.`);
+					if (!previousFramePath)
+						throw new Error(
+							`Frame ${payload.frameIndex} was marked duplicate without a previous frame.`
+						);
 					await fs.copyFile(previousFramePath, framePath);
 				} else if (payload.dataUrl) {
 					await writeDataUrlFrame(payload.dataUrl, framePath);
@@ -609,7 +723,12 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 				}
 				previousFramePath = framePath;
 			}
-			frames.push({ frame: payload.frameIndex, time: payload.frameIndex / options.fps, path: streamEncoder ? null : framePath, isDuplicate: Boolean(payload.isDuplicate) });
+			frames.push({
+				frame: payload.frameIndex,
+				time: payload.frameIndex / options.fps,
+				path: streamEncoder ? null : framePath,
+				isDuplicate: Boolean(payload.isDuplicate)
+			});
 		});
 		page.on('console', (message: any) => {
 			if (message.type() === 'error') console.error(`[browser] ${message.text()}`);
@@ -626,7 +745,8 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 			rangeSummary = { framesSkipped: 0 };
 			for (const range of effectiveRanges) {
 				const summary = await page.evaluate(
-					(renderOptions: any) => (window as any).__VISUALFRIES_RENDER__.renderFrameRange(renderOptions),
+					(renderOptions: any) =>
+						(window as any).__VISUALFRIES_RENDER__.renderFrameRange(renderOptions),
 					{
 						fromFrame: range.fromFrame,
 						toFrame: range.toFrame,
@@ -645,7 +765,10 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 					(renderOptions: any) => (window as any).__VISUALFRIES_RENDER__.renderFrame(renderOptions),
 					{ time, imageFormat: normalizedImageFormat, imageQuality }
 				);
-				const framePath = path.join(framesDir, `frame-${String(index + 1).padStart(6, '0')}.${normalizedImageFormat}`);
+				const framePath = path.join(
+					framesDir,
+					`frame-${String(index + 1).padStart(6, '0')}.${normalizedImageFormat}`
+				);
 				await writeDataUrlFrame(dataUrl, framePath);
 				frames.push({ frame, time, path: framePath, isDuplicate: false });
 			}
@@ -658,7 +781,12 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 				const streamResult = await streamEncoder.finish();
 				activeStreamEncoder = undefined;
 				streamEncodeMs = streamResult.elapsedMs;
-				if (audioInput) await muxAudioWithVideo({ videoPath: streamedSilentOutput, audioPath: audioInput, outputPath });
+				if (audioInput)
+					await muxAudioWithVideo({
+						videoPath: streamedSilentOutput,
+						audioPath: audioInput,
+						outputPath
+					});
 			} else {
 				await encodeFrames({
 					framesDir,
@@ -680,17 +808,28 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 						requestedFrameCount: options.frameIndices.length,
 						trimAwareRanges: effectiveRanges,
 						serverRendererMode: options.serverRendererMode ?? 'canvas',
-						transport: streamEncoder ? 'range-binding-stream-encode' : activeRange ? 'range-binding' : 'sparse-evaluate'
+						transport: streamEncoder
+							? 'range-binding-stream-encode'
+							: activeRange
+								? 'range-binding'
+								: 'sparse-evaluate'
 					},
 					...deterministicMediaDiagnostics
 				]
 			: [];
 		const mediaDiagnosticsPath = options.mediaDiagnostics
-			? path.join(framesOnly ? path.resolve(options.output) : path.dirname(outputPath), 'media-diagnostics.json')
+			? path.join(
+					framesOnly ? path.resolve(options.output) : path.dirname(outputPath),
+					'media-diagnostics.json'
+				)
 			: null;
 		if (mediaDiagnosticsPath) {
 			await fs.mkdir(path.dirname(mediaDiagnosticsPath), { recursive: true });
-			await fs.writeFile(mediaDiagnosticsPath, `${JSON.stringify(mediaDiagnostics, null, 2)}\n`, 'utf8');
+			await fs.writeFile(
+				mediaDiagnosticsPath,
+				`${JSON.stringify(mediaDiagnostics, null, 2)}\n`,
+				'utf8'
+			);
 		}
 
 		return {
@@ -700,7 +839,11 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 				count: frames.length,
 				dir: framesDir,
 				items: frames,
-				transport: streamEncoder ? 'range-binding-stream-encode' : activeRange ? 'range-binding' : 'sparse-evaluate',
+				transport: streamEncoder
+					? 'range-binding-stream-encode'
+					: activeRange
+						? 'range-binding'
+						: 'sparse-evaluate',
 				skippedDuplicates: rangeSummary?.framesSkipped ?? 0
 			},
 			output: outputPath,

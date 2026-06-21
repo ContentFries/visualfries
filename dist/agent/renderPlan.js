@@ -12,7 +12,11 @@ export function collectDeterministicMediaRequirements(input) {
     const scene = SceneShape.parse(input);
     const media = [];
     for (const layer of scene.layers ?? []) {
+        if (!layer || layer.muted || layer.visible === false)
+            continue;
         for (const component of layer.components ?? []) {
+            if (!component || component.visible === false)
+                continue;
             if (component.type !== 'VIDEO' && component.type !== 'GIF')
                 continue;
             media.push({

@@ -60,7 +60,13 @@ function wordsToSegments(words, maxWordsPerSegment = 7) {
 export function normalizeTranscript(input) {
     const rawSegments = Array.isArray(input)
         ? input
-        : input.subtitles ?? input.segments ?? (input.words ? wordsToSegments(input.words) : []);
+        : input.subtitles && input.subtitles.length > 0
+            ? input.subtitles
+            : input.segments && input.segments.length > 0
+                ? input.segments
+                : input.words
+                    ? wordsToSegments(input.words)
+                    : [];
     return rawSegments
         .map((segment, index) => {
         const timing = segmentTiming(segment);

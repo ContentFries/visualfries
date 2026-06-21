@@ -69,6 +69,7 @@ export function createMuxAudioArgs(input: {
 export class PipeFrameEncoder {
 	#options: PipeFrameEncoderOptions;
 	#proc: ReturnType<typeof spawn> | null = null;
+	#exitPromise: Promise<{ code: number | null; error?: Error }> | null = null;
 	#stderrTail = '';
 	#startedAt = 0;
 
@@ -79,8 +80,27 @@ export class PipeFrameEncoder {
 	start(): void {
 		if (this.#proc) return;
 		this.#startedAt = Date.now();
-		this.#proc = spawn(process.env.FFMPEG_PATH || 'ffmpeg', createFfmpegImagePipeArgs(this.#options), {
-			stdio: ['pipe', 'ignore', 'pipe']
+		this.#proc = spawn(
+			process.env.FFMPEG_PATH || 'ffmpeg',
+			createFfmpegImagePipeArgs(this.#options),
+			{
+				stdio: ['pipe', 'ignore', 'pipe']
+			}
+		);
+		this.#exitPromise = new Promise((resolve) => {
+			let settled = false;
+			const settle = (result: { code: number | null; error?: Error }) => {
+				if (settled) return;
+				settled = true;
+				resolve(result);
+			};
+			this.#proc?.once('error', (error) => {
+				settle({
+					code: null,
+					error: new Error(`PipeFrameEncoder failed to start ffmpeg: ${error.message}`)
+				});
+			});
+			this.#proc?.once('close', (code) => settle({ code }));
 		});
 		this.#proc.stderr?.on('data', (chunk: Buffer | string) => {
 			const text = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
@@ -98,10 +118,17 @@ export class PipeFrameEncoder {
 
 	async writeFrame(buffer: Buffer): Promise<void> {
 		if (!this.#proc) this.start();
-		const ok = this.#stdin.write(buffer);
+		let ok = false;
+		try {
+			ok = this.#stdin.write(buffer);
+		} catch (error) {
+			const exitResult = await this.#exitPromise;
+			if (exitResult?.error) throw exitResult.error;
+			throw error;
+		}
 		if (ok) return;
 
-		await new Promise<void>((resolve, reject) => {
+		const waitForDrain = new Promise<void>((resolve, reject) => {
 			const cleanup = () => {
 				this.#stdin.off('drain', onDrain);
 				this.#stdin.off('error', onError);
@@ -117,21 +144,50 @@ export class PipeFrameEncoder {
 			this.#stdin.on('drain', onDrain);
 			this.#stdin.on('error', onError);
 		});
+		const waitForExit = this.#exitPromise?.then((result) => {
+			if (result.error) throw result.error;
+			if (result.code !== 0) {
+				throw new Error(
+					`PipeFrameEncoder failed with exit code ${result.code}. ${this.#stderrTail}`
+				);
+			}
+		});
+		await (waitForExit ? Promise.race([waitForDrain, waitForExit]) : waitForDrain);
 	}
 
 	async finish(): Promise<{ elapsedMs: number }> {
 		if (!this.#proc) return { elapsedMs: 0 };
 		const proc = this.#proc;
-		await new Promise<void>((resolve) => {
-			proc.stdin?.end(() => resolve());
+		await new Promise<void>((resolve, reject) => {
+			if (!proc.stdin || proc.stdin.destroyed) {
+				resolve();
+				return;
+			}
+			const onError = (error: Error) => {
+				proc.stdin?.off('finish', onFinish);
+				reject(error);
+			};
+			const onFinish = () => {
+				proc.stdin?.off('error', onError);
+				resolve();
+			};
+			proc.stdin.once('error', onError);
+			proc.stdin.end(onFinish);
+		}).catch(async (error) => {
+			const exitResult = await this.#exitPromise;
+			if (exitResult?.error) return;
+			throw error;
 		});
-		const code = await new Promise<number | null>((resolve) => {
-			proc.once('close', (exitCode) => resolve(exitCode));
-		});
+		const result: { code: number | null; error?: Error } = await (this.#exitPromise ??
+			Promise.resolve({ code: null }));
 		this.#proc = null;
+		this.#exitPromise = null;
 
-		if (code !== 0) {
-			throw new Error(`PipeFrameEncoder failed with exit code ${code}. ${this.#stderrTail}`);
+		if (result.error) {
+			throw new Error(`${result.error.message}. ${this.#stderrTail}`.trim());
+		}
+		if (result.code !== 0) {
+			throw new Error(`PipeFrameEncoder failed with exit code ${result.code}. ${this.#stderrTail}`);
 		}
 		return { elapsedMs: Date.now() - this.#startedAt };
 	}

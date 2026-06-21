@@ -62,4 +62,23 @@ describe('agent render range helpers', () => {
 			trimAppliedInRanges: false
 		});
 	});
+
+	it('returns an empty range when trim zones fully cover the requested boundary', () => {
+		expect(
+			resolveEffectiveRenderRanges({
+				scene: {
+					...baseScene,
+					settings: {
+						...baseScene.settings,
+						trimZones: [{ start: 0, end: 2 }]
+					}
+				},
+				fromFrame: 0,
+				toFrame: 20
+			})
+		).toEqual({
+			ranges: [],
+			trimAppliedInRanges: true
+		});
+	});
 });

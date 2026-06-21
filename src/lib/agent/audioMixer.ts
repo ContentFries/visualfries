@@ -46,7 +46,8 @@ const REMOTE_AUDIO_INPUT_OPTIONS = [
 
 const isRemoteUrl = (value: string): boolean => /^https?:\/\//i.test(value);
 
-const toFfmpegInput = (value: string): string => (value.startsWith('file://') ? fileURLToPath(value) : value);
+const toFfmpegInput = (value: string): string =>
+	value.startsWith('file://') ? fileURLToPath(value) : value;
 
 const safeVolume = (input: unknown): number => {
 	if (typeof input !== 'number' || Number.isNaN(input)) return 1;
@@ -70,7 +71,11 @@ const clampRange = (range: AudioMixRange, boundary: AudioMixRange): AudioMixRang
 	return end > start ? { start, end } : null;
 };
 
-export function resolveAudioMixRanges(sceneInput: unknown, chunkStartSec: number, chunkEndSec: number): AudioMixRange[] {
+export function resolveAudioMixRanges(
+	sceneInput: unknown,
+	chunkStartSec: number,
+	chunkEndSec: number
+): AudioMixRange[] {
 	const scene = SceneShape.parse(sceneInput);
 	const fps = Math.max(1, Number(scene.settings.fps || 30));
 	const oneFrameSec = 1 / fps;
@@ -195,7 +200,10 @@ function collectAudioSourcesForBoundary(
 	return plans;
 }
 
-export function collectAudioSourcesForRanges(sceneInput: unknown, ranges: AudioMixRange[]): AudioSourcePlan[] {
+export function collectAudioSourcesForRanges(
+	sceneInput: unknown,
+	ranges: AudioMixRange[]
+): AudioSourcePlan[] {
 	const scene = SceneShape.parse(sceneInput);
 	const plans: AudioSourcePlan[] = [];
 	let outputOffsetSec = 0;
@@ -239,30 +247,29 @@ const runProcess = async (
 };
 
 export async function sourceHasAudio(url: string): Promise<boolean> {
-	try {
-		const input = toFfmpegInput(url);
-		const { stdout } = await runProcess(
-			process.env.FFPROBE_PATH || 'ffprobe',
-			[
-				'-v',
-				'error',
-				'-select_streams',
-				'a',
-				'-show_entries',
-				'stream=index',
-				'-of',
-				'csv=p=0',
-				input
-			],
-			'ffprobe-audio'
-		);
-		return stdout.trim().length > 0;
-	} catch {
-		return false;
-	}
+	const input = toFfmpegInput(url);
+	const { stdout } = await runProcess(
+		process.env.FFPROBE_PATH || 'ffprobe',
+		[
+			'-v',
+			'error',
+			'-select_streams',
+			'a',
+			'-show_entries',
+			'stream=index',
+			'-of',
+			'csv=p=0',
+			input
+		],
+		'ffprobe-audio'
+	);
+	return stdout.trim().length > 0;
 }
 
-export function createPrepareSourceAudioArgs(source: AudioSourcePlan, outputPath: string): string[] {
+export function createPrepareSourceAudioArgs(
+	source: AudioSourcePlan,
+	outputPath: string
+): string[] {
 	const input = toFfmpegInput(source.url);
 	return [
 		'-y',
@@ -309,7 +316,9 @@ export function createMixAudioArgs(
 	filterSegments.push(
 		`${mixInputs.join('')}amix=inputs=${mixInputs.length}:duration=longest:normalize=false[mixraw]`
 	);
-	filterSegments.push(`[mixraw]atrim=0:${chunkDurationSec.toFixed(3)},asetpts=PTS-STARTPTS[mixtrim]`);
+	filterSegments.push(
+		`[mixraw]atrim=0:${chunkDurationSec.toFixed(3)},asetpts=PTS-STARTPTS[mixtrim]`
+	);
 
 	args.push(
 		'-filter_complex',
@@ -335,7 +344,10 @@ export async function buildLocalMixedAudioTrack(input: {
 	debug?: boolean;
 }): Promise<BuildLocalMixedAudioResult> {
 	const scene = SceneShape.parse(input.scene);
-	const chunkDurationSec = input.ranges.reduce((sum, range) => sum + Math.max(0, range.end - range.start), 0);
+	const chunkDurationSec = input.ranges.reduce(
+		(sum, range) => sum + Math.max(0, range.end - range.start),
+		0
+	);
 	if (chunkDurationSec <= 0) {
 		return { audioPath: null, selectedSources: 0, skippedSources: 0, plannedSources: [] };
 	}

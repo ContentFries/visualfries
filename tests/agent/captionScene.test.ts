@@ -29,6 +29,19 @@ describe('agent caption scene helpers', () => {
 		expect(subtitles[0].words?.[0]).toEqual(['Hello', 0, 0.3]);
 	});
 
+	it('falls back to word-level transcript input when segment arrays are empty', () => {
+		const subtitles = normalizeTranscript({
+			segments: [],
+			words: [
+				{ text: 'Fallback', start: 0, end: 0.4 },
+				{ text: 'works', start: 0.4, end: 0.8 }
+			]
+		});
+
+		expect(subtitles).toHaveLength(1);
+		expect(subtitles[0].text).toBe('Fallback works');
+	});
+
 	it('parses SRT and VTT transcript text for caption scenes', () => {
 		const srt = parseSubtitleText(
 			`1
@@ -90,10 +103,9 @@ The hook`,
 		expect(scene.assets[0].id).toBe('video-1');
 		expect(scene.settings.duration).toBe(1.2);
 		expect(scene.settings.subtitles?.data?.['video-1']?.en?.[0].text).toBe('This is the hook');
-		expect(scene.layers.flatMap((layer) => layer.components).map((component) => component.type)).toEqual([
-			'VIDEO',
-			'SUBTITLES'
-		]);
+		expect(
+			scene.layers.flatMap((layer) => layer.components).map((component) => component.type)
+		).toEqual(['VIDEO', 'SUBTITLES']);
 	});
 
 	it('inspects generated scenes for agent-readable issues', () => {
@@ -106,6 +118,30 @@ The hook`,
 		expect(report.valid).toBe(true);
 		expect(report.issues).toEqual([]);
 		expect(report.summary.components).toBe(2);
+	});
+
+	it('warns when a subtitles component requests a missing language payload', () => {
+		const scene = createCaptionScene({
+			video: { url: 'https://example.com/input.mp4', assetId: 'video-1' },
+			transcript: [{ text: 'Caption test', start: 0, end: 1 }],
+			language: 'en'
+		});
+		const subtitlesComponent = scene.layers
+			.flatMap((layer) => layer.components)
+			.find((component) => component.type === 'SUBTITLES');
+		if (subtitlesComponent?.type === 'SUBTITLES')
+			subtitlesComponent.source = { assetId: 'video-1', languageCode: 'de' };
+
+		const report = inspectScene(scene);
+
+		expect(report.valid).toBe(true);
+		expect(report.issues).toEqual([
+			expect.objectContaining({
+				level: 'warning',
+				type: 'subtitle-language-data-missing',
+				componentId: subtitlesComponent?.id
+			})
+		]);
 	});
 
 	it('adds validated short-form overlay cues to an agent scene', () => {
@@ -140,7 +176,13 @@ The hook`,
 			scene,
 			cues: [
 				{ url: 'https://example.com/clinic.mp4', start: 0, end: 1, type: 'VIDEO' },
-				{ url: 'https://example.com/chart.png', start: 1, end: 2, type: 'IMAGE', motion: 'slow-zoom-in' }
+				{
+					url: 'https://example.com/chart.png',
+					start: 1,
+					end: 2,
+					type: 'IMAGE',
+					motion: 'slow-zoom-in'
+				}
 			]
 		});
 
@@ -152,7 +194,9 @@ The hook`,
 			'IMAGE'
 		]);
 		expect(withBroll.assets.map((asset) => asset.id)).toContain('agent-broll-1-asset');
-		expect(withBroll.layers.at(-1)?.components[1].animations?.list?.length).toBeGreaterThanOrEqual(2);
+		expect(withBroll.layers.at(-1)?.components[1].animations?.list?.length).toBeGreaterThanOrEqual(
+			2
+		);
 	});
 
 	it('adds validated transition cues as full-frame shape overlays', () => {
@@ -173,7 +217,10 @@ The hook`,
 		expect(() => SceneShape.parse(withTransitions)).not.toThrow();
 		expect(transitionLayer?.id).toBe('layer-agent-transitions');
 		expect(transitionLayer?.order).toBe(95);
-		expect(transitionLayer?.components.map((component) => component.type)).toEqual(['SHAPE', 'SHAPE']);
+		expect(transitionLayer?.components.map((component) => component.type)).toEqual([
+			'SHAPE',
+			'SHAPE'
+		]);
 		expect(transitionLayer?.components[0].animations?.list?.[0]?.animation).toBeTruthy();
 	});
 
@@ -255,5 +302,23 @@ The hook`,
 		expect(valid.issues).toEqual([]);
 		expect(invalid.valid).toBe(false);
 		expect(invalid.issues.map((issue) => issue.path)).toContain('overlays[0].style');
+	});
+
+	it('rejects invalid transition timing before applying cue files', () => {
+		const invalid = validateAgentCueFile({
+			duration: 3,
+			cues: {
+				transitions: [
+					{ time: -0.1, style: 'dip-to-black' },
+					{ time: 1, duration: 0, style: 'swipe-left' }
+				]
+			}
+		});
+
+		expect(invalid.valid).toBe(false);
+		expect(invalid.issues.map((issue) => issue.path)).toEqual([
+			'transitions[0].time',
+			'transitions[1].duration'
+		]);
 	});
 });

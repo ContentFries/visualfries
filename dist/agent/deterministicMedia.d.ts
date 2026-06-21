@@ -53,6 +53,7 @@ export type PrepareLocalDeterministicMediaResult = {
     assetsRoot: string;
     strategyUsed: LocalDeterministicMediaStrategy;
 };
+export declare const normalizeDeterministicPublicBasePath: (value: string) => string;
 export declare function collectLocalDeterministicMediaComponents(input: unknown): LocalDeterministicMediaComponent[];
 export declare function resolveLocalDeterministicActiveWindow(component: LocalDeterministicMediaComponent, fromFrame: number, toFrame: number, fps: number): LocalDeterministicActiveWindow | null;
 export declare function toLocalDeterministicFrameIndex(component: LocalDeterministicMediaComponent, sceneFrameIndex: number, fps: number): number;

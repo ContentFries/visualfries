@@ -83,6 +83,25 @@ const normalizeUrl = (value: string): string => {
 
 const safeFilePart = (value: string): string => value.replace(/[^a-zA-Z0-9._-]/g, '_');
 
+export const normalizeDeterministicPublicBasePath = (value: string): string => {
+	const normalized = value.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
+	const segments = normalized.split('/').filter(Boolean);
+	if (segments.length === 0 || segments.some((segment) => segment === '.' || segment === '..')) {
+		throw new Error('publicBasePath must be a relative URL path without "." or ".." segments.');
+	}
+	return `/${segments.join('/')}`;
+};
+
+const resolveSafeAssetRoot = (workDir: string, publicBasePath: string): string => {
+	const root = path.resolve(workDir);
+	const target = path.resolve(root, publicBasePath.slice(1));
+	const relative = path.relative(root, target);
+	if (relative.startsWith('..') || path.isAbsolute(relative)) {
+		throw new Error('publicBasePath must resolve inside workDir.');
+	}
+	return target;
+};
+
 const toInputPath = (sourceUrl: string): string => {
 	if (sourceUrl.startsWith('file://')) return fileURLToPath(sourceUrl);
 	return sourceUrl;
@@ -146,7 +165,10 @@ export function resolveLocalDeterministicActiveWindow(
 	const activeEndSec = Math.min(chunkEndSec, component.timelineEndAt);
 	if (activeEndSec <= activeStartSec) return null;
 
-	const activeStartFrame = Math.max(fromFrame, Math.ceil(activeStartSec * fps - frameBoundaryEpsilon));
+	const activeStartFrame = Math.max(
+		fromFrame,
+		Math.ceil(activeStartSec * fps - frameBoundaryEpsilon)
+	);
 	const activeEndFrame = Math.min(toFrame, Math.ceil(activeEndSec * fps - frameBoundaryEpsilon));
 	if (activeEndFrame <= activeStartFrame) return null;
 
@@ -193,7 +215,12 @@ export function resolveLocalPredecodedExtractionPlan(
 				sourceEndLimited: true
 			};
 		}
-		return { sourceStartSec, extractFrameCount: outputFrameCount, outputFrameCount, sourceEndLimited: false };
+		return {
+			sourceStartSec,
+			extractFrameCount: outputFrameCount,
+			outputFrameCount,
+			sourceEndLimited: false
+		};
 	}
 
 	const availableFrames = Math.max(1, Math.ceil((sourceEndSec - sourceStartSec) * fps - 1e-6));
@@ -218,7 +245,9 @@ const runFfmpeg = async (args: string[], label: string): Promise<void> => {
 			if (code === 0) {
 				resolve();
 			} else {
-				reject(new Error(`[visualfries deterministic media][${label}] ffmpeg exited ${code}. ${stderr}`));
+				reject(
+					new Error(`[visualfries deterministic media][${label}] ffmpeg exited ${code}. ${stderr}`)
+				);
 			}
 		});
 	});
@@ -230,7 +259,10 @@ const listFrameFiles = async (
 ): Promise<string[]> => {
 	const files = (await fs.readdir(dir))
 		.filter((file) => file.toLowerCase().endsWith(`.${extension}`))
-		.sort((a, b) => Number(path.basename(a, `.${extension}`)) - Number(path.basename(b, `.${extension}`)))
+		.sort(
+			(a, b) =>
+				Number(path.basename(a, `.${extension}`)) - Number(path.basename(b, `.${extension}`))
+		)
 		.map((file) => path.join(dir, file));
 	return files;
 };
@@ -288,7 +320,11 @@ const padTrailingFrames = async (
 	frames: string[],
 	expectedFrameCount: number
 ): Promise<string[]> => {
-	if (frames.length === expectedFrameCount || frames.length === 0 || frames.length > expectedFrameCount) {
+	if (
+		frames.length === expectedFrameCount ||
+		frames.length === 0 ||
+		frames.length > expectedFrameCount
+	) {
 		return frames;
 	}
 	const lastFrame = frames[frames.length - 1];
@@ -316,10 +352,12 @@ export async function prepareLocalDeterministicMedia(
 ): Promise<PrepareLocalDeterministicMediaResult> {
 	const scene = cloneScene(SceneShape.parse(input.scene));
 	const fps = scene.settings.fps || 30;
-	const publicBasePath = input.publicBasePath ?? '/deterministic-media';
+	const publicBasePath = normalizeDeterministicPublicBasePath(
+		input.publicBasePath ?? '/deterministic-media'
+	);
 	const frameExtension = input.frameExtension ?? 'jpg';
 	const jpegQualityScale = Math.max(1, Math.min(31, Math.floor(input.jpegQualityScale ?? 2)));
-	const assetsRoot = path.join(input.workDir, publicBasePath.replace(/^\/+/, ''));
+	const assetsRoot = resolveSafeAssetRoot(input.workDir, publicBasePath);
 	const predecodedRoot = path.join(assetsRoot, 'predecoded');
 	await fs.mkdir(predecodedRoot, { recursive: true });
 
@@ -328,20 +366,24 @@ export async function prepareLocalDeterministicMedia(
 	const preparedMedia: PrepareLocalDeterministicMediaResult['media'] = [];
 
 	for (const media of mediaComponents) {
-		const activeWindow = resolveLocalDeterministicActiveWindow(media, input.fromFrame, input.toFrame, fps);
+		const activeWindow = resolveLocalDeterministicActiveWindow(
+			media,
+			input.fromFrame,
+			input.toFrame,
+			fps
+		);
+		if (!activeWindow) continue;
 		const componentDirName = safeFilePart(media.id);
 		const componentOutputDir = path.join(predecodedRoot, componentDirName);
 		await fs.rm(componentOutputDir, { recursive: true, force: true });
 		await fs.mkdir(componentOutputDir, { recursive: true });
 
-		const activeStartFrame = activeWindow?.activeStartFrame ?? input.fromFrame;
-		const expectedFrameCount = activeWindow
-			? activeWindow.activeEndFrame - activeWindow.activeStartFrame
-			: 1;
+		const activeStartFrame = activeWindow.activeStartFrame;
+		const expectedFrameCount = activeWindow.activeEndFrame - activeWindow.activeStartFrame;
 		if (expectedFrameCount <= 0) continue;
 
 		const extractionPlan = resolveLocalPredecodedExtractionPlan(
-			activeWindow?.sourceStartSec ?? media.sourceStartAt,
+			activeWindow.sourceStartSec,
 			media.sourceEndAt,
 			expectedFrameCount,
 			fps
@@ -380,7 +422,12 @@ export async function prepareLocalDeterministicMedia(
 			});
 		}
 
-		frames = await padTrailingFrames(componentOutputDir, frameExtension, frames, expectedFrameCount);
+		frames = await padTrailingFrames(
+			componentOutputDir,
+			frameExtension,
+			frames,
+			expectedFrameCount
+		);
 		if (frames.length < expectedFrameCount) {
 			throw new Error(
 				`VisualFries deterministic media missing frames for ${media.id}: expected ${expectedFrameCount}, got ${frames.length}`
@@ -391,7 +438,12 @@ export async function prepareLocalDeterministicMedia(
 			? toLocalDeterministicFrameIndex(media, activeStartFrame, fps)
 			: Math.round(media.sourceStartAt * fps);
 		const firstFrameUrl = `${publicBasePath}/predecoded/${componentDirName}/1.${frameExtension}`;
-		assignBoundaryFrames(frameManifest, media.id, Math.round(media.sourceStartAt * fps), firstFrameUrl);
+		assignBoundaryFrames(
+			frameManifest,
+			media.id,
+			Math.round(media.sourceStartAt * fps),
+			firstFrameUrl
+		);
 
 		for (let index = 0; index < expectedFrameCount; index += 1) {
 			const fileName = `${index + 1}.${frameExtension}`;

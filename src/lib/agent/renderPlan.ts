@@ -28,7 +28,10 @@ export type ResolveAgentRenderPlanOptions = {
 	allowBrowserMediaFinal?: boolean;
 };
 
-function sourceForComponent(scene: Scene, component: Scene['layers'][number]['components'][number]) {
+function sourceForComponent(
+	scene: Scene,
+	component: Scene['layers'][number]['components'][number]
+) {
 	if (!('source' in component)) return undefined;
 	const directUrl = component.source?.url ?? component.source?.streamUrl;
 	if (directUrl) return directUrl;
@@ -41,7 +44,9 @@ export function collectDeterministicMediaRequirements(input: unknown): RenderMed
 	const media: RenderMediaRequirement[] = [];
 
 	for (const layer of scene.layers ?? []) {
+		if (!layer || layer.muted || layer.visible === false) continue;
 		for (const component of layer.components ?? []) {
+			if (!component || component.visible === false) continue;
 			if (component.type !== 'VIDEO' && component.type !== 'GIF') continue;
 			media.push({
 				componentId: component.id,
@@ -94,7 +99,8 @@ export function resolveAgentRenderPlan(
 		mode,
 		engine,
 		requiresDeterministicMedia,
-		canUseBrowserPreview: engine === 'browser-preview' && (mode === 'preview' || !requiresDeterministicMedia),
+		canUseBrowserPreview:
+			engine === 'browser-preview' && (mode === 'preview' || !requiresDeterministicMedia),
 		warnings,
 		blockers,
 		media

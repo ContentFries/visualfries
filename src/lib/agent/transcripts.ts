@@ -57,7 +57,9 @@ function segmentText(segment: TranscriptSegmentInput): string {
 		.join(' ');
 }
 
-function segmentTiming(segment: TranscriptSegmentInput): { start: number; end: number } | undefined {
+function segmentTiming(
+	segment: TranscriptSegmentInput
+): { start: number; end: number } | undefined {
 	const start = toNumber(segment.start_at ?? segment.start);
 	const end = toNumber(segment.end_at ?? segment.end);
 	if (start !== undefined && end !== undefined) {
@@ -72,7 +74,10 @@ function segmentTiming(segment: TranscriptSegmentInput): { start: number; end: n
 	};
 }
 
-function wordsToSegments(words: TranscriptWordInput[], maxWordsPerSegment = 7): TranscriptSegmentInput[] {
+function wordsToSegments(
+	words: TranscriptWordInput[],
+	maxWordsPerSegment = 7
+): TranscriptSegmentInput[] {
 	const normalized = words.map(normalizeWord).filter(Boolean) as CompactWordTuple[];
 	const segments: TranscriptSegmentInput[] = [];
 
@@ -97,7 +102,13 @@ function wordsToSegments(words: TranscriptWordInput[], maxWordsPerSegment = 7): 
 export function normalizeTranscript(input: TranscriptInput): Subtitle[] {
 	const rawSegments = Array.isArray(input)
 		? input
-		: input.subtitles ?? input.segments ?? (input.words ? wordsToSegments(input.words) : []);
+		: input.subtitles && input.subtitles.length > 0
+			? input.subtitles
+			: input.segments && input.segments.length > 0
+				? input.segments
+				: input.words
+					? wordsToSegments(input.words)
+					: [];
 
 	return rawSegments
 		.map((segment, index): Subtitle | undefined => {
@@ -167,7 +178,10 @@ function parseCueBlock(block: string, index: number): TranscriptSegmentInput | u
 	};
 }
 
-export function parseSubtitleText(input: string, format: TranscriptTextFormat = 'auto'): TranscriptInput {
+export function parseSubtitleText(
+	input: string,
+	format: TranscriptTextFormat = 'auto'
+): TranscriptInput {
 	const text = input.replace(/^\uFEFF/, '').trim();
 	const withoutHeader =
 		format === 'vtt' || (format === 'auto' && /^WEBVTT(?:\s|$)/i.test(text))

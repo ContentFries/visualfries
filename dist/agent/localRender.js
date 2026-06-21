@@ -78,12 +78,18 @@ const runCommand = async (command, args) => {
     });
 };
 const encodeFrames = async (input) => {
-    const args = ['-y', '-framerate', String(input.fps), '-i', framePattern(input.framesDir, input.imageFormat)];
+    const args = [
+        '-y',
+        '-framerate',
+        String(input.fps),
+        '-i',
+        framePattern(input.framesDir, input.imageFormat)
+    ];
     if (input.audioInput) {
         args.push('-i', input.audioInput, '-map', '0:v:0', '-map', '1:a:0?', '-shortest');
     }
     args.push('-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-crf', '18', input.output);
-    await runCommand('ffmpeg', args);
+    await runCommand(process.env.FFMPEG_PATH || 'ffmpeg', args);
 };
 const importFromOptionalPaths = async (moduleName, envName, modulePaths = {}) => {
     try {
@@ -97,7 +103,12 @@ const importFromOptionalPaths = async (moduleName, envName, modulePaths = {}) =>
                 : moduleName === 'playwright'
                     ? modulePaths.playwright
                     : undefined;
-        const extraPaths = [configured, modulePaths.nodeModules, process.env[envName], process.env.VISUALFRIES_NODE_MODULES].filter(Boolean);
+        const extraPaths = [
+            configured,
+            modulePaths.nodeModules,
+            process.env[envName],
+            process.env.VISUALFRIES_NODE_MODULES
+        ].filter(Boolean);
         for (const moduleDir of extraPaths) {
             try {
                 const require = createRequire(import.meta.url);
@@ -119,7 +130,12 @@ const resolveModulePathFromOptionalPaths = (moduleName, envName, modulePaths = {
             : moduleName === 'playwright'
                 ? modulePaths.playwright
                 : undefined;
-    const extraPaths = [configured, modulePaths.nodeModules, process.env[envName], process.env.VISUALFRIES_NODE_MODULES].filter(Boolean);
+    const extraPaths = [
+        configured,
+        modulePaths.nodeModules,
+        process.env[envName],
+        process.env.VISUALFRIES_NODE_MODULES
+    ].filter(Boolean);
     const require = createRequire(import.meta.url);
     for (const moduleDir of extraPaths) {
         try {
@@ -164,12 +180,17 @@ const copyLocalMediaToRenderRoot = async (scene, renderRoot, baseUrl) => {
         asset.url = (await rewriteUrl(asset.url)) ?? asset.url;
     }
     if (cloned.settings.audio?.src) {
-        cloned.settings.audio.src = (await rewriteUrl(cloned.settings.audio.src)) ?? cloned.settings.audio.src;
+        cloned.settings.audio.src =
+            (await rewriteUrl(cloned.settings.audio.src)) ?? cloned.settings.audio.src;
     }
     for (const layer of cloned.layers ?? []) {
         for (const component of layer.components ?? []) {
             if ('source' in component && component.source?.url) {
                 component.source.url = (await rewriteUrl(component.source.url)) ?? component.source.url;
+            }
+            if ('source' in component && component.source?.streamUrl) {
+                component.source.streamUrl =
+                    (await rewriteUrl(component.source.streamUrl)) ?? component.source.streamUrl;
             }
         }
     }
@@ -248,7 +269,10 @@ const findBrowserExecutable = (explicit) => {
 };
 const resolveRenderAudioInput = async (input) => {
     if (input.audioOverride === 'none') {
-        return { audioInput: undefined, audioMix: { mode: 'none', selectedSources: 0, skippedSources: 0, plannedSources: 0 } };
+        return {
+            audioInput: undefined,
+            audioMix: { mode: 'none', selectedSources: 0, skippedSources: 0, plannedSources: 0 }
+        };
     }
     if (input.audioOverride) {
         return {
@@ -290,7 +314,9 @@ export async function renderSceneLocally(options) {
     const parsed = SceneShape.parse(options.scene);
     const normalizedImageFormat = normalizeImageFormat(options.imageFormat);
     const imageQuality = normalizeImageQuality(options.imageQuality);
-    const tmpParent = options.tmpDir || process.env.VISUALFRIES_TMPDIR || (existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir());
+    const tmpParent = options.tmpDir ||
+        process.env.VISUALFRIES_TMPDIR ||
+        (existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir());
     const tempRoot = await fs.mkdtemp(path.join(tmpParent, 'visualfries-render-'));
     const framesOnly = options.framesOnly ?? false;
     const framesDir = framesOnly ? path.resolve(options.output) : path.join(tempRoot, 'frames');
@@ -309,6 +335,51 @@ export async function renderSceneLocally(options) {
             }).ranges
             : [];
         const renderPlan = options.renderPlan ?? resolveAgentRenderPlan(parsed);
+        if (activeRange && effectiveRanges.length === 0) {
+            if (!framesOnly) {
+                throw new Error('All requested frames are removed by trimZones; no frames to encode.');
+            }
+            return {
+                ok: true,
+                scene: {
+                    id: parsed.id,
+                    width: parsed.settings.width,
+                    height: parsed.settings.height,
+                    duration: parsed.settings.duration,
+                    fps: parsed.settings.fps
+                },
+                frames: {
+                    count: 0,
+                    dir: framesDir,
+                    items: [],
+                    transport: 'range-binding',
+                    skippedDuplicates: 0
+                },
+                output: path.resolve(options.output),
+                encoded: false,
+                encoding: { mode: 'none' },
+                audio: {
+                    mode: 'none',
+                    selectedSources: 0,
+                    skippedSources: 0,
+                    plannedSources: 0
+                },
+                mediaDiagnosticsPath: null,
+                mediaDiagnostics: options.mediaDiagnostics
+                    ? [
+                        {
+                            kind: 'visualfries-local-render',
+                            engine: renderPlan.engine,
+                            frameCount: 0,
+                            requestedFrameCount: options.frameIndices.length,
+                            trimAwareRanges: effectiveRanges,
+                            serverRendererMode: options.serverRendererMode ?? 'canvas',
+                            transport: 'range-binding'
+                        }
+                    ]
+                    : []
+            };
+        }
         let sceneForRender = parsed;
         let deterministicMediaDiagnostics = [];
         if (renderPlan.engine === 'deterministic-local') {
@@ -355,23 +426,26 @@ export async function renderSceneLocally(options) {
         const svelteServerEntry = resolveModulePathFromOptionalPaths('svelte/internal/server', 'VISUALFRIES_NODE_MODULES', options.modulePaths, path.join(packageRoot, 'node_modules/svelte/src/internal/server/index.js'));
         const earcutEntry = resolveModulePathFromOptionalPaths('earcut', 'VISUALFRIES_NODE_MODULES', options.modulePaths, path.join(packageRoot, 'node_modules/earcut/src/earcut.js'));
         await writeEarcutShim(tempRoot, earcutEntry);
+        const resolveAliases = {
+            'visualfries-runtime': runtimeEntry,
+            $lib: libRoot,
+            url: path.join(tempRoot, 'node-url-shim.js'),
+            eventemitter3: path.join(tempRoot, 'eventemitter3-shim.js'),
+            earcut: path.join(tempRoot, 'earcut-shim.js'),
+            md5: path.join(tempRoot, 'md5-shim.js'),
+            'svelte/internal/client': svelteClientEntry,
+            'svelte/internal/server': svelteServerEntry
+        };
+        if (renderPlan.engine === 'deterministic-local') {
+            resolveAliases['gifuct-js'] = path.join(tempRoot, 'gifuct-js-shim.js');
+        }
         server = await createServer({
             root: tempRoot,
             logLevel: 'error',
             plugins: [sveltePluginModule.svelte()],
             server: { host: '127.0.0.1', port: 0, fs: { allow: [tempRoot, packageRoot] } },
             resolve: {
-                alias: {
-                    'visualfries-runtime': runtimeEntry,
-                    $lib: libRoot,
-                    url: path.join(tempRoot, 'node-url-shim.js'),
-                    eventemitter3: path.join(tempRoot, 'eventemitter3-shim.js'),
-                    earcut: path.join(tempRoot, 'earcut-shim.js'),
-                    md5: path.join(tempRoot, 'md5-shim.js'),
-                    'gifuct-js': path.join(tempRoot, 'gifuct-js-shim.js'),
-                    'svelte/internal/client': svelteClientEntry,
-                    'svelte/internal/server': svelteServerEntry
-                },
+                alias: resolveAliases,
                 conditions: ['browser', 'svelte']
             },
             optimizeDeps: { exclude: ['visualfries-runtime'], include: ['earcut'] }
@@ -387,7 +461,10 @@ export async function renderSceneLocally(options) {
         if (!chromium)
             throw new Error('playwright was found, but chromium is not available.');
         const executablePath = findBrowserExecutable(options.chromiumPath);
-        browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
+        browser = await chromium.launch({
+            headless: true,
+            ...(executablePath ? { executablePath } : {})
+        });
         const page = await browser.newPage({
             viewport: { width: parsed.settings.width, height: parsed.settings.height },
             deviceScaleFactor: 1
@@ -455,7 +532,12 @@ export async function renderSceneLocally(options) {
                 }
                 previousFramePath = framePath;
             }
-            frames.push({ frame: payload.frameIndex, time: payload.frameIndex / options.fps, path: streamEncoder ? null : framePath, isDuplicate: Boolean(payload.isDuplicate) });
+            frames.push({
+                frame: payload.frameIndex,
+                time: payload.frameIndex / options.fps,
+                path: streamEncoder ? null : framePath,
+                isDuplicate: Boolean(payload.isDuplicate)
+            });
         });
         page.on('console', (message) => {
             if (message.type() === 'error')
@@ -499,7 +581,11 @@ export async function renderSceneLocally(options) {
                 activeStreamEncoder = undefined;
                 streamEncodeMs = streamResult.elapsedMs;
                 if (audioInput)
-                    await muxAudioWithVideo({ videoPath: streamedSilentOutput, audioPath: audioInput, outputPath });
+                    await muxAudioWithVideo({
+                        videoPath: streamedSilentOutput,
+                        audioPath: audioInput,
+                        outputPath
+                    });
             }
             else {
                 await encodeFrames({
@@ -521,7 +607,11 @@ export async function renderSceneLocally(options) {
                     requestedFrameCount: options.frameIndices.length,
                     trimAwareRanges: effectiveRanges,
                     serverRendererMode: options.serverRendererMode ?? 'canvas',
-                    transport: streamEncoder ? 'range-binding-stream-encode' : activeRange ? 'range-binding' : 'sparse-evaluate'
+                    transport: streamEncoder
+                        ? 'range-binding-stream-encode'
+                        : activeRange
+                            ? 'range-binding'
+                            : 'sparse-evaluate'
                 },
                 ...deterministicMediaDiagnostics
             ]
@@ -540,7 +630,11 @@ export async function renderSceneLocally(options) {
                 count: frames.length,
                 dir: framesDir,
                 items: frames,
-                transport: streamEncoder ? 'range-binding-stream-encode' : activeRange ? 'range-binding' : 'sparse-evaluate',
+                transport: streamEncoder
+                    ? 'range-binding-stream-encode'
+                    : activeRange
+                        ? 'range-binding'
+                        : 'sparse-evaluate',
                 skippedDuplicates: rangeSummary?.framesSkipped ?? 0
             },
             output: outputPath,

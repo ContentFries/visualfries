@@ -56,7 +56,7 @@ export function resolveEffectiveRenderRanges(input) {
     const removedRanges = mergeOverlappingRanges(filteredRanges);
     const keptRanges = invertRemovedRanges(removedRanges, boundary);
     if (keptRanges.length === 0) {
-        return { ranges: [fallbackRange], trimAppliedInRanges: false };
+        return { ranges: [], trimAppliedInRanges: true };
     }
     const ranges = keptRanges
         .map((range) => ({
@@ -67,7 +67,7 @@ export function resolveEffectiveRenderRanges(input) {
     }))
         .filter((range) => range.toFrame > range.fromFrame);
     if (ranges.length === 0) {
-        return { ranges: [fallbackRange], trimAppliedInRanges: false };
+        return { ranges: [], trimAppliedInRanges: true };
     }
     return { ranges, trimAppliedInRanges: true };
 }

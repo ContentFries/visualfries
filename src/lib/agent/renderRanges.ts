@@ -43,7 +43,10 @@ export const mergeOverlappingRanges = (ranges: TimeRange[]): TimeRange[] => {
 	);
 };
 
-export const invertRemovedRanges = (removedRanges: TimeRange[], boundary: TimeRange): TimeRange[] => {
+export const invertRemovedRanges = (
+	removedRanges: TimeRange[],
+	boundary: TimeRange
+): TimeRange[] => {
 	const keptRanges: TimeRange[] = [];
 	let cursor = boundary.start;
 
@@ -88,7 +91,7 @@ export function resolveEffectiveRenderRanges(input: {
 	const removedRanges = mergeOverlappingRanges(filteredRanges);
 	const keptRanges = invertRemovedRanges(removedRanges, boundary);
 	if (keptRanges.length === 0) {
-		return { ranges: [fallbackRange], trimAppliedInRanges: false };
+		return { ranges: [], trimAppliedInRanges: true };
 	}
 
 	const ranges = keptRanges
@@ -101,7 +104,7 @@ export function resolveEffectiveRenderRanges(input: {
 		.filter((range) => range.toFrame > range.fromFrame);
 
 	if (ranges.length === 0) {
-		return { ranges: [fallbackRange], trimAppliedInRanges: false };
+		return { ranges: [], trimAppliedInRanges: true };
 	}
 
 	return { ranges, trimAppliedInRanges: true };

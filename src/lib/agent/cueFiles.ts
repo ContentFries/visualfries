@@ -113,13 +113,21 @@ function checkRange(
 	duration?: number
 ) {
 	if (!isNumber(start)) {
-		issues.push({ level: 'error', path: `${path}.start`, message: 'start must be a finite number.' });
+		issues.push({
+			level: 'error',
+			path: `${path}.start`,
+			message: 'start must be a finite number.'
+		});
 	}
 	if (!isNumber(end)) {
 		issues.push({ level: 'error', path: `${path}.end`, message: 'end must be a finite number.' });
 	}
 	if (isNumber(start) && isNumber(end) && end < start) {
-		issues.push({ level: 'error', path: `${path}.end`, message: 'end must be greater than or equal to start.' });
+		issues.push({
+			level: 'error',
+			path: `${path}.end`,
+			message: 'end must be greater than or equal to start.'
+		});
 	}
 	if (duration !== undefined && isNumber(end) && end > duration) {
 		issues.push({
@@ -136,14 +144,31 @@ export function validateAgentCueFile(input: ValidateAgentCueFileInput): AgentCue
 	const overlays = cues.overlays ?? [];
 	const transitions = cues.transitions ?? [];
 	const issues: AgentCueValidationIssue[] = [];
+	const durationIsValid =
+		input.duration === undefined || (isNumber(input.duration) && input.duration > 0);
+
+	if (!durationIsValid) {
+		issues.push({
+			level: 'error',
+			path: 'duration',
+			message: 'duration must be a finite number greater than 0.'
+		});
+	}
 
 	for (const [index, cue] of broll.entries()) {
 		const pathPrefix = `broll[${index}]`;
 		if (!cue.url || typeof cue.url !== 'string') {
 			issues.push({ level: 'error', path: `${pathPrefix}.url`, message: 'url is required.' });
 		}
-		if (cue.motion && !AGENT_BROLL_MOTIONS.includes(cue.motion as (typeof AGENT_BROLL_MOTIONS)[number])) {
-			issues.push({ level: 'error', path: `${pathPrefix}.motion`, message: `Unknown b-roll motion "${cue.motion}".` });
+		if (
+			cue.motion &&
+			!AGENT_BROLL_MOTIONS.includes(cue.motion as (typeof AGENT_BROLL_MOTIONS)[number])
+		) {
+			issues.push({
+				level: 'error',
+				path: `${pathPrefix}.motion`,
+				message: `Unknown b-roll motion "${cue.motion}".`
+			});
 		}
 		checkRange(issues, pathPrefix, cue.start, cue.end, input.duration);
 	}
@@ -153,8 +178,15 @@ export function validateAgentCueFile(input: ValidateAgentCueFileInput): AgentCue
 		if (!cue.text || typeof cue.text !== 'string') {
 			issues.push({ level: 'error', path: `${pathPrefix}.text`, message: 'text is required.' });
 		}
-		if (cue.style && !AGENT_OVERLAY_STYLES.includes(cue.style as (typeof AGENT_OVERLAY_STYLES)[number])) {
-			issues.push({ level: 'error', path: `${pathPrefix}.style`, message: `Unknown overlay style "${cue.style}".` });
+		if (
+			cue.style &&
+			!AGENT_OVERLAY_STYLES.includes(cue.style as (typeof AGENT_OVERLAY_STYLES)[number])
+		) {
+			issues.push({
+				level: 'error',
+				path: `${pathPrefix}.style`,
+				message: `Unknown overlay style "${cue.style}".`
+			});
 		}
 		checkRange(issues, pathPrefix, cue.start, cue.end, input.duration);
 	}
@@ -162,16 +194,41 @@ export function validateAgentCueFile(input: ValidateAgentCueFileInput): AgentCue
 	for (const [index, cue] of transitions.entries()) {
 		const pathPrefix = `transitions[${index}]`;
 		if (!isNumber(cue.time)) {
-			issues.push({ level: 'error', path: `${pathPrefix}.time`, message: 'time must be a finite number.' });
+			issues.push({
+				level: 'error',
+				path: `${pathPrefix}.time`,
+				message: 'time must be a finite number.'
+			});
+		} else if (cue.time < 0) {
+			issues.push({
+				level: 'error',
+				path: `${pathPrefix}.time`,
+				message: 'time must be greater than or equal to 0.'
+			});
 		}
-		if (cue.style && !AGENT_TRANSITION_STYLES.includes(cue.style as (typeof AGENT_TRANSITION_STYLES)[number])) {
+		if (cue.duration !== undefined && (!isNumber(cue.duration) || cue.duration <= 0)) {
+			issues.push({
+				level: 'error',
+				path: `${pathPrefix}.duration`,
+				message: 'duration must be a finite number greater than 0.'
+			});
+		}
+		if (
+			cue.style &&
+			!AGENT_TRANSITION_STYLES.includes(cue.style as (typeof AGENT_TRANSITION_STYLES)[number])
+		) {
 			issues.push({
 				level: 'error',
 				path: `${pathPrefix}.style`,
 				message: `Unknown transition style "${cue.style}".`
 			});
 		}
-		if (input.duration !== undefined && isNumber(cue.time) && cue.time > input.duration) {
+		if (
+			durationIsValid &&
+			input.duration !== undefined &&
+			isNumber(cue.time) &&
+			cue.time > input.duration
+		) {
 			issues.push({
 				level: 'warning',
 				path: `${pathPrefix}.time`,
@@ -194,7 +251,11 @@ export function validateAgentCueFile(input: ValidateAgentCueFileInput): AgentCue
 export function applyAgentCueFile(input: ApplyAgentCueFileInput): ApplyAgentCueFileResult {
 	const cues = normalizeAgentCueFile(input.cues, input.cueFilePath);
 	let scene = SceneShape.parse(input.scene);
-	const validation = validateAgentCueFile({ cues, cueFilePath: input.cueFilePath, duration: scene.settings.duration });
+	const validation = validateAgentCueFile({
+		cues,
+		cueFilePath: input.cueFilePath,
+		duration: scene.settings.duration
+	});
 	if (!validation.valid) {
 		throw new Error(`Invalid cue file: ${JSON.stringify(validation.issues, null, 2)}`);
 	}

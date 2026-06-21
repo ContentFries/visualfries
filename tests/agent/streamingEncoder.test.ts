@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createFfmpegImagePipeArgs, createMuxAudioArgs } from '$lib/agent';
+import { createFfmpegImagePipeArgs, createMuxAudioArgs, PipeFrameEncoder } from '$lib/agent';
 
 describe('agent streaming encoder helpers', () => {
 	it('builds image2pipe args for jpg frames', () => {
@@ -39,5 +39,33 @@ describe('agent streaming encoder helpers', () => {
 		expect(args).toContain('copy');
 		expect(args).toContain('aac');
 		expect(args).toContain('/tmp/final.mp4');
+	});
+
+	it('rejects cleanly when ffmpeg cannot be spawned', async () => {
+		const previous = process.env.FFMPEG_PATH;
+		process.env.FFMPEG_PATH = '/tmp/visualfries-missing-ffmpeg-binary';
+		try {
+			const encoder = new PipeFrameEncoder({
+				fps: 30,
+				inputExt: 'png',
+				outputPath: '/tmp/out.mp4'
+			});
+
+			let writeError: unknown;
+			try {
+				await encoder.writeFrame(Buffer.from('not an image'));
+			} catch (error) {
+				writeError = error;
+			}
+
+			if (writeError) {
+				expect(String(writeError)).toMatch(/failed to start ffmpeg|ENOENT/);
+			} else {
+				await expect(encoder.finish()).rejects.toThrow(/failed to start ffmpeg|ENOENT/);
+			}
+		} finally {
+			if (previous === undefined) delete process.env.FFMPEG_PATH;
+			else process.env.FFMPEG_PATH = previous;
+		}
 	});
 });

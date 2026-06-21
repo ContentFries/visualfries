@@ -30,7 +30,9 @@ export function inspectScene(input) {
                     layerId: layer.id
                 });
             }
-            if ('source' in component && component.source?.assetId && !assetIds.has(component.source.assetId)) {
+            if ('source' in component &&
+                component.source?.assetId &&
+                !assetIds.has(component.source.assetId)) {
                 issues.push({
                     level: 'warning',
                     type: 'missing-asset',
@@ -41,6 +43,7 @@ export function inspectScene(input) {
             }
             if (component.type === 'SUBTITLES') {
                 const assetId = component.timingAnchor.assetId ?? component.source?.assetId;
+                const languageCode = component.source?.languageCode;
                 if (!assetId) {
                     issues.push({
                         level: 'error',
@@ -55,6 +58,17 @@ export function inspectScene(input) {
                         level: 'warning',
                         type: 'subtitle-data-missing',
                         message: `No scene.settings.subtitles.data entry found for "${assetId}".`,
+                        componentId: component.id,
+                        layerId: layer.id
+                    });
+                }
+                else if (languageCode &&
+                    (!scene.settings.subtitles.data[assetId]?.[languageCode] ||
+                        scene.settings.subtitles.data[assetId][languageCode].length === 0)) {
+                    issues.push({
+                        level: 'warning',
+                        type: 'subtitle-language-data-missing',
+                        message: `No subtitle data found for asset "${assetId}" and language "${languageCode}". Runtime may fall back to another language.`,
                         componentId: component.id,
                         layerId: layer.id
                     });

@@ -24,9 +24,41 @@ visualfries validate-cues <cues.json> [--duration <seconds>] [--json]
 visualfries apply-cues <scene.json> --cues <cues.json> --output <scene.json>
 visualfries qa <scene.json> --output <dir>
 visualfries compose --video <video> --transcript <file> --output <out.mp4>
+visualfries produce <production-plan.json> --output <out.mp4> --scene-output <scene.json> --qa-output <dir>
 visualfries render <scene.json> --output <out.mp4|frames-dir> [--frames-only]
 visualfries catalog [--json]
 visualfries doctor [--json]
+```
+
+Use `produce` for authored edits that need more than captions plus generic cues. A production plan groups the edit into named beats and supports source trims, automatic video freeze-frame holds, richer editorial overlays, exact multi-track audio, transitions, and QA frames. The command keeps the plan editable, compiles production overlays to deterministic SVG assets, emits ordinary VisualFries scene JSON, renders at timeline event boundaries, then checks the finished audio lead-in.
+
+```json
+{
+	"version": 1,
+	"id": "proof-hook",
+	"settings": { "width": 1080, "height": 1920, "duration": 6, "fps": 30 },
+	"beats": [
+		{
+			"id": "reaction",
+			"start": 0,
+			"end": 3,
+			"media": [
+				{ "id": "reaction", "url": "./reaction.mp4", "start": 0, "end": 3, "freezeAt": 1.8 }
+			],
+			"overlays": [{ "text": "NOT DEAD.", "start": 1.8, "end": 3, "style": "verdict-slam" }]
+		}
+	],
+	"audio": [{ "id": "voice", "url": "./voice.wav", "startAt": 0, "volume": 1 }],
+	"transitions": [{ "time": 3, "style": "focus-pull" }],
+	"qa": { "framesAt": [0.1, 1.9, 3.1], "maxLeadingSilence": 0.1, "requiredText": ["NOT DEAD."] }
+}
+```
+
+```bash
+visualfries produce ./production-plan.json \
+  --scene-output ./scene.json \
+  --qa-output ./qa \
+  --output ./final.mp4
 ```
 
 `render` uses a controlled Vite browser page, Playwright, and `ffmpeg` for static scenes and fast previews. It never requires opening ContentFries UI.
@@ -105,18 +137,18 @@ Cue files can contain `broll`, `overlays`, and `transitions` arrays:
 
 ```json
 {
-  "broll": [
-    { "url": "./assets/profile.mp4", "start": 2, "end": 5, "type": "VIDEO" },
-    { "url": "./assets/chart.png", "start": 5, "end": 7, "type": "IMAGE", "motion": "slow-zoom-in" }
-  ],
-  "overlays": [
-    { "text": "LOVE THIS 😍", "start": 0.4, "end": 1.1, "style": "hook-punch" },
-    { "text": "NECK 🤯", "start": 1.1, "end": 1.7, "style": "shock-word" }
-  ],
-  "transitions": [
-    { "time": 2, "style": "dip-to-black" },
-    { "time": 5, "style": "swipe-left", "color": "#04483D" }
-  ]
+	"broll": [
+		{ "url": "./assets/profile.mp4", "start": 2, "end": 5, "type": "VIDEO" },
+		{ "url": "./assets/chart.png", "start": 5, "end": 7, "type": "IMAGE", "motion": "slow-zoom-in" }
+	],
+	"overlays": [
+		{ "text": "LOVE THIS 😍", "start": 0.4, "end": 1.1, "style": "hook-punch" },
+		{ "text": "NECK 🤯", "start": 1.1, "end": 1.7, "style": "shock-word" }
+	],
+	"transitions": [
+		{ "time": 2, "style": "dip-to-black" },
+		{ "time": 5, "style": "swipe-left", "color": "#04483D" }
+	]
 }
 ```
 
@@ -142,37 +174,41 @@ import { resolveAgentRenderPlan, requiresDeterministicRender } from 'visualfries
 const plan = resolveAgentRenderPlan(scene, { mode: 'final' });
 
 if (requiresDeterministicRender(scene)) {
-  // Final output needs local deterministic media predecode, not browser video seek.
+	// Final output needs local deterministic media predecode, not browser video seek.
 }
 ```
 
 For short-form overlays:
 
 ```ts
-import { addAgentBrollSequence, addAgentTextOverlays, addAgentTransitions } from 'visualfries/agent';
+import {
+	addAgentBrollSequence,
+	addAgentTextOverlays,
+	addAgentTransitions
+} from 'visualfries/agent';
 
 const sceneWithOverlays = addAgentTextOverlays({
-  scene,
-  overlays: [
-    { text: 'LOVE THIS 😍', start: 0.4, end: 1.1, style: 'pop-label' },
-    { text: 'NECK 🤯', start: 1.1, end: 1.7, style: 'shock-word' }
-  ]
+	scene,
+	overlays: [
+		{ text: 'LOVE THIS 😍', start: 0.4, end: 1.1, style: 'pop-label' },
+		{ text: 'NECK 🤯', start: 1.1, end: 1.7, style: 'shock-word' }
+	]
 });
 
 const sceneWithBroll = addAgentBrollSequence({
-  scene,
-  cues: [
-    { url: './broll/profile.mp4', start: 2.0, end: 5.0, type: 'VIDEO' },
-    { url: './broll/chart.png', start: 5.0, end: 7.0, type: 'IMAGE', motion: 'slow-zoom-in' }
-  ]
+	scene,
+	cues: [
+		{ url: './broll/profile.mp4', start: 2.0, end: 5.0, type: 'VIDEO' },
+		{ url: './broll/chart.png', start: 5.0, end: 7.0, type: 'IMAGE', motion: 'slow-zoom-in' }
+	]
 });
 
 const sceneWithTransitions = addAgentTransitions({
-  scene,
-  transitions: [
-    { time: 2.0, style: 'dip-to-black' },
-    { time: 5.0, style: 'swipe-left', color: '#04483D' }
-  ]
+	scene,
+	transitions: [
+		{ time: 2.0, style: 'dip-to-black' },
+		{ time: 5.0, style: 'swipe-left', color: '#04483D' }
+	]
 });
 ```
 
@@ -216,25 +252,23 @@ Structured JSON:
 
 ```json
 {
-  "segments": [
-    {
-      "text": "The best content asset is not always a post.",
-      "start": 0,
-      "end": 2.4,
-      "words": [
-        { "text": "The", "start": 0, "end": 0.12 }
-      ]
-    }
-  ]
+	"segments": [
+		{
+			"text": "The best content asset is not always a post.",
+			"start": 0,
+			"end": 2.4,
+			"words": [{ "text": "The", "start": 0, "end": 0.12 }]
+		}
+	]
 }
 ```
 
 ```json
 {
-  "words": [
-    { "text": "The", "start": 0, "end": 0.12 },
-    { "text": "best", "start": 0.12, "end": 0.35 }
-  ]
+	"words": [
+		{ "text": "The", "start": 0, "end": 0.12 },
+		{ "text": "best", "start": 0.12, "end": 0.35 }
+	]
 }
 ```
 

@@ -16,6 +16,10 @@ export type AgentBrollCue = {
     y?: number;
     width?: number;
     height?: number;
+    sourceStart?: number;
+    sourceEnd?: number;
+    playbackRate?: number;
+    loop?: boolean;
 };
 export type AddAgentBrollSequenceInput = {
     scene: Scene | SceneInput;

@@ -154,7 +154,12 @@ export function createAgentBrollComponent(cue, scene, index = 0) {
         name: cue.name ?? `Agent B-roll ${index + 1}`,
         type,
         timeline: { startAt: cue.start, endAt: cue.end },
-        source: { url, assetId },
+        source: {
+            url,
+            assetId,
+            startAt: cue.sourceStart,
+            endAt: cue.sourceEnd
+        },
         order: cue.order ?? index,
         appearance: {
             x: cue.x ?? 0,
@@ -176,8 +181,10 @@ export function createAgentBrollComponent(cue, scene, index = 0) {
             muted: cue.muted ?? true,
             playback: {
                 autoplay: true,
-                loop: false,
-                playbackRate: 1
+                loop: cue.loop ?? false,
+                playbackRate: cue.playbackRate ?? 1,
+                startAt: cue.sourceStart ?? 0,
+                endAt: cue.sourceEnd
             },
             crop: { x: 0, y: 0, width: 1, height: 1 }
         }

@@ -10,6 +10,7 @@ import {
 	applyAgentCueFile,
 	createCaptionScene,
 	createAgentCuePreset,
+	compileProductionPlan,
 	getAgentCatalog,
 	inspectScene,
 	mergeAgentCueFiles,
@@ -38,6 +39,7 @@ Usage:
   visualfries validate-cues <cues.json> [--duration <seconds>] [--json]
   visualfries apply-cues <scene.json> --cues <cues.json> --output <scene.json> [options]
   visualfries compose --video <video> --transcript <file> --output <out.mp4|frames-dir> [options]
+  visualfries produce <production-plan.json> --output <out.mp4> [options]
   visualfries qa <scene.json> --output <dir> [options]
   visualfries render <scene.json> --output <out.mp4|frames-dir> [options]
   visualfries catalog [--json]
@@ -80,6 +82,13 @@ compose options:
   --cue-preset <name>   Optional starter cue preset to apply before --cues
   --qa-output <dir>     Optional sampled screenshot QA directory
   --skip-duplicates     Reuse identical deterministic frames on the final render
+
+produce options:
+  --output <path>       Final MP4 output path
+  --scene-output <path> Compiled editable scene JSON (default: <plan>.scene.json)
+  --qa-output <dir>     Exact QA frames and acceptance.json output directory
+  --generated-assets <dir>
+                       Generated freeze-frame assets (default: beside the plan)
 
 render options:
   --output <path>       MP4 output path, or frames directory with --frames-only
@@ -389,9 +398,9 @@ async function renderSceneWithBrowser({
 			svelteVitePlugin: process.env.VISUALFRIES_SVELTE_VITE_MODULES,
 			playwright: process.env.VISUALFRIES_PLAYWRIGHT_MODULES,
 			nodeModules: process.env.VISUALFRIES_NODE_MODULES
-			}
-		});
-	}
+		}
+	});
+}
 
 async function validateCommand(args) {
 	const filePath = args[0];
@@ -413,7 +422,8 @@ async function validateCommand(args) {
 
 async function initCommand(args) {
 	const targetDir = args[0];
-	if (!targetDir) throw new Error('Usage: visualfries init <dir> [--video <video> --transcript <file>]');
+	if (!targetDir)
+		throw new Error('Usage: visualfries init <dir> [--video <video> --transcript <file>]');
 	const root = path.resolve(targetDir);
 	const assetsDir = path.join(root, 'assets');
 	const qaFramesDir = path.join(root, 'qa', 'frames');
@@ -601,7 +611,9 @@ async function captionSceneCommand(args) {
 	const transcriptPath = readFlag(args, '--transcript');
 	const output = readFlag(args, '--output');
 	if (!video || !transcriptPath || !output) {
-		throw new Error('Usage: visualfries caption-scene --video <video> --transcript <file> --output <scene.json>');
+		throw new Error(
+			'Usage: visualfries caption-scene --video <video> --transcript <file> --output <scene.json>'
+		);
 	}
 
 	const scene = createCaptionScene({
@@ -706,7 +718,9 @@ async function presetCuesCommand(args) {
 	const output = readFlag(args, '--output');
 	const duration = numberFlag(args, '--duration');
 	if (!output || duration === undefined) {
-		throw new Error('Usage: visualfries preset-cues --duration <seconds> --output <cues.json> [--preset <name>]');
+		throw new Error(
+			'Usage: visualfries preset-cues --duration <seconds> --output <cues.json> [--preset <name>]'
+		);
 	}
 
 	const cues = createAgentCuePreset({
@@ -851,6 +865,246 @@ async function composeCommand(args) {
 	);
 }
 
+async function detectLeadingSilence(filePath) {
+	return await new Promise((resolve, reject) => {
+		const child = spawn(
+			process.env.FFMPEG_PATH || 'ffmpeg',
+			[
+				'-hide_banner',
+				'-i',
+				filePath,
+				'-af',
+				'silencedetect=noise=-45dB:d=0.01',
+				'-f',
+				'null',
+				'-'
+			],
+			{ stdio: ['ignore', 'ignore', 'pipe'] }
+		);
+		let stderr = '';
+		child.stderr.on('data', (chunk) => {
+			stderr += String(chunk);
+		});
+		child.on('error', reject);
+		child.on('close', (code) => {
+			if (code !== 0) return reject(new Error(`Audio QA failed for ${filePath}.`));
+			const startsAtZero = /silence_start:\s*-?0(?:\.0+)?\b/.test(stderr);
+			const match = stderr.match(/silence_end:\s*([0-9.]+)/);
+			resolve(startsAtZero && match ? Number(match[1]) : 0);
+		});
+	});
+}
+
+async function extractQaFrames(filePath, times, outputDir) {
+	await fs.mkdir(outputDir, { recursive: true });
+	const items = [];
+	for (const [index, time] of times.entries()) {
+		const output = path.join(
+			outputDir,
+			`qa-${String(index + 1).padStart(2, '0')}-${time.toFixed(2).replace('.', '_')}s.png`
+		);
+		await new Promise((resolve, reject) => {
+			const child = spawn(
+				process.env.FFMPEG_PATH || 'ffmpeg',
+				['-y', '-i', filePath, '-ss', time.toFixed(3), '-frames:v', '1', '-c:v', 'png', output],
+				{ stdio: ['ignore', 'ignore', 'pipe'] }
+			);
+			let stderr = '';
+			child.stderr.on('data', (chunk) => {
+				stderr = (stderr + String(chunk)).slice(-2000);
+			});
+			child.on('error', reject);
+			child.on('close', (code) =>
+				code === 0
+					? resolve()
+					: reject(new Error(`QA frame extraction failed (${code}): ${stderr}`))
+			);
+		});
+		items.push({ time, output });
+	}
+	return items;
+}
+
+function productionFrameBoundaries(plan) {
+	const fps = plan.settings.fps;
+	const times = [0, plan.settings.duration];
+	for (const beat of plan.beats) {
+		times.push(beat.start, beat.end);
+		for (const media of beat.media) {
+			times.push(media.start, media.end);
+			if (media.freezeAt !== undefined) {
+				times.push(media.start + (media.freezeAt - (media.sourceStart ?? 0)));
+			}
+		}
+		for (const overlay of beat.overlays) times.push(overlay.start, overlay.end);
+	}
+	for (const transition of plan.transitions) {
+		const duration = transition.duration ?? 0.26;
+		times.push(transition.time - duration / 2, transition.time + duration / 2);
+	}
+	return [
+		...new Set(
+			times.map((time) =>
+				Math.max(0, Math.min(Math.ceil(plan.settings.duration * fps), Math.round(time * fps)))
+			)
+		)
+	]
+		.sort((a, b) => a - b)
+		.filter((frame, index, frames) => index === 0 || frame > frames[index - 1]);
+}
+
+async function concatMp4Segments(segments, output) {
+	const listPath = path.join(path.dirname(segments[0]), 'concat.txt');
+	await fs.writeFile(
+		listPath,
+		`${segments.map((segment) => `file '${segment.replaceAll("'", "'\\''")}'`).join('\n')}\n`,
+		'utf8'
+	);
+	await new Promise((resolve, reject) => {
+		const child = spawn(
+			process.env.FFMPEG_PATH || 'ffmpeg',
+			[
+				'-y',
+				'-f',
+				'concat',
+				'-safe',
+				'0',
+				'-i',
+				listPath,
+				'-c:v',
+				'libx264',
+				'-crf',
+				'18',
+				'-preset',
+				'veryfast',
+				'-pix_fmt',
+				'yuv420p',
+				'-c:a',
+				'aac',
+				'-b:a',
+				'192k',
+				'-movflags',
+				'+faststart',
+				output
+			],
+			{ stdio: ['ignore', 'ignore', 'pipe'] }
+		);
+		let stderr = '';
+		child.stderr.on('data', (chunk) => {
+			stderr = (stderr + String(chunk)).slice(-4000);
+		});
+		child.on('error', reject);
+		child.on('close', (code) =>
+			code === 0
+				? resolve()
+				: reject(new Error(`Production segment concat failed (${code}): ${stderr}`))
+		);
+	});
+}
+
+async function produceCommand(args) {
+	const planPath = args[0];
+	const output = readFlag(args, '--output');
+	if (!planPath || !output) {
+		throw new Error(
+			'Usage: visualfries produce <production-plan.json> --output <out.mp4> [options]'
+		);
+	}
+	const compiled = await compileProductionPlan({
+		plan: await readJson(planPath),
+		planPath,
+		generatedAssetsDir: readFlag(args, '--generated-assets')
+	});
+	const sceneOutput = readFlag(
+		args,
+		'--scene-output',
+		path.resolve(
+			path.dirname(planPath),
+			`${path.basename(planPath, path.extname(planPath))}.scene.json`
+		)
+	);
+	await writeJson(sceneOutput, compiled.scene);
+	const inspection = inspectScene(compiled.scene);
+	if (!inspection.valid)
+		throw new Error(`Compiled scene is not renderable: ${JSON.stringify(inspection.issues)}`);
+
+	const qaRoot = readFlag(args, '--qa-output');
+	const renderPlan = assertBrowserRenderAllowed(compiled.scene, args);
+	const { renderOptions } = fullRenderOptionsFromArgs(args, compiled.scene, output);
+	const segmentRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'visualfries-production-'));
+	let render;
+	try {
+		const boundaries = productionFrameBoundaries(compiled.plan);
+		const segments = [];
+		const results = [];
+		for (let index = 0; index < boundaries.length - 1; index += 1) {
+			const fromFrame = boundaries[index];
+			const toFrame = boundaries[index + 1];
+			if (toFrame <= fromFrame) continue;
+			const segment = path.join(segmentRoot, `segment-${String(index + 1).padStart(3, '0')}.mp4`);
+			results.push(
+				await renderSceneWithBrowser({
+					...renderOptions,
+					output: segment,
+					frameIndices: frameRange(fromFrame, toFrame),
+					streamEncode: true
+				})
+			);
+			segments.push(segment);
+		}
+		await concatMp4Segments(segments, path.resolve(output));
+		render = {
+			ok: true,
+			mode: 'timeline-segmented',
+			segments: segments.length,
+			boundaries,
+			frames: results.reduce((sum, result) => sum + result.frames.count, 0),
+			audioSources: Math.max(...results.map((result) => result.audio.selectedSources), 0)
+		};
+	} finally {
+		await fs.rm(segmentRoot, { recursive: true, force: true });
+	}
+	const qa = qaRoot
+		? await extractQaFrames(
+				path.resolve(output),
+				compiled.plan.qa.framesAt,
+				path.join(path.resolve(qaRoot), 'frames')
+			)
+		: undefined;
+	const leadingSilence = await detectLeadingSilence(path.resolve(output));
+	const limit = compiled.plan.qa.maxLeadingSilence;
+	const acceptance = {
+		ok: limit === undefined || leadingSilence <= limit,
+		leadingSilence,
+		maxLeadingSilence: limit,
+		requiredText: compiled.plan.qa.requiredText,
+		qaFramesAt: compiled.plan.qa.framesAt,
+		generatedAssets: compiled.generatedAssets,
+		inspection
+	};
+	if (qaRoot) await writeJson(path.join(path.resolve(qaRoot), 'acceptance.json'), acceptance);
+	if (!acceptance.ok) {
+		throw new Error(
+			`Production QA failed: leading silence ${leadingSilence.toFixed(3)}s exceeds ${limit}s.`
+		);
+	}
+	console.log(
+		JSON.stringify(
+			{
+				ok: true,
+				output: path.resolve(output),
+				sceneOutput: path.resolve(sceneOutput),
+				renderPlan,
+				render,
+				qa,
+				acceptance
+			},
+			null,
+			2
+		)
+	);
+}
+
 async function checkOptionalModule(moduleName, envName) {
 	try {
 		await importFromOptionalPaths(moduleName, envName);
@@ -861,7 +1115,8 @@ async function checkOptionalModule(moduleName, envName) {
 }
 
 async function doctorCommand(args) {
-	const tmpParent = process.env.VISUALFRIES_TMPDIR || (existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir());
+	const tmpParent =
+		process.env.VISUALFRIES_TMPDIR || (existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir());
 	const checks = {
 		node: {
 			ok: true,
@@ -869,7 +1124,10 @@ async function doctorCommand(args) {
 		},
 		ffmpeg: await probeCommand('ffmpeg', ['-version']),
 		vite: await checkOptionalModule('vite', 'VISUALFRIES_VITE_MODULES'),
-		svelteVitePlugin: await checkOptionalModule('@sveltejs/vite-plugin-svelte', 'VISUALFRIES_SVELTE_VITE_MODULES'),
+		svelteVitePlugin: await checkOptionalModule(
+			'@sveltejs/vite-plugin-svelte',
+			'VISUALFRIES_SVELTE_VITE_MODULES'
+		),
 		playwright: await checkOptionalModule('playwright', 'VISUALFRIES_PLAYWRIGHT_MODULES'),
 		chromiumExecutable: (() => {
 			const executablePath = findBrowserExecutable();
@@ -932,7 +1190,9 @@ async function renderCommand(args) {
 	const scenePath = args[0];
 	const output = readFlag(args, '--output');
 	if (!scenePath || !output) {
-		throw new Error('Usage: visualfries render <scene.json> --output <out.mp4|frames-dir> [--frames-only]');
+		throw new Error(
+			'Usage: visualfries render <scene.json> --output <out.mp4|frames-dir> [--frames-only]'
+		);
 	}
 
 	const parsed = SceneShape.parse(await readJson(scenePath));
@@ -978,6 +1238,7 @@ async function main() {
 	if (command === 'validate-cues') return validateCuesCommand(args);
 	if (command === 'apply-cues') return applyCuesCommand(args);
 	if (command === 'compose') return composeCommand(args);
+	if (command === 'produce') return produceCommand(args);
 	if (command === 'render') return renderCommand(args);
 	if (command === 'catalog') return catalogCommand(args);
 	if (command === 'doctor') return doctorCommand(args);

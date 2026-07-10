@@ -38,6 +38,7 @@ describe('agent streaming encoder helpers', () => {
 
 		expect(args).toContain('copy');
 		expect(args).toContain('aac');
+		expect(args).toContain('apad');
 		expect(args).toContain('/tmp/final.mp4');
 	});
 

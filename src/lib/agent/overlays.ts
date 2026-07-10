@@ -16,6 +16,9 @@ export type AgentTextOverlayStyle =
 	| 'proof-pill'
 	| 'danger-crossout'
 	| 'metric-badge'
+	| 'verdict-slam'
+	| 'receipt-metric'
+	| 'micro-proof'
 	| 'cta-card';
 
 export type AgentTextOverlayCue = {
@@ -37,6 +40,7 @@ export type AgentTextOverlayCue = {
 	rotation?: number;
 	outlineColor?: string;
 	outlineSize?: number;
+	animated?: boolean;
 };
 
 export type AddAgentTextOverlaysInput = {
@@ -47,7 +51,7 @@ export type AddAgentTextOverlaysInput = {
 	layerOrder?: number;
 };
 
-type OverlayStyleConfig = Required<
+export type OverlayStyleConfig = Required<
 	Pick<
 		AgentTextOverlayCue,
 		| 'x'
@@ -69,9 +73,67 @@ type OverlayStyleConfig = Required<
 	outlineSize?: number;
 };
 
-function overlayDefaults(style: AgentTextOverlayStyle, scene: Scene): OverlayStyleConfig {
+export function resolveAgentOverlayStyle(
+	style: AgentTextOverlayStyle,
+	scene: Scene
+): OverlayStyleConfig {
 	const width = scene.settings.width;
 	const height = scene.settings.height;
+	if (style === 'verdict-slam') {
+		return {
+			x: Math.round(width * 0.07),
+			y: Math.round(height * 0.34),
+			width: Math.round(width * 0.86),
+			height: Math.round(height * 0.13),
+			color: '#FFFFFF',
+			backgroundColor: 'rgba(176, 20, 36, 0.94)',
+			fontSize: Math.round(width * 0.105),
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			textTransform: 'uppercase',
+			radius: 10,
+			shadowBlur: 24,
+			rotation: -2,
+			outlineColor: '#2A050A',
+			outlineSize: 2
+		};
+	}
+
+	if (style === 'receipt-metric') {
+		return {
+			x: Math.round(width * 0.1),
+			y: Math.round(height * 0.58),
+			width: Math.round(width * 0.8),
+			height: Math.round(height * 0.14),
+			color: '#071C17',
+			backgroundColor: '#FFDF5A',
+			fontSize: Math.round(width * 0.1),
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			textTransform: 'uppercase',
+			radius: 14,
+			shadowBlur: 22,
+			rotation: 1
+		};
+	}
+
+	if (style === 'micro-proof') {
+		return {
+			x: Math.round(width * 0.18),
+			y: Math.round(height * 0.76),
+			width: Math.round(width * 0.64),
+			height: Math.round(height * 0.065),
+			color: '#FFFFFF',
+			backgroundColor: 'rgba(0, 0, 0, 0.82)',
+			fontSize: Math.round(width * 0.045),
+			fontFamily: 'Inter',
+			fontWeight: '800',
+			textTransform: 'none',
+			radius: 999,
+			shadowBlur: 12,
+			rotation: 0
+		};
+	}
 
 	if (style === 'shock-word') {
 		return {
@@ -223,7 +285,12 @@ function overlayDefaults(style: AgentTextOverlayStyle, scene: Scene): OverlaySty
 }
 
 function popAnimation(id: string, style: AgentTextOverlayStyle): AnimationInput {
-	const isHardHit = style === 'shock-word' || style === 'hook-punch' || style === 'metric-badge';
+	const isHardHit =
+		style === 'shock-word' ||
+		style === 'hook-punch' ||
+		style === 'metric-badge' ||
+		style === 'verdict-slam' ||
+		style === 'receipt-metric';
 	const inDuration = isHardHit ? 0.14 : 0.18;
 	const inScale = isHardHit ? 0.72 : 0.84;
 	const ease = isHardHit ? 'back.out(2.6)' : 'back.out(1.9)';
@@ -277,7 +344,7 @@ export function createAgentTextOverlayComponent(
 	const parsedScene = SceneShape.parse(scene);
 	const id = cue.id ?? `agent-text-overlay-${index + 1}`;
 	const style = cue.style ?? 'pop-label';
-	const defaults = overlayDefaults(style, parsedScene);
+	const defaults = resolveAgentOverlayStyle(style, parsedScene);
 	const component: ComponentInput = {
 		id,
 		name: `Agent Overlay: ${cue.text}`,
@@ -330,8 +397,8 @@ export function createAgentTextOverlayComponent(
 			}
 		},
 		animations: {
-			enabled: true,
-			list: [popAnimation(id, style)]
+			enabled: cue.animated !== false,
+			list: cue.animated === false ? [] : [popAnimation(id, style)]
 		}
 	};
 
@@ -344,7 +411,9 @@ export function addAgentTextOverlays(input: AddAgentTextOverlaysInput): Scene {
 		id: input.layerId ?? 'layer-agent-overlays',
 		name: input.layerName ?? 'Agent Overlays',
 		order: input.layerOrder ?? 90,
-		components: input.overlays.map((cue, index) => createAgentTextOverlayComponent(cue, scene, index))
+		components: input.overlays.map((cue, index) =>
+			createAgentTextOverlayComponent(cue, scene, index)
+		)
 	};
 
 	return SceneShape.parse({

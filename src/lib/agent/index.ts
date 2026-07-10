@@ -8,6 +8,7 @@ export * from './deterministicMedia.js';
 export * from './inspectScene.js';
 export * from './localRender.js';
 export * from './overlays.js';
+export * from './productionPlan.js';
 export * from './renderPlan.js';
 export * from './renderRanges.js';
 export * from './streamingEncoder.js';

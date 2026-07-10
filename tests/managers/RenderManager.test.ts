@@ -6,7 +6,7 @@ const createComponent = (id: string, data: any, updateImpl?: () => Promise<void>
 	({
 		id,
 		type: data.type,
-	props: {
+		props: {
 			visible: data.visible,
 			timeline: data.timeline,
 			sourceUrl: data.source?.url,
@@ -16,7 +16,40 @@ const createComponent = (id: string, data: any, updateImpl?: () => Promise<void>
 	}) as any;
 
 describe('RenderManager', () => {
-	it('updates near-start media components without reviving distant clips', async () => {
+	it('reasserts every component timeline on every server-rendered frame', async () => {
+		const active = createComponent('active', {
+			type: 'IMAGE',
+			visible: true,
+			timeline: { startAt: 0, endAt: 2 }
+		});
+		const future = createComponent('future', {
+			type: 'IMAGE',
+			visible: true,
+			timeline: { startAt: 10, endAt: 12 }
+		});
+		const stateManager = {
+			currentTime: 1,
+			duration: 20,
+			environment: 'server',
+			markDirty: vi.fn()
+		} as any;
+		const renderManager = new RenderManager({
+			stateManager,
+			componentsManager: { getAll: () => [active, future] } as any,
+			eventManager: { on: vi.fn(), removeEventListener: vi.fn() } as any,
+			appManager: { render: vi.fn() } as any,
+			layersManager: { getAll: () => [] } as any
+		});
+
+		await renderManager.render();
+		stateManager.currentTime = 3;
+		await renderManager.render();
+
+		expect(active.update).toHaveBeenCalledTimes(2);
+		expect(future.update).toHaveBeenCalledTimes(2);
+	});
+
+	it('initializes distant components once to synchronize timeline visibility', async () => {
 		const nearVideo = createComponent('near-video', {
 			type: 'VIDEO',
 			visible: true,
@@ -57,10 +90,11 @@ describe('RenderManager', () => {
 		});
 
 		await renderManager.render();
+		await renderManager.render();
 
-		expect(nearVideo.update).toHaveBeenCalledTimes(1);
-		expect(farVideo.update).not.toHaveBeenCalled();
-		expect(text.update).not.toHaveBeenCalled();
+		expect(nearVideo.update).toHaveBeenCalledTimes(2);
+		expect(farVideo.update).toHaveBeenCalledTimes(1);
+		expect(text.update).toHaveBeenCalledTimes(1);
 	});
 
 	it('does not require getData() for media warm-window checks', async () => {
@@ -139,7 +173,7 @@ describe('RenderManager', () => {
 
 		await renderManager.render();
 
-		expect(outgoing.update).toHaveBeenCalledTimes(0);
+		expect(outgoing.update).toHaveBeenCalledTimes(1);
 		expect(incoming.update).toHaveBeenCalledTimes(1);
 	});
 

@@ -41,6 +41,8 @@ export function createMuxAudioArgs(input) {
         'aac',
         '-b:a',
         '192k',
+        '-af',
+        'apad',
         '-shortest',
         '-movflags',
         '+faststart',

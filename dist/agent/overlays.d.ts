@@ -1,5 +1,5 @@
 import { type ComponentInput, type Scene, type SceneInput } from '../schemas/scene/index.js';
-export type AgentTextOverlayStyle = 'pop-label' | 'shock-word' | 'soft-card' | 'hook-punch' | 'proof-pill' | 'danger-crossout' | 'metric-badge' | 'cta-card';
+export type AgentTextOverlayStyle = 'pop-label' | 'shock-word' | 'soft-card' | 'hook-punch' | 'proof-pill' | 'danger-crossout' | 'metric-badge' | 'verdict-slam' | 'receipt-metric' | 'micro-proof' | 'cta-card';
 export type AgentTextOverlayCue = {
     id?: string;
     text: string;
@@ -19,6 +19,7 @@ export type AgentTextOverlayCue = {
     rotation?: number;
     outlineColor?: string;
     outlineSize?: number;
+    animated?: boolean;
 };
 export type AddAgentTextOverlaysInput = {
     scene: Scene | SceneInput;
@@ -27,5 +28,13 @@ export type AddAgentTextOverlaysInput = {
     layerName?: string;
     layerOrder?: number;
 };
+export type OverlayStyleConfig = Required<Pick<AgentTextOverlayCue, 'x' | 'y' | 'width' | 'height' | 'color' | 'backgroundColor' | 'fontSize' | 'fontFamily' | 'fontWeight' | 'textTransform'>> & {
+    radius: number;
+    shadowBlur: number;
+    rotation: number;
+    outlineColor?: string;
+    outlineSize?: number;
+};
+export declare function resolveAgentOverlayStyle(style: AgentTextOverlayStyle, scene: Scene): OverlayStyleConfig;
 export declare function createAgentTextOverlayComponent(cue: AgentTextOverlayCue, scene: Scene | SceneInput, index?: number): ComponentInput;
 export declare function addAgentTextOverlays(input: AddAgentTextOverlaysInput): Scene;

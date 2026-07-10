@@ -85,9 +85,19 @@ export class RenderManager {
             const wasVisible = this.lastActiveById.get(component.id) === true;
             return { component, shouldBeVisible, shouldPrepareMedia, wasVisible };
         });
-        const toUpdate = entries
-            .filter((e) => e.shouldBeVisible || e.wasVisible || e.shouldPrepareMedia)
-            .map((e) => e.component);
+        // Server output is correctness-first: every display hook reasserts timeline
+        // visibility on every frame. The optimized preview path can otherwise leave
+        // a stale outgoing image visible across a cut in a long frame-range render.
+        const toUpdate = this.state.environment === 'server'
+            ? components
+            : entries
+                // Every component needs one initial update so its display hook can hide it
+                // when the first rendered frame is outside its timeline.
+                .filter((e) => !this.lastActiveById.has(e.component.id) ||
+                e.shouldBeVisible ||
+                e.wasVisible ||
+                e.shouldPrepareMedia)
+                .map((e) => e.component);
         await Promise.all(toUpdate.map((component) => component.update()));
         // Keep one extra tick after the warm window ends so media hooks can release pooled resources.
         for (const e of entries) {

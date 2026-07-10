@@ -35,6 +35,18 @@ video/transcript/assets -> scene.json -> validate -> inspect -> render
 
 Do not require the user to open ContentFries UI for captioning or scene creation.
 
+For authored short-form edits with named beats, exact multi-track audio, source trims, freeze holds, proof cards, and timeline QA, use a production plan instead of raw component JSON:
+
+```bash
+visualfries produce ./production-plan.json \
+  --scene-output ./scene.json \
+  --generated-assets ./generated \
+  --qa-output ./qa \
+  --output ./final.mp4
+```
+
+`produce` is the preferred path for HyperFrames-class edits. It compiles editable plan text into deterministic SVG overlays, extracts freeze frames, segments rendering at timeline event boundaries, mixes audio, writes exact QA frames, and enforces the declared leading-silence limit.
+
 ## First Commands
 
 From a project with `visualfries` installed:
@@ -115,7 +127,8 @@ Contiguous renders use the browser-side `renderFrameRange()` path. Sparse QA scr
 Preferred full agent path:
 
 ```text
-compose
+production plan -> produce   (authored edit)
+compose                       (caption-first video)
 ```
 
 Debug path:
@@ -170,18 +183,18 @@ For Hidden Engine / short-form reaction overlays, use cue files or timed overlay
 
 ```json
 {
-  "broll": [
-    { "url": "./assets/profile-scroll.mp4", "start": 2, "end": 5, "type": "VIDEO" },
-    { "url": "./assets/chart.png", "start": 5, "end": 7, "type": "IMAGE", "motion": "slow-zoom-in" }
-  ],
-  "overlays": [
-    { "text": "LOVE THIS 😍", "start": 0.4, "end": 1.1, "style": "hook-punch" },
-    { "text": "NECK 🤯", "start": 1.1, "end": 1.7, "style": "shock-word" }
-  ],
-  "transitions": [
-    { "time": 2, "style": "dip-to-black" },
-    { "time": 5, "style": "swipe-left", "color": "#04483D" }
-  ]
+	"broll": [
+		{ "url": "./assets/profile-scroll.mp4", "start": 2, "end": 5, "type": "VIDEO" },
+		{ "url": "./assets/chart.png", "start": 5, "end": 7, "type": "IMAGE", "motion": "slow-zoom-in" }
+	],
+	"overlays": [
+		{ "text": "LOVE THIS 😍", "start": 0.4, "end": 1.1, "style": "hook-punch" },
+		{ "text": "NECK 🤯", "start": 1.1, "end": 1.7, "style": "shock-word" }
+	],
+	"transitions": [
+		{ "time": 2, "style": "dip-to-black" },
+		{ "time": 5, "style": "swipe-left", "color": "#04483D" }
+	]
 }
 ```
 
@@ -207,30 +220,34 @@ Starter presets:
 For Node automations:
 
 ```ts
-import { addAgentBrollSequence, addAgentTextOverlays, addAgentTransitions } from 'visualfries/agent';
+import {
+	addAgentBrollSequence,
+	addAgentTextOverlays,
+	addAgentTransitions
+} from 'visualfries/agent';
 
 const sceneWithOverlays = addAgentTextOverlays({
-  scene,
-  overlays: [
-    { text: 'LOVE THIS 😍', start: 0.4, end: 1.1, style: 'pop-label' },
-    { text: 'NECK 🤯', start: 1.1, end: 1.7, style: 'shock-word' }
-  ]
+	scene,
+	overlays: [
+		{ text: 'LOVE THIS 😍', start: 0.4, end: 1.1, style: 'pop-label' },
+		{ text: 'NECK 🤯', start: 1.1, end: 1.7, style: 'shock-word' }
+	]
 });
 
 const sceneWithBroll = addAgentBrollSequence({
-  scene,
-  cues: [
-    { url: './broll/profile.mp4', start: 2.0, end: 5.0, type: 'VIDEO' },
-    { url: './broll/chart.png', start: 5.0, end: 7.0, type: 'IMAGE', motion: 'slow-zoom-in' }
-  ]
+	scene,
+	cues: [
+		{ url: './broll/profile.mp4', start: 2.0, end: 5.0, type: 'VIDEO' },
+		{ url: './broll/chart.png', start: 5.0, end: 7.0, type: 'IMAGE', motion: 'slow-zoom-in' }
+	]
 });
 
 const sceneWithTransitions = addAgentTransitions({
-  scene,
-  transitions: [
-    { time: 2.0, style: 'dip-to-black' },
-    { time: 5.0, style: 'swipe-left', color: '#04483D' }
-  ]
+	scene,
+	transitions: [
+		{ time: 2.0, style: 'dip-to-black' },
+		{ time: 5.0, style: 'swipe-left', color: '#04483D' }
+	]
 });
 ```
 
@@ -256,7 +273,7 @@ For b-roll, use `addAgentBrollSequence` instead of manually creating media layer
 
 B-roll image cues default to subtle `slow-zoom-in`. Available motion values: `none`, `slow-zoom-in`, `slow-zoom-out`, `drift-up`.
 
-For transitions, use `addAgentTransitions` instead of manually creating SHAPE covers. It defaults to layer order `95`, so short transition covers can hide hard cuts. Available styles: `dip-to-black`, `flash`, `swipe-left`, `swipe-up`.
+For transitions, use `addAgentTransitions` instead of manually creating SHAPE covers. It defaults to layer order `95`, so short transition covers can hide hard cuts. Available styles: `dip-to-black`, `flash`, `swipe-left`, `swipe-up`, `focus-pull`.
 
 ## Render Workflow
 
@@ -308,4 +325,4 @@ For caption-only work, `scene.json` plus `inspect.json` is acceptable only when 
 
 ## Current Limitation
 
-The CLI now covers JSON creation, validation, inspection, QA frames, MP4 rendering, captions, b-roll, overlays, simple transitions, cue-file application, starter cue presets, and one-command compose. The remaining gap versus HyperFrames is not basic rendering; it is a richer cookbook/pattern registry for branded overlay packs, b-roll layouts, and reusable short-form templates.
+The CLI covers JSON creation, validation, inspection, production plans, automatic freeze holds, deterministic SVG overlays, exact audio tracks, timeline-segmented MP4 rendering, QA frames, captions, b-roll, transitions, cue files, and one-command compose/produce. The remaining gap versus HyperFrames is a larger branded pattern registry and higher-level reusable templates—not basic production rendering.

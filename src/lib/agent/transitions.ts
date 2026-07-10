@@ -8,7 +8,12 @@ import {
 	type SceneLayerInput
 } from '../schemas/scene/index.js';
 
-export type AgentTransitionStyle = 'dip-to-black' | 'flash' | 'swipe-left' | 'swipe-up';
+export type AgentTransitionStyle =
+	| 'dip-to-black'
+	| 'flash'
+	| 'swipe-left'
+	| 'swipe-up'
+	| 'focus-pull';
 
 export type AgentTransitionCue = {
 	id?: string;
@@ -17,6 +22,7 @@ export type AgentTransitionCue = {
 	style?: AgentTransitionStyle;
 	color?: string;
 	layerOrder?: number;
+	animated?: boolean;
 };
 
 export type AddAgentTransitionsInput = {
@@ -31,6 +37,40 @@ function transitionAnimation(id: string, cue: AgentTransitionCue, scene: Scene):
 	const style = cue.style ?? 'dip-to-black';
 	const duration = cue.duration ?? 0.26;
 	const half = Math.max(0.04, duration / 2);
+
+	if (style === 'focus-pull') {
+		return {
+			id: `${id}-focus-pull`,
+			name: 'Agent transition focus pull',
+			animation: {
+				id: `${id}-focus-pull-preset`,
+				timeline: [
+					{
+						tweens: [
+							{
+								method: 'fromTo',
+								vars: {
+									from: { opacity: 0, scale: 0.82 },
+									duration: half,
+									opacity: 0.82,
+									scale: 1.08,
+									ease: 'power2.in'
+								}
+							}
+						]
+					},
+					{
+						tweens: [
+							{
+								method: 'to',
+								vars: { duration: half, opacity: 0, scale: 1.22, ease: 'power2.out' }
+							}
+						]
+					}
+				]
+			}
+		};
+	}
 
 	if (style === 'swipe-left') {
 		return {
@@ -146,11 +186,11 @@ export function createAgentTransitionComponent(
 			width: parsedScene.settings.width,
 			height: parsedScene.settings.height,
 			opacity: style === 'flash' ? 0 : 1,
-			color: cue.color ?? (style === 'flash' ? '#FFFFFF' : '#000000')
+			color: cue.color ?? (style === 'flash' || style === 'focus-pull' ? '#FFFFFF' : '#000000')
 		},
 		animations: {
-			enabled: true,
-			list: [transitionAnimation(id, cue, parsedScene)]
+			enabled: cue.animated !== false,
+			list: cue.animated === false ? [] : [transitionAnimation(id, cue, parsedScene)]
 		}
 	};
 
@@ -163,7 +203,9 @@ export function addAgentTransitions(input: AddAgentTransitionsInput): Scene {
 		id: input.layerId ?? 'layer-agent-transitions',
 		name: input.layerName ?? 'Agent Transitions',
 		order: input.layerOrder ?? 95,
-		components: input.transitions.map((cue, index) => createAgentTransitionComponent(cue, scene, index))
+		components: input.transitions.map((cue, index) =>
+			createAgentTransitionComponent(cue, scene, index)
+		)
 	};
 
 	return SceneShape.parse({

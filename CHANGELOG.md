@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.13...visualfries-v0.2.0) (2026-07-11)
+
+
+### Features
+
+* **agent:** add deterministic CLI and production-plan rendering ([#39](https://github.com/ContentFries/visualfries/issues/39)) ([0a5a83b](https://github.com/ContentFries/visualfries/commit/0a5a83bd2e6587a11fda5a795545a244c9c039b4))
+
 ## [0.1.13](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.12...visualfries-v0.1.13) (2026-03-23)
 
 

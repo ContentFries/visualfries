@@ -45,6 +45,10 @@ describe('production plan compiler', () => {
 		]);
 		expect(result.scene.layers[0].components[0]).toMatchObject({ type: 'IMAGE' });
 		expect(result.generatedAssets[0]).toContain('.svg');
+		const overlaySvg = await fs.readFile(result.generatedAssets[0], 'utf8');
+		expect(overlaySvg).toContain('font-family="Montserrat, Arial, Helvetica, sans-serif"');
+		expect(overlaySvg).toContain('stroke="#FFFFFF"');
+		expect(overlaySvg).toContain('filter="url(#shadow)"');
 		expect(result.scene.layers[1].components[0].name).toContain('focus-pull');
 		expect(result.qaFrameIndices).toEqual([0, 45, 117]);
 	});

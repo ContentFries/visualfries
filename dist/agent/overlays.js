@@ -9,16 +9,16 @@ export function resolveAgentOverlayStyle(style, scene) {
             width: Math.round(width * 0.86),
             height: Math.round(height * 0.13),
             color: '#FFFFFF',
-            backgroundColor: 'rgba(176, 20, 36, 0.94)',
+            backgroundColor: '#ED1939',
             fontSize: Math.round(width * 0.105),
             fontFamily: 'Montserrat',
             fontWeight: '900',
             textTransform: 'uppercase',
-            radius: 10,
+            radius: 0,
             shadowBlur: 24,
             rotation: -2,
-            outlineColor: '#2A050A',
-            outlineSize: 2
+            outlineColor: '#FFFFFF',
+            outlineSize: 1
         };
     }
     if (style === 'receipt-metric') {
@@ -27,15 +27,17 @@ export function resolveAgentOverlayStyle(style, scene) {
             y: Math.round(height * 0.58),
             width: Math.round(width * 0.8),
             height: Math.round(height * 0.14),
-            color: '#071C17',
-            backgroundColor: '#FFDF5A',
+            color: '#FFFFFF',
+            backgroundColor: '#2854D6',
             fontSize: Math.round(width * 0.1),
             fontFamily: 'Montserrat',
             fontWeight: '900',
             textTransform: 'uppercase',
-            radius: 14,
+            radius: 0,
             shadowBlur: 22,
-            rotation: 1
+            rotation: 0,
+            outlineColor: '#FFFFFF',
+            outlineSize: 1
         };
     }
     if (style === 'micro-proof') {
@@ -80,13 +82,13 @@ export function resolveAgentOverlayStyle(style, scene) {
             y: Math.round(height * 0.12),
             width: Math.round(width * 0.86),
             height: Math.round(height * 0.105),
-            color: '#111827',
-            backgroundColor: '#FFDF5A',
+            color: '#172337',
+            backgroundColor: '#FFC727',
             fontSize: Math.round(width * 0.082),
             fontFamily: 'Montserrat',
             fontWeight: '900',
             textTransform: 'uppercase',
-            radius: 18,
+            radius: 0,
             shadowBlur: 18,
             rotation: -1.5,
             outlineColor: '#FFFFFF',
@@ -133,17 +135,17 @@ export function resolveAgentOverlayStyle(style, scene) {
             y: Math.round(height * 0.115),
             width: Math.round(width * 0.8),
             height: Math.round(height * 0.13),
-            color: '#FFDF5A',
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            color: '#172337',
+            backgroundColor: '#FFC727',
             fontSize: Math.round(width * 0.092),
             fontFamily: 'Montserrat',
             fontWeight: '900',
             textTransform: 'uppercase',
-            radius: 20,
+            radius: 0,
             shadowBlur: 18,
-            rotation: 0,
-            outlineColor: '#04483D',
-            outlineSize: 2
+            rotation: -2,
+            outlineColor: '#FFFFFF',
+            outlineSize: 1
         };
     }
     if (style === 'cta-card') {

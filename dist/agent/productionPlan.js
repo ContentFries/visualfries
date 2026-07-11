@@ -167,16 +167,28 @@ const writeOverlaySvg = async (input) => {
     const width = input.overlay.width ?? defaults.width;
     const height = input.overlay.height ?? defaults.height;
     const fontSize = input.overlay.fontSize ?? defaults.fontSize;
-    const lines = wrapText(input.overlay.text, Math.max(6, Math.floor(width / (fontSize * 0.58))));
+    const displayText = (input.overlay.textTransform ?? defaults.textTransform) === 'uppercase'
+        ? input.overlay.text.toUpperCase()
+        : input.overlay.text;
+    const lines = wrapText(displayText, Math.max(6, Math.floor(width / (fontSize * 0.58))));
     const lineHeight = fontSize * 1.02;
     const firstY = y + height / 2 - ((lines.length - 1) * lineHeight) / 2;
     const outline = input.overlay.outlineColor ?? defaults.outlineColor ?? 'transparent';
     const outlineSize = input.overlay.outlineSize ?? defaults.outlineSize ?? 0;
+    const fontFamily = input.overlay.fontFamily ?? defaults.fontFamily;
+    const fontStack = fontFamily.includes(',')
+        ? fontFamily
+        : `${fontFamily}, Arial, Helvetica, sans-serif`;
     const text = lines
-        .map((line, index) => `<text x="${x + width / 2}" y="${firstY + index * lineHeight}" dominant-baseline="middle" text-anchor="middle" font-family="${escapeXml(input.overlay.fontFamily ?? defaults.fontFamily)}" font-size="${fontSize}" font-weight="${input.overlay.fontWeight ?? defaults.fontWeight}" fill="${escapeXml(input.overlay.color ?? defaults.color)}" stroke="${escapeXml(outline)}" stroke-width="${outlineSize}" paint-order="stroke fill">${escapeXml(line)}</text>`)
+        .map((line, index) => `<text x="${x + width / 2}" y="${firstY + index * lineHeight}" dominant-baseline="middle" text-anchor="middle" font-family="${escapeXml(fontStack)}" font-size="${fontSize}" font-weight="${input.overlay.fontWeight ?? defaults.fontWeight}" fill="${escapeXml(input.overlay.color ?? defaults.color)}" stroke="${escapeXml(outline)}" stroke-width="${outlineSize}" paint-order="stroke fill">${escapeXml(line)}</text>`)
         .join('');
     const rotation = input.overlay.rotation ?? defaults.rotation;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${input.scene.settings.width}" height="${input.scene.settings.height}" viewBox="0 0 ${input.scene.settings.width} ${input.scene.settings.height}"><g transform="rotate(${rotation} ${x + width / 2} ${y + height / 2})"><rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${defaults.radius}" fill="${escapeXml(input.overlay.backgroundColor ?? defaults.backgroundColor)}"/>${text}</g></svg>`;
+    const editorialCard = ['metric-badge', 'verdict-slam', 'hook-punch', 'receipt-metric'].includes(input.overlay.style ?? 'pop-label');
+    const background = input.overlay.backgroundColor ?? defaults.backgroundColor;
+    const transparentBackground = background === 'transparent' || background.endsWith(', 0)');
+    const border = editorialCard ? '#FFFFFF' : 'transparent';
+    const borderWidth = editorialCard ? Math.max(4, Math.round(width * 0.006)) : 0;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${input.scene.settings.width}" height="${input.scene.settings.height}" viewBox="0 0 ${input.scene.settings.width} ${input.scene.settings.height}"><defs><filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="10" dy="14" stdDeviation="${Math.max(2, defaults.shadowBlur / 4)}" flood-color="#111C2D" flood-opacity="0.72"/></filter></defs><g${transparentBackground ? '' : ' filter="url(#shadow)"'} transform="rotate(${rotation} ${x + width / 2} ${y + height / 2})"><rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${defaults.radius}" fill="${escapeXml(background)}" stroke="${border}" stroke-width="${borderWidth}"/>${text}</g></svg>`;
     await fs.mkdir(path.dirname(input.output), { recursive: true });
     await fs.writeFile(input.output, `${svg}\n`, 'utf8');
 };

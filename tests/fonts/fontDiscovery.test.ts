@@ -73,7 +73,9 @@ describe('font discovery', () => {
 		expect(ralewayWeights).toEqual([300, 400, 500, 700, 900]);
 		expect(interWeights).toEqual([400, 700, 800]);
 		expect(
-			variants.filter((variant) => variant.family === 'Raleway').every((variant) => variant.source === 'google')
+			variants
+				.filter((variant) => variant.family === 'Raleway')
+				.every((variant) => variant.source === 'google')
 		).toBe(true);
 	});
 
@@ -129,5 +131,29 @@ describe('font discovery', () => {
 				fileUrl: 'https://cdn.example.com/fonts/brand-sans.woff2'
 			}
 		]);
+	});
+
+	it('skips blank utility text components that do not render glyphs', () => {
+		const scene = createBaseScene();
+		scene.layers = [
+			{
+				id: 'transition-layer',
+				order: 0,
+				visible: true,
+				muted: false,
+				components: [
+					{
+						id: 'transition-cover',
+						type: 'TEXT',
+						text: '',
+						appearance: {
+							text: { fontFamily: 'Arial', fontWeight: '400' }
+						}
+					}
+				]
+			}
+		];
+
+		expect(discoverRequiredFontVariants(scene, [])).toEqual([]);
 	});
 });

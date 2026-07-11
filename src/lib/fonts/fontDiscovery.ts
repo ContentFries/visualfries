@@ -150,7 +150,10 @@ const createConfiguredLookup = (configuredFonts: ParsedConfiguredFont[]) => {
 	return lookup;
 };
 
-const upsertVariant = (variants: Map<string, FontVariantDescriptor>, variant: FontVariantDescriptor) => {
+const upsertVariant = (
+	variants: Map<string, FontVariantDescriptor>,
+	variant: FontVariantDescriptor
+) => {
 	const key = `${variant.family.toLowerCase()}::${variant.weight}`;
 	const existing = variants.get(key);
 	if (!existing) {
@@ -178,7 +181,8 @@ const collectComponentTextVariants = (
 	}
 
 	const family =
-		normalizeFamily(textAppearance.fontFamily) ?? normalizeFamily(textAppearance.fontSource?.family);
+		normalizeFamily(textAppearance.fontFamily) ??
+		normalizeFamily(textAppearance.fontSource?.family);
 	if (!family) {
 		return;
 	}
@@ -228,7 +232,9 @@ const collectComponentTextVariants = (
 	}
 };
 
-export const extractConfiguredFontVariants = (configuredFonts: FontType[] = []): FontVariantDescriptor[] => {
+export const extractConfiguredFontVariants = (
+	configuredFonts: FontType[] = []
+): FontVariantDescriptor[] => {
 	const variants = new Map<string, FontVariantDescriptor>();
 	const parsedFonts = parseConfiguredFonts(configuredFonts);
 
@@ -257,6 +263,13 @@ export const discoverRequiredFontVariants = (
 	for (const layer of sceneData.layers ?? []) {
 		for (const component of layer.components ?? []) {
 			if (component.type !== 'TEXT' && component.type !== 'SUBTITLES') {
+				continue;
+			}
+			if (
+				component.type === 'TEXT' &&
+				typeof component.text === 'string' &&
+				!component.text.trim()
+			) {
 				continue;
 			}
 			collectComponentTextVariants(component, configuredLookup, variants);

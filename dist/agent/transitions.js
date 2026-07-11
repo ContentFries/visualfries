@@ -17,7 +17,7 @@ function transitionAnimation(id, cue, scene) {
                                 vars: {
                                     from: { opacity: 0, scale: 0.82 },
                                     duration: half,
-                                    opacity: 0.82,
+                                    opacity: 0.42,
                                     scale: 1.08,
                                     ease: 'power2.in'
                                 }
@@ -127,11 +127,8 @@ export function createAgentTransitionComponent(cue, scene, index = 0) {
     const component = {
         id,
         name: `Agent Transition: ${style}`,
-        type: 'SHAPE',
-        shape: {
-            type: 'rectangle',
-            cornerRadius: 0
-        },
+        type: 'TEXT',
+        text: '',
         timeline: {
             startAt: Math.max(0, cue.time - duration / 2),
             endAt: cue.time + duration / 2
@@ -142,8 +139,25 @@ export function createAgentTransitionComponent(cue, scene, index = 0) {
             y: 0,
             width: parsedScene.settings.width,
             height: parsedScene.settings.height,
-            opacity: style === 'flash' ? 0 : 1,
-            color: cue.color ?? (style === 'flash' || style === 'focus-pull' ? '#FFFFFF' : '#000000')
+            opacity: 1,
+            horizontalAlign: 'center',
+            verticalAlign: 'center',
+            background: {
+                enabled: true,
+                target: 'wrapper',
+                radius: 0,
+                color: cue.animated === false
+                    ? 'transparent'
+                    : (cue.color ?? (style === 'flash' || style === 'focus-pull' ? '#FFFFFF' : '#000000'))
+            },
+            text: {
+                fontFamily: 'Arial',
+                fontSize: { value: 1, unit: 'px' },
+                fontWeight: '400',
+                color: 'transparent',
+                textAlign: 'center',
+                textTransform: 'none'
+            }
         },
         animations: {
             enabled: cue.animated !== false,

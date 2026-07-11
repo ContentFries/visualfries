@@ -128,7 +128,8 @@ const collectComponentTextVariants = (component, configuredLookup, output) => {
     if (!textAppearance) {
         return;
     }
-    const family = normalizeFamily(textAppearance.fontFamily) ?? normalizeFamily(textAppearance.fontSource?.family);
+    const family = normalizeFamily(textAppearance.fontFamily) ??
+        normalizeFamily(textAppearance.fontSource?.family);
     if (!family) {
         return;
     }
@@ -189,6 +190,11 @@ export const discoverRequiredFontVariants = (sceneData, configuredFonts = []) =>
     for (const layer of sceneData.layers ?? []) {
         for (const component of layer.components ?? []) {
             if (component.type !== 'TEXT' && component.type !== 'SUBTITLES') {
+                continue;
+            }
+            if (component.type === 'TEXT' &&
+                typeof component.text === 'string' &&
+                !component.text.trim()) {
                 continue;
             }
             collectComponentTextVariants(component, configuredLookup, variants);

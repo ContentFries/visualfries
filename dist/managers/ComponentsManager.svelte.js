@@ -58,7 +58,7 @@ export class ComponentsManager {
             component.refresh(refreshType);
         }
     }
-    async update(componentId, data, refreshType = 'refresh') {
+    update(componentId, data, refreshType = 'refresh') {
         const component = this.get(componentId);
         if (component) {
             component.props.updateAppearance(data);

@@ -17,9 +17,14 @@ export class ComponentState {
     }
     maybeAutoRefresh() {
         if (this.refreshCallback) {
-            this.refreshCallback().catch((error) => {
+            try {
+                this.refreshCallback().catch((error) => {
+                    console.warn('Auto-refresh callback failed:', error);
+                });
+            }
+            catch (error) {
                 console.warn('Auto-refresh callback failed:', error);
-            });
+            }
         }
     }
     get id() {

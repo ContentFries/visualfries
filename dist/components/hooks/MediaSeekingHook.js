@@ -41,7 +41,6 @@ export class MediaSeekingHook {
             if (detached)
                 return;
             const mediaTime = parseFloat(media.currentTime.toFixed(3));
-            console.log('seeking', mediaTime);
             if (!seekStatus.isSeeking && seekStatus.start != mediaTime) {
                 seekStatus.start = mediaTime;
                 seekStatus.end = null;
@@ -187,11 +186,9 @@ export class MediaSeekingHook {
                 const largeJump = Math.abs(media.currentTime - seekTo) > 2 / fps;
                 if (typeof media.fastSeek === 'function' && largeJump) {
                     media.fastSeek(seekTo);
-                    console.log('fastseek', seekTo);
                 }
                 else {
                     media.currentTime = seekTo;
-                    console.log('currentTime', seekTo);
                 }
                 // Await seek completion using a robust multi-attempt strategy similar to Remotion
                 await new Promise((resolve) => {
@@ -201,9 +198,7 @@ export class MediaSeekingHook {
                     const check = () => {
                         const fps = this.state.data.settings.fps || 30;
                         const desiredFrame = Math.round(seekTo * fps);
-                        console.log('desiredFrame', desiredFrame);
                         const currFrame = Math.round(media.currentTime * fps);
-                        console.log('currFrame', currFrame);
                         if (desiredFrame === currFrame && media.readyState >= 2) {
                             return resolve();
                         }
@@ -230,11 +225,9 @@ export class MediaSeekingHook {
                     const baseTex = tex?.baseTexture;
                     if (baseTex?.resource && typeof baseTex.resource.update === 'function') {
                         baseTex.resource.update();
-                        console.log('pixiTexture updated');
                     }
                     else if (typeof baseTex?.update === 'function') {
                         baseTex.update();
-                        console.log('pixiTexture updated 2');
                     }
                 }
                 catch { }

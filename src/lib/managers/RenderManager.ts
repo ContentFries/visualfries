@@ -14,8 +14,8 @@ export class RenderManager {
 	private eventManager: EventManager;
 	private appManager: AppManager;
 	private layersManager: LayersManager;
-		// Track last prepared/visible state so media hooks get one final update to release resources.
-		private lastActiveById: Map<string, boolean> = new Map();
+	// Track last prepared/visible state so media hooks get one final update to release resources.
+	private lastActiveById: Map<string, boolean> = new Map();
 	private lastRenderTime: number = -1;
 	private renderInFlight: Promise<void> | null = null;
 	private rerenderRequested = false;
@@ -92,32 +92,45 @@ export class RenderManager {
 			shouldBeVisible: boolean;
 			shouldPrepareMedia: boolean;
 			wasVisible: boolean;
-		}> =
-			components.map((component: IComponent) => {
-				const startAt = component.props.timeline.startAt ?? 0;
-				const endAt = component.props.timeline.endAt ?? this.state.duration;
-				const isVisibleByTime = isTimeWithinTimeline(currentTime, startAt, endAt);
-				const isExplicitlyVisible = component.props.visible !== false;
-				const shouldBeVisible = isVisibleByTime && isExplicitlyVisible;
-				const shouldPrepareMedia =
-					component.type === 'VIDEO' || component.type === 'AUDIO'
-						? shouldPrepareMediaAtTime(
-								{
-									type: component.type,
-									visible: component.props.visible,
-									timeline: component.props.timeline,
-									source: { url: component.props.sourceUrl }
-								},
-								currentTime
-							)
-						: false;
-				const wasVisible = this.lastActiveById.get(component.id) === true;
-				return { component, shouldBeVisible, shouldPrepareMedia, wasVisible };
-			});
+		}> = components.map((component: IComponent) => {
+			const startAt = component.props.timeline.startAt ?? 0;
+			const endAt = component.props.timeline.endAt ?? this.state.duration;
+			const isVisibleByTime = isTimeWithinTimeline(currentTime, startAt, endAt);
+			const isExplicitlyVisible = component.props.visible !== false;
+			const shouldBeVisible = isVisibleByTime && isExplicitlyVisible;
+			const shouldPrepareMedia =
+				component.type === 'VIDEO' || component.type === 'AUDIO'
+					? shouldPrepareMediaAtTime(
+							{
+								type: component.type,
+								visible: component.props.visible,
+								timeline: component.props.timeline,
+								source: { url: component.props.sourceUrl }
+							},
+							currentTime
+						)
+					: false;
+			const wasVisible = this.lastActiveById.get(component.id) === true;
+			return { component, shouldBeVisible, shouldPrepareMedia, wasVisible };
+		});
 
-		const toUpdate: IComponent[] = entries
-			.filter((e) => e.shouldBeVisible || e.wasVisible || e.shouldPrepareMedia)
-			.map((e) => e.component);
+		// Server output is correctness-first: every display hook reasserts timeline
+		// visibility on every frame. The optimized preview path can otherwise leave
+		// a stale outgoing image visible across a cut in a long frame-range render.
+		const toUpdate: IComponent[] =
+			this.state.environment === 'server'
+				? components
+				: entries
+						// Every component needs one initial update so its display hook can hide it
+						// when the first rendered frame is outside its timeline.
+						.filter(
+							(e) =>
+								!this.lastActiveById.has(e.component.id) ||
+								e.shouldBeVisible ||
+								e.wasVisible ||
+								e.shouldPrepareMedia
+						)
+						.map((e) => e.component);
 
 		await Promise.all(toUpdate.map((component) => component.update()));
 

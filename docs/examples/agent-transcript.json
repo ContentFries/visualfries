@@ -1,0 +1,23 @@
+{
+	"segments": [
+		{
+			"id": "s1",
+			"text": "Your content is free therapy for people who will never buy.",
+			"start": 0,
+			"end": 2.8,
+			"words": [
+				{ "text": "Your", "start": 0, "end": 0.2 },
+				{ "text": "content", "start": 0.2, "end": 0.55 },
+				{ "text": "is", "start": 0.55, "end": 0.7 },
+				{ "text": "free", "start": 0.7, "end": 1.05 },
+				{ "text": "therapy", "start": 1.05, "end": 1.5 },
+				{ "text": "for", "start": 1.5, "end": 1.68 },
+				{ "text": "people", "start": 1.68, "end": 2.0 },
+				{ "text": "who", "start": 2.0, "end": 2.15 },
+				{ "text": "will", "start": 2.15, "end": 2.32 },
+				{ "text": "never", "start": 2.32, "end": 2.55 },
+				{ "text": "buy.", "start": 2.55, "end": 2.8 }
+			]
+		}
+	]
+}

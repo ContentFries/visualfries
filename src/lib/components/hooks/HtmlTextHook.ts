@@ -1,9 +1,4 @@
-import type {
-	IComponentContext,
-	IComponentHook,
-	HookType,
-	HookHandlers
-} from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
 import type { DomManager } from '$lib/managers/DomManager.js';
 import type { ComponentsManager } from '$lib/managers/ComponentsManager.svelte.js';
 import { HtmlBuilderFactory } from '$lib/builders/html/HtmlBuilderFactory.js';
@@ -54,6 +49,7 @@ export class HtmlTextHook implements IComponentHook {
 			return;
 		}
 
+		const componentData = this.#context.contextData;
 		this.#currentId = this.#context.contextData.id;
 		const comp = this.componentsManager.get(this.#context.contextData.id);
 
@@ -72,8 +68,17 @@ export class HtmlTextHook implements IComponentHook {
 		// Store references in the context for other hooks
 		this.#context.setResource('wrapperHtmlEl', this.#wrapperEl);
 		this.#context.setResource('htmlEl', this.#htmlEl);
-		// for texts we need to target this, but if we animate scale, position etc. we should target parent
-		this.#context.setResource('animationTarget', this.#htmlEl);
+		const background =
+			componentData.type === 'TEXT' ? componentData.appearance.background : undefined;
+		const animateWrapper =
+			background &&
+			typeof background === 'object' &&
+			'enabled' in background &&
+			background.enabled &&
+			background.target === 'wrapper';
+		// Card/background animations must target the wrapper. Animating only the text leaves the
+		// wrapper background fully opaque, which can create blank transition frames.
+		this.#context.setResource('animationTarget', animateWrapper ? this.#wrapperEl : this.#htmlEl);
 
 		// Add to DOM if not already present
 		const hasEl = this.domManager.htmlContainer.querySelector('#' + this.#wrapperEl.id);

@@ -1,7 +1,7 @@
 export class TimeManager {
     fps = $state(30); // Default
     duration = $state(0);
-    static FRAME_EPSILON = 1e-9;
+    static FRAME_EPSILON = 1e-4;
     getFrameIndex(time, mode = 'nearest', skipDurationCheck = false) {
         let adjustedTime = Math.max(time, 0);
         if (!skipDurationCheck) {
@@ -21,12 +21,11 @@ export class TimeManager {
         return frameTime;
     }
     transformTime(time, skipDurationCheck = false) {
-        const frame = this.getFrameIndex(time, 'nearest', skipDurationCheck);
+        const frame = this.getFrameIndex(time, 'current', skipDurationCheck);
         return this.getTimeForFrame(frame, skipDurationCheck);
     }
     getCurrentFrameTime(time, skipDurationCheck = false) {
-        const frame = this.getFrameIndex(time, 'nearest', skipDurationCheck);
-        return this.getTimeForFrame(frame, skipDurationCheck);
+        return this.transformTime(time, skipDurationCheck);
     }
     updateTimeConfig(newFps, newDuration) {
         this.fps = newFps;

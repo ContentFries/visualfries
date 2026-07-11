@@ -263,7 +263,7 @@ export class PixiSplitScreenDisplayObjectHook {
             return false;
         return true;
     }
-    #needsRebuild(currentTexture) {
+    #needsRebuild() {
         // No display object yet — needs initial build (handled by creation path)
         if (!this.#displayObject)
             return false;
@@ -273,11 +273,17 @@ export class PixiSplitScreenDisplayObjectHook {
         // Display object lost its children (shouldn't happen, but defensive)
         if (this.#displayObject.children.length === 0)
             return true;
-        // Current context texture differs and old one is gone
-        if (currentTexture && currentTexture !== this.#pixiTexture && !this.#isTextureValid(this.#pixiTexture)) {
-            return true;
-        }
         return false;
+    }
+    #destroyChildren() {
+        const removed = this.#displayObject.removeChildren();
+        if (Array.isArray(removed)) {
+            for (const child of removed) {
+                if (typeof child.destroy === 'function') {
+                    child.destroy({ children: true });
+                }
+            }
+        }
     }
     #rebuild(texture) {
         this.#mainSprite = undefined;
@@ -285,7 +291,7 @@ export class PixiSplitScreenDisplayObjectHook {
         this.#bgSprite = undefined;
         this.#lastBlurFrameKey = '';
         this.#pixiTexture = texture;
-        this.#displayObject.removeChildren();
+        this.#destroyChildren();
         this.#initDisplayObject();
     }
     async #handleUpdate() {
@@ -294,7 +300,7 @@ export class PixiSplitScreenDisplayObjectHook {
             const currentTexture = this.#context.getResource('pixiTexture');
             // Auto-heal: if the tracked texture is destroyed or children are missing,
             // rebuild the display object from the current valid texture.
-            if (this.#needsRebuild(currentTexture)) {
+            if (this.#needsRebuild()) {
                 if (currentTexture && this.#isTextureValid(currentTexture)) {
                     this.#rebuild(currentTexture);
                 }
@@ -305,7 +311,7 @@ export class PixiSplitScreenDisplayObjectHook {
                     return;
                 }
             }
-            else if (currentTexture && currentTexture !== this.#pixiTexture) {
+            else if (currentTexture && currentTexture !== this.#pixiTexture && this.#isTextureValid(currentTexture)) {
                 // Texture swaps are frequent in deterministic mode; update sprite textures
                 // in-place instead of rebuilding split/blur geometry each frame.
                 this.#swapDisplayTexture(currentTexture);
@@ -349,7 +355,7 @@ export class PixiSplitScreenDisplayObjectHook {
             await this.#handleDestroy();
             this.#pixiTexture = currentTexture;
             if (this.#displayObject) {
-                this.#displayObject.removeChildren();
+                this.#destroyChildren();
                 this.#initDisplayObject();
             }
         }
@@ -357,7 +363,7 @@ export class PixiSplitScreenDisplayObjectHook {
             // Same texture - just update sprite properties (position, size, etc.)
             // For split screen, we may need to rebuild if effects changed
             // For now, trigger a full rebuild on refresh
-            this.#displayObject.removeChildren();
+            this.#destroyChildren();
             if (currentTexture) {
                 this.#pixiTexture = currentTexture;
                 this.#initDisplayObject();

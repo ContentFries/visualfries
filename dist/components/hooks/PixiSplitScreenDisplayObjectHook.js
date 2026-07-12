@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js-legacy';
 import { ImageComponentShape, LayoutSplitEffectShape, VideoComponentShape } from '../..';
 import { z } from 'zod';
+import { createPixiAnimationTarget } from '../../animations/PixiAnimationTarget.js';
 export class PixiSplitScreenDisplayObjectHook {
     types = ['update', 'destroy', 'refresh', 'refresh:content'];
     #handlers = {
@@ -16,6 +17,7 @@ export class PixiSplitScreenDisplayObjectHook {
     #pixiTexture;
     #displayObject;
     #mainSprite = undefined;
+    #animationTarget = undefined;
     #bgCanvas = undefined;
     #bgSprite = undefined;
     #blurStrength = 50;
@@ -231,6 +233,22 @@ export class PixiSplitScreenDisplayObjectHook {
         }
         this.initMainSprite();
     }
+    #publishAnimationTarget() {
+        if (!this.#displayObject)
+            return;
+        const animations = this.#context.data.animations;
+        if (!animations?.enabled || !animations.list?.length)
+            return;
+        if (!this.#animationTarget) {
+            const appearance = this.#context.data.appearance;
+            const centerX = appearance.x + appearance.width / 2;
+            const centerY = appearance.y + appearance.height / 2;
+            this.#displayObject.pivot.set(centerX, centerY);
+            this.#displayObject.position.set(centerX, centerY);
+            this.#animationTarget = createPixiAnimationTarget(this.#displayObject, () => this.sceneState.markDirty());
+        }
+        this.#context.setResource('animationTarget', this.#animationTarget);
+    }
     #swapDisplayTexture(nextTexture) {
         if (!this.#displayObject) {
             return;
@@ -329,6 +347,7 @@ export class PixiSplitScreenDisplayObjectHook {
             }
             // Always re-assert the resource in case the context was cleared or updated
             this.#context.setResource('pixiRenderObject', this.#displayObject);
+            this.#publishAnimationTarget();
             if (this.#displayObject.visible != isActive) {
                 this.#displayObject.visible = isActive;
             }
@@ -346,6 +365,7 @@ export class PixiSplitScreenDisplayObjectHook {
         this.#displayObject = new PIXI.Container();
         this.#initDisplayObject();
         this.#context.setResource('pixiRenderObject', this.#displayObject);
+        this.#publishAnimationTarget();
     }
     async #handleRefresh() {
         const currentTexture = this.#context.getResource('pixiTexture');
@@ -376,6 +396,8 @@ export class PixiSplitScreenDisplayObjectHook {
         this.#bgCanvas = undefined;
         this.#bgSprite = undefined;
         this.#lastBlurFrameKey = '';
+        this.#animationTarget = undefined;
+        this.#context.removeResource('animationTarget');
     }
     async handle(type, context) {
         this.#context = context;

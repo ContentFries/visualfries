@@ -199,7 +199,7 @@ The hook`,
 		);
 	});
 
-	it('adds validated transition cues as full-frame shape overlays', () => {
+	it('adds validated transition cues as full-frame background-backed text overlays', () => {
 		const scene = createCaptionScene({
 			video: { url: 'https://example.com/input.mp4' },
 			transcript: [{ text: 'Transition test', start: 0, end: 2 }]
@@ -218,8 +218,8 @@ The hook`,
 		expect(transitionLayer?.id).toBe('layer-agent-transitions');
 		expect(transitionLayer?.order).toBe(95);
 		expect(transitionLayer?.components.map((component) => component.type)).toEqual([
-			'SHAPE',
-			'SHAPE'
+			'TEXT',
+			'TEXT'
 		]);
 		expect(transitionLayer?.components[0].animations?.list?.[0]?.animation).toBeTruthy();
 	});

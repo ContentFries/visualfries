@@ -61,6 +61,11 @@
 			"types": "./dist/agent/index.d.ts",
 			"import": "./dist/agent/index.js",
 			"default": "./dist/agent/index.js"
+		},
+		"./browser": {
+			"types": "./dist/browser/index.d.ts",
+			"import": "./dist/browser/index.js",
+			"default": "./dist/browser/index.js"
 		}
 	},
 	"peerDependencies": {
@@ -120,6 +125,7 @@
 		"gsap": "^3.13.0",
 		"hls.js": "^1.5.17",
 		"lodash-es": "^4.17.21",
+		"mediabunny": "1.49.0",
 		"pixi.js-legacy": "^7.4.3",
 		"tinycolor2": "^1.6.0",
 		"uuid": "^10.0.0",

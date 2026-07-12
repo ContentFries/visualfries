@@ -4,6 +4,7 @@ import type { ComponentsManager } from '../../managers/ComponentsManager.svelte.
 import type { LayersManager } from '../../managers/LayersManager.svelte.js';
 import type { SubtitlesManager } from '../../managers/SubtitlesManager.svelte.js';
 import type { EventManager } from '../../managers/EventManager.js';
+import type { PixiAnimationTarget } from '../../animations/PixiAnimationTarget.js';
 import type { Component as SceneLayerComponent, ComponentBase, AppearanceInput, Scene, RenderEnvironment, ComponentInput, SceneLayerInput, SceneLayer, VideoComponentShape, ImageComponentShape, GifComponentShape, Subtitle } from '../..';
 import type { DeterministicMediaConfig, DeterministicFrameProvider, DeterministicDiagnosticsReport, FrameImageEncodingOptions, RenderFrameRangeOptions, RenderFrameRangeSummary } from './deterministic.js';
 declare const SCENE_LAYER_COMPONENT_TYPE: readonly ["IMAGE", "GIF", "VIDEO", "TEXT", "SHAPE", "AUDIO", "COLOR", "GRADIENT", "SUBTITLES"];
@@ -195,7 +196,7 @@ export interface ResourceTypes {
     pixiContainer: Container | undefined;
     wrapperHtmlEl: HTMLElement | undefined;
     htmlEl: HTMLElement | undefined;
-    animationTarget: HTMLElement | Container | undefined;
+    animationTarget: HTMLElement | Container | PixiAnimationTarget | undefined;
     animationData: Record<string, any> | undefined;
     pixiRenderObject: Container | undefined;
     htmlRenderObject: HTMLDivElement | undefined;
@@ -247,7 +248,7 @@ export interface SceneBuilder {
     readonly components: ComponentsManager;
     readonly subtitles: SubtitlesManager;
     readonly htmlContainer: HTMLElement;
-    readonly canvasContainer: HTMLElement;
+    readonly canvasContainer: HTMLCanvasElement;
     readonly disabledTimeZones: Zone[];
     syncChanges: () => void;
     addExcludedTimestamp(start: number, end: number): void;

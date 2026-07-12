@@ -9,7 +9,9 @@ type MockComponent = {
 	context: {
 		data: { effects: { map: Record<string, unknown> } };
 		isActive: boolean;
-		getResource: (key: 'pixiTexture' | 'pixiRenderObject' | 'videoElement' | 'imageElement') => unknown;
+		getResource: (
+			key: 'pixiTexture' | 'pixiRenderObject' | 'videoElement' | 'imageElement'
+		) => unknown;
 		setResource: (key: string, value: unknown) => void;
 	};
 };
@@ -50,6 +52,47 @@ describe('SeekCommand deterministic readiness', () => {
 			recordExtraRenderPass: vi.fn(),
 			...overrides
 		}) as any;
+
+	it('does not resolve a client seek before the preview render settles', async () => {
+		const state = { environment: 'client', duration: 10, state: 'paused', currentTime: 0 } as any;
+		const timeline = {
+			seek: vi.fn((time: number) => {
+				state.currentTime = time;
+			})
+		} as any;
+		let finishFirstRender: (() => void) | undefined;
+		let renderCalls = 0;
+		const renderManager = {
+			render: vi.fn(() => {
+				renderCalls += 1;
+				if (renderCalls > 1) return Promise.resolve();
+				return new Promise<void>((resolve) => {
+					finishFirstRender = resolve;
+				});
+			})
+		} as any;
+		const command = new SeekCommand({
+			timelineManager: timeline,
+			stateManager: state,
+			renderManager,
+			componentsManager: { getAll: () => [] } as any,
+			deterministicMediaManager: createDeterministicManagerMock({ isEnabled: () => false })
+		});
+
+		let settled = false;
+		const seek = command.execute({ time: 2 }).then(() => {
+			settled = true;
+		});
+		await Promise.resolve();
+		expect(settled).toBe(false);
+		expect(state.currentTime).toBe(2);
+
+		finishFirstRender?.();
+		await seek;
+		expect(settled).toBe(true);
+		expect(timeline.seek).toHaveBeenCalledTimes(2);
+		expect(renderManager.render).toHaveBeenCalledTimes(2);
+	});
 
 	it('prepares first active split frame without external warmup loop', async () => {
 		const state = { environment: 'server', duration: 10, state: 'paused', currentTime: 0 } as any;
@@ -243,7 +286,9 @@ describe('SeekCommand deterministic readiness', () => {
 		try {
 			await expect(command.execute({ time: 1 })).resolves.toBeUndefined();
 			expect(warnSpy).toHaveBeenCalledWith(
-				expect.stringContaining('Deterministic media was not ready after seek for active components')
+				expect.stringContaining(
+					'Deterministic media was not ready after seek for active components'
+				)
 			);
 		} finally {
 			warnSpy.mockRestore();
@@ -300,7 +345,7 @@ describe('SeekCommand deterministic readiness', () => {
 			renderManager: {
 				render: vi.fn(async () => {
 					renderCalls += 1;
-					if (renderCalls >= 2) {
+					if (renderCalls >= 3) {
 						component.context.setResource('pixiTexture', { id: 'tex-floor' });
 						component.context.setResource('pixiRenderObject', { id: 'obj-floor' });
 					}
@@ -409,7 +454,7 @@ describe('SeekCommand deterministic readiness', () => {
 		});
 
 		await expect(command.execute({ time: 0 })).resolves.toBeUndefined();
-		expect(renders).toBe(2);
+		expect(renders).toBe(3);
 		expect(deterministicMediaManager.recordExtraRenderPass).toHaveBeenCalledTimes(1);
 	});
 

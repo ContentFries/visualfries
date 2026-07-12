@@ -15,6 +15,9 @@ export declare class RenderManager {
     private lastRenderTime;
     private renderInFlight;
     private rerenderRequested;
+    private readonly boundHandleBeforeRender;
+    private readonly boundRender;
+    private readonly boundHandleChangeState;
     constructor(cradle: {
         stateManager: StateManager;
         componentsManager: ResourceManager<IComponent, ComponentData, AppearanceInput>;

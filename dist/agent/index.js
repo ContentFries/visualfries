@@ -1,6 +1,7 @@
 export * from './audioMixer.js';
 export * from './broll.js';
 export * from './catalog.js';
+export * from './capabilities.js';
 export * from './captionScene.js';
 export * from './cueFiles.js';
 export * from './cuePresets.js';
@@ -9,6 +10,7 @@ export * from './inspectScene.js';
 export * from './localRender.js';
 export * from './overlays.js';
 export * from './productionPlan.js';
+export * from './runtimeSupport.js';
 export * from './renderPlan.js';
 export * from './renderRanges.js';
 export * from './streamingEncoder.js';

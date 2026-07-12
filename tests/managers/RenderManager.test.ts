@@ -16,6 +16,27 @@ const createComponent = (id: string, data: any, updateImpl?: () => Promise<void>
 	}) as any;
 
 describe('RenderManager', () => {
+	it('detaches the exact callback identities registered at construction', () => {
+		const listeners = new Map<string, unknown>();
+		const removeEventListener = vi.fn();
+		const renderManager = new RenderManager({
+			stateManager: {} as any,
+			componentsManager: { getAll: () => [] } as any,
+			eventManager: {
+				on: vi.fn((event: string, callback: unknown) => listeners.set(event, callback)),
+				removeEventListener
+			} as any,
+			appManager: { render: vi.fn() } as any,
+			layersManager: { getAll: () => [] } as any
+		});
+
+		renderManager.destroy();
+
+		for (const [event, callback] of listeners) {
+			expect(removeEventListener).toHaveBeenCalledWith(event, callback);
+		}
+	});
+
 	it('reasserts every component timeline on every server-rendered frame', async () => {
 		const active = createComponent('active', {
 			type: 'IMAGE',

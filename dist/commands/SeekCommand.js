@@ -54,7 +54,8 @@ export class SeekCommand {
                 continue;
             }
             if (this.#hasBlurEffect(component)) {
-                const sourceElement = component.context.getResource('videoElement') || component.context.getResource('imageElement');
+                const sourceElement = component.context.getResource('videoElement') ||
+                    component.context.getResource('imageElement');
                 if (!sourceElement) {
                     pending.push(component.id);
                 }
@@ -133,6 +134,16 @@ export class SeekCommand {
         }
         const time = Math.max(0, Math.min(check.data.time, this.state.duration));
         this.timeline.seek(time);
+        // Timeline events start rendering asynchronously. Await the shared render queue
+        // on clients so seek() is a frame-readiness boundary for preview captures.
+        if (this.state.environment !== 'server') {
+            await this.renderManager.render();
+            // Components may attach animation timelines during their first active update.
+            // Re-seek after construction, then render the authored state before resolving.
+            this.timeline.seek(time);
+            await this.renderManager.render();
+            return;
+        }
         // Ensure a deterministic render on server after seek to advance media frames
         if (this.state.environment === 'server') {
             const deterministicEnabled = this.deterministicMediaManager.isEnabled();
@@ -156,11 +167,9 @@ export class SeekCommand {
             // This fixes the race condition where subtitle animations are added
             // AFTER the initial seek, causing them to miss their initial state.
             this.timeline.seek(time);
+            await this.renderManager.render();
             if (deterministicEnabled) {
                 await this.#renderUntilDeterministicReady();
-            }
-            else {
-                await this.renderManager.render();
             }
         }
     }

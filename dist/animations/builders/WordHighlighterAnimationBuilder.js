@@ -39,13 +39,26 @@ export class WordHighlighterAnimationBuilder {
         return animations;
     }
     static prepareHighlightStyles(config) {
-        const { activeWord, data } = config;
-        const highlightStyles = ColorTransformer.transform(activeWord.color, 'text');
+        const { activeWord, data, animationData } = config;
+        const solidPalette = (data.appearance.text?.highlightColors ?? []).filter((color) => typeof color === 'string');
+        const highlightStyles = solidPalette.length > 0
+            ? {
+                color: { fromData: 'highlightColors', mode: 'cycle', fallbackValue: solidPalette[0] }
+            }
+            : ColorTransformer.transform(activeWord.color, 'text');
+        if (solidPalette.length > 0)
+            animationData.highlightColors = solidPalette;
         const originalStyles = ColorTransformer.transform(data.appearance.text?.color, 'text');
         // Handle font weight if specified
         if (get(activeWord, 'fontWeight', undefined)) {
             highlightStyles.fontWeight = activeWord.fontWeight;
             originalStyles.fontWeight = data.appearance.text?.fontWeight ?? 'normal';
+        }
+        if (get(activeWord, 'scale', undefined)) {
+            highlightStyles.scale = activeWord.scale;
+            highlightStyles.transformOrigin = '50% 50%';
+            originalStyles.scale = 1;
+            originalStyles.transformOrigin = '50% 50%';
         }
         return {
             highlight: highlightStyles,

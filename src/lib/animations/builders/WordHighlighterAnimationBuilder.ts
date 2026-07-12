@@ -79,10 +79,19 @@ export class WordHighlighterAnimationBuilder {
 	}
 
 	private static prepareHighlightStyles(config: WordHighlightConfig): HighlightStyles {
-		const { activeWord, data } = config;
+		const { activeWord, data, animationData } = config;
 
-		const highlightStyles = ColorTransformer.transform(activeWord.color as ColorType, 'text');
-		const originalStyles = ColorTransformer.transform(
+		const solidPalette = (data.appearance.text?.highlightColors ?? []).filter(
+			(color): color is string => typeof color === 'string'
+		);
+		const highlightStyles: Record<string, any> =
+			solidPalette.length > 0
+				? {
+						color: { fromData: 'highlightColors', mode: 'cycle', fallbackValue: solidPalette[0] }
+					}
+				: ColorTransformer.transform(activeWord.color as ColorType, 'text');
+		if (solidPalette.length > 0) animationData.highlightColors = solidPalette;
+		const originalStyles: Record<string, any> = ColorTransformer.transform(
 			data.appearance.text?.color as ColorType,
 			'text'
 		);
@@ -91,6 +100,12 @@ export class WordHighlighterAnimationBuilder {
 		if (get(activeWord, 'fontWeight', undefined)) {
 			highlightStyles.fontWeight = activeWord.fontWeight;
 			originalStyles.fontWeight = data.appearance.text?.fontWeight ?? 'normal';
+		}
+		if (get(activeWord, 'scale', undefined)) {
+			highlightStyles.scale = activeWord.scale;
+			highlightStyles.transformOrigin = '50% 50%';
+			originalStyles.scale = 1;
+			originalStyles.transformOrigin = '50% 50%';
 		}
 
 		return {

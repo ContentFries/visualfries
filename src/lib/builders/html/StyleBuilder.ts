@@ -1,10 +1,4 @@
-import type {
-	Component,
-	TextComponent,
-	Appearance,
-	TextAppearance,
-	ComponentEffect
-} from '$lib';
+import type { Component, TextComponent, Appearance, TextAppearance, ComponentEffect } from '$lib';
 import { AppearanceStyleProcessor } from './processors/AppearanceStyleProcessor.js';
 import { TextAppearanceStyleProcessor } from './processors/TextAppearanceStyleProcessor.js';
 import { TextEffectsStyleProcessor } from './processors/TextEffectsStyleProcessor.js';
@@ -72,26 +66,25 @@ export class StyleBuilder {
 
 			if (textAppearance?.shadow) {
 				component.effects.map['textShadow'] = {
-					preset: TextEffectPresetName.DEFAULT,
+					structured: true,
 					enabled: textAppearance.shadow.enabled ? true : false,
-					color:
-						typeof textAppearance.color === 'string'
-							? textAppearance.color
-							: textAppearance.color.colors[0],
+					color: textAppearance.shadow.color ?? '#000000',
 					size: textAppearance.shadow.size,
-					blur: textAppearance.shadow.blur,
+					blur: textAppearance.shadow.blur ?? 0,
+					offsetX: textAppearance.shadow.offsetX ?? 0,
+					offsetY: textAppearance.shadow.offsetY ?? 0,
+					opacity: textAppearance.shadow.opacity ?? 1,
 					type: 'textShadow'
-				} as ComponentEffect;
+				} as unknown as ComponentEffect;
 			}
 
 			if (textAppearance?.outline) {
-				// TODO
 				component.effects.map['textOutline'] = {
-					preset: TextEffectPresetName.OUTLINE,
+					structured: true,
 					enabled: textAppearance.outline.enabled ? true : false,
 					size: textAppearance.outline.size,
 					color: textAppearance.outline.color
-				} as ComponentEffect;
+				} as unknown as ComponentEffect;
 			}
 
 			return component as TextComponent;

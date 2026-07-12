@@ -47,20 +47,20 @@ export class StyleBuilder {
             const textAppearance = appearance?.text;
             if (textAppearance?.shadow) {
                 component.effects.map['textShadow'] = {
-                    preset: TextEffectPresetName.DEFAULT,
+                    structured: true,
                     enabled: textAppearance.shadow.enabled ? true : false,
-                    color: typeof textAppearance.color === 'string'
-                        ? textAppearance.color
-                        : textAppearance.color.colors[0],
+                    color: textAppearance.shadow.color ?? '#000000',
                     size: textAppearance.shadow.size,
-                    blur: textAppearance.shadow.blur,
+                    blur: textAppearance.shadow.blur ?? 0,
+                    offsetX: textAppearance.shadow.offsetX ?? 0,
+                    offsetY: textAppearance.shadow.offsetY ?? 0,
+                    opacity: textAppearance.shadow.opacity ?? 1,
                     type: 'textShadow'
                 };
             }
             if (textAppearance?.outline) {
-                // TODO
                 component.effects.map['textOutline'] = {
-                    preset: TextEffectPresetName.OUTLINE,
+                    structured: true,
                     enabled: textAppearance.outline.enabled ? true : false,
                     size: textAppearance.outline.size,
                     color: textAppearance.outline.color

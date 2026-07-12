@@ -29,7 +29,7 @@ export class ComponentsManager {
         this.initializeEventListeners();
     }
     initializeEventListeners() {
-        this.eventManager.on('subtitleschange', this.debouncedRefreshSubtitles.bind(this));
+        this.eventManager.on('subtitleschange', this.debouncedRefreshSubtitles);
     }
     #scheduleSubtitleRefresh() {
         // Schedule the refresh on the next animation frame to avoid blocking
@@ -268,8 +268,10 @@ export class ComponentsManager {
         }
         return this.isVisible(component);
     }
-    destroy() {
+    async destroy() {
         this.eventManager.removeEventListener('subtitleschange', this.debouncedRefreshSubtitles);
         this.debouncedRefreshSubtitles.cancel(); // Cancel any pending debounced calls
+        await Promise.all([...this.components.values()].map((component) => component.destroy()));
+        this.components.clear();
     }
 }

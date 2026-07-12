@@ -15,23 +15,28 @@ export class RenderManager {
     lastRenderTime = -1;
     renderInFlight = null;
     rerenderRequested = false;
+    boundHandleBeforeRender;
+    boundRender;
+    boundHandleChangeState;
     constructor(cradle) {
         this.state = cradle.stateManager;
         this.componentsManager = cradle.componentsManager;
         this.eventManager = cradle.eventManager;
         this.appManager = cradle.appManager;
         this.layersManager = cradle.layersManager;
+        this.boundHandleBeforeRender = this.handleBeforeRender.bind(this);
+        this.boundRender = this.render.bind(this);
+        this.boundHandleChangeState = (event) => {
+            if (event.detail.state !== 'playing')
+                void this.render();
+        };
         this.initializeEventListeners();
     }
     initializeEventListeners() {
-        this.eventManager.on('beforerender', this.handleBeforeRender.bind(this));
-        this.eventManager.on('timeupdate', this.render.bind(this));
-        this.eventManager.on('rerender', this.render.bind(this));
-        this.eventManager.on('changestate', (event) => {
-            if (event.detail.state !== 'playing') {
-                this.render();
-            }
-        });
+        this.eventManager.on('beforerender', this.boundHandleBeforeRender);
+        this.eventManager.on('timeupdate', this.boundRender);
+        this.eventManager.on('rerender', this.boundRender);
+        this.eventManager.on('changestate', this.boundHandleChangeState);
     }
     async handleBeforeRender() { }
     #syncLayerDisplayObjects() {
@@ -108,9 +113,9 @@ export class RenderManager {
         this.lastRenderTime = currentTime;
     }
     destroy() {
-        this.eventManager.removeEventListener('beforerender', this.handleBeforeRender);
-        this.eventManager.removeEventListener('timeupdate', this.render);
-        this.eventManager.removeEventListener('rerender', this.render);
-        this.eventManager.removeEventListener('changestate', this.render);
+        this.eventManager.removeEventListener('beforerender', this.boundHandleBeforeRender);
+        this.eventManager.removeEventListener('timeupdate', this.boundRender);
+        this.eventManager.removeEventListener('rerender', this.boundRender);
+        this.eventManager.removeEventListener('changestate', this.boundHandleChangeState);
     }
 }

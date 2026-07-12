@@ -23,7 +23,8 @@ export class TextComponentHtmlBuilder {
             'height',
             'justifyContent',
             'alignItems',
-            'display'
+            'display',
+            'transform'
         ];
         if (get(appearance, 'background.enabled', false) &&
             get(appearance, 'background.target') === 'wrapper') {
@@ -50,7 +51,8 @@ export class TextComponentHtmlBuilder {
             'alignItems',
             'display',
             'width',
-            'height'
+            'height',
+            'transform'
         ];
         let addPadding = false;
         if (get(appearance, 'background.enabled', false)) {

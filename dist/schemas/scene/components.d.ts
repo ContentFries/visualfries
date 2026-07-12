@@ -133,6 +133,12 @@ export declare const TextAppearanceShape: z.ZodObject<{
         lowercase: "lowercase";
         capitalize: "capitalize";
     }>>;
+    padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+        top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+    }, z.core.$strip>]>>;
     shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
         preset: z.ZodOptional<z.ZodString>;
@@ -532,6 +538,12 @@ export declare const AppearanceShape: z.ZodObject<{
             lowercase: "lowercase";
             capitalize: "capitalize";
         }>>;
+        padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+            top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+        }, z.core.$strip>]>>;
         shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
             preset: z.ZodOptional<z.ZodString>;
@@ -2542,6 +2554,12 @@ export declare const ComponentBaseShape: z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -3678,6 +3696,12 @@ export declare const TextComponentShape: z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -4829,6 +4853,12 @@ export declare const ImageComponentShape: z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -5987,6 +6017,12 @@ export declare const GifComponentShape: z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -7143,6 +7179,12 @@ export declare const VideoComponentShape: z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -8497,6 +8539,12 @@ export declare const ShapeComponentShape: z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -9663,6 +9711,12 @@ export declare const AudioComponentShape: z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -10720,6 +10774,12 @@ export declare const ColorComponentShape: z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -11776,6 +11836,12 @@ export declare const GradientComponentShape: z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -12954,6 +13020,12 @@ export declare const SubtitleComponentShape: z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -14144,6 +14216,12 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -15291,6 +15369,12 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -16445,6 +16529,12 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -17597,6 +17687,12 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -18819,6 +18915,12 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -19981,6 +20083,12 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -21034,6 +21142,12 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -22086,6 +22200,12 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;
@@ -23260,6 +23380,12 @@ export declare const ComponentShape: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 lowercase: "lowercase";
                 capitalize: "capitalize";
             }>>;
+            padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+            }, z.core.$strip>]>>;
             shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                 preset: z.ZodOptional<z.ZodString>;

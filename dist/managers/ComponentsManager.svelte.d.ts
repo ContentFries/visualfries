@@ -45,5 +45,5 @@ export declare class ComponentsManager implements ResourceManager<IComponent, Co
     toggle(id: string): void;
     filter(predicate: (component: IComponent) => boolean): IComponent[];
     isComponentVisible(componentId: string): boolean;
-    destroy(): void;
+    destroy(): Promise<void>;
 }

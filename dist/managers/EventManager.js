@@ -17,6 +17,8 @@ export class EventManager extends EventTarget {
     }
     // "on" automatically returns the right type under event.details object
     on(event, callback, options) {
-        this.addEventListener(event, ((e) => callback(e)), options);
+        // Register the original function identity so removeEventListener can reliably
+        // detach manager callbacks during scene teardown.
+        this.addEventListener(event, callback, options);
     }
 }

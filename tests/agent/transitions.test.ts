@@ -19,6 +19,27 @@ const scene = {
 };
 
 describe('agent transitions', () => {
+	it('uses native full-frame SHAPE geometry for animated covers', () => {
+		const component = createAgentTransitionComponent(
+			{ time: 5, duration: 0.3, style: 'dip-to-black' },
+			scene
+		);
+
+		expect(component).toMatchObject({
+			type: 'SHAPE',
+			shape: { type: 'rectangle', cornerRadius: 0 },
+			appearance: {
+				x: 0,
+				y: 0,
+				width: 1080,
+				height: 1920,
+				color: '#000000'
+			},
+			animations: { enabled: true }
+		});
+		expect(component.animations?.list).toHaveLength(1);
+	});
+
 	it.each(['dip-to-black', 'flash', 'swipe-left', 'swipe-up', 'focus-pull'] as const)(
 		'keeps disabled %s transitions invisible instead of rendering a solid frame',
 		(style) => {
@@ -27,8 +48,8 @@ describe('agent transitions', () => {
 				scene
 			);
 
-			expect(component.type).toBe('TEXT');
-			expect(component.appearance.background).toMatchObject({ color: 'transparent' });
+			expect(component.type).toBe('SHAPE');
+			expect(component.appearance).toMatchObject({ color: 'transparent' });
 			expect(component.animations).toEqual({ enabled: false, list: [] });
 		}
 	);
@@ -40,8 +61,8 @@ describe('agent transitions', () => {
 		);
 		const animation = component.animations?.list[0]?.animation.timeline[0]?.tweens[0];
 
-		expect(component.type).toBe('TEXT');
-		expect(component.appearance.background).toMatchObject({ color: '#FFFFFF' });
+		expect(component.type).toBe('SHAPE');
+		expect(component.appearance).toMatchObject({ color: '#FFFFFF' });
 		expect(animation?.vars).toMatchObject({ from: { opacity: 0 }, opacity: 0.42 });
 	});
 });

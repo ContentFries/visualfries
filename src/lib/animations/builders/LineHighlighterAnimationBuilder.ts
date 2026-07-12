@@ -34,6 +34,9 @@ export class LineHighlighterAnimationBuilder {
 		if (!activeLine || !activeLine.enabled) {
 			return [];
 		}
+		// Both modes target the same split glyphs. Active-word highlighting is the
+		// deterministic precedence for old scenes that enable both.
+		if (get(data, 'appearance.text.activeWord.enabled', false)) return [];
 
 		const config: LineHighlightConfig = {
 			activeLine,
@@ -78,18 +81,33 @@ export class LineHighlighterAnimationBuilder {
 	}
 
 	private static prepareHighlightStyles(config: LineHighlightConfig): HighlightStyles {
-		const { activeLine, data } = config;
+		const { activeLine, data, animationData } = config;
 
-		const highlightStyles = ColorTransformer.transform(activeLine.color as ColorType, 'background');
-		const originalStyles = ColorTransformer.transform(
+		const solidPalette = (data.appearance.text?.highlightColors ?? []).filter(
+			(color): color is string => typeof color === 'string'
+		);
+		const highlightStyles: Record<string, any> =
+			solidPalette.length > 0
+				? {
+						color: { fromData: 'highlightColors', mode: 'cycle', fallbackValue: solidPalette[0] }
+					}
+				: ColorTransformer.transform(activeLine.color as ColorType, 'text');
+		if (solidPalette.length > 0) animationData.highlightColors = solidPalette;
+		const originalStyles: Record<string, any> = ColorTransformer.transform(
 			data.appearance.text?.color as ColorType,
-			'background'
+			'text'
 		);
 
 		// Handle font weight if specified
 		if (get(activeLine, 'fontWeight', undefined)) {
 			highlightStyles.fontWeight = activeLine.fontWeight;
 			originalStyles.fontWeight = data.appearance.text?.fontWeight ?? 'normal';
+		}
+		if (get(activeLine, 'scale', undefined)) {
+			highlightStyles.scale = activeLine.scale;
+			highlightStyles.transformOrigin = '50% 50%';
+			originalStyles.scale = 1;
+			originalStyles.transformOrigin = '50% 50%';
 		}
 
 		return {

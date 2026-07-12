@@ -32,6 +32,13 @@ export class TextAppearanceStyleProcessor {
         if (textAppearance.textTransform && textAppearance.textTransform !== 'none') {
             styles.textTransform = textAppearance.textTransform;
         }
+        if (textAppearance.padding !== undefined) {
+            styles.padding =
+                typeof textAppearance.padding === 'number'
+                    ? `${textAppearance.padding}px`
+                    : `${textAppearance.padding.top}px ${textAppearance.padding.right}px ${textAppearance.padding.bottom}px ${textAppearance.padding.left}px`;
+            styles.boxSizing = 'border-box';
+        }
         return styles;
     }
 }

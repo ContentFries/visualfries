@@ -19,6 +19,7 @@ export declare class ComponentDirector {
     constructImage(): import("..").IComponent;
     constructGif(): import("..").IComponent;
     constructShape(): import("..").IComponent;
+    constructFill(): import("..").IComponent;
     constructSubtitle(): import("..").IComponent;
     constructText(): import("..").IComponent;
 }

@@ -38,7 +38,7 @@ export class AnimationHook {
         const target = this.#context.resources.get('animationTarget');
         const animationData = this.#context.resources.get('animationData') ??
             {};
-        const animations = [...(this.#context.contextData.animations.list ?? [])];
+        const animations = (this.#context.contextData.animations.list ?? []).filter((animation) => animation.enabled !== false);
         const customAnimations = WordHighlighterAnimationBuilder.build(this.#context.contextData, target, animationData, this.splitTextCache);
         const lineAnimations = LineHighlighterAnimationBuilder.build(this.#context.contextData, target, animationData, this.splitTextCache);
         animations.push(...customAnimations);

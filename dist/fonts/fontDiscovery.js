@@ -134,6 +134,11 @@ const collectComponentTextVariants = (component, configuredLookup, output) => {
         return;
     }
     const configMatch = configuredLookup.get(family.toLowerCase());
+    // An unconfigured family is a browser/system-font request, not an implicit
+    // Google Fonts dependency. Remote loading must be explicit and reproducible.
+    if (!textAppearance.fontSource?.source && !configMatch) {
+        return;
+    }
     const source = (textAppearance.fontSource?.source ?? configMatch?.source ?? 'google');
     const fileUrl = normalizeFamily(textAppearance.fontSource?.fileUrl) ?? configMatch?.fileUrl ?? undefined;
     const weights = new Set();

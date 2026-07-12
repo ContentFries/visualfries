@@ -53,7 +53,8 @@ const createCradle = (overrides?: Partial<any>) => {
 			width: 1080,
 			height: 1920,
 			environment: 'server',
-			scale: 1
+			scale: 1,
+			data: { settings: { backgroundColor: '#123456' } }
 		},
 		domManager: {
 			canvas
@@ -83,6 +84,10 @@ describe('AppManager server renderer mode', () => {
 
 		expect(hoisted.applicationCtor).toHaveBeenCalledTimes(1);
 		expect(hoisted.applicationCtor.mock.calls[0][0].forceCanvas).toBe(true);
+		expect(hoisted.applicationCtor.mock.calls[0][0]).toMatchObject({
+			backgroundColor: '#123456',
+			backgroundAlpha: 1
+		});
 		expect(cradle.deterministicMediaManager.recordRendererSelection).toHaveBeenCalledWith({
 			rendererType: 'canvas',
 			fallbackOccurred: false,
@@ -93,7 +98,9 @@ describe('AppManager server renderer mode', () => {
 	it('uses webgl path when serverRendererMode is webgl and supported', async () => {
 		const cradle = createCradle({ serverRendererMode: 'webgl', forceCanvas: false });
 		const originalCreateElement = document.createElement.bind(document);
-		const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
+		const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((
+			tag: string
+		) => {
 			if (tag === 'canvas') {
 				return {
 					getContext: (type: string) => {
@@ -127,7 +134,9 @@ describe('AppManager server renderer mode', () => {
 		hoisted.throwOnWebGLInit = true;
 		const cradle = createCradle({ serverRendererMode: 'webgl', forceCanvas: false });
 		const originalCreateElement = document.createElement.bind(document);
-		const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
+		const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((
+			tag: string
+		) => {
 			if (tag === 'canvas') {
 				return {
 					getContext: (type: string) => {

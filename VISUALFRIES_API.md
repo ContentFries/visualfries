@@ -161,12 +161,20 @@ Displays static text or text with simple animations.
 - `textAlign`: 'left', 'center', 'right', 'justify'.
 - `shadow`: `{ enabled: boolean, color: string, blur: number, ... }`
 - `outline`: `{ enabled: boolean, color: string, size: number }`
-- `background`: `{ enabled: boolean, color: string, target: 'wrapper'|'element' }`
+- `padding`: non-negative pixel number or `{ top, right, bottom, left }`
+
+TEXT background is component-level `appearance.background`, not inside `appearance.text`:
+
+- `background`: `{ enabled: boolean, color: string|Gradient, target: 'wrapper'|'element', radius: number }`
+- `radius` uses pixels.
+- `wrapper` fills the component box; `element` hugs text.
+- Without explicit padding, element-target background keeps the legacy `0.22em` fallback.
 
 **Usage:**
 
 ```typescript
 textComposer.setText("Hello World").setAppearance({
+  background: { enabled: true, color: "#F5D547", target: "wrapper", radius: 24 },
   text: {
     fontFamily: "Roboto",
     fontSize: { value: 100, unit: "px" },
@@ -308,15 +316,27 @@ Add effects using `addEffect(key, config)`.
 | -------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `layoutSplit`        | `{ pieces: number, sceneWidth: number, sceneHeight: number, chunks: [...] }` | Splits component into pieces (e.g. for split screen).                                          |
 | `fillBackgroundBlur` | `{ blurAmount: number }`                                                     | Fills empty space with a blurred version of the content (vertical video on horizontal canvas). |
-| `rotationRandomizer` | `{ maxRotation: number, seed?: number }`                                     | Randomly rotates elements (e.g. subtitles).                                                    |
-| `textShadow`         | `{ color: string, blur: number, offsetX: number, offsetY: number }`          | Applies drop shadow.                                                                           |
-| `textOutline`        | `{ color: string, size: number }`                                            | Applies text stroke/outline.                                                                   |
-| `blur`               | `{ radius: number }`                                                         | Simple gaussian blur.                                                                          |
-| `colorAdjustment`    | `{ brightness: number, contrast: number, saturation: number, hue: number }`  | Adjusts color properties.                                                                      |
+| `rotationRandomizer` | `{ maxRotation: number, seed?: number }`                                     | Schema only; no general renderer attachment.                                                   |
+| `textShadow`         | `{ color, blur, offsetX, offsetY, opacity }`                                 | Supported through `appearance.text.shadow`.                                                    |
+| `textOutline`        | `{ color, size, opacity, style }`                                            | Solid structured outline supported; dashed/dotted/dashArray are not rendered.                  |
+| `blur`               | `{ radius: number }`                                                         | Schema only; no general renderer attachment.                                                   |
+| `colorAdjustment`    | `{ brightness, contrast, saturation, hue }`                                  | Schema only; no general renderer attachment.                                                   |
 
 ### Animations Reference
 
 Add animations using `addAnimation(config)`.
+
+Runtime support is component-specific. Schema validation alone is not proof:
+
+| Component | Runtime animation |
+| --- | --- |
+| TEXT, SUBTITLES | Supported |
+| IMAGE, VIDEO, GIF, SHAPE, COLOR, GRADIENT | Shared Pixi target: x/y, opacity, rotation, scale, scaleX, scaleY |
+| AUDIO | Nonvisual; no visual animation target |
+
+Pixi x/y animation values are placement-relative translation offsets; pivot is fixed center.
+`enabled: false` animation entries are skipped. Render entry and settled frames and reseek them.
+Use `visualfries validate --strict-runtime-support` and `visualfries explain --component <id> --frame <n>` to gate and inspect actual runtime behavior.
 
 **Schema:**
 

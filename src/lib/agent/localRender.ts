@@ -43,6 +43,8 @@ export type LocalRenderOptions = {
 	preferWebGL2?: boolean;
 	powerPreference?: 'default' | 'high-performance' | 'low-power';
 	mediaDiagnostics?: boolean;
+	explain?: Array<{ componentId: string; frame: number }>;
+	environment?: 'client' | 'server';
 };
 
 export type LocalRenderResult = {
@@ -75,6 +77,8 @@ export type LocalRenderResult = {
 	};
 	mediaDiagnosticsPath: string | null;
 	mediaDiagnostics: Array<Record<string, unknown>>;
+	explanations?: Array<Record<string, unknown> | null>;
+	runtimeErrors?: string[];
 };
 
 const currentFile = fileURLToPath(import.meta.url);
@@ -84,10 +88,11 @@ const defaultPackageRoot = path.resolve(currentDir, '..', '..');
 const isRemoteUrl = (value: string | undefined): boolean =>
 	typeof value === 'string' && /^[a-z]+:\/\//i.test(value) && !value.startsWith('file://');
 
-const localPathFromUrl = (value: string | undefined): string | undefined => {
+export const localPathFromUrl = (value: string | undefined): string | undefined => {
 	if (!value || typeof value !== 'string') return undefined;
 	if (value.startsWith('file://')) return fileURLToPath(value);
-	if (isRemoteUrl(value) || value.startsWith('data:') || value.startsWith('/')) return undefined;
+	if (isRemoteUrl(value) || value.startsWith('data:')) return undefined;
+	if (path.isAbsolute(value)) return existsSync(value) ? value : undefined;
 	return path.resolve(value);
 };
 
@@ -99,6 +104,10 @@ const normalizeImageFormat = (value: string | undefined): 'png' | 'jpg' => {
 	if (resolved === 'jpeg') return 'jpg';
 	throw new Error('imageFormat must be png, jpg, or jpeg.');
 };
+
+export const eventEmitter3ShimSource = `export default class EventEmitter{constructor(){this._events=new Map();}_add(name,fn,context,once){if(typeof fn!=='function')throw new TypeError('The listener must be a function');const list=this._events.get(name)||[];list.push({fn,context:context===undefined?this:context,once});this._events.set(name,list);return this;}on(name,fn,context){return this._add(name,fn,context,false);}addListener(name,fn,context){return this.on(name,fn,context);}once(name,fn,context){return this._add(name,fn,context,true);}off(name,fn,context,once){return this.removeListener(name,fn,context,once);}removeListener(name,fn,context,once){const list=this._events.get(name);if(!list)return this;if(fn===undefined){this._events.delete(name);return this;}const next=list.filter((listener)=>listener.fn!==fn||(context!==undefined&&listener.context!==context)||(once!==undefined&&listener.once!==once));if(next.length)this._events.set(name,next);else this._events.delete(name);return this;}removeAllListeners(name){if(name===undefined)this._events.clear();else this._events.delete(name);return this;}emit(name,...args){const list=this._events.get(name);if(!list?.length)return false;for(const listener of [...list]){if(listener.once)this.removeListener(name,listener.fn,listener.context,true);listener.fn.apply(listener.context,args);}return true;}listeners(name){return (this._events.get(name)||[]).map((listener)=>listener.fn);}listenerCount(name){return this._events.get(name)?.length||0;}eventNames(){return [...this._events.keys()];}}
+export { EventEmitter };
+`;
 
 export const normalizeImageQuality = (value: number | undefined, fallback = 0.92): number => {
 	if (value === undefined) return fallback;
@@ -326,11 +335,7 @@ const writeRenderClient = async (rootDir: string): Promise<void> => {
 		`export function parse(value){try{const u=new URL(value,globalThis.location?.href||'http://localhost/');return{protocol:u.protocol,slashes:value.includes('//'),auth:u.username?u.username+(u.password?':'+u.password:''):null,host:u.host,port:u.port,hostname:u.hostname,hash:u.hash,search:u.search,query:u.search?u.search.slice(1):null,pathname:u.pathname,path:u.pathname+u.search,href:u.href};}catch{return{href:String(value),path:String(value),pathname:String(value),query:null,search:null,hash:null};}}\nexport function format(value){if(typeof value==='string')return value;if(value?.href)return value.href;return String((value?.protocol||'')+(value?.slashes?'//':'')+(value?.host||'')+(value?.pathname||value?.path||'')+(value?.search||'')+(value?.hash||''));}\nexport function resolve(from,to){return new URL(to,from||globalThis.location?.href||'http://localhost/').toString();}\nexport default{parse,format,resolve};\n`,
 		'utf8'
 	);
-	await fs.writeFile(
-		path.join(rootDir, 'eventemitter3-shim.js'),
-		`export default class EventEmitter{constructor(){this._events=new Map();}on(name,fn){const list=this._events.get(name)||[];list.push(fn);this._events.set(name,list);return this;}addListener(name,fn){return this.on(name,fn);}once(name,fn){const wrapped=(...args)=>{this.off(name,wrapped);fn(...args);};return this.on(name,wrapped);}off(name,fn){return this.removeListener(name,fn);}removeListener(name,fn){const list=this._events.get(name)||[];this._events.set(name,list.filter((item)=>item!==fn));return this;}removeAllListeners(name){if(name===undefined)this._events.clear();else this._events.delete(name);return this;}emit(name,...args){const list=this._events.get(name)||[];for(const fn of [...list])fn(...args);return list.length>0;}listeners(name){return [...(this._events.get(name)||[])];}listenerCount(name){return this.listeners(name).length;}eventNames(){return [...this._events.keys()];}}\nexport { EventEmitter };\n`,
-		'utf8'
-	);
+	await fs.writeFile(path.join(rootDir, 'eventemitter3-shim.js'), eventEmitter3ShimSource, 'utf8');
 	await fs.writeFile(
 		path.join(rootDir, 'md5-shim.js'),
 		`export default function md5(value){const text=typeof value==='string'?value:JSON.stringify(value);let h1=0x811c9dc5,h2=0x9e3779b9;for(let i=0;i<text.length;i++){const c=text.charCodeAt(i);h1^=c;h1=Math.imul(h1,0x01000193);h2^=c+(h1>>>0);h2=Math.imul(h2,0x85ebca6b);}return ((h1>>>0).toString(16).padStart(8,'0')+(h2>>>0).toString(16).padStart(8,'0')).repeat(2);}\n`,
@@ -360,12 +365,15 @@ window.__VISUALFRIES_RENDER__={
 		root.style.height=scene.settings.height+'px';
 		const deterministicProvider=deterministicMediaPayload?.frameManifest?{async getFrame(request){const url=deterministicMediaPayload.frameManifest?.[request.componentId]?.[String(request.frameIndex)];if(!url)return null;return{kind:'url',cacheKey:request.componentId+':'+request.frameIndex+':'+url,url};}}:undefined;
 		const serverRendererMode=rendererOptions.serverRendererMode==='webgl'?'webgl':'canvas';
-		builder=await createSceneBuilder(scene,root,{environment:'server',autoPlay:false,loop:false,scale:1,forceCanvas:serverRendererMode!=='webgl',serverRendererMode,preferWebGL2:rendererOptions.preferWebGL2!==false,powerPreference:rendererOptions.powerPreference||'high-performance',deterministicMedia:{enabled:Boolean(deterministicProvider),strict:Boolean(deterministicProvider&&deterministicMediaPayload?.mediaDeterministicStrict),diagnostics:Boolean(deterministicProvider&&deterministicMediaPayload?.diagnosticsEnabled),provider:deterministicProvider}});
+		builder=await createSceneBuilder(scene,root,{environment:rendererOptions.environment==='client'?'client':'server',autoPlay:false,loop:false,scale:1,forceCanvas:rendererOptions.environment==='client'?false:serverRendererMode!=='webgl',serverRendererMode,preferWebGL2:rendererOptions.preferWebGL2!==false,powerPreference:rendererOptions.powerPreference||'high-performance',deterministicMedia:{enabled:Boolean(deterministicProvider),strict:Boolean(deterministicProvider&&deterministicMediaPayload?.mediaDeterministicStrict),diagnostics:Boolean(deterministicProvider&&deterministicMediaPayload?.diagnosticsEnabled),provider:deterministicProvider}});
+		await builder.seek(0);
 		return{id:scene.id,width:scene.settings.width,height:scene.settings.height,duration:scene.settings.duration,fps:scene.settings.fps??30};
 	},
 	async renderFrame({time,imageFormat,imageQuality}){if(!builder)throw new Error('VisualFries renderer is not initialized.');await builder.seek(time);const frame=await builder.renderFrame(undefined,'blob',1,{imageFormat,imageQuality});return await framePayloadToDataUrl(frame);},
+	async explainFrame({componentId,time}){if(!builder)throw new Error('VisualFries renderer is not initialized.');await builder.seek(time);return builder.explainComponentState(componentId);},
+	async seek({time}){if(!builder)throw new Error('VisualFries renderer is not initialized.');await builder.seek(time);return true;},
 	async renderFrameRange({fromFrame,toFrame,imageFormat,imageQuality,skipDuplicates}){if(!builder)throw new Error('VisualFries renderer is not initialized.');if(!window.__VISUALFRIES_FRAME_WRITER__)throw new Error('VisualFries frame writer binding is not available.');return await builder.renderFrameRange({fromFrame,toFrame,format:'blob',quality:1,imageFormat,imageQuality,skipDuplicates,onFrame:async({frameIndex,frame,isDuplicate,mimeType,release})=>{const dataUrl=isDuplicate?undefined:await framePayloadToDataUrl(frame);await window.__VISUALFRIES_FRAME_WRITER__({frameIndex,isDuplicate,mimeType,dataUrl});release();}});},
-	destroy(){builder?.destroy?.();builder=undefined;}
+	async destroy(){await builder?.destroy?.();builder=undefined;}
 };`,
 		'utf8'
 	);
@@ -473,7 +481,16 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 	let browser: any;
 	let activeStreamEncoder: PipeFrameEncoder | undefined;
 	try {
-		const activeRange = contiguousFrameRange(options.frameIndices);
+		const activeRange =
+			options.environment === 'client' ? null : contiguousFrameRange(options.frameIndices);
+		const mediaPreparationRange =
+			activeRange ??
+			(options.frameIndices.length > 0
+				? {
+						fromFrame: Math.min(...options.frameIndices),
+						toFrame: Math.max(...options.frameIndices) + 1
+					}
+				: null);
 		const effectiveRanges = activeRange
 			? resolveEffectiveRenderRanges({
 					scene: parsed,
@@ -531,13 +548,13 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 		let sceneForRender = parsed;
 		let deterministicMediaDiagnostics: Array<Record<string, unknown>> = [];
 		if (renderPlan.engine === 'deterministic-local') {
-			if (!activeRange)
-				throw new Error('Local deterministic media render requires a contiguous frame range.');
+			if (!mediaPreparationRange)
+				throw new Error('Local deterministic media render requires at least one frame.');
 			const deterministicMedia = await prepareLocalDeterministicMedia({
 				scene: parsed,
 				workDir: tempRoot,
-				fromFrame: activeRange.fromFrame,
-				toFrame: activeRange.toFrame,
+				fromFrame: mediaPreparationRange.fromFrame,
+				toFrame: mediaPreparationRange.toFrame,
 				strict: true,
 				diagnostics: options.mediaDiagnostics ?? false
 			});
@@ -562,6 +579,7 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 			`${JSON.stringify(
 				{
 					serverRendererMode: options.serverRendererMode ?? 'canvas',
+					environment: options.environment ?? 'server',
 					preferWebGL2: options.preferWebGL2 ?? true,
 					powerPreference: options.powerPreference ?? 'high-performance'
 				},
@@ -730,15 +748,40 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 				isDuplicate: Boolean(payload.isDuplicate)
 			});
 		});
+		const runtimeErrors: string[] = [];
 		page.on('console', (message: any) => {
-			if (message.type() === 'error') console.error(`[browser] ${message.text()}`);
+			if (message.type() === 'error') {
+				const diagnostic = `console: ${message.text()}`;
+				runtimeErrors.push(diagnostic);
+				console.error(`[browser] ${message.text()}`);
+			}
 		});
 		page.on('pageerror', (error: Error) => {
+			runtimeErrors.push(`pageerror: ${error.message}`);
 			console.error(`[browser pageerror] ${error.message}\n${error.stack || ''}`);
+		});
+		page.on('requestfailed', (request: any) => {
+			runtimeErrors.push(
+				`requestfailed: ${request.method()} ${request.url()} (${request.failure()?.errorText ?? 'unknown'})`
+			);
+		});
+		page.on('response', (response: any) => {
+			if (response.status() >= 400) {
+				runtimeErrors.push(`http: ${response.status()} ${response.url()}`);
+			}
 		});
 		await page.goto(url, { waitUntil: 'networkidle' });
 		await page.waitForFunction(() => Boolean((window as any).__VISUALFRIES_RENDER__));
 		const info = await page.evaluate(() => (window as any).__VISUALFRIES_RENDER__.init());
+		const explanations: Array<Record<string, unknown> | null> = [];
+		for (const request of options.explain ?? []) {
+			explanations.push(
+				await page.evaluate(
+					(payload: any) => (window as any).__VISUALFRIES_RENDER__.explainFrame(payload),
+					{ componentId: request.componentId, time: request.frame / options.fps }
+				)
+			);
+		}
 
 		let rangeSummary: any;
 		if (activeRange) {
@@ -761,15 +804,28 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 			for (let index = 0; index < options.frameIndices.length; index += 1) {
 				const frame = options.frameIndices[index];
 				const time = frame / options.fps;
-				const dataUrl = await page.evaluate(
-					(renderOptions: any) => (window as any).__VISUALFRIES_RENDER__.renderFrame(renderOptions),
-					{ time, imageFormat: normalizedImageFormat, imageQuality }
-				);
 				const framePath = path.join(
 					framesDir,
 					`frame-${String(index + 1).padStart(6, '0')}.${normalizedImageFormat}`
 				);
-				await writeDataUrlFrame(dataUrl, framePath);
+				if (options.environment === 'client') {
+					await page.evaluate(
+						(payload: any) => (window as any).__VISUALFRIES_RENDER__.seek(payload),
+						{ time }
+					);
+					const screenshot = await page.locator('#vf-root').screenshot({
+						type: normalizedImageFormat === 'png' ? 'png' : 'jpeg',
+						...(normalizedImageFormat === 'png' ? {} : { quality: Math.round(imageQuality * 100) })
+					});
+					await fs.writeFile(framePath, screenshot);
+				} else {
+					const dataUrl = await page.evaluate(
+						(renderOptions: any) =>
+							(window as any).__VISUALFRIES_RENDER__.renderFrame(renderOptions),
+						{ time, imageFormat: normalizedImageFormat, imageQuality }
+					);
+					await writeDataUrlFrame(dataUrl, framePath);
+				}
 				frames.push({ frame, time, path: framePath, isDuplicate: false });
 			}
 		}
@@ -853,7 +909,9 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 				: { mode: framesOnly ? 'none' : 'frame-sequence' },
 			audio: audioMix,
 			mediaDiagnosticsPath,
-			mediaDiagnostics
+			mediaDiagnostics,
+			runtimeErrors: [...new Set(runtimeErrors)],
+			...(options.explain ? { explanations } : {})
 		};
 	} finally {
 		activeStreamEncoder?.abort();

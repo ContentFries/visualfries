@@ -155,8 +155,13 @@ export class HtmlToCanvasHook implements IComponentHook {
 		if (this.svg && rerendered) {
 			const texture = await this.#svgToTexture(this.svg);
 			if (texture) {
-				this.#sprite.texture.destroy();
+				const previousTexture = this.#sprite.texture;
 				this.#sprite.texture = texture;
+				// Texture.EMPTY is a shared Pixi singleton. Destroying it corrupts later
+				// text/subtitle sprite construction in sparse seek sequences.
+				if (previousTexture !== Texture.EMPTY && previousTexture !== Texture.WHITE) {
+					previousTexture.destroy(true);
+				}
 			}
 		}
 	}

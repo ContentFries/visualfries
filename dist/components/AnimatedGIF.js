@@ -1,6 +1,16 @@
 import { Sprite } from "pixi.js-legacy";
 import { Texture, Renderer, settings, SCALE_MODES, Ticker, UPDATE_PRIORITY, } from "pixi.js-legacy";
 import { parseGIF, decompressFrames } from "gifuct-js";
+export const resolveGifFrameIndexAtTime = (frames, duration, timeMs, loop) => {
+    if (!frames.length || duration <= 0)
+        return 0;
+    const safeTime = Number.isFinite(timeMs) ? Math.max(0, timeMs) : 0;
+    const localTime = loop
+        ? safeTime % duration
+        : Math.min(safeTime, Math.max(0, duration - Number.EPSILON));
+    const index = frames.findIndex((frame) => frame.start <= localTime && frame.end > localTime);
+    return index >= 0 ? index : frames.length - 1;
+};
 /**
  * Runtime object to play animated GIFs. This object is similar to an AnimatedSprite.
  * It support playback (seek, play, stop) as well as animation speed and looping.
@@ -205,6 +215,15 @@ class AnimatedGIF extends Sprite {
             Ticker.shared.remove(this.update, this);
             this._isConnectedToTicker = false;
         }
+    }
+    /** Seek using authored GIF frame delays rather than assuming a fixed FPS. */
+    seek(timeMs) {
+        const safeTime = Number.isFinite(timeMs) ? Math.max(0, timeMs) : 0;
+        const localTime = this.loop
+            ? safeTime % this.duration
+            : Math.min(safeTime, Math.max(0, this.duration - Number.EPSILON));
+        this._currentTime = localTime;
+        this.updateFrameIndex(resolveGifFrameIndexAtTime(this._frames, this.duration, safeTime, this.loop));
     }
     /** Plays the animation. */
     play() {

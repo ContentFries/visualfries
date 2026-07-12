@@ -1,9 +1,5 @@
 import type { ILayer, IComponent } from '$lib';
-import type {
-	SceneLayer,
-	Component as SceneLayerComponent,
-	SceneLayerInput
-} from '$lib';
+import type { SceneLayer, Component as SceneLayerComponent, SceneLayerInput } from '$lib';
 import { ComponentsManager } from '$lib/managers/ComponentsManager.svelte.js';
 import { EventManager } from '$lib/managers/EventManager.js';
 import { Container } from 'pixi.js-legacy';
@@ -71,7 +67,9 @@ export class Layer implements ILayer {
 		}
 
 		// resort components
-		this.components.sort((a, b) => a.props.timeline.startAt - b.props.timeline.startAt);
+		this.components.sort(
+			(a, b) => a.props.order - b.props.order || a.props.timeline.startAt - b.props.timeline.startAt
+		);
 		this.#emit('layerschange');
 	}
 
@@ -131,7 +129,10 @@ export class Layer implements ILayer {
 				this.#displayObject.removeChild(component.displayObject);
 			}
 
-			this.components.sort((a, b) => a.props.timeline.startAt - b.props.timeline.startAt);
+			this.components.sort(
+				(a, b) =>
+					a.props.order - b.props.order || a.props.timeline.startAt - b.props.timeline.startAt
+			);
 			this.#emit('layerschange');
 		}
 	}

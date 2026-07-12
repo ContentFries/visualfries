@@ -77,7 +77,7 @@ export class ComponentState implements ComponentProps {
 	}
 
 	get visible() {
-		return this.#data!.visible ? this.#data!.visible : true;
+		return this.#data!.visible ?? true;
 	}
 
 	get duration(): number {

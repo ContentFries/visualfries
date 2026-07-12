@@ -36,18 +36,23 @@ export class ComponentDirector {
                 return this.constructText();
             case 'COLOR':
             case 'GRADIENT':
-                return this.builder.getComponent();
+                return this.constructFill();
             default:
                 throw new Error(`Unsupported component type`);
         }
     }
     constructVideo() {
         if (this.shouldUseDeterministicMedia) {
-            this.builder.withDeterministicMedia().withTexture().withSplitScreen();
+            this.builder
+                .withDeterministicMedia()
+                .withTexture()
+                .withSplitScreen()
+                .withPixiAnimationTarget()
+                .withAnimation();
             return this.builder.getComponent();
         }
         this.builder.withMedia().withMediaSeeking();
-        this.builder.withVideoTexture().withSplitScreen();
+        this.builder.withVideoTexture().withSplitScreen().withPixiAnimationTarget().withAnimation();
         return this.builder.getComponent();
     }
     constructAudio() {
@@ -55,15 +60,25 @@ export class ComponentDirector {
         return this.builder.getComponent();
     }
     constructImage() {
-        this.builder.withImage().withTexture().withSplitScreen().withAnimation();
+        this.builder
+            .withImage()
+            .withTexture()
+            .withSplitScreen()
+            .withPixiAnimationTarget()
+            .withAnimation();
         return this.builder.getComponent();
     }
     constructGif() {
         if (this.shouldUseDeterministicMedia) {
-            this.builder.withDeterministicMedia().withTexture().withSplitScreen().withDisplayObject();
+            this.builder
+                .withDeterministicMedia()
+                .withTexture()
+                .withDisplayObject()
+                .withPixiAnimationTarget()
+                .withAnimation();
             return this.builder.getComponent();
         }
-        this.builder.withGif(); //.withDisplayObject();
+        this.builder.withGif().withPixiAnimationTarget().withAnimation();
         return this.builder.getComponent();
     }
     constructShape() {
@@ -72,12 +87,30 @@ export class ComponentDirector {
         if (shapeData.shape?.type === 'progress') {
             // Progress shapes use GPU-based PIXI Graphics rendering
             // Still need DisplayObjectHook to add the progress display object to the stage
-            this.builder.withProgressShape().withDisplayObject();
+            this.builder
+                .withProgressShape()
+                .withDisplayObject()
+                .withPixiAnimationTarget()
+                .withAnimation();
         }
         else {
             // Regular shapes use canvas-based rendering
-            this.builder.withCanvasShape().withTexture().withDisplayObject();
+            this.builder
+                .withCanvasShape()
+                .withTexture()
+                .withDisplayObject()
+                .withPixiAnimationTarget()
+                .withAnimation();
         }
+        return this.builder.getComponent();
+    }
+    constructFill() {
+        this.builder
+            .withCanvasFill()
+            .withTexture()
+            .withDisplayObject()
+            .withPixiAnimationTarget()
+            .withAnimation();
         return this.builder.getComponent();
     }
     constructSubtitle() {

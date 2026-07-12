@@ -51,7 +51,7 @@ export class ComponentsManager
 	}
 
 	private initializeEventListeners(): void {
-		this.eventManager.on('subtitleschange', this.debouncedRefreshSubtitles.bind(this));
+		this.eventManager.on('subtitleschange', this.debouncedRefreshSubtitles);
 	}
 
 	#scheduleSubtitleRefresh() {
@@ -341,8 +341,10 @@ export class ComponentsManager
 		return this.isVisible(component);
 	}
 
-	public destroy(): void {
+	public async destroy(): Promise<void> {
 		this.eventManager.removeEventListener('subtitleschange', this.debouncedRefreshSubtitles);
 		this.debouncedRefreshSubtitles.cancel(); // Cancel any pending debounced calls
+		await Promise.all([...this.components.values()].map((component) => component.destroy()));
+		this.components.clear();
 	}
 }

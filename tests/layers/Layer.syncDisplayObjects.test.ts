@@ -58,20 +58,49 @@ vi.mock('pixi.js-legacy', async (importOriginal) => {
 
 import { Layer } from '$lib/layers/Layer.svelte.ts';
 
-const createComponent = (id: string, startAt: number, displayObject?: any) =>
-	({
-		id,
-		type: 'VIDEO',
-		checksum: id,
-		displayObject,
-		props: {
+const createComponent = (id: string, startAt: number, displayObject?: any, order = 0) => {
+	class MockComponent {
+		id = id;
+		type = 'VIDEO';
+		checksum = id;
+		displayObject = displayObject;
+		props = {
+			order,
 			timeline: { startAt, endAt: startAt + 1 },
 			getData: () => ({ id })
-		},
-		destroy: vi.fn()
-	}) as any;
+		};
+		destroy = vi.fn();
+	}
+
+	return new MockComponent() as any;
+};
 
 describe('Layer.syncDisplayObjects', () => {
+	it('uses component order for same-layer stacking before timeline start', async () => {
+		const layer = new Layer({
+			layerData: {
+				id: 'layer-order',
+				name: 'Layer order',
+				order: 0,
+				visible: true,
+				muted: false,
+				components: []
+			} as any,
+			componentsManager: { create: vi.fn() } as any,
+			eventManager: { emit: vi.fn() } as any
+		});
+		await layer.build();
+
+		const top = createComponent('top', 0, { id: 'top-object' }, 20);
+		const bottom = createComponent('bottom', 2, { id: 'bottom-object' }, 5);
+		layer.addComponent(top);
+		layer.addComponent(bottom);
+		layer.syncDisplayObjects();
+
+		expect(layer.components.map((component) => component.id)).toEqual(['bottom', 'top']);
+		expect(layer.displayObject.children).toEqual([bottom.displayObject, top.displayObject]);
+	});
+
 	it('handles sparse component display objects and non-component children without out-of-bounds setChildIndex', async () => {
 		const layer = new Layer({
 			layerData: {
@@ -131,7 +160,9 @@ describe('Layer.syncDisplayObjects', () => {
 		expect(secondSyncChanged).toBe(false);
 		expect(layer.displayObject.children).toEqual(snapshot);
 
-		const delayedFromLayer = layer.components.find((component) => component.id === 'c-delayed') as any;
+		const delayedFromLayer = layer.components.find(
+			(component) => component.id === 'c-delayed'
+		) as any;
 		delayedFromLayer.displayObject = { id: 'obj-delayed' };
 		expect(() => layer.syncDisplayObjects()).not.toThrow();
 		expect(layer.displayObject.children.includes(delayedFromLayer.displayObject)).toBe(true);

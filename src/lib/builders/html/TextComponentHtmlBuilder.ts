@@ -29,7 +29,8 @@ export class TextComponentHtmlBuilder {
 			'height',
 			'justifyContent',
 			'alignItems',
-			'display'
+			'display',
+			'transform'
 		];
 
 		if (
@@ -63,7 +64,8 @@ export class TextComponentHtmlBuilder {
 			'alignItems',
 			'display',
 			'width',
-			'height'
+			'height',
+			'transform'
 		];
 
 		let addPadding = false;

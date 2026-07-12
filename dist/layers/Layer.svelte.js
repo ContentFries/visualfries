@@ -49,7 +49,7 @@ export class Layer {
             this.#displayObject.addChild(component.displayObject);
         }
         // resort components
-        this.components.sort((a, b) => a.props.timeline.startAt - b.props.timeline.startAt);
+        this.components.sort((a, b) => a.props.order - b.props.order || a.props.timeline.startAt - b.props.timeline.startAt);
         this.#emit('layerschange');
     }
     syncDisplayObjects() {
@@ -101,7 +101,7 @@ export class Layer {
             if (component.displayObject) {
                 this.#displayObject.removeChild(component.displayObject);
             }
-            this.components.sort((a, b) => a.props.timeline.startAt - b.props.timeline.startAt);
+            this.components.sort((a, b) => a.props.order - b.props.order || a.props.timeline.startAt - b.props.timeline.startAt);
             this.#emit('layerschange');
         }
     }

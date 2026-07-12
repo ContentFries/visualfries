@@ -106,7 +106,7 @@ export const setPlacementAndOpacity = function (obj, c) {
     obj.y = config.y;
     obj.width = config.width;
     obj.height = config.height;
-    obj.alpha = config.opacity || 1;
+    obj.alpha = config.opacity ?? 1;
     if (config.rotation) {
         obj.angle = config.rotation;
     }

@@ -67,6 +67,17 @@ export const TextAppearanceShape = z.object({
     color: ColorTypeShape,
     textAlign: z.enum(['left', 'center', 'right', 'justify']),
     textTransform: z.enum(['none', 'uppercase', 'lowercase', 'capitalize']).optional(),
+    padding: z
+        .union([
+        coerceNonNegativeNumber(),
+        z.object({
+            top: coerceNonNegativeNumber(),
+            right: coerceNonNegativeNumber(),
+            bottom: coerceNonNegativeNumber(),
+            left: coerceNonNegativeNumber()
+        })
+    ])
+        .optional(),
     shadow: StructuredShadowShape.nullable().optional(),
     outline: StructuredOutlineShape.nullable().optional(),
     activeLine: z

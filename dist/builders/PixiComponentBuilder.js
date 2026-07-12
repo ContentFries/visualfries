@@ -20,6 +20,8 @@ export class PixiComponentBuilder {
     animationHook;
     mediaSeekingHook;
     deterministicMediaFrameHook;
+    pixiVisualTransformHook;
+    canvasFillHook;
     constructor(cradle) {
         this.component = cradle.component;
         this.mediaHook = cradle.mediaHook;
@@ -41,9 +43,15 @@ export class PixiComponentBuilder {
         this.htmlToCanvasHook = cradle.htmlToCanvasHook;
         this.mediaSeekingHook = cradle.mediaSeekingHook;
         this.deterministicMediaFrameHook = cradle.deterministicMediaFrameHook;
+        this.pixiVisualTransformHook = cradle.pixiVisualTransformHook;
+        this.canvasFillHook = cradle.canvasFillHook;
     }
     withCanvasShape() {
         this.component.addHook(this.canvasShapeHook);
+        return this;
+    }
+    withCanvasFill() {
+        this.component.addHook(this.canvasFillHook);
         return this;
     }
     withProgressShape() {
@@ -90,6 +98,10 @@ export class PixiComponentBuilder {
     }
     withAnimation() {
         this.component.addHook(this.animationHook);
+        return this;
+    }
+    withPixiAnimationTarget() {
+        this.component.addHook(this.pixiVisualTransformHook);
         return this;
     }
     withHtmlAnimation() {

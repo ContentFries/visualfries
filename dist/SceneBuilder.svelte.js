@@ -106,6 +106,50 @@ export class SceneBuilder {
     get disabledTimeZones() {
         return this.stateManager.disabledTimeZones;
     }
+    explainComponentState(componentId) {
+        const component = this.componentsManager.get(componentId);
+        if (!component)
+            return null;
+        const data = component.props.getData();
+        const target = component.context.getResource('animationTarget');
+        const isHtml = typeof HTMLElement !== 'undefined' && target instanceof HTMLElement;
+        const wrapper = component.context.getResource('wrapperHtmlEl');
+        const element = component.context.getResource('htmlEl');
+        let targetKind = 'none';
+        let targetOwner = 'none';
+        const computed = {};
+        if (isHtml) {
+            targetKind = 'html';
+            targetOwner = target === wrapper ? 'wrapper' : target === element ? 'element' : 'element';
+            const style = getComputedStyle(target);
+            computed.opacity = Number.parseFloat(style.opacity || '1');
+            computed.transform = style.transform || 'none';
+        }
+        else if (target) {
+            targetKind = 'pixi';
+            targetOwner = 'pixi';
+            for (const key of ['x', 'y', 'opacity', 'rotation', 'scale', 'scaleX', 'scaleY']) {
+                const value = target[key];
+                if (typeof value === 'number')
+                    computed[key] = value;
+            }
+        }
+        return {
+            componentId,
+            type: data.type,
+            time: this.currentTime,
+            active: component.context.isActive,
+            relativeTime: this.currentTime - data.timeline.startAt,
+            targetKind,
+            targetOwner,
+            computed,
+            animations: (data.animations?.list ?? []).map((entry) => ({
+                id: entry.id,
+                enabled: data.animations?.enabled !== false && entry.enabled !== false,
+                startAt: entry.startAt ?? 0
+            }))
+        };
+    }
     addExcludedTimestamp(start, end) {
         this.stateManager.data.settings.trimZones = this.stateManager.data.settings?.trimZones || [];
         this.stateManager.data.settings.trimZones.push({
@@ -192,8 +236,7 @@ export class SceneBuilder {
             this.scale(this.stateManager.scale);
         }
         await this.buildSceneTree();
-        this.seek(0);
-        this.render();
+        await this.seek(0);
         this.eventManager.isReady = true;
         this.domManager.removeLoader();
     }
@@ -492,21 +535,18 @@ export class SceneBuilder {
             gsap.ticker.remove(this.renderTicker);
         }
     }
-    destroy() {
+    async destroy() {
         // Stop the timeline and remove the render ticker
         gsap.ticker.remove(this.renderTicker);
         // Clear the components map
         this.initialized = false;
+        await this.componentsManager.destroy();
+        this.mediaManager.destroy();
+        await this.deterministicMediaManager.destroy();
+        this.timelineManager.destroy();
         this.appManager.destroy();
         this.domManager.destroy();
         this.stateManager.destroy();
-        this.timelineManager.destroy();
-        this.componentsManager.destroy();
-        // media manages should be destroyed last
-        this.mediaManager.destroy();
-        this.deterministicMediaManager.destroy().catch((error) => {
-            console.error('Failed to destroy deterministic media manager:', error);
-        });
         // Remove the container from the DI container cache
         removeContainer(this.sceneData.id);
     }

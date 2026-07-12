@@ -220,6 +220,7 @@ export interface ComponentBuilder {
 	withHtmlText(): ComponentBuilder;
 	withHtmlAnimation(): ComponentBuilder;
 	withAnimation(): ComponentBuilder;
+	withPixiAnimationTarget(): ComponentBuilder;
 	withSubtitles(): ComponentBuilder;
 	withDisplayObject(): ComponentBuilder;
 	withTexture(): ComponentBuilder;
@@ -228,6 +229,7 @@ export interface ComponentBuilder {
 	withGif(): ComponentBuilder;
 	withShape(): ComponentBuilder;
 	withCanvasShape(): ComponentBuilder;
+	withCanvasFill(): ComponentBuilder;
 	withProgressShape(): ComponentBuilder;
 	withHtmlToCanvasHook(): ComponentBuilder;
 }
@@ -246,7 +248,7 @@ export interface Component {
 	setup(): void;
 	update(): void;
 	refresh(type?: ComponentRefreshType): void;
-	destroy(): void;
+	destroy(): Promise<void>;
 
 	setStart(start: number): Component;
 	setEnd(end: number): Component;
@@ -329,6 +331,18 @@ type Zone = {
 	end: number;
 };
 
+export type ComponentAnimationExplanation = {
+	componentId: string;
+	type: ComponentData['type'];
+	time: number;
+	active: boolean;
+	relativeTime: number;
+	targetKind: 'html' | 'pixi' | 'none';
+	targetOwner: 'wrapper' | 'element' | 'pixi' | 'none';
+	computed: Record<string, number | string>;
+	animations: Array<{ id: string; enabled: boolean; startAt: number }>;
+};
+
 export interface SceneBuilder {
 	// Readonly properties
 	readonly sceneData: Scene;
@@ -372,6 +386,7 @@ export interface SceneBuilder {
 	markDirty(): void;
 	initialize(): Promise<void>;
 	seek(time: number): Promise<void>;
+	explainComponentState(componentId: string): ComponentAnimationExplanation | null;
 	replaceSourceOnTime(time: number, componentId: string, base64data: string): Promise<void>;
 	setDeterministicFrameProvider(provider: DeterministicFrameProvider | null): void;
 	getDeterministicFrameProvider(): DeterministicFrameProvider | null;
@@ -400,7 +415,7 @@ export interface SceneBuilder {
 	removeLoadingComponent(componentId: string): void;
 	buildCharactersList(): void;
 	render(): void;
-	destroy(): void;
+	destroy(): Promise<void>;
 	addComponent(componentData: ComponentInput): Promise<ComponentData | undefined>;
 	addLayer(layerInput: SceneLayerInput): Promise<Layer | undefined>;
 	addNewLayerWithComponents(components: ComponentInput[]): Promise<Layer | undefined>;

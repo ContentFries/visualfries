@@ -1,9 +1,4 @@
-import type {
-	IComponentContext,
-	IComponentHook,
-	HookType,
-	HookHandlers
-} from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
 import type { AnimationPreset as AnimationPresetData } from '$lib';
 import { AnimationPresetShape } from '$lib';
 
@@ -56,7 +51,9 @@ export class AnimationHook implements IComponentHook {
 		const animationData =
 			(this.#context.resources.get('animationData') as Record<string, any>) ??
 			({} as Record<string, any>);
-		const animations = [...(this.#context.contextData.animations.list ?? [])];
+		const animations = (this.#context.contextData.animations.list ?? []).filter(
+			(animation) => animation.enabled !== false
+		);
 		const customAnimations = WordHighlighterAnimationBuilder.build(
 			this.#context.contextData,
 			target,

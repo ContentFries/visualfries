@@ -56,7 +56,7 @@ export class ComponentState {
         return this.#data.order || 1;
     }
     get visible() {
-        return this.#data.visible ? this.#data.visible : true;
+        return this.#data.visible ?? true;
     }
     get duration() {
         return this.#data.timeline.endAt - this.#data.timeline.startAt;

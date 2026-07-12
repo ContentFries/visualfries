@@ -1,0 +1,87 @@
+{
+	"id": "image-animation-runtime-proof",
+	"version": "2.0",
+	"name": "IMAGE animation runtime proof",
+	"settings": {
+		"width": 1080,
+		"height": 1920,
+		"duration": 3,
+		"fps": 30,
+		"backgroundColor": "#111827"
+	},
+	"assets": [
+		{
+			"id": "proof-card-asset",
+			"type": "IMAGE",
+			"url": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='720' height='480'%3E%3Crect width='720' height='480' rx='48' fill='%23F5D547'/%3E%3Ccircle cx='360' cy='240' r='96' fill='%23101820'/%3E%3C/svg%3E"
+		}
+	],
+	"layers": [
+		{
+			"id": "image-layer",
+			"name": "Animated image",
+			"order": 10,
+			"visible": true,
+			"muted": false,
+			"components": [
+				{
+					"id": "proof-card",
+					"name": "Animated proof card asset",
+					"type": "IMAGE",
+					"source": {
+						"assetId": "proof-card-asset",
+						"url": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='720' height='480'%3E%3Crect width='720' height='480' rx='48' fill='%23F5D547'/%3E%3Ccircle cx='360' cy='240' r='96' fill='%23101820'/%3E%3C/svg%3E"
+					},
+					"timeline": { "startAt": 0.5, "endAt": 3 },
+					"visible": true,
+					"order": 0,
+					"appearance": {
+						"x": 180,
+						"y": 720,
+						"width": 720,
+						"height": 480,
+						"opacity": 0.9,
+						"rotation": 3,
+						"scaleX": 1,
+						"scaleY": 1
+					},
+					"animations": {
+						"enabled": true,
+						"list": [
+							{
+								"id": "proof-card-enter",
+								"name": "Image enter",
+								"startAt": 0.15,
+								"enabled": true,
+								"animation": {
+									"id": "proof-card-enter-preset",
+									"duration": 0.6,
+									"timeline": [
+										{
+											"tweens": [
+												{
+													"method": "from",
+													"vars": {
+														"duration": 0.6,
+														"x": -360,
+														"opacity": 0,
+														"scale": 0.82,
+														"rotation": -10,
+														"ease": "power3.out"
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						]
+					},
+					"effects": { "enabled": true, "map": {} }
+				}
+			]
+		}
+	],
+	"transitions": [],
+	"audioTracks": []
+}

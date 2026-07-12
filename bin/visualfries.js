@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
 	applyAgentCueFile,
 	createCaptionScene,
@@ -31,8 +32,10 @@ function help() {
 	console.log(`visualfries ${VERSION}
 
 Usage:
-  visualfries validate <scene.json> [--json]
-  visualfries inspect <scene.json> [--json] [--screenshots --output <dir>]
+  visualfries validate <scene.json> [--strict-runtime-support] [--json]
+  visualfries inspect <scene.json> [--strict-runtime-support] [--json] [--screenshots --output <dir>]
+  visualfries explain <scene.json> --component <id> [--frame <n>] [--json]
+  visualfries parity <scene.json> --output <dir> [--frames 0,12,30] [--strict] [--json]
   visualfries init <dir> [--video <video> --transcript <file>] [options]
   visualfries caption-scene --video <video> --transcript <file> --output <scene.json> [options]
   visualfries preset-cues --duration <seconds> --output <cues.json> [options]
@@ -42,7 +45,7 @@ Usage:
   visualfries produce <production-plan.json> --output <out.mp4> [options]
   visualfries qa <scene.json> --output <dir> [options]
   visualfries render <scene.json> --output <out.mp4|frames-dir> [options]
-  visualfries catalog [--json]
+  visualfries catalog [--component <TYPE>] [--capabilities] [--json]
   visualfries doctor [--json]
 
 caption-scene options:
@@ -406,18 +409,30 @@ async function validateCommand(args) {
 	const filePath = args[0];
 	if (!filePath) throw new Error('Usage: visualfries validate <scene.json>');
 	const scene = await readJson(filePath);
-	const result = SceneShape.safeParse(scene);
-	const output = result.success
-		? { ok: true, file: filePath, scene: { id: result.data.id, settings: result.data.settings } }
-		: { ok: false, file: filePath, error: result.error.format() };
+	const report = inspectScene(scene, {
+		strictRuntimeSupport: hasFlag(args, '--strict-runtime-support')
+	});
+	const output = {
+		ok: report.valid,
+		file: filePath,
+		schemaValid: report.schemaValid,
+		runtimeSupported: report.runtimeSupported,
+		issues: report.issues,
+		summary: report.summary
+	};
 	if (hasFlag(args, '--json')) {
 		console.log(JSON.stringify(output, null, 2));
-	} else if (result.success) {
+	} else if (report.valid) {
 		console.log(`OK ${filePath}`);
+		for (const issue of report.issues) {
+			console.log(`${issue.level.toUpperCase()} ${issue.type}: ${issue.message}`);
+		}
 	} else {
-		console.error(JSON.stringify(output.error, null, 2));
-		process.exitCode = 1;
+		for (const issue of report.issues) {
+			console.error(`${issue.level.toUpperCase()} ${issue.type}: ${issue.message}`);
+		}
 	}
+	if (!report.valid) process.exitCode = 1;
 }
 
 async function initCommand(args) {
@@ -539,8 +554,17 @@ visualfries render ./scene.with-cues.json --output ./out.mp4
 async function inspectCommand(args) {
 	const filePath = args[0];
 	if (!filePath) throw new Error('Usage: visualfries inspect <scene.json>');
-	const scene = SceneShape.parse(await readJson(filePath));
-	const report = inspectScene(scene);
+	const rawScene = await readJson(filePath);
+	const report = inspectScene(rawScene, {
+		strictRuntimeSupport: hasFlag(args, '--strict-runtime-support')
+	});
+	if (!report.schemaValid) {
+		if (hasFlag(args, '--json')) console.log(JSON.stringify(report, null, 2));
+		else console.error(report.issues.map((issue) => issue.message).join('\n'));
+		process.exitCode = 1;
+		return;
+	}
+	const scene = SceneShape.parse(rawScene);
 	let screenshots;
 	if (hasFlag(args, '--screenshots')) {
 		const output =
@@ -1171,7 +1195,10 @@ async function doctorCommand(args) {
 }
 
 async function catalogCommand(args) {
-	const catalog = getAgentCatalog();
+	const requestedComponent = readFlag(args, '--component');
+	const catalog = getAgentCatalog(
+		requestedComponent ? { component: requestedComponent.toUpperCase() } : undefined
+	);
 	if (hasFlag(args, '--json')) {
 		console.log(JSON.stringify(catalog, null, 2));
 		return;
@@ -1184,6 +1211,293 @@ async function catalogCommand(args) {
 		}
 	}
 	console.log(`routine: ${catalog.recommendedWorkflow.routine}`);
+}
+
+async function explainCommand(args) {
+	const scenePath = args[0];
+	const componentId = readFlag(args, '--component');
+	if (!scenePath || !componentId) {
+		throw new Error('Usage: visualfries explain <scene.json> --component <id> [--frame <n>]');
+	}
+	const scene = SceneShape.parse(await readJson(scenePath));
+	const fps = scene.settings.fps ?? 30;
+	const frame = numberFlag(args, '--frame', 0);
+	const componentReport = inspectScene(scene).components.find((item) => item.id === componentId);
+	if (!componentReport) throw new Error(`Component not found: ${componentId}`);
+	const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), 'visualfries-explain-'));
+	try {
+		const result = await renderSceneLocally({
+			scene,
+			output: outputDir,
+			framesOnly: true,
+			frameIndices: [frame],
+			fps,
+			keepFrames: false,
+			explain: [{ componentId, frame }],
+			packageRoot: PACKAGE_ROOT,
+			modulePaths: {
+				vite: process.env.VISUALFRIES_VITE_MODULES,
+				svelteVitePlugin: process.env.VISUALFRIES_SVELTE_VITE_MODULES,
+				playwright: process.env.VISUALFRIES_PLAYWRIGHT_MODULES,
+				nodeModules: process.env.VISUALFRIES_NODE_MODULES
+			}
+		});
+		const output = {
+			frame,
+			fps,
+			capability: componentReport.capability,
+			state: result.explanations?.[0] ?? null
+		};
+		console.log(JSON.stringify(output, null, 2));
+	} finally {
+		await fs.rm(outputDir, { recursive: true, force: true });
+	}
+}
+
+async function compareFrameSsim(previewPath, finalPath, { semantic = false, crop } = {}) {
+	return await new Promise((resolve, reject) => {
+		let stderr = '';
+		const semanticSigma = crop?.semanticSigma ?? 1;
+		const filter = crop
+			? `[0:v]crop=${crop.width}:${crop.height}:${crop.x}:${crop.y}${semantic ? `,gblur=sigma=${semanticSigma}` : ''}[a];[1:v]crop=${crop.width}:${crop.height}:${crop.x}:${crop.y}${semantic ? `,gblur=sigma=${semanticSigma}` : ''}[b];[a][b]ssim`
+			: semantic
+				? '[0:v]gblur=sigma=1[a];[1:v]gblur=sigma=1[b];[a][b]ssim'
+				: 'ssim';
+		const child = spawn(process.env.FFMPEG_PATH || 'ffmpeg', [
+			'-i',
+			previewPath,
+			'-i',
+			finalPath,
+			'-lavfi',
+			filter,
+			'-f',
+			'null',
+			'-'
+		]);
+		child.stderr.on('data', (chunk) => (stderr += String(chunk)));
+		child.on('error', reject);
+		child.on('close', (code) => {
+			if (code !== 0) return reject(new Error(`ffmpeg SSIM exited with code ${code}`));
+			const match = stderr.match(/All:([0-9.]+)/);
+			if (!match) return reject(new Error('ffmpeg did not report an SSIM All value'));
+			resolve(Number(match[1]));
+		});
+	});
+}
+
+async function sha256(filePath) {
+	return createHash('sha256')
+		.update(await fs.readFile(filePath))
+		.digest('hex');
+}
+
+async function writeParityDiffRow(previewPath, finalPath, outputPath) {
+	await fs.mkdir(path.dirname(outputPath), { recursive: true });
+	await new Promise((resolve, reject) => {
+		const child = spawn(process.env.FFMPEG_PATH || 'ffmpeg', [
+			'-y',
+			'-i',
+			previewPath,
+			'-i',
+			finalPath,
+			'-filter_complex',
+			'[0:v][1:v]blend=all_mode=difference,lutrgb=r=val*4:g=val*4:b=val*4[diff];[0:v][1:v][diff]hstack=inputs=3[out]',
+			'-map',
+			'[out]',
+			outputPath
+		]);
+		let stderr = '';
+		child.stderr.on('data', (chunk) => (stderr += String(chunk)));
+		child.on('error', reject);
+		child.on('close', (code) =>
+			code === 0 ? resolve() : reject(new Error(`ffmpeg parity diff exited ${code}: ${stderr}`))
+		);
+	});
+}
+
+async function writeParityContactSheet(rows, outputPath) {
+	if (!rows.length) return;
+	await new Promise((resolve, reject) => {
+		const args = ['-y'];
+		for (const row of rows) args.push('-i', row);
+		args.push('-filter_complex', `vstack=inputs=${rows.length}[out]`, '-map', '[out]', outputPath);
+		const child = spawn(process.env.FFMPEG_PATH || 'ffmpeg', args);
+		let stderr = '';
+		child.stderr.on('data', (chunk) => (stderr += String(chunk)));
+		child.on('error', reject);
+		child.on('close', (code) =>
+			code === 0
+				? resolve()
+				: reject(new Error(`ffmpeg parity contact sheet exited ${code}: ${stderr}`))
+		);
+	});
+}
+
+async function parityCommand(args) {
+	const scenePath = args[0];
+	const output = readFlag(args, '--output');
+	if (!scenePath || !output) {
+		throw new Error('Usage: visualfries parity <scene.json> --output <dir> [--frames 0,12,30]');
+	}
+	const scene = SceneShape.parse(await readJson(scenePath));
+	const roiConfigPath = readFlag(args, '--rois');
+	const roiConfig = roiConfigPath ? await readJson(roiConfigPath) : null;
+	const regions = Array.isArray(roiConfig?.regions) ? roiConfig.regions : [];
+	const fps = scene.settings.fps ?? 30;
+	const defaultFrames = [
+		0,
+		Math.floor((scene.settings.duration * fps) / 2),
+		Math.max(0, Math.ceil(scene.settings.duration * fps) - 1)
+	];
+	const frames = [
+		...new Set(
+			(readFlag(args, '--frames')
+				? readFlag(args, '--frames').split(',').map(Number)
+				: defaultFrames
+			).filter((frame) => Number.isInteger(frame) && frame >= 0)
+		)
+	];
+	if (!frames.length) throw new Error('--frames must contain at least one non-negative integer');
+	const requestedFrames = [...frames, ...[...frames].reverse()];
+	const root = path.resolve(output);
+	const previewDir = path.join(root, 'preview');
+	const finalDir = path.join(root, 'final');
+	const common = {
+		scene,
+		framesOnly: true,
+		frameIndices: requestedFrames,
+		fps,
+		keepFrames: false,
+		packageRoot: PACKAGE_ROOT,
+		modulePaths: {
+			vite: process.env.VISUALFRIES_VITE_MODULES,
+			svelteVitePlugin: process.env.VISUALFRIES_SVELTE_VITE_MODULES,
+			playwright: process.env.VISUALFRIES_PLAYWRIGHT_MODULES,
+			nodeModules: process.env.VISUALFRIES_NODE_MODULES
+		}
+	};
+	const previewResult = await renderSceneLocally({
+		...common,
+		output: previewDir,
+		environment: 'client',
+		serverRendererMode: 'webgl',
+		renderPlan: resolveAgentRenderPlan(scene, { mode: 'preview' })
+	});
+	const finalResult = await renderSceneLocally({
+		...common,
+		output: finalDir,
+		environment: 'server',
+		renderPlan: resolveAgentRenderPlan(scene, { mode: 'final' })
+	});
+
+	const comparisons = [];
+	const diffRows = [];
+	for (let index = 0; index < frames.length; index += 1) {
+		const name = `frame-${String(index + 1).padStart(6, '0')}.png`;
+		const previewPath = path.join(previewDir, name);
+		const finalPath = path.join(finalDir, name);
+		const diffPath = path.join(root, 'diff', `frame-${String(frames[index]).padStart(6, '0')}.png`);
+		await writeParityDiffRow(previewPath, finalPath, diffPath);
+		diffRows.push(diffPath);
+		const regionComparisons = await Promise.all(
+			regions.map(async (region) => ({
+				name: region.name,
+				class: region.class,
+				rawFloor: region.rawFloor,
+				semanticFloor: region.semanticFloor,
+				semanticSigma: region.semanticSigma ?? 1,
+				ssim: await compareFrameSsim(previewPath, finalPath, { crop: region }),
+				semanticSsim: await compareFrameSsim(previewPath, finalPath, {
+					semantic: true,
+					crop: region
+				})
+			}))
+		);
+		comparisons.push({
+			frame: frames[index],
+			preview: { path: previewPath, sha256: await sha256(previewPath) },
+			final: { path: finalPath, sha256: await sha256(finalPath) },
+			ssim: await compareFrameSsim(previewPath, finalPath),
+			semanticSsim: await compareFrameSsim(previewPath, finalPath, { semantic: true }),
+			diff: diffPath,
+			...(regionComparisons.length ? { regions: regionComparisons } : {})
+		});
+	}
+	const contactSheetPath = path.join(root, 'contact-sheet.png');
+	await writeParityContactSheet(diffRows, contactSheetPath);
+	const reseekItems = [];
+	const reseekSsimFloor = 0.999;
+	for (let index = 0; index < frames.length; index += 1) {
+		const firstName = `frame-${String(index + 1).padStart(6, '0')}.png`;
+		const reverseIndex = frames.length + (frames.length - 1 - index) + 1;
+		const repeatName = `frame-${String(reverseIndex).padStart(6, '0')}.png`;
+		const previewFirstPath = path.join(previewDir, firstName);
+		const previewRepeatPath = path.join(previewDir, repeatName);
+		const finalFirstPath = path.join(finalDir, firstName);
+		const finalRepeatPath = path.join(finalDir, repeatName);
+		const previewExact = (await sha256(previewFirstPath)) === (await sha256(previewRepeatPath));
+		const finalExact = (await sha256(finalFirstPath)) === (await sha256(finalRepeatPath));
+		const previewSsim = previewExact
+			? 1
+			: await compareFrameSsim(previewFirstPath, previewRepeatPath);
+		const finalSsim = finalExact ? 1 : await compareFrameSsim(finalFirstPath, finalRepeatPath);
+		reseekItems.push({
+			frame: frames[index],
+			previewExact,
+			finalExact,
+			previewSsim,
+			finalSsim,
+			stable: previewSsim >= reseekSsimFloor && finalSsim >= reseekSsimFloor
+		});
+	}
+	const reseek = {
+		order: requestedFrames,
+		items: reseekItems,
+		allExact: reseekItems.every((item) => item.previewExact && item.finalExact),
+		ssimFloor: reseekSsimFloor,
+		allStable: reseekItems.every((item) => item.stable)
+	};
+	const rawReviewFloor = 0.9;
+	const semanticThreshold = 0.95;
+	const manifest = {
+		scene: scene.id,
+		fps,
+		frames,
+		thresholds: {
+			rawWholeFrameSsimReviewFloor: rawReviewFloor,
+			semanticWholeFrameSsim: semanticThreshold,
+			semanticBlurSigma: 1,
+			deterministicReseekExactPreferred: true,
+			deterministicReseekSsimFloor: reseekSsimFloor,
+			...(roiConfig?.classes ? { classes: roiConfig.classes } : {})
+		},
+		comparisons,
+		contactSheet: contactSheetPath,
+		reseek,
+		runtimeErrors: {
+			preview: previewResult.runtimeErrors ?? [],
+			final: finalResult.runtimeErrors ?? []
+		},
+		passed:
+			comparisons.every(
+				(item) =>
+					item.ssim >= rawReviewFloor &&
+					item.semanticSsim >= semanticThreshold &&
+					(item.regions ?? []).every(
+						(region) =>
+							region.ssim >= region.rawFloor && region.semanticSsim >= region.semanticFloor
+					)
+			) &&
+			reseek.allStable &&
+			(previewResult.runtimeErrors?.length ?? 0) === 0 &&
+			(finalResult.runtimeErrors?.length ?? 0) === 0,
+		caveat:
+			'Raw SSIM remains visible for dither/antialias review. Semantic SSIM applies a 1px Gaussian blur to separate renderer pixel noise from missing or misplaced visuals.'
+	};
+	await fs.mkdir(root, { recursive: true });
+	await fs.writeFile(path.join(root, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+	console.log(JSON.stringify(manifest, null, 2));
+	if (!manifest.passed && hasFlag(args, '--strict')) process.exitCode = 1;
 }
 
 async function renderCommand(args) {
@@ -1241,6 +1555,8 @@ async function main() {
 	if (command === 'produce') return produceCommand(args);
 	if (command === 'render') return renderCommand(args);
 	if (command === 'catalog') return catalogCommand(args);
+	if (command === 'explain') return explainCommand(args);
+	if (command === 'parity') return parityCommand(args);
 	if (command === 'doctor') return doctorCommand(args);
 	throw new Error(`Unknown command: ${command}`);
 }

@@ -16,7 +16,7 @@ export declare function getAgentCatalog(options?: {
     transitionStyles: ("dip-to-black" | "flash" | "swipe-left" | "swipe-up")[];
     transcriptFormats: ("srt" | "vtt" | "json")[];
     cliCommands: ("render" | "doctor" | "catalog" | "validate" | "init" | "caption-scene" | "preset-cues" | "apply-cues" | "validate-cues" | "qa" | "inspect" | "explain" | "parity" | "compose" | "produce")[];
-    capabilities: import("./capabilities.js").ComponentCapability | import("./capabilities.js").ComponentCapability[];
+    capabilities: import("./capabilities.js").ComponentCapability[];
     recommendedWorkflow: {
         routine: string;
         debug: string[];

@@ -165,10 +165,18 @@ export const registerNewContainer = function (
 	return childContainer;
 };
 
-export const removeContainer = function (sceneId: string): void {
-	if (containers.has(sceneId)) {
-		const container = containers.get(sceneId)!;
-		container.dispose();
-		containers.delete(sceneId);
-	}
+export const evictContainer = function (sceneId: string): AwilixContainer | undefined {
+	const container = containers.get(sceneId);
+	if (container) containers.delete(sceneId);
+	return container;
+};
+
+export const removeContainer = async function (
+	sceneId: string,
+	expectedContainer?: AwilixContainer
+): Promise<void> {
+	const current = containers.get(sceneId);
+	if (expectedContainer && current !== expectedContainer) return;
+	const container = evictContainer(sceneId);
+	if (container) await container.dispose();
 };

@@ -89,7 +89,7 @@ export interface ResourceManager<T, D, F> {
     get(id: string): T | undefined;
     getAll(): T[];
     update(id: string, data: Partial<F>, refreshType?: ComponentRefreshType): void;
-    delete(id: string): void;
+    delete(id: string): void | Promise<void>;
     create(data: D): Promise<T | null>;
     setOrder(id: string, newOrder: number): void;
     moveUp(id: string): void;
@@ -100,7 +100,7 @@ export interface ResourceManager<T, D, F> {
         id: string;
         data: Partial<F>;
     }>): void;
-    bulkDelete(ids: string[]): void;
+    bulkDelete(ids: string[]): void | Promise<void>;
     hide(id: string): void;
     show(id: string): void;
     toggle(id: string): void;

@@ -346,6 +346,12 @@ class AnimatedGIF extends Sprite {
 
     /** Seek using authored GIF frame delays rather than assuming a fixed FPS. */
     public seek(timeMs: number): void {
+        if (!Number.isFinite(this.duration) || this.duration <= 0) {
+            this._currentTime = 0;
+            if (this._frames.length > 0) this.updateFrameIndex(0);
+            return;
+        }
+
         const safeTime = Number.isFinite(timeMs) ? Math.max(0, timeMs) : 0;
         const localTime = this.loop
             ? safeTime % this.duration
@@ -379,7 +385,9 @@ class AnimatedGIF extends Sprite {
      * @readonly
      */
     public get progress(): number {
-        return this._currentTime / this.duration;
+        return Number.isFinite(this.duration) && this.duration > 0
+            ? this._currentTime / this.duration
+            : 0;
     }
 
     /** `true` if the current animation is playing */

@@ -148,10 +148,17 @@ export const registerNewContainer = function (data, instances) {
     containers.set(data.id, childContainer);
     return childContainer;
 };
-export const removeContainer = function (sceneId) {
-    if (containers.has(sceneId)) {
-        const container = containers.get(sceneId);
-        container.dispose();
+export const evictContainer = function (sceneId) {
+    const container = containers.get(sceneId);
+    if (container)
         containers.delete(sceneId);
-    }
+    return container;
+};
+export const removeContainer = async function (sceneId, expectedContainer) {
+    const current = containers.get(sceneId);
+    if (expectedContainer && current !== expectedContainer)
+        return;
+    const container = evictContainer(sceneId);
+    if (container)
+        await container.dispose();
 };

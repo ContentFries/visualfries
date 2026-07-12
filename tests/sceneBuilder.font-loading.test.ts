@@ -3,11 +3,13 @@ import { SceneBuilder } from '$lib/SceneBuilder.svelte.ts';
 
 const originalFonts = (document as any).fonts;
 
-const createBuilder = (overrides: {
-	appManager?: any;
-	layersManager?: any;
-	commandRunner?: any;
-} = {}) => {
+const createBuilder = (
+	overrides: {
+		appManager?: any;
+		layersManager?: any;
+		commandRunner?: any;
+	} = {}
+) => {
 	const stateManager = {
 		environment: 'server',
 		state: 'paused',
@@ -79,6 +81,7 @@ const createBuilder = (overrides: {
 		run: vi.fn(async () => undefined),
 		runSync: vi.fn(() => true)
 	};
+	const eventManager = { emit: vi.fn(), isReady: false };
 
 	return {
 		builder: new SceneBuilder({
@@ -88,7 +91,7 @@ const createBuilder = (overrides: {
 				pause: vi.fn(),
 				destroy: vi.fn()
 			} as any,
-			eventManager: { emit: vi.fn(), isReady: false } as any,
+			eventManager: eventManager as any,
 			domManager: {
 				canvas: { toDataURL: vi.fn() },
 				htmlContainer: {},
@@ -112,7 +115,9 @@ const createBuilder = (overrides: {
 			fonts: []
 		}),
 		appManager,
-		layersManager
+		layersManager,
+		commandRunner,
+		eventManager
 	};
 };
 
@@ -165,5 +170,22 @@ describe('SceneBuilder font preload ordering', () => {
 
 		expect(appManager.initialize).toHaveBeenCalledTimes(1);
 		expect(layersManager.create).toHaveBeenCalledTimes(1);
+	});
+
+	it('allows initialize retry after an asynchronous setup failure', async () => {
+		const commandRunner = {
+			run: vi
+				.fn()
+				.mockRejectedValueOnce(new Error('initial seek failed'))
+				.mockResolvedValue(undefined),
+			runSync: vi.fn(() => true)
+		};
+		const { builder, eventManager } = createBuilder({ commandRunner });
+
+		await expect(builder.initialize()).rejects.toThrow('initial seek failed');
+		expect(eventManager.isReady).toBe(false);
+		await expect(builder.initialize()).resolves.toBeUndefined();
+		expect(commandRunner.run).toHaveBeenCalledTimes(2);
+		expect(eventManager.isReady).toBe(true);
 	});
 });

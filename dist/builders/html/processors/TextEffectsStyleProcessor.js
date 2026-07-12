@@ -30,7 +30,10 @@ export class TextEffectsStyleProcessor {
                 const size = data.size || 0.3;
                 const color = data.color || '#000000';
                 if (data.structured) {
-                    styles.webkitTextStroke = `${size}px ${color}`;
+                    const strokeColor = data.opacity === undefined || data.opacity === 1
+                        ? color
+                        : tinycolor(color).setAlpha(data.opacity).toRgbString();
+                    styles.webkitTextStroke = `${size}px ${strokeColor}`;
                     styles.paintOrder = 'stroke fill';
                 }
                 else {

@@ -335,7 +335,7 @@ Runtime support is component-specific. Schema validation alone is not proof:
 | AUDIO | Nonvisual; no visual animation target |
 
 Pixi x/y animation values are placement-relative translation offsets; pivot is fixed center.
-`enabled: false` animation entries are skipped. Render entry and settled frames and reseek them.
+`enabled: false` animation entries are skipped. Render entry and settled frames, then reseek those frames to verify deterministic output.
 Use `visualfries validate --strict-runtime-support` and `visualfries explain --component <id> --frame <n>` to gate and inspect actual runtime behavior.
 
 **Schema:**

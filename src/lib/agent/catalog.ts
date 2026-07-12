@@ -63,7 +63,7 @@ export function getAgentCatalog(options: { component?: CapabilityComponentType }
 		transitionStyles: [...AGENT_TRANSITION_STYLES],
 		transcriptFormats: [...AGENT_TRANSCRIPT_FORMATS],
 		cliCommands: [...AGENT_CLI_COMMANDS],
-		capabilities: componentCapability ?? getCapabilityCatalog(),
+		capabilities: componentCapability ? [componentCapability] : getCapabilityCatalog(),
 		recommendedWorkflow: {
 			routine:
 				'visualfries compose --video ./input.mp4 --transcript ./captions.srt --cue-preset hidden-engine-dynamic --cues ./cues.json --scene-output ./scene.json --qa-output ./qa/frames --render-mode preview --output ./preview.mp4',

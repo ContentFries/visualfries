@@ -22,7 +22,8 @@ describe('agent runtime capability truth', () => {
 
 	it('filters the catalog to one discoverable component capability', () => {
 		const catalog = getAgentCatalog({ component: 'TEXT' });
-		expect(catalog.capabilities).toMatchObject({
+		expect(catalog.capabilities).toHaveLength(1);
+		expect(catalog.capabilities[0]).toMatchObject({
 			type: 'TEXT',
 			animation: { attached: true }
 		});
@@ -52,6 +53,8 @@ describe('agent runtime capability truth', () => {
 		};
 
 		const compatible = inspectScene(scene);
+		const layerIndex = scene.layers.findIndex((layer) => layer.components.includes(video));
+		const componentIndex = scene.layers[layerIndex].components.indexOf(video);
 		expect(compatible.valid).toBe(true);
 		expect(compatible.runtimeSupported).toBe(false);
 		expect(compatible.issues).toContainEqual(
@@ -61,6 +64,13 @@ describe('agent runtime capability truth', () => {
 				componentId: video.id
 			})
 		);
+		expect(
+			compatible.issues.find((item) => item.code === 'runtime-animation-property-unsupported')
+		).toMatchObject({
+			path: `layers.${layerIndex}.components.${componentIndex}.animations.list.0.tween.vars.width`,
+			layerId: scene.layers[layerIndex].id,
+			componentId: video.id
+		});
 
 		const strict = inspectScene(scene, { strictRuntimeSupport: true });
 		expect(strict.valid).toBe(false);
@@ -93,7 +103,17 @@ describe('agent runtime capability truth', () => {
 							target: 'words',
 							tween: {
 								method: 'from' as const,
-								vars: { x: -10, opacity: 0, scale: 0.8, duration: 0.2 }
+								vars: {
+									x: -10,
+									opacity: 0,
+									scale: 0.8,
+									duration: 0.2,
+									repeat: 1,
+									yoyo: true,
+									repeatDelay: 0.1,
+									overwrite: 'auto',
+									onComplete: () => undefined
+								}
 							}
 						}
 					}

@@ -26,7 +26,7 @@ export declare class ComponentsManager implements ResourceManager<IComponent, Co
     getMediaComponents(): (Component & MediaComponent)[];
     update(componentId: string, data: Partial<AppearanceInput>, refreshType?: ComponentRefreshType): void;
     get(componentId: string): IComponent | undefined;
-    delete(componentId: string): void;
+    delete(componentId: string): Promise<void>;
     create(componentData: ComponentData): Promise<IComponent | null>;
     setOrder(id: string, order: number): void;
     moveUp(id: string): void;
@@ -39,7 +39,7 @@ export declare class ComponentsManager implements ResourceManager<IComponent, Co
         id: string;
         data: Partial<AppearanceInput>;
     }[]): void;
-    bulkDelete(ids: string[]): void;
+    bulkDelete(ids: string[]): Promise<void>;
     hide(id: string): void;
     show(id: string): void;
     toggle(id: string): void;

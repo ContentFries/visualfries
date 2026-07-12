@@ -68,4 +68,13 @@ describe('native TEXT style runtime', () => {
 		const legacyElement = new TextComponentHtmlBuilder(legacy, document).build().element;
 		expect(legacyElement.style.padding).toBe('0.22em');
 	});
+
+	it('preserves opacity in structured outline color', () => {
+		const translucent = structuredClone(badge);
+		translucent.appearance.text.outline.opacity = 0.5;
+		const style = new StyleBuilder(translucent).build();
+
+		expect(style.webkitTextStroke).toBe('2px rgba(255, 255, 255, 0.5)');
+		expect(style.paintOrder).toBe('stroke fill');
+	});
 });

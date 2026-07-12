@@ -55,6 +55,12 @@ describe('PixiVisualTransformHook', () => {
 			scale: { x: 1.2, y: 0.8 }
 		});
 		expect(target).toMatchObject({ x: 25, y: -15 });
+
+		context.data.appearance = { x: 200, y: 300, width: 600, height: 400 };
+		await hook.handle('update', context);
+		expect(outer.pivot).toMatchObject({ x: 500, y: 500 });
+		expect(outer.position).toMatchObject({ x: 525, y: 485 });
+		expect(target).toMatchObject({ x: 25, y: -15 });
 	});
 
 	it('keeps the outer target stable across content swaps and honors visible false', async () => {

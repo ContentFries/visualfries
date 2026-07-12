@@ -27,6 +27,10 @@ export class CanvasFillHook implements IComponentHook {
 		const ctx = this.#canvas.getContext('2d');
 		if (!ctx) return;
 		const { width, height } = data.appearance;
+		if (this.#canvas.width !== width || this.#canvas.height !== height) {
+			this.#canvas.width = width;
+			this.#canvas.height = height;
+		}
 		ctx.clearRect(0, 0, width, height);
 
 		if (data.type === 'COLOR') {
@@ -55,7 +59,11 @@ export class CanvasFillHook implements IComponentHook {
 		}
 
 		ctx.fillRect(0, 0, width, height);
-		this.#context.getResource('pixiTexture')?.update();
+		const texture = this.#context.getResource('pixiTexture') as
+			| { baseTexture?: { update?: () => void }; update?: () => void }
+			| undefined;
+		texture?.baseTexture?.update?.();
+		texture?.update?.();
 		this.#state.markDirty();
 	}
 

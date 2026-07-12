@@ -20,6 +20,7 @@ export class PixiVisualTransformHook implements IComponentHook {
 	#outer: PIXI.Container | undefined;
 	#content: PIXI.Container | undefined;
 	#target: PixiAnimationTarget | undefined;
+	#origin: { x: number; y: number } | undefined;
 	#state: StateManager;
 
 	#handlers: HookHandlers = {
@@ -42,10 +43,27 @@ export class PixiVisualTransformHook implements IComponentHook {
 		this.#outer = new PIXI.Container();
 		this.#outer.pivot.set(centerX, centerY);
 		this.#outer.position.set(centerX, centerY);
-		this.#target = createPixiAnimationTarget(this.#outer, () => this.#state.markDirty(), {
-			x: centerX,
-			y: centerY
-		});
+		this.#origin = { x: centerX, y: centerY };
+		this.#target = createPixiAnimationTarget(
+			this.#outer,
+			() => this.#state.markDirty(),
+			this.#origin
+		);
+	}
+
+	#syncPlacement() {
+		if (!this.#outer || !this.#target || !this.#origin) return;
+		const appearance = this.#context.data.appearance;
+		const centerX = appearance.x + appearance.width / 2;
+		const centerY = appearance.y + appearance.height / 2;
+		if (centerX === this.#origin.x && centerY === this.#origin.y) return;
+		const offsetX = this.#target.x;
+		const offsetY = this.#target.y;
+		this.#origin.x = centerX;
+		this.#origin.y = centerY;
+		this.#outer.pivot.set(centerX, centerY);
+		this.#outer.position.set(centerX + offsetX, centerY + offsetY);
+		this.#state.markDirty();
 	}
 
 	async #publish() {
@@ -53,6 +71,7 @@ export class PixiVisualTransformHook implements IComponentHook {
 		if (!renderObject && !this.#outer) return;
 		this.#ensureOuter();
 		if (!this.#outer || !this.#target) return;
+		this.#syncPlacement();
 
 		if (renderObject && renderObject !== this.#outer && renderObject !== this.#content) {
 			if (this.#content?.parent === this.#outer) this.#outer.removeChild(this.#content);
@@ -84,6 +103,7 @@ export class PixiVisualTransformHook implements IComponentHook {
 		}
 		this.#content = undefined;
 		this.#target = undefined;
+		this.#origin = undefined;
 		this.#outer = undefined;
 	}
 

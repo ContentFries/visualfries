@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveGifFrameIndexAtTime } from '$lib/components/AnimatedGIF.ts';
+import { AnimatedGIF, resolveGifFrameIndexAtTime } from '$lib/components/AnimatedGIF.ts';
 
 describe('AnimatedGIF authored-time seeking', () => {
 	const frames = [
@@ -19,5 +19,20 @@ describe('AnimatedGIF authored-time seeking', () => {
 	it('loops or clamps using the authored playback contract', () => {
 		expect(resolveGifFrameIndexAtTime(frames, 200, 240, true)).toBe(1);
 		expect(resolveGifFrameIndexAtTime(frames, 200, 240, false)).toBe(2);
+	});
+
+	it('keeps zero-duration seek state finite and on a valid frame', () => {
+		const gif = Object.create(AnimatedGIF.prototype) as any;
+		gif.duration = 0;
+		gif.loop = true;
+		gif._frames = [{ start: 0, end: 0 }];
+		gif._currentFrame = 0;
+		gif._currentTime = 123;
+
+		gif.seek(999);
+
+		expect(gif._currentTime).toBe(0);
+		expect(gif.currentFrame).toBe(0);
+		expect(gif.progress).toBe(0);
 	});
 });

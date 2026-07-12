@@ -12,6 +12,7 @@ export class PixiVisualTransformHook {
     #outer;
     #content;
     #target;
+    #origin;
     #state;
     #handlers = {
         setup: this.#publish.bind(this),
@@ -32,10 +33,24 @@ export class PixiVisualTransformHook {
         this.#outer = new PIXI.Container();
         this.#outer.pivot.set(centerX, centerY);
         this.#outer.position.set(centerX, centerY);
-        this.#target = createPixiAnimationTarget(this.#outer, () => this.#state.markDirty(), {
-            x: centerX,
-            y: centerY
-        });
+        this.#origin = { x: centerX, y: centerY };
+        this.#target = createPixiAnimationTarget(this.#outer, () => this.#state.markDirty(), this.#origin);
+    }
+    #syncPlacement() {
+        if (!this.#outer || !this.#target || !this.#origin)
+            return;
+        const appearance = this.#context.data.appearance;
+        const centerX = appearance.x + appearance.width / 2;
+        const centerY = appearance.y + appearance.height / 2;
+        if (centerX === this.#origin.x && centerY === this.#origin.y)
+            return;
+        const offsetX = this.#target.x;
+        const offsetY = this.#target.y;
+        this.#origin.x = centerX;
+        this.#origin.y = centerY;
+        this.#outer.pivot.set(centerX, centerY);
+        this.#outer.position.set(centerX + offsetX, centerY + offsetY);
+        this.#state.markDirty();
     }
     async #publish() {
         const renderObject = this.#context.getResource('pixiRenderObject');
@@ -44,6 +59,7 @@ export class PixiVisualTransformHook {
         this.#ensureOuter();
         if (!this.#outer || !this.#target)
             return;
+        this.#syncPlacement();
         if (renderObject && renderObject !== this.#outer && renderObject !== this.#content) {
             if (this.#content?.parent === this.#outer)
                 this.#outer.removeChild(this.#content);
@@ -74,6 +90,7 @@ export class PixiVisualTransformHook {
         }
         this.#content = undefined;
         this.#target = undefined;
+        this.#origin = undefined;
         this.#outer = undefined;
     }
     async handle(type, context) {

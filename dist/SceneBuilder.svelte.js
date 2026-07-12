@@ -17,7 +17,7 @@ import { MediaManager } from './managers/MediaManager.js';
 import { DeterministicMediaManager } from './managers/DeterministicMediaManager.js';
 import { LayersManager } from './managers/LayersManager.svelte.js';
 import { SubtitlesManager } from './managers/SubtitlesManager.svelte.js';
-import { removeContainer } from './DIContainer.js';
+import { evictContainer, removeContainer } from './DIContainer.js';
 export class SceneBuilder {
     initialized = false;
     renderTicker;
@@ -225,20 +225,27 @@ export class SceneBuilder {
             return;
         }
         this.initialized = true;
-        gsap.ticker.fps(this.fps);
-        this.renderTicker = () => {
-            this.render();
-        };
-        await this.loadFonts(this.fonts);
-        this.layersManager.setAppManager(this.appManager);
-        await this.appManager.initialize();
-        if (this.stateManager.scale !== 1) {
-            this.scale(this.stateManager.scale);
+        try {
+            gsap.ticker.fps(this.fps);
+            this.renderTicker = () => {
+                this.render();
+            };
+            await this.loadFonts(this.fonts);
+            this.layersManager.setAppManager(this.appManager);
+            await this.appManager.initialize();
+            if (this.stateManager.scale !== 1) {
+                this.scale(this.stateManager.scale);
+            }
+            await this.buildSceneTree();
+            await this.seek(0);
+            this.eventManager.isReady = true;
+            this.domManager.removeLoader();
         }
-        await this.buildSceneTree();
-        await this.seek(0);
-        this.eventManager.isReady = true;
-        this.domManager.removeLoader();
+        catch (error) {
+            this.initialized = false;
+            this.eventManager.isReady = false;
+            throw error;
+        }
     }
     async buildSceneTree() {
         // Sort layers by order
@@ -536,18 +543,35 @@ export class SceneBuilder {
         }
     }
     async destroy() {
-        // Stop the timeline and remove the render ticker
-        gsap.ticker.remove(this.renderTicker);
-        // Clear the components map
         this.initialized = false;
-        await this.componentsManager.destroy();
-        this.mediaManager.destroy();
-        await this.deterministicMediaManager.destroy();
-        this.timelineManager.destroy();
-        this.appManager.destroy();
-        this.domManager.destroy();
-        this.stateManager.destroy();
-        // Remove the container from the DI container cache
-        removeContainer(this.sceneData.id);
+        this.eventManager.isReady = false;
+        const container = evictContainer(this.sceneData.id);
+        const errors = [];
+        const cleanup = async (operation) => {
+            try {
+                await operation();
+            }
+            catch (error) {
+                errors.push(error);
+            }
+        };
+        try {
+            await cleanup(() => gsap.ticker.remove(this.renderTicker));
+            await cleanup(() => this.componentsManager.destroy());
+            await cleanup(() => this.mediaManager.destroy());
+            await cleanup(() => this.deterministicMediaManager.destroy());
+            await cleanup(() => this.timelineManager.destroy());
+            await cleanup(() => this.appManager.destroy());
+            await cleanup(() => this.domManager.destroy());
+            await cleanup(() => this.stateManager.destroy());
+        }
+        finally {
+            await cleanup(() => container?.dispose());
+            if (container)
+                await cleanup(() => removeContainer(this.sceneData.id, container));
+        }
+        if (errors.length > 0) {
+            throw new AggregateError(errors, `SceneBuilder teardown failed for ${this.sceneData.id}.`);
+        }
     }
 }

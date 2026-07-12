@@ -83,7 +83,8 @@ export class StyleBuilder {
 					structured: true,
 					enabled: textAppearance.outline.enabled ? true : false,
 					size: textAppearance.outline.size,
-					color: textAppearance.outline.color
+					color: textAppearance.outline.color,
+					opacity: textAppearance.outline.opacity ?? 1
 				} as unknown as ComponentEffect;
 			}
 

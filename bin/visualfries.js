@@ -1207,7 +1207,10 @@ async function catalogCommand(args) {
 	console.log('VisualFries Agent Catalog');
 	for (const [key, value] of Object.entries(catalog)) {
 		if (Array.isArray(value)) {
-			console.log(`${key}: ${value.join(', ')}`);
+			const printable = value.map((item) =>
+				typeof item === 'object' && item && 'type' in item ? item.type : String(item)
+			);
+			console.log(`${key}: ${printable.join(', ')}`);
 		}
 	}
 	console.log(`routine: ${catalog.recommendedWorkflow.routine}`);

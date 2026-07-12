@@ -19,6 +19,10 @@ export class CanvasFillHook {
         if (!ctx)
             return;
         const { width, height } = data.appearance;
+        if (this.#canvas.width !== width || this.#canvas.height !== height) {
+            this.#canvas.width = width;
+            this.#canvas.height = height;
+        }
         ctx.clearRect(0, 0, width, height);
         if (data.type === 'COLOR') {
             ctx.fillStyle = data.appearance.background;
@@ -38,7 +42,9 @@ export class CanvasFillHook {
             ctx.fillStyle = gradient;
         }
         ctx.fillRect(0, 0, width, height);
-        this.#context.getResource('pixiTexture')?.update();
+        const texture = this.#context.getResource('pixiTexture');
+        texture?.baseTexture?.update?.();
+        texture?.update?.();
         this.#state.markDirty();
     }
     async #setup() {

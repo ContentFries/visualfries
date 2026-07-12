@@ -156,7 +156,7 @@ export interface ResourceManager<T, D, F> {
 	get(id: string): T | undefined;
 	getAll(): T[];
 	update(id: string, data: Partial<F>, refreshType?: ComponentRefreshType): void;
-	delete(id: string): void;
+	delete(id: string): void | Promise<void>;
 	create(data: D): Promise<T | null>;
 
 	// Position/Order management
@@ -168,7 +168,7 @@ export interface ResourceManager<T, D, F> {
 
 	// Bulk operations
 	bulkUpdate(updates: Array<{ id: string; data: Partial<F> }>): void;
-	bulkDelete(ids: string[]): void;
+	bulkDelete(ids: string[]): void | Promise<void>;
 
 	// State/visibility
 	hide(id: string): void;

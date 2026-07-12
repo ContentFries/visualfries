@@ -71,7 +71,7 @@ export class ComponentsManager {
     get(componentId) {
         return this.components.get(componentId);
     }
-    delete(componentId) {
+    async delete(componentId) {
         const component = this.components.get(componentId);
         if (component) {
             const layers = this.layersManager.getAll();
@@ -83,8 +83,8 @@ export class ComponentsManager {
                     this.layersManager.delete(componentLayer.id);
                 }
             }
-            component.destroy();
             this.components.delete(componentId);
+            await component.destroy();
         }
     }
     async #buildComponent(componentData) {
@@ -237,8 +237,13 @@ export class ComponentsManager {
     bulkUpdate(updates) {
         updates.forEach(({ id, data }) => this.update(id, data));
     }
-    bulkDelete(ids) {
-        ids.forEach((id) => this.delete(id));
+    async bulkDelete(ids) {
+        const results = await Promise.allSettled(ids.map((id) => this.delete(id)));
+        const errors = results
+            .filter((result) => result.status === 'rejected')
+            .map((result) => result.reason);
+        if (errors.length > 0)
+            throw new AggregateError(errors, 'Component deletion failed.');
     }
     hide(id) {
         const component = this.get(id);
@@ -271,7 +276,13 @@ export class ComponentsManager {
     async destroy() {
         this.eventManager.removeEventListener('subtitleschange', this.debouncedRefreshSubtitles);
         this.debouncedRefreshSubtitles.cancel(); // Cancel any pending debounced calls
-        await Promise.all([...this.components.values()].map((component) => component.destroy()));
+        const components = [...this.components.values()];
         this.components.clear();
+        const results = await Promise.allSettled(components.map((component) => component.destroy()));
+        const errors = results
+            .filter((result) => result.status === 'rejected')
+            .map((result) => result.reason);
+        if (errors.length > 0)
+            throw new AggregateError(errors, 'Component teardown failed.');
     }
 }

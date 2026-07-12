@@ -5,7 +5,22 @@ import {
 	type ComponentCapability
 } from './capabilities.js';
 
-const TWEEN_CONTROL_KEYS = new Set(['from', 'duration', 'ease', 'delay', 'stagger']);
+const TWEEN_CONTROL_KEYS = new Set([
+	'from',
+	'duration',
+	'ease',
+	'delay',
+	'stagger',
+	'repeat',
+	'yoyo',
+	'repeatDelay',
+	'overwrite',
+	'onStart',
+	'onUpdate',
+	'onComplete',
+	'onRepeat',
+	'onReverseComplete'
+]);
 const KNOWN_TRANSFORMS = new Set<AnimationTransform>([
 	'x',
 	'y',
@@ -115,8 +130,9 @@ export function analyzeRuntimeSupport(
 	const mode = options.mode ?? 'warn';
 	const issues: RuntimeSupportIssue[] = [];
 
-	for (const layer of scene.layers ?? []) {
-		for (const component of layer.components ?? []) {
+	for (const [layerIndex, layer] of (scene.layers ?? []).entries()) {
+		for (const [componentIndex, component] of (layer.components ?? []).entries()) {
+			const componentPath = `layers.${layerIndex}.components.${componentIndex}`;
 			const capability = getComponentCapability(component.type);
 			if (!capability) continue;
 
@@ -125,7 +141,7 @@ export function analyzeRuntimeSupport(
 					issue(mode, component, layer.id, {
 						code: 'runtime-renderer-missing',
 						capabilityId: `component.${component.type}.runtime.rendered`,
-						path: `layers.${layer.id}.components.${component.id}`,
+						path: componentPath,
 						message: `${component.type} is accepted by schema but has no component render hook.`
 					})
 				);
@@ -141,14 +157,14 @@ export function analyzeRuntimeSupport(
 					issue(mode, component, layer.id, {
 						code: 'runtime-animation-unsupported',
 						capabilityId: `component.${component.type}.animation.attachment`,
-						path: `layers.${layer.id}.components.${component.id}.animations`,
+						path: `${componentPath}.animations`,
 						message: `${component.type} animation data validates but is not attached to a runtime animation target.`
 					})
 				);
 			}
 
 			for (const [animationIndex, entry] of enabledAnimations.entries()) {
-				const basePath = `layers.${layer.id}.components.${component.id}.animations.list.${animationIndex}`;
+				const basePath = `${componentPath}.animations.list.${animationIndex}`;
 				const animation = entry.animation;
 				if (typeof animation === 'string') {
 					// System presets are resolved at construction time. Their concrete timeline is not
@@ -215,7 +231,7 @@ export function analyzeRuntimeSupport(
 							issue(mode, component, layer.id, {
 								code: 'runtime-effect-unsupported',
 								capabilityId: `component.${component.type}.effect.${effectType}`,
-								path: `layers.${layer.id}.components.${component.id}.effects.map.${effectId}`,
+								path: `${componentPath}.effects.map.${effectId}`,
 								message: `${effectType} is accepted for ${component.type} but is not in its runtime-supported effect set.`
 							})
 						);
@@ -230,7 +246,7 @@ export function analyzeRuntimeSupport(
 						issue(mode, component, layer.id, {
 							code: 'runtime-text-highlight-conflict',
 							capabilityId: `component.${component.type}.text.activeHighlight.precedence`,
-							path: `layers.${layer.id}.components.${component.id}.appearance.text`,
+							path: `${componentPath}.appearance.text`,
 							message:
 								'activeWord and activeLine target the same glyphs; activeWord takes deterministic precedence.'
 						})
@@ -241,7 +257,7 @@ export function analyzeRuntimeSupport(
 						issue(mode, component, layer.id, {
 							code: 'runtime-text-highlight-gradient-unsupported',
 							capabilityId: `component.${component.type}.text.highlightColors.gradient`,
-							path: `layers.${layer.id}.components.${component.id}.appearance.text.highlightColors`,
+							path: `${componentPath}.appearance.text.highlightColors`,
 							message:
 								'highlightColors currently cycles solid CSS colors only; gradient palette entries are not evaluated.'
 						})
@@ -260,7 +276,7 @@ export function analyzeRuntimeSupport(
 						issue(mode, component, layer.id, {
 							code: 'runtime-text-gradient-conflict',
 							capabilityId: `component.${component.type}.text.compositing.elementGradientBackgroundWithGradientGlyph`,
-							path: `layers.${layer.id}.components.${component.id}.appearance`,
+							path: `${componentPath}.appearance`,
 							message:
 								'Element-target gradient background and gradient glyph fill compete for CSS background-image. Use wrapper target.'
 						})

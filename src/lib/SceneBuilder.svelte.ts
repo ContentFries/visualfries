@@ -43,7 +43,7 @@ import { DeterministicMediaManager } from './managers/DeterministicMediaManager.
 import { LayersManager } from './managers/LayersManager.svelte.js';
 import { SubtitlesManager } from './managers/SubtitlesManager.svelte.js';
 import type { Component } from './components/Component.svelte.js';
-import { removeContainer } from './DIContainer.js';
+import { evictContainer, removeContainer } from './DIContainer.js';
 
 export class SceneBuilder implements ISceneBuilder {
 	private initialized: boolean = false;
@@ -324,24 +324,30 @@ export class SceneBuilder implements ISceneBuilder {
 		}
 
 		this.initialized = true;
-		gsap.ticker.fps(this.fps);
-		this.renderTicker = () => {
-			this.render();
-		};
-		await this.loadFonts(this.fonts);
+		try {
+			gsap.ticker.fps(this.fps);
+			this.renderTicker = () => {
+				this.render();
+			};
+			await this.loadFonts(this.fonts);
 
-		this.layersManager.setAppManager(this.appManager);
-		await this.appManager.initialize();
+			this.layersManager.setAppManager(this.appManager);
+			await this.appManager.initialize();
 
-		if (this.stateManager.scale !== 1) {
-			this.scale(this.stateManager.scale);
+			if (this.stateManager.scale !== 1) {
+				this.scale(this.stateManager.scale);
+			}
+
+			await this.buildSceneTree();
+
+			await this.seek(0);
+			this.eventManager.isReady = true;
+			this.domManager.removeLoader();
+		} catch (error) {
+			this.initialized = false;
+			this.eventManager.isReady = false;
+			throw error;
 		}
-
-		await this.buildSceneTree();
-
-		await this.seek(0);
-		this.eventManager.isReady = true;
-		this.domManager.removeLoader();
 	}
 
 	private async buildSceneTree() {
@@ -711,20 +717,34 @@ export class SceneBuilder implements ISceneBuilder {
 	}
 
 	public async destroy(): Promise<void> {
-		// Stop the timeline and remove the render ticker
-		gsap.ticker.remove(this.renderTicker);
-		// Clear the components map
-
 		this.initialized = false;
-		await this.componentsManager.destroy();
-		this.mediaManager.destroy();
-		await this.deterministicMediaManager.destroy();
-		this.timelineManager.destroy();
-		this.appManager.destroy();
-		this.domManager.destroy();
-		this.stateManager.destroy();
+		this.eventManager.isReady = false;
+		const container = evictContainer(this.sceneData.id);
+		const errors: unknown[] = [];
+		const cleanup = async (operation: () => void | Promise<void>) => {
+			try {
+				await operation();
+			} catch (error) {
+				errors.push(error);
+			}
+		};
 
-		// Remove the container from the DI container cache
-		removeContainer(this.sceneData.id);
+		try {
+			await cleanup(() => gsap.ticker.remove(this.renderTicker));
+			await cleanup(() => this.componentsManager.destroy());
+			await cleanup(() => this.mediaManager.destroy());
+			await cleanup(() => this.deterministicMediaManager.destroy());
+			await cleanup(() => this.timelineManager.destroy());
+			await cleanup(() => this.appManager.destroy());
+			await cleanup(() => this.domManager.destroy());
+			await cleanup(() => this.stateManager.destroy());
+		} finally {
+			await cleanup(() => container?.dispose());
+			if (container) await cleanup(() => removeContainer(this.sceneData.id, container));
+		}
+
+		if (errors.length > 0) {
+			throw new AggregateError(errors, `SceneBuilder teardown failed for ${this.sceneData.id}.`);
+		}
 	}
 }

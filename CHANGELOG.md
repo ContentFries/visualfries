@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.1](https://github.com/ContentFries/visualfries/compare/visualfries-v0.3.0...visualfries-v0.3.1) (2026-07-12)
+
+
+### Bug Fixes
+
+* **release:** restore npm trusted publishing ([#44](https://github.com/ContentFries/visualfries/issues/44)) ([9533cd7](https://github.com/ContentFries/visualfries/commit/9533cd7c4ddb34988288f73eba072dc0f6887fd2))
+
 ## [0.3.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.2.0...visualfries-v0.3.0) (2026-07-12)
 
 

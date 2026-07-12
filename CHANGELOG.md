@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.2.0...visualfries-v0.3.0) (2026-07-12)
+
+
+### Features
+
+* **authoring:** align runtime capabilities and preview parity ([#43](https://github.com/ContentFries/visualfries/issues/43)) ([414e9e9](https://github.com/ContentFries/visualfries/commit/414e9e92117380bb1b62d512dc99d30dcc8d2b85))
+* **browser:** add WebGL MediaBunny export path ([#41](https://github.com/ContentFries/visualfries/issues/41)) ([d66e9c3](https://github.com/ContentFries/visualfries/commit/d66e9c3377030365f7e597cf8ea8665a4981ec6c))
+
 ## [0.2.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.1.13...visualfries-v0.2.0) (2026-07-11)
 
 

@@ -5,7 +5,7 @@
 	"author": "ContentFries",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/contentfries/visualfries.git"
+		"url": "https://github.com/ContentFries/visualfries"
 	},
 	"bugs": {
 		"url": "https://github.com/contentfries/visualfries/issues"

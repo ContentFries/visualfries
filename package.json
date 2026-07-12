@@ -8,7 +8,7 @@
 		"url": "https://github.com/ContentFries/visualfries"
 	},
 	"bugs": {
-		"url": "https://github.com/contentfries/visualfries/issues"
+		"url": "https://github.com/ContentFries/visualfries/issues"
 	},
 	"scripts": {
 		"dev": "vite dev",

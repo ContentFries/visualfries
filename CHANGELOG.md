@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.2](https://github.com/ContentFries/visualfries/compare/visualfries-v0.3.1...visualfries-v0.3.2) (2026-07-12)
+
+
+### Bug Fixes
+
+* **release:** align repository metadata ([#47](https://github.com/ContentFries/visualfries/issues/47)) ([639586b](https://github.com/ContentFries/visualfries/commit/639586b091bafce6d17ba3a9bcbc8c087e933d08))
+
 ## [0.3.1](https://github.com/ContentFries/visualfries/compare/visualfries-v0.3.0...visualfries-v0.3.1) (2026-07-12)
 
 

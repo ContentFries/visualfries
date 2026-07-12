@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	BROWSER_EXPORT_FALLBACK,
 	exportCanvasToMp4,
+	mixBrowserAudio,
 	probeBrowserExportCapabilities
 } from '../../src/lib/browser/browserExport.js';
 
@@ -56,6 +57,21 @@ describe('probeBrowserExportCapabilities', () => {
 		expect(getAudioCodec).not.toHaveBeenCalled();
 	});
 
+	it('does not require AAC when audio is omitted', async () => {
+		const getAudioCodec = vi.fn(async () => null);
+		const report = await probeBrowserExportCapabilities(
+			{ width: 1080, height: 1920, fps: 30 },
+			{
+				getVideoCodec: vi.fn(async () => 'avc'),
+				getAudioCodec
+			}
+		);
+
+		expect(report.supported).toBe(true);
+		expect(report.audioCodec).toBeNull();
+		expect(getAudioCodec).not.toHaveBeenCalled();
+	});
+
 	it('rejects audio longer than the frame-index video window', async () => {
 		const canvas = document.createElement('canvas');
 		canvas.width = 1;
@@ -72,5 +88,11 @@ describe('probeBrowserExportCapabilities', () => {
 				renderFrame: () => {}
 			})
 		).rejects.toThrow('exceeds video duration');
+	});
+
+	it.each([0, -1, Number.NaN])('rejects invalid browser audio duration %s', async (duration) => {
+		await expect(mixBrowserAudio({ duration })).rejects.toThrow(
+			'Browser audio duration must be a positive finite number'
+		);
 	});
 });

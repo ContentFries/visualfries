@@ -27,21 +27,22 @@ export type PixiAnimationTarget = {
  */
 export function createPixiAnimationTarget(
 	container: PixiTransformContainer,
-	onChange: () => void = () => undefined
+	onChange: () => void = () => undefined,
+	origin?: { x: number; y: number }
 ): PixiAnimationTarget {
 	return {
 		get x() {
-			return container.x;
+			return origin ? container.x - origin.x : container.x;
 		},
 		set x(value: number) {
-			container.x = value;
+			container.x = (origin?.x ?? 0) + value;
 			onChange();
 		},
 		get y() {
-			return container.y;
+			return origin ? container.y - origin.y : container.y;
 		},
 		set y(value: number) {
-			container.y = value;
+			container.y = (origin?.y ?? 0) + value;
 			onChange();
 		},
 		get opacity() {

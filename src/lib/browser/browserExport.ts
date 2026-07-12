@@ -60,7 +60,7 @@ export async function probeBrowserExportCapabilities(
 	}
 
 	let audioCodec: 'aac' | null = null;
-	if (request.audio !== false) {
+	if (request.audio === true) {
 		const result = await dependencies.getAudioCodec(['aac'], {
 			numberOfChannels: request.numberOfChannels ?? 2,
 			sampleRate: request.sampleRate ?? 48_000,
@@ -246,6 +246,9 @@ export async function mixBrowserAudio(options: {
 	sourceGain?: number;
 	sampleRate?: number;
 }): Promise<AudioBuffer> {
+	if (!Number.isFinite(options.duration) || options.duration <= 0) {
+		throw new Error('Browser audio duration must be a positive finite number');
+	}
 	const sampleRate = options.sampleRate ?? 48_000;
 	const context = new OfflineAudioContext(2, Math.ceil(options.duration * sampleRate), sampleRate);
 	const master = context.createGain();

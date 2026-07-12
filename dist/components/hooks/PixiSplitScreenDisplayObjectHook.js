@@ -245,7 +245,7 @@ export class PixiSplitScreenDisplayObjectHook {
             const centerY = appearance.y + appearance.height / 2;
             this.#displayObject.pivot.set(centerX, centerY);
             this.#displayObject.position.set(centerX, centerY);
-            this.#animationTarget = createPixiAnimationTarget(this.#displayObject, () => this.sceneState.markDirty());
+            this.#animationTarget = createPixiAnimationTarget(this.#displayObject, () => this.sceneState.markDirty(), { x: centerX, y: centerY });
         }
         this.#context.setResource('animationTarget', this.#animationTarget);
     }

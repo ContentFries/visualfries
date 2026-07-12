@@ -3,20 +3,20 @@
  * VisualFries animation data. Rotation is expressed in degrees, matching the
  * scene schema; uniform scale maps to both Pixi scale axes.
  */
-export function createPixiAnimationTarget(container, onChange = () => undefined) {
+export function createPixiAnimationTarget(container, onChange = () => undefined, origin) {
     return {
         get x() {
-            return container.x;
+            return origin ? container.x - origin.x : container.x;
         },
         set x(value) {
-            container.x = value;
+            container.x = (origin?.x ?? 0) + value;
             onChange();
         },
         get y() {
-            return container.y;
+            return origin ? container.y - origin.y : container.y;
         },
         set y(value) {
-            container.y = value;
+            container.y = (origin?.y ?? 0) + value;
             onChange();
         },
         get opacity() {

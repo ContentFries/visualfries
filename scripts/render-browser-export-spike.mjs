@@ -1,9 +1,10 @@
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-const root = resolve(import.meta.dirname, '..');
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const output = resolve(process.argv[2] ?? `${root}/artifacts/browser-export-spike/demo.mp4`);
 await mkdir(resolve(output, '..'), { recursive: true });
 

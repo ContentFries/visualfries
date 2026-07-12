@@ -28,7 +28,7 @@ export function createBrowserSpikeScene(variant: 'from' | 'to'): Scene {
 			width: WIDTH,
 			height: HEIGHT,
 			duration: DURATION,
-			fps: 30,
+			fps: BROWSER_SPIKE.fps,
 			backgroundColor: background
 		},
 		assets: [],

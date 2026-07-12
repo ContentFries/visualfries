@@ -16,7 +16,7 @@ export async function probeBrowserExportCapabilities(request, dependencies = def
         reasons.push(`AVC/H.264 encoding unavailable at ${request.width}x${request.height}`);
     }
     let audioCodec = null;
-    if (request.audio !== false) {
+    if (request.audio === true) {
         const result = await dependencies.getAudioCodec(['aac'], {
             numberOfChannels: request.numberOfChannels ?? 2,
             sampleRate: request.sampleRate ?? 48_000,
@@ -144,6 +144,9 @@ export async function exportCanvasToMp4(options) {
 }
 /** Minimal deterministic in-browser MVP mix. First sample begins at t=0. */
 export async function mixBrowserAudio(options) {
+    if (!Number.isFinite(options.duration) || options.duration <= 0) {
+        throw new Error('Browser audio duration must be a positive finite number');
+    }
     const sampleRate = options.sampleRate ?? 48_000;
     const context = new OfflineAudioContext(2, Math.ceil(options.duration * sampleRate), sampleRate);
     const master = context.createGain();

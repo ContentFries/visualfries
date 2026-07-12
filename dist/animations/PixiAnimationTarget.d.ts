@@ -23,4 +23,7 @@ export type PixiAnimationTarget = {
  * VisualFries animation data. Rotation is expressed in degrees, matching the
  * scene schema; uniform scale maps to both Pixi scale axes.
  */
-export declare function createPixiAnimationTarget(container: PixiTransformContainer, onChange?: () => void): PixiAnimationTarget;
+export declare function createPixiAnimationTarget(container: PixiTransformContainer, onChange?: () => void, origin?: {
+    x: number;
+    y: number;
+}): PixiAnimationTarget;

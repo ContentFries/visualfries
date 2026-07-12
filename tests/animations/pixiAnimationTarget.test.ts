@@ -30,4 +30,23 @@ describe('createPixiAnimationTarget', () => {
 		});
 		expect(changed).toHaveBeenCalledTimes(7);
 	});
+
+	it('maps x/y as offsets from a component origin', () => {
+		const container = {
+			x: 540,
+			y: 960,
+			alpha: 1,
+			angle: 0,
+			scale: { x: 1, y: 1 }
+		};
+		const target = createPixiAnimationTarget(container, undefined, { x: 540, y: 960 });
+
+		expect(target.x).toBe(0);
+		expect(target.y).toBe(0);
+		target.x = -50;
+		target.y = 120;
+
+		expect(container.x).toBe(490);
+		expect(container.y).toBe(1080);
+	});
 });

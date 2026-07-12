@@ -48,7 +48,7 @@ export class AppearanceStyleProcessor {
         if (appearance.background && get(appearance.background, 'enabled')) {
             const color = ColorTransformer.transform(get(appearance.background, 'color', '#000000'), 'background');
             if (get(appearance, 'background.radius', 0) > 0) {
-                styles.borderRadius = `${get(appearance.background, 'radius')}em`;
+                styles.borderRadius = `${get(appearance.background, 'radius')}px`;
             }
             styles = { ...styles, ...color };
         }

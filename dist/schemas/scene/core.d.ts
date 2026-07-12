@@ -1347,6 +1347,12 @@ export declare const SceneLayerShape: z.ZodObject<{
                     lowercase: "lowercase";
                     capitalize: "capitalize";
                 }>>;
+                padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                    top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                }, z.core.$strip>]>>;
                 shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                     preset: z.ZodOptional<z.ZodString>;
@@ -2494,6 +2500,12 @@ export declare const SceneLayerShape: z.ZodObject<{
                     lowercase: "lowercase";
                     capitalize: "capitalize";
                 }>>;
+                padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                    top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                }, z.core.$strip>]>>;
                 shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                     preset: z.ZodOptional<z.ZodString>;
@@ -3648,6 +3660,12 @@ export declare const SceneLayerShape: z.ZodObject<{
                     lowercase: "lowercase";
                     capitalize: "capitalize";
                 }>>;
+                padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                    top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                }, z.core.$strip>]>>;
                 shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                     preset: z.ZodOptional<z.ZodString>;
@@ -4800,6 +4818,12 @@ export declare const SceneLayerShape: z.ZodObject<{
                     lowercase: "lowercase";
                     capitalize: "capitalize";
                 }>>;
+                padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                    top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                }, z.core.$strip>]>>;
                 shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                     preset: z.ZodOptional<z.ZodString>;
@@ -6022,6 +6046,12 @@ export declare const SceneLayerShape: z.ZodObject<{
                     lowercase: "lowercase";
                     capitalize: "capitalize";
                 }>>;
+                padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                    top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                }, z.core.$strip>]>>;
                 shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                     preset: z.ZodOptional<z.ZodString>;
@@ -7184,6 +7214,12 @@ export declare const SceneLayerShape: z.ZodObject<{
                     lowercase: "lowercase";
                     capitalize: "capitalize";
                 }>>;
+                padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                    top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                }, z.core.$strip>]>>;
                 shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                     preset: z.ZodOptional<z.ZodString>;
@@ -8237,6 +8273,12 @@ export declare const SceneLayerShape: z.ZodObject<{
                     lowercase: "lowercase";
                     capitalize: "capitalize";
                 }>>;
+                padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                    top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                }, z.core.$strip>]>>;
                 shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                     preset: z.ZodOptional<z.ZodString>;
@@ -9289,6 +9331,12 @@ export declare const SceneLayerShape: z.ZodObject<{
                     lowercase: "lowercase";
                     capitalize: "capitalize";
                 }>>;
+                padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                    top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                }, z.core.$strip>]>>;
                 shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                     preset: z.ZodOptional<z.ZodString>;
@@ -10463,6 +10511,12 @@ export declare const SceneLayerShape: z.ZodObject<{
                     lowercase: "lowercase";
                     capitalize: "capitalize";
                 }>>;
+                padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                    top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                }, z.core.$strip>]>>;
                 shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                     enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                     preset: z.ZodOptional<z.ZodString>;
@@ -11885,6 +11939,12 @@ export declare const SceneShape: z.ZodObject<{
                         lowercase: "lowercase";
                         capitalize: "capitalize";
                     }>>;
+                    padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                        top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    }, z.core.$strip>]>>;
                     shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                         enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                         preset: z.ZodOptional<z.ZodString>;
@@ -13032,6 +13092,12 @@ export declare const SceneShape: z.ZodObject<{
                         lowercase: "lowercase";
                         capitalize: "capitalize";
                     }>>;
+                    padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                        top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    }, z.core.$strip>]>>;
                     shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                         enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                         preset: z.ZodOptional<z.ZodString>;
@@ -14186,6 +14252,12 @@ export declare const SceneShape: z.ZodObject<{
                         lowercase: "lowercase";
                         capitalize: "capitalize";
                     }>>;
+                    padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                        top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    }, z.core.$strip>]>>;
                     shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                         enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                         preset: z.ZodOptional<z.ZodString>;
@@ -15338,6 +15410,12 @@ export declare const SceneShape: z.ZodObject<{
                         lowercase: "lowercase";
                         capitalize: "capitalize";
                     }>>;
+                    padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                        top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    }, z.core.$strip>]>>;
                     shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                         enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                         preset: z.ZodOptional<z.ZodString>;
@@ -16560,6 +16638,12 @@ export declare const SceneShape: z.ZodObject<{
                         lowercase: "lowercase";
                         capitalize: "capitalize";
                     }>>;
+                    padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                        top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    }, z.core.$strip>]>>;
                     shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                         enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                         preset: z.ZodOptional<z.ZodString>;
@@ -17722,6 +17806,12 @@ export declare const SceneShape: z.ZodObject<{
                         lowercase: "lowercase";
                         capitalize: "capitalize";
                     }>>;
+                    padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                        top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    }, z.core.$strip>]>>;
                     shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                         enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                         preset: z.ZodOptional<z.ZodString>;
@@ -18775,6 +18865,12 @@ export declare const SceneShape: z.ZodObject<{
                         lowercase: "lowercase";
                         capitalize: "capitalize";
                     }>>;
+                    padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                        top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    }, z.core.$strip>]>>;
                     shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                         enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                         preset: z.ZodOptional<z.ZodString>;
@@ -19827,6 +19923,12 @@ export declare const SceneShape: z.ZodObject<{
                         lowercase: "lowercase";
                         capitalize: "capitalize";
                     }>>;
+                    padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                        top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    }, z.core.$strip>]>>;
                     shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                         enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                         preset: z.ZodOptional<z.ZodString>;
@@ -21001,6 +21103,12 @@ export declare const SceneShape: z.ZodObject<{
                         lowercase: "lowercase";
                         capitalize: "capitalize";
                     }>>;
+                    padding: z.ZodOptional<z.ZodUnion<readonly [z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>, z.ZodObject<{
+                        top: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        right: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        bottom: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                        left: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodCoercedNumber<unknown>>;
+                    }, z.core.$strip>]>>;
                     shadow: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                         enabled: z.ZodOptional<z.ZodPrefault<z.ZodBoolean>>;
                         preset: z.ZodOptional<z.ZodString>;

@@ -127,8 +127,8 @@ export function createAgentTransitionComponent(cue, scene, index = 0) {
     const component = {
         id,
         name: `Agent Transition: ${style}`,
-        type: 'TEXT',
-        text: '',
+        type: 'SHAPE',
+        shape: { type: 'rectangle', cornerRadius: 0 },
         timeline: {
             startAt: Math.max(0, cue.time - duration / 2),
             endAt: cue.time + duration / 2
@@ -140,24 +140,12 @@ export function createAgentTransitionComponent(cue, scene, index = 0) {
             width: parsedScene.settings.width,
             height: parsedScene.settings.height,
             opacity: 1,
-            horizontalAlign: 'center',
-            verticalAlign: 'center',
-            background: {
-                enabled: true,
-                target: 'wrapper',
-                radius: 0,
-                color: cue.animated === false
-                    ? 'transparent'
-                    : (cue.color ?? (style === 'flash' || style === 'focus-pull' ? '#FFFFFF' : '#000000'))
-            },
-            text: {
-                fontFamily: 'Arial',
-                fontSize: { value: 1, unit: 'px' },
-                fontWeight: '400',
-                color: 'transparent',
-                textAlign: 'center',
-                textTransform: 'none'
-            }
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            color: cue.animated === false
+                ? 'transparent'
+                : (cue.color ?? (style === 'flash' || style === 'focus-pull' ? '#FFFFFF' : '#000000'))
         },
         animations: {
             enabled: cue.animated !== false,

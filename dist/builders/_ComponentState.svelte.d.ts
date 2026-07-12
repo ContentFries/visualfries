@@ -23,7 +23,7 @@ export declare class ComponentState implements ComponentProps {
     set end_at(time: number);
     set name(name: string);
     get order(): number;
-    get visible(): true;
+    get visible(): boolean;
     get duration(): number;
     get asset_id(): string;
     get timeline(): {

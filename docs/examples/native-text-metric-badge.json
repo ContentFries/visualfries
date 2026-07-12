@@ -1,0 +1,109 @@
+{
+	"id": "native-text-metric-badge",
+	"version": "2.0",
+	"name": "Native TEXT metric badge",
+	"settings": {
+		"width": 1080,
+		"height": 1920,
+		"duration": 3,
+		"fps": 30,
+		"backgroundColor": "#151A22"
+	},
+	"assets": [],
+	"layers": [
+		{
+			"id": "metric-layer",
+			"name": "Semantic metric typography",
+			"order": 10,
+			"visible": true,
+			"muted": false,
+			"components": [
+				{
+					"id": "views-badge",
+					"name": "881 VIEWS",
+					"type": "TEXT",
+					"text": "881 VIEWS",
+					"timeline": { "startAt": 0.2, "endAt": 3 },
+					"visible": true,
+					"order": 0,
+					"appearance": {
+						"x": 90,
+						"y": 820,
+						"width": 900,
+						"height": 220,
+						"opacity": 1,
+						"rotation": -2,
+						"scaleX": 1,
+						"scaleY": 1,
+						"horizontalAlign": "center",
+						"verticalAlign": "center",
+						"background": {
+							"enabled": true,
+							"color": "#F5D547",
+							"target": "wrapper",
+							"radius": 32
+						},
+						"text": {
+							"fontFamily": "Montserrat",
+							"fontSize": { "value": 116, "unit": "px" },
+							"fontWeight": "900",
+							"lineHeight": { "value": 1, "unit": "em" },
+							"color": "#101820",
+							"textAlign": "center",
+							"textTransform": "uppercase",
+							"outline": {
+								"enabled": true,
+								"color": "#FFFFFF",
+								"size": 2,
+								"opacity": 1,
+								"style": "solid"
+							},
+							"shadow": {
+								"enabled": true,
+								"color": "#000000",
+								"blur": 16,
+								"offsetX": 0,
+								"offsetY": 8,
+								"opacity": 0.5
+							}
+						}
+					},
+					"animations": {
+						"enabled": true,
+						"list": [
+							{
+								"id": "views-badge-enter",
+								"name": "Badge enter",
+								"startAt": 0.1,
+								"enabled": true,
+								"animation": {
+									"id": "views-badge-enter-preset",
+									"duration": 0.5,
+									"timeline": [
+										{
+											"tweens": [
+												{
+													"method": "from",
+													"vars": {
+														"duration": 0.5,
+														"opacity": 0,
+														"scale": 0.82,
+														"y": 70,
+														"ease": "back.out(1.8)"
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						]
+					},
+					"effects": { "enabled": true, "map": {} }
+				}
+			]
+		}
+	],
+	"transitions": [],
+	"audioTracks": []
+}

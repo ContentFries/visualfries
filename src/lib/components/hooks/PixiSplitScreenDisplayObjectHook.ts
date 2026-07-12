@@ -6,10 +6,6 @@ import { z } from 'zod';
 import type { StateManager } from '$lib/managers/StateManager.svelte.ts';
 import type { DeterministicMediaManager } from '$lib/managers/DeterministicMediaManager.ts';
 import type { AppManager } from '$lib/managers/AppManager.svelte.ts';
-import {
-	createPixiAnimationTarget,
-	type PixiAnimationTarget
-} from '$lib/animations/PixiAnimationTarget.js';
 
 export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 	types: HookType[] = ['update', 'destroy', 'refresh', 'refresh:content'];
@@ -28,7 +24,6 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 	#pixiTexture!: PIXI.Texture;
 	#displayObject!: PIXI.Container;
 	#mainSprite: PIXI.Sprite | undefined = undefined;
-	#animationTarget: PixiAnimationTarget | undefined = undefined;
 	#bgCanvas: HTMLCanvasElement | undefined = undefined;
 	#bgSprite: PIXI.Sprite | undefined = undefined;
 	#blurStrength = 50;
@@ -164,7 +159,10 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		} catch {
 			return false;
 		}
-		const texture = this.#bgSprite?.texture as { baseTexture?: { update?: () => void }; update?: () => void };
+		const texture = this.#bgSprite?.texture as {
+			baseTexture?: { update?: () => void };
+			update?: () => void;
+		};
 		texture.baseTexture?.update?.();
 		texture.update?.();
 		this.deterministicMediaManager?.recordBlurRedraw(this.#currentSceneFrameIndex());
@@ -282,25 +280,6 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		this.initMainSprite();
 	}
 
-	#publishAnimationTarget() {
-		if (!this.#displayObject) return;
-		const animations = this.#context.data.animations;
-		if (!animations?.enabled || !animations.list?.length) return;
-		if (!this.#animationTarget) {
-			const appearance = this.#context.data.appearance;
-			const centerX = appearance.x + appearance.width / 2;
-			const centerY = appearance.y + appearance.height / 2;
-			this.#displayObject.pivot.set(centerX, centerY);
-			this.#displayObject.position.set(centerX, centerY);
-			this.#animationTarget = createPixiAnimationTarget(
-				this.#displayObject,
-				() => this.sceneState.markDirty(),
-				{ x: centerX, y: centerY }
-			);
-		}
-		this.#context.setResource('animationTarget', this.#animationTarget);
-	}
-
 	#swapDisplayTexture(nextTexture: PIXI.Texture) {
 		if (!this.#displayObject) {
 			return;
@@ -329,7 +308,10 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 	#isTextureValid(texture: PIXI.Texture | undefined): boolean {
 		if (!texture) return false;
 		// PIXI textures expose valid/baseTexture after destroy
-		const tex = texture as { valid?: boolean; baseTexture?: { valid?: boolean; destroyed?: boolean } };
+		const tex = texture as {
+			valid?: boolean;
+			baseTexture?: { valid?: boolean; destroyed?: boolean };
+		};
 		if (tex.valid === false) return false;
 		if (tex.baseTexture?.valid === false || tex.baseTexture?.destroyed === true) return false;
 		return true;
@@ -382,7 +364,11 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 					this.#context.setResource('pixiRenderObject', this.#displayObject);
 					return;
 				}
-			} else if (currentTexture && currentTexture !== this.#pixiTexture && this.#isTextureValid(currentTexture)) {
+			} else if (
+				currentTexture &&
+				currentTexture !== this.#pixiTexture &&
+				this.#isTextureValid(currentTexture)
+			) {
 				// Texture swaps are frequent in deterministic mode; update sprite textures
 				// in-place instead of rebuilding split/blur geometry each frame.
 				this.#swapDisplayTexture(currentTexture);
@@ -403,7 +389,6 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 
 			// Always re-assert the resource in case the context was cleared or updated
 			this.#context.setResource('pixiRenderObject', this.#displayObject);
-			this.#publishAnimationTarget();
 
 			if (this.#displayObject.visible != isActive) {
 				this.#displayObject.visible = isActive;
@@ -424,7 +409,6 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		this.#displayObject = new PIXI.Container();
 		this.#initDisplayObject();
 		this.#context.setResource('pixiRenderObject', this.#displayObject);
-		this.#publishAnimationTarget();
 	}
 
 	async #handleRefresh() {
@@ -457,8 +441,6 @@ export class PixiSplitScreenDisplayObjectHook implements IComponentHook {
 		this.#bgCanvas = undefined;
 		this.#bgSprite = undefined;
 		this.#lastBlurFrameKey = '';
-		this.#animationTarget = undefined;
-		this.#context.removeResource('animationTarget');
 	}
 
 	async handle(type: HookType, context: IComponentContext) {

@@ -64,6 +64,21 @@ export declare class SceneBuilder implements ISceneBuilder {
         start: number;
         end: number;
     }[];
+    explainComponentState(componentId: string): {
+        componentId: string;
+        type: "VIDEO" | "GIF" | "IMAGE" | "TEXT" | "SHAPE" | "AUDIO" | "COLOR" | "GRADIENT" | "SUBTITLES";
+        time: number;
+        active: boolean;
+        relativeTime: number;
+        targetKind: "none" | "html" | "pixi";
+        targetOwner: "wrapper" | "element" | "none" | "pixi";
+        computed: Record<string, string | number>;
+        animations: {
+            id: string;
+            enabled: boolean;
+            startAt: number;
+        }[];
+    } | null;
     addExcludedTimestamp(start: number, end: number): void;
     removeExcludedTimestampsBetween(start: number, end: number): void;
     syncChanges(): void;
@@ -538,6 +553,12 @@ export declare class SceneBuilder implements ISceneBuilder {
                     unit: "px" | "em" | "rem" | "%";
                 } | null | undefined;
                 textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                padding?: number | {
+                    top: number;
+                    right: number;
+                    bottom: number;
+                    left: number;
+                } | undefined;
                 shadow?: {
                     enabled?: boolean | undefined;
                     preset?: string | undefined;
@@ -1157,6 +1178,12 @@ export declare class SceneBuilder implements ISceneBuilder {
                     unit: "px" | "em" | "rem" | "%";
                 } | null | undefined;
                 textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                padding?: number | {
+                    top: number;
+                    right: number;
+                    bottom: number;
+                    left: number;
+                } | undefined;
                 shadow?: {
                     enabled?: boolean | undefined;
                     preset?: string | undefined;
@@ -1750,6 +1777,12 @@ export declare class SceneBuilder implements ISceneBuilder {
                     unit: "px" | "em" | "rem" | "%";
                 } | null | undefined;
                 textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                padding?: number | {
+                    top: number;
+                    right: number;
+                    bottom: number;
+                    left: number;
+                } | undefined;
                 shadow?: {
                     enabled?: boolean | undefined;
                     preset?: string | undefined;
@@ -2341,6 +2374,12 @@ export declare class SceneBuilder implements ISceneBuilder {
                     unit: "px" | "em" | "rem" | "%";
                 } | null | undefined;
                 textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                padding?: number | {
+                    top: number;
+                    right: number;
+                    bottom: number;
+                    left: number;
+                } | undefined;
                 shadow?: {
                     enabled?: boolean | undefined;
                     preset?: string | undefined;
@@ -2966,6 +3005,12 @@ export declare class SceneBuilder implements ISceneBuilder {
                     unit: "px" | "em" | "rem" | "%";
                 } | null | undefined;
                 textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                padding?: number | {
+                    top: number;
+                    right: number;
+                    bottom: number;
+                    left: number;
+                } | undefined;
                 shadow?: {
                     enabled?: boolean | undefined;
                     preset?: string | undefined;
@@ -3561,6 +3606,12 @@ export declare class SceneBuilder implements ISceneBuilder {
                     unit: "px" | "em" | "rem" | "%";
                 } | null | undefined;
                 textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                padding?: number | {
+                    top: number;
+                    right: number;
+                    bottom: number;
+                    left: number;
+                } | undefined;
                 shadow?: {
                     enabled?: boolean | undefined;
                     preset?: string | undefined;
@@ -4107,6 +4158,12 @@ export declare class SceneBuilder implements ISceneBuilder {
                     unit: "px" | "em" | "rem" | "%";
                 } | null | undefined;
                 textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                padding?: number | {
+                    top: number;
+                    right: number;
+                    bottom: number;
+                    left: number;
+                } | undefined;
                 shadow?: {
                     enabled?: boolean | undefined;
                     preset?: string | undefined;
@@ -4658,6 +4715,12 @@ export declare class SceneBuilder implements ISceneBuilder {
                     unit: "px" | "em" | "rem" | "%";
                 } | null | undefined;
                 textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                padding?: number | {
+                    top: number;
+                    right: number;
+                    bottom: number;
+                    left: number;
+                } | undefined;
                 shadow?: {
                     enabled?: boolean | undefined;
                     preset?: string | undefined;
@@ -5202,6 +5265,12 @@ export declare class SceneBuilder implements ISceneBuilder {
                     unit: "px" | "em" | "rem" | "%";
                 } | null | undefined;
                 textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                padding?: number | {
+                    top: number;
+                    right: number;
+                    bottom: number;
+                    left: number;
+                } | undefined;
                 shadow?: {
                     enabled?: boolean | undefined;
                     preset?: string | undefined;
@@ -5412,5 +5481,5 @@ export declare class SceneBuilder implements ISceneBuilder {
     removeLoadingComponent(componentId: string): void;
     buildCharactersList(): void;
     render(): void;
-    destroy(): void;
+    destroy(): Promise<void>;
 }

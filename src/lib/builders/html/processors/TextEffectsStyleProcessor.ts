@@ -1,6 +1,7 @@
 import type { StyleProcessor } from '../StyleProcessor.js';
 import { z } from 'zod';
 import { TextEffectPresetName, TextShadowBuilder } from '../TextShadowBuilder.js';
+import tinycolor from 'tinycolor2';
 // Assuming ComponentEffectsMap will be defined in or imported into StyleBuilder or a shared types file
 // For now, let's define it locally if not available, or adjust import path.
 // For example: import type { ComponentEffectsMap } from '../StyleBuilder.ts';
@@ -12,7 +13,11 @@ const GenericTextEffectShape = z.object({
 	preset: z.enum(TextEffectPresetName).optional(),
 	size: z.number().optional(),
 	color: z.string().optional(),
-	opacity: z.number().optional()
+	opacity: z.number().optional(),
+	blur: z.number().optional(),
+	offsetX: z.number().optional(),
+	offsetY: z.number().optional(),
+	structured: z.boolean().optional()
 });
 
 export class TextEffectsStyleProcessor implements StyleProcessor<ComponentEffectsMap | undefined> {
@@ -35,21 +40,25 @@ export class TextEffectsStyleProcessor implements StyleProcessor<ComponentEffect
 				const data = parsedEffect.data;
 				const size = data.size || 0.3;
 				const color = data.color || '#000000';
+				if (data.structured) {
+					const strokeColor =
+						data.opacity === undefined || data.opacity === 1
+							? color
+							: tinycolor(color).setAlpha(data.opacity).toRgbString();
+					styles.webkitTextStroke = `${size}px ${strokeColor}`;
+					styles.paintOrder = 'stroke fill';
+				} else {
+					const shadow = TextShadowBuilder.build({
+						preset: TextEffectPresetName.OUTLINE,
+						size,
+						color,
+						opacity: data.opacity ?? 1
+					});
 
-				const shadow = TextShadowBuilder.build({
-					preset: TextEffectPresetName.OUTLINE,
-					size,
-					color,
-					opacity: data.opacity || 1
-				});
-
-				if (shadow && shadow !== 'none') {
-					shadowStrings.push(shadow);
+					if (shadow && shadow !== 'none') {
+						shadowStrings.push(shadow);
+					}
 				}
-
-				// styles.webkitTextStroke = `${size}em ${color}`;
-				// styles.webkitTextFillColor = 'white';
-				// styles.paintOrder = 'stroke fill';
 			}
 		}
 
@@ -57,6 +66,16 @@ export class TextEffectsStyleProcessor implements StyleProcessor<ComponentEffect
 			const effect = effectsMap[effectName];
 			if (effect.type === 'textShadow') {
 				const parsedEffect = GenericTextEffectShape.safeParse(effect);
+				if (parsedEffect.success && parsedEffect.data.enabled && parsedEffect.data.structured) {
+					const data = parsedEffect.data;
+					const color = tinycolor(data.color ?? '#000000')
+						.setAlpha(data.opacity ?? 1)
+						.toRgbString();
+					shadowStrings.push(
+						`${data.offsetX ?? 0}px ${data.offsetY ?? 0}px ${data.blur ?? data.size ?? 0}px ${color}`
+					);
+					continue;
+				}
 
 				if (
 					parsedEffect.success &&
@@ -71,7 +90,7 @@ export class TextEffectsStyleProcessor implements StyleProcessor<ComponentEffect
 						preset,
 						size: data.size || 0.3,
 						color: data.color || '#000000',
-						opacity: data.opacity || 1
+						opacity: data.opacity ?? 1
 					});
 					if (shadow && shadow !== 'none') {
 						shadowStrings.push(shadow);

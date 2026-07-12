@@ -9,6 +9,7 @@ interface FrameObject {
     /** The end of the current frame, in milliseconds */
     end: number;
 }
+export declare const resolveGifFrameIndexAtTime: (frames: ReadonlyArray<Pick<FrameObject, "start" | "end">>, duration: number, timeMs: number, loop: boolean) => number;
 /** Default options for all AnimatedGIF objects. */
 interface AnimatedGIFOptions {
     /** Whether to start playing right away */
@@ -138,6 +139,8 @@ declare class AnimatedGIF extends Sprite {
     constructor(frames: FrameObject[], options: Partial<AnimatedGIFOptions> & AnimatedGIFSize);
     /** Stops the animation. */
     stop(): void;
+    /** Seek using authored GIF frame delays rather than assuming a fixed FPS. */
+    seek(timeMs: number): void;
     /** Plays the animation. */
     play(): void;
     /**

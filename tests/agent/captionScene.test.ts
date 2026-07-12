@@ -199,7 +199,7 @@ The hook`,
 		);
 	});
 
-	it('adds validated transition cues as full-frame background-backed text overlays', () => {
+	it('adds transitions as animated full-frame native SHAPE covers', () => {
 		const scene = createCaptionScene({
 			video: { url: 'https://example.com/input.mp4' },
 			transcript: [{ text: 'Transition test', start: 0, end: 2 }]
@@ -218,10 +218,32 @@ The hook`,
 		expect(transitionLayer?.id).toBe('layer-agent-transitions');
 		expect(transitionLayer?.order).toBe(95);
 		expect(transitionLayer?.components.map((component) => component.type)).toEqual([
-			'TEXT',
-			'TEXT'
+			'SHAPE',
+			'SHAPE'
 		]);
-		expect(transitionLayer?.components[0].animations?.list?.[0]?.animation).toBeTruthy();
+		for (const component of transitionLayer?.components ?? []) {
+			expect(component).toMatchObject({
+				type: 'SHAPE',
+				shape: { type: 'rectangle', cornerRadius: 0 },
+				appearance: {
+					x: 0,
+					y: 0,
+					width: scene.settings.width,
+					height: scene.settings.height,
+					rotation: 0,
+					scaleX: 1,
+					scaleY: 1
+				}
+			});
+			expect(component.animations?.enabled).toBe(true);
+			expect(component.animations?.list?.[0]?.animation).toBeTruthy();
+		}
+		expect(transitionLayer?.components[0].appearance).toMatchObject({
+			color: '#000000'
+		});
+		expect(transitionLayer?.components[1].appearance).toMatchObject({
+			color: '#04483D'
+		});
 	});
 
 	it('applies cue files through the reusable agent API', () => {

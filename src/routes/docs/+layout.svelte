@@ -9,20 +9,21 @@
 				<span class="text-gradient">VisualFries</span>
 			</a>
 		</div>
-		
+
 		<div class="nav-sections">
 			<div class="nav-section">
 				<h3>Getting Started</h3>
 				<a href="/docs">Introduction</a>
 				<a href="/docs#installation">Installation</a>
+				<a href="/docs/authoring">Authoring Best Practices</a>
 			</div>
-			
+
 			<div class="nav-section">
 				<h3>API Reference</h3>
 				<a href="/docs/components">Components</a>
 				<a href="/docs/hooks">Hooks</a>
 			</div>
-			
+
 			<div class="nav-section">
 				<h3>Showcase</h3>
 				<a href="/docs/examples">Live Examples</a>
@@ -39,7 +40,11 @@
 	:global(body) {
 		background-color: #0d0d0d;
 		color: #e0e0e0;
-		font-family: 'Inter', system-ui, -apple-system, sans-serif;
+		font-family:
+			'Inter',
+			system-ui,
+			-apple-system,
+			sans-serif;
 		margin: 0;
 		overflow-x: hidden;
 	}
@@ -100,7 +105,9 @@
 		color: #a0a0a0;
 		text-decoration: none;
 		font-size: 0.9rem;
-		transition: color 0.2s ease, transform 0.2s ease;
+		transition:
+			color 0.2s ease,
+			transform 0.2s ease;
 	}
 
 	.nav-section a:hover {

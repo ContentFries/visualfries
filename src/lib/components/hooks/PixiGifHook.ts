@@ -41,6 +41,8 @@ export class PixiGifHook implements IComponentHook {
 
 		if (this.#imageElement) {
 			const { appearance } = this.componentElement;
+			this.#imageElement.loop = this.componentElement.playback?.loop ?? true;
+			this.#imageElement.animationSpeed = this.componentElement.playback?.speed ?? 1;
 			setPlacementAndOpacity(this.#imageElement, appearance);
 
 			this.#displayObject.addChild(this.#imageElement);
@@ -74,11 +76,8 @@ export class PixiGifHook implements IComponentHook {
 			this.#imageElement.play();
 		} else {
 			this.#imageElement.stop();
-			const gifFrame =
-				this.#imageElement.totalFrames > 0
-					? this.state.currentFrame % this.#imageElement.totalFrames
-					: 0;
-			this.#imageElement.currentFrame = gifFrame;
+			const speed = this.componentElement.playback?.speed ?? 1;
+			this.#imageElement.seek(Math.max(0, this.#context.currentComponentTime) * 1000 * speed);
 		}
 
 		const isActive = this.#context.isActive;

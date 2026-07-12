@@ -51,7 +51,7 @@ export class ComponentsManager
 	}
 
 	private initializeEventListeners(): void {
-		this.eventManager.on('subtitleschange', this.debouncedRefreshSubtitles.bind(this));
+		this.eventManager.on('subtitleschange', this.debouncedRefreshSubtitles);
 	}
 
 	#scheduleSubtitleRefresh() {
@@ -109,7 +109,7 @@ export class ComponentsManager
 		return this.components.get(componentId);
 	}
 
-	delete(componentId: string) {
+	async delete(componentId: string): Promise<void> {
 		const component = this.components.get(componentId);
 		if (component) {
 			const layers = this.layersManager.getAll();
@@ -125,8 +125,8 @@ export class ComponentsManager
 				}
 			}
 
-			component.destroy();
 			this.components.delete(componentId);
+			await component.destroy();
 		}
 	}
 
@@ -303,8 +303,12 @@ export class ComponentsManager
 		updates.forEach(({ id, data }) => this.update(id, data));
 	}
 
-	bulkDelete(ids: string[]): void {
-		ids.forEach((id) => this.delete(id));
+	async bulkDelete(ids: string[]): Promise<void> {
+		const results = await Promise.allSettled(ids.map((id) => this.delete(id)));
+		const errors = results
+			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+			.map((result) => result.reason);
+		if (errors.length > 0) throw new AggregateError(errors, 'Component deletion failed.');
 	}
 
 	hide(id: string): void {
@@ -341,8 +345,15 @@ export class ComponentsManager
 		return this.isVisible(component);
 	}
 
-	public destroy(): void {
+	public async destroy(): Promise<void> {
 		this.eventManager.removeEventListener('subtitleschange', this.debouncedRefreshSubtitles);
 		this.debouncedRefreshSubtitles.cancel(); // Cancel any pending debounced calls
+		const components = [...this.components.values()];
+		this.components.clear();
+		const results = await Promise.allSettled(components.map((component) => component.destroy()));
+		const errors = results
+			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+			.map((result) => result.reason);
+		if (errors.length > 0) throw new AggregateError(errors, 'Component teardown failed.');
 	}
 }

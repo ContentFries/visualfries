@@ -26,7 +26,7 @@ export class SVGGenerator {
         const isEmoji = /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\s)+$/u.test(el.textContent || '');
         const getFontText = isEmoji ? 'a' : fontText || el.textContent;
         let fontData = null;
-        if (fontFamily && !isEmoji) {
+        if (fontFamily && !isEmoji && config.fontSource?.source === 'google') {
             const cacheKey = `${fontFamily + weightAppend}_${getFontText}`;
             if (cacheKey in this.fontDataBase64Cache) {
                 fontData = this.fontDataBase64Cache[cacheKey];

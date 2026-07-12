@@ -10,6 +10,32 @@ vi.mock('pixi.js-legacy', async (importOriginal) => {
 		Container: vi.fn().mockImplementation(() => {
 			const container = {
 				children: [] as any[],
+				x: 0,
+				y: 0,
+				alpha: 1,
+				angle: 0,
+				pivot: {
+					x: 0,
+					y: 0,
+					set: vi.fn((x: number, y: number) => {
+						container.pivot.x = x;
+						container.pivot.y = y;
+					})
+				},
+				position: {
+					set: vi.fn((x: number, y: number) => {
+						container.x = x;
+						container.y = y;
+					})
+				},
+				scale: {
+					x: 1,
+					y: 1,
+					set: vi.fn((x: number, y = x) => {
+						container.scale.x = x;
+						container.scale.y = y;
+					})
+				},
 				addChild: vi.fn((...children: any[]) => {
 					container.children.push(...children);
 				}),
@@ -255,6 +281,55 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 	});
 
 	describe('IMAGE components', () => {
+		it('publishes renderer content without owning the shared animation target', async () => {
+			const mockTexture = { width: 400, height: 200, baseTexture: {} };
+			mockContext.getResource.mockImplementation((key: string) =>
+				key === 'pixiTexture' ? (mockTexture as any) : undefined
+			);
+			mockContext.contextData = {
+				...mockContext.contextData,
+				type: 'IMAGE',
+				animations: {
+					enabled: true,
+					list: [{ id: 'enter', name: 'Enter', animation: 'fadeIn' }]
+				}
+			} as any;
+			mockContext.data = {
+				appearance: {
+					x: 100,
+					y: 200,
+					width: 400,
+					height: 200,
+					opacity: 0.75,
+					rotation: 12,
+					scaleX: 1.2,
+					scaleY: 0.8
+				},
+				animations: mockContext.contextData.animations,
+				effects: { enabled: false, map: {} }
+			} as any;
+
+			await hook.handle('update', mockContext);
+
+			const renderObject = mockContext.setResource.mock.calls.find(
+				([key]) => key === 'pixiRenderObject'
+			)?.[1] as any;
+			expect(renderObject).toMatchObject({
+				x: 0,
+				y: 0,
+				alpha: 1,
+				angle: 0,
+				scale: { x: 1, y: 1 }
+			});
+			expect(mockContext.setResource).not.toHaveBeenCalledWith(
+				'animationTarget',
+				expect.anything()
+			);
+
+			await hook.handle('destroy', mockContext);
+			expect(mockContext.removeResource).not.toHaveBeenCalledWith('animationTarget');
+		});
+
 		it('uses PIXI BlurFilter in server mode when webgl renderer is active', async () => {
 			mockStateManager.environment = 'server' as any;
 			const mockTexture = { width: 1920, height: 1080, baseTexture: {} };
@@ -475,14 +550,14 @@ describe('PixiSplitScreenDisplayObjectHook', () => {
 				getContext: vi.fn(() => fakeCtx)
 			} as any;
 			const originalCreateElement = document.createElement.bind(document);
-			const createElementSpy = vi
-				.spyOn(document, 'createElement')
-				.mockImplementation(((tagName: string) => {
-					if (tagName === 'canvas') {
-						return fakeCanvas;
-					}
-					return originalCreateElement(tagName);
-				}) as any);
+			const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((
+				tagName: string
+			) => {
+				if (tagName === 'canvas') {
+					return fakeCanvas;
+				}
+				return originalCreateElement(tagName);
+			}) as any);
 
 			try {
 				await hook.handle('update', mockContext);

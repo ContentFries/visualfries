@@ -49,7 +49,8 @@ const createSceneBuilder = (
 	const commandRunner = {
 		run: vi.fn(async (commandType: CommandType, props?: unknown) => {
 			if (commandType === CommandType.SEEK) {
-				stateManager.currentTime = (props as { time?: number } | undefined)?.time ?? stateManager.currentTime;
+				stateManager.currentTime =
+					(props as { time?: number } | undefined)?.time ?? stateManager.currentTime;
 			}
 			if (runImpl) {
 				return runImpl(commandType, props);
@@ -61,34 +62,90 @@ const createSceneBuilder = (
 		}),
 		runSync: vi.fn(() => true)
 	};
+	const timelineManager = {
+		timeline: { timeScale: vi.fn() },
+		play: vi.fn(),
+		pause: vi.fn(),
+		destroy: vi.fn()
+	};
+	const eventManager = { emit: vi.fn(), isReady: false };
+	const domManager = {
+		canvas: { toDataURL: vi.fn() },
+		htmlContainer: {},
+		removeLoader: vi.fn(),
+		destroy: vi.fn()
+	};
+	const appManager = {
+		app: {},
+		initialize: vi.fn(),
+		render: vi.fn(),
+		destroy: vi.fn(),
+		scale: vi.fn()
+	};
+	const layersManager = {
+		setAppManager: vi.fn(),
+		getAll: () => [],
+		create: vi.fn(),
+		getData: () => []
+	};
+	const componentsManager = { destroy: vi.fn() };
+	const mediaManager = { destroy: vi.fn() };
+	const deterministicMediaManager = {
+		config: { enabled: true, strict: false, diagnostics: false },
+		setProvider: vi.fn(),
+		getProvider: vi.fn(),
+		getDiagnosticsReport: vi.fn(() => null),
+		destroy: vi.fn()
+	};
 
 	return {
 		builder: new SceneBuilder({
-			timelineManager: { timeline: { timeScale: vi.fn() }, play: vi.fn(), pause: vi.fn() } as any,
-			eventManager: { emit: vi.fn() } as any,
-			domManager: { canvas: { toDataURL: vi.fn() }, htmlContainer: {}, removeLoader: vi.fn() } as any,
-			appManager: { app: {}, initialize: vi.fn(), render: vi.fn(), destroy: vi.fn(), scale: vi.fn() } as any,
-			layersManager: { setAppManager: vi.fn(), getAll: () => [], create: vi.fn(), getData: () => [] } as any,
-			componentsManager: { destroy: vi.fn() } as any,
+			timelineManager: timelineManager as any,
+			eventManager: eventManager as any,
+			domManager: domManager as any,
+			appManager: appManager as any,
+			layersManager: layersManager as any,
+			componentsManager: componentsManager as any,
 			stateManager,
 			commandRunner: commandRunner as any,
-			mediaManager: { destroy: vi.fn() } as any,
-			deterministicMediaManager: {
-				config: { enabled: true, strict: false, diagnostics: false },
-				setProvider: vi.fn(),
-				getProvider: vi.fn(),
-				getDiagnosticsReport: vi.fn(() => null),
-				destroy: vi.fn()
-			} as any,
+			mediaManager: mediaManager as any,
+			deterministicMediaManager: deterministicMediaManager as any,
 			subtitlesManager: { getSubtitlesCharactersList: () => [] } as any,
 			fonts: []
 		}),
 		stateManager,
-		commandRunner
+		commandRunner,
+		managers: {
+			timelineManager,
+			eventManager,
+			domManager,
+			appManager,
+			componentsManager,
+			mediaManager,
+			deterministicMediaManager
+		}
 	};
 };
 
 describe('SceneBuilder deterministic seek/readiness behavior', () => {
+	it('continues teardown after provider failure and reports cleanup errors last', async () => {
+		const { builder, managers, stateManager } = createSceneBuilder();
+		managers.deterministicMediaManager.destroy.mockRejectedValue(
+			new Error('provider teardown failed')
+		);
+		(stateManager as any).destroy = vi.fn();
+
+		await expect(builder.destroy()).rejects.toThrow('SceneBuilder teardown failed');
+
+		expect(managers.componentsManager.destroy).toHaveBeenCalledTimes(1);
+		expect(managers.mediaManager.destroy).toHaveBeenCalledTimes(1);
+		expect(managers.timelineManager.destroy).toHaveBeenCalledTimes(1);
+		expect(managers.appManager.destroy).toHaveBeenCalledTimes(1);
+		expect(managers.domManager.destroy).toHaveBeenCalledTimes(1);
+		expect((stateManager as any).destroy).toHaveBeenCalledTimes(1);
+		expect(managers.eventManager.isReady).toBe(false);
+	});
+
 	it('seekAndRenderFrame in server mode avoids async render race and uses prepared seek state', async () => {
 		const { builder, commandRunner } = createSceneBuilder();
 
@@ -144,7 +201,11 @@ describe('SceneBuilder deterministic seek/readiness behavior', () => {
 			skipDuplicates: true,
 			format: 'png',
 			onFrame: (item) => {
-				received.push({ frameIndex: item.frameIndex, isDuplicate: item.isDuplicate, frame: item.frame });
+				received.push({
+					frameIndex: item.frameIndex,
+					isDuplicate: item.isDuplicate,
+					frame: item.frame
+				});
 			}
 		});
 
@@ -211,15 +272,12 @@ describe('SceneBuilder deterministic seek/readiness behavior', () => {
 	});
 
 	it('renderFrameRange skipDuplicates=false performs exactly one seek and one render per frame', async () => {
-		const { builder, commandRunner } = createSceneBuilder(
-			{},
-			(commandType: CommandType) => {
-				if (commandType === CommandType.RENDER_FRAME) {
-					return 'frame';
-				}
-				return undefined;
+		const { builder, commandRunner } = createSceneBuilder({}, (commandType: CommandType) => {
+			if (commandType === CommandType.RENDER_FRAME) {
+				return 'frame';
 			}
-		);
+			return undefined;
+		});
 
 		await builder.renderFrameRange({
 			fromFrame: 0,

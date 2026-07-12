@@ -21,6 +21,8 @@ type PixiComponentCradle = {
     htmlToCanvasHook: ComponentHook;
     mediaSeekingHook: ComponentHook;
     deterministicMediaFrameHook: ComponentHook;
+    pixiVisualTransformHook: ComponentHook;
+    canvasFillHook: ComponentHook;
 };
 export declare class PixiComponentBuilder implements IComponentBuilder {
     private component;
@@ -43,8 +45,11 @@ export declare class PixiComponentBuilder implements IComponentBuilder {
     private animationHook;
     private mediaSeekingHook;
     private deterministicMediaFrameHook;
+    private pixiVisualTransformHook;
+    private canvasFillHook;
     constructor(cradle: PixiComponentCradle);
     withCanvasShape(): this;
+    withCanvasFill(): this;
     withProgressShape(): this;
     withMedia(): this;
     withMediaSeeking(): this;
@@ -56,6 +61,7 @@ export declare class PixiComponentBuilder implements IComponentBuilder {
     withSplitScreen(): this;
     withHtmlText(): this;
     withAnimation(): this;
+    withPixiAnimationTarget(): this;
     withHtmlAnimation(): this;
     withHtmlToCanvasHook(): this;
     withSubtitles(): this;

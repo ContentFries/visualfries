@@ -156,4 +156,26 @@ describe('font discovery', () => {
 
 		expect(discoverRequiredFontVariants(scene, [])).toEqual([]);
 	});
+
+	it('treats an unconfigured family as a system font instead of implicit Google Fonts', () => {
+		const scene = createBaseScene();
+		scene.layers = [
+			{
+				id: 'system-font-layer',
+				order: 0,
+				visible: true,
+				muted: false,
+				components: [
+					{
+						id: 'system-text',
+						type: 'TEXT',
+						text: 'Native Arial',
+						appearance: { text: { fontFamily: 'Arial', fontWeight: '700' } }
+					}
+				]
+			}
+		];
+
+		expect(discoverRequiredFontVariants(scene, [])).toEqual([]);
+	});
 });

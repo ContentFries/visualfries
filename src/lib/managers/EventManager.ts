@@ -28,10 +28,8 @@ export class EventManager extends EventTarget {
 		callback: (event: CustomEvent<EventMap[K]>) => void,
 		options?: boolean | AddEventListenerOptions
 	): void {
-		this.addEventListener(
-			event,
-			((e: Event) => callback(e as CustomEvent<EventMap[K]>)) as EventListener,
-			options
-		);
+		// Register the original function identity so removeEventListener can reliably
+		// detach manager callbacks during scene teardown.
+		this.addEventListener(event, callback as unknown as EventListener, options);
 	}
 }

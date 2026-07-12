@@ -45,6 +45,8 @@ export class AppManager {
         const { PixiPlugin } = await registerGsapPlugins();
         // give the plugin a reference to the PIXI object
         PixiPlugin.registerPIXI(PIXI);
+        const sceneBackground = this.state.data.settings.backgroundColor;
+        const solidBackground = typeof sceneBackground === 'string' ? sceneBackground : 'transparent';
         const baseOptions = {
             ...PIXI_DEFAULTS,
             preserveDrawingBuffer: environment === 'server',
@@ -52,8 +54,8 @@ export class AppManager {
             width,
             height,
             view: canvas,
-            backgroundColor: environment === 'server' ? 'transparent' : '#ffffff',
-            backgroundAlpha: environment === 'server' ? 0 : 1
+            backgroundColor: solidBackground,
+            backgroundAlpha: solidBackground === 'transparent' ? 0 : 1
         };
         let options = this.#buildRendererOptions(baseOptions, environment, rendererSelection);
         try {

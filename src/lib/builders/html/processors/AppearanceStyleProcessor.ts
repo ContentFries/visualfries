@@ -1,5 +1,5 @@
 import type { StyleProcessor } from '../StyleProcessor.js';
-import type { Appearance } from '$lib'
+import type { Appearance } from '$lib';
 import type { HtmlElementStyle } from '../HtmlBuilder.js';
 import { ColorTransformer } from '$lib/transformers/ColorTransformer.js';
 import { get } from 'lodash-es';
@@ -60,7 +60,7 @@ export class AppearanceStyleProcessor implements StyleProcessor<Appearance | und
 			);
 
 			if (get(appearance, 'background.radius', 0) > 0) {
-				styles.borderRadius = `${get(appearance.background, 'radius')}em`;
+				styles.borderRadius = `${get(appearance.background, 'radius')}px`;
 			}
 
 			styles = { ...styles, ...color };

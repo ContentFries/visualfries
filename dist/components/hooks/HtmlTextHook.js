@@ -73,7 +73,7 @@ export class HtmlTextHook {
         if (this.#currentId !== this.#context.contextData.id) {
             await this.#handleRefresh();
         }
-        const isActive = this.#context.isActive;
+        const isActive = this.#context.isActive && this.#context.data.visible !== false;
         if (this.#wrapperEl) {
             if (isActive) {
                 this.#wrapperEl.style.display = 'flex';

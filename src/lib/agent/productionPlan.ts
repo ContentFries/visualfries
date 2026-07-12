@@ -75,7 +75,9 @@ const OverlayShape = z
 		outlineColor: z.string().optional(),
 		outlineSize: z.number().nonnegative().optional(),
 		animated: z.boolean().optional(),
-		renderAs: z.enum(['TEXT', 'SVG']).default('SVG')
+		// Visible typography stays semantic/editable by default. SVG is an explicit
+		// fallback for treatments the native TEXT renderer cannot reproduce.
+		renderAs: z.enum(['TEXT', 'SVG']).default('TEXT')
 	})
 	.refine((item) => item.end > item.start, { message: 'overlay end must be after start' });
 

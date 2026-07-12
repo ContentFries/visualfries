@@ -33,24 +33,43 @@ const basePlan = {
 };
 
 describe('production plan compiler', () => {
-	it('compiles named beats, exact audio, rich overlays, transitions, and QA frames', async () => {
+	it('compiles visible overlay typography to native TEXT by default', async () => {
 		const result = await compileProductionPlan({
 			plan: basePlan,
 			planPath: '/tmp/package/plan.json'
 		});
 		expect(result.scene.audioTracks[0]).toMatchObject({ id: 'voice', startAt: 0, endAt: 4 });
 		expect(result.scene.layers.map((layer) => layer.id)).toEqual([
-			'beat-hook-overlay-hook-overlay-1',
+			'beat-hook-overlay-agent-text-overlay-1',
 			'production-transitions'
 		]);
+		expect(result.scene.layers[0].components[0]).toMatchObject({
+			type: 'TEXT',
+			text: 'NOT DEAD.'
+		});
+		expect(result.generatedAssets).toEqual([]);
+		expect(result.scene.layers[1].components[0].name).toContain('focus-pull');
+		expect(result.qaFrameIndices).toEqual([0, 45, 117]);
+	});
+
+	it('keeps SVG rasterization as an explicit compatibility fallback', async () => {
+		const result = await compileProductionPlan({
+			plan: {
+				...basePlan,
+				beats: basePlan.beats.map((beat) => ({
+					...beat,
+					overlays: beat.overlays.map((overlay) => ({ ...overlay, renderAs: 'SVG' as const }))
+				}))
+			},
+			planPath: '/tmp/package/plan.json'
+		});
+
 		expect(result.scene.layers[0].components[0]).toMatchObject({ type: 'IMAGE' });
 		expect(result.generatedAssets[0]).toContain('.svg');
 		const overlaySvg = await fs.readFile(result.generatedAssets[0], 'utf8');
 		expect(overlaySvg).toContain('font-family="Montserrat, Arial, Helvetica, sans-serif"');
 		expect(overlaySvg).toContain('stroke="#FFFFFF"');
 		expect(overlaySvg).toContain('filter="url(#shadow)"');
-		expect(result.scene.layers[1].components[0].name).toContain('focus-pull');
-		expect(result.qaFrameIndices).toEqual([0, 45, 117]);
 	});
 
 	it('turns one trimmed video cue with freezeAt into deterministic motion plus a held still', async () => {
@@ -89,7 +108,7 @@ describe('production plan compiler', () => {
 		expect(media?.components.map((component) => component.type)).toEqual(['VIDEO', 'IMAGE']);
 		expect(media?.components[0].timeline).toEqual({ startAt: 0, endAt: 0.4 });
 		expect(media?.components[1].timeline).toEqual({ startAt: 0.4, endAt: 1 });
-		expect(result.generatedAssets).toHaveLength(2);
+		expect(result.generatedAssets).toHaveLength(1);
 		const freezeAsset = result.generatedAssets.find((item) => item.endsWith('.jpg'));
 		expect(freezeAsset).toBeDefined();
 		expect((await fs.stat(freezeAsset!)).size).toBeGreaterThan(0);

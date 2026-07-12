@@ -45,7 +45,10 @@ visualfries validate scene.json
 visualfries inspect scene.json --json
 visualfries qa scene.json --output ./qa
 visualfries doctor --json
-visualfries catalog --json
+visualfries catalog --component TEXT --capabilities --json
+visualfries validate scene.json --strict-runtime-support
+visualfries explain scene.json --component views-badge --frame 12 --json
+visualfries parity scene.json --frames 5,12,35 --rois qa/parity-rois.json --output qa/parity --json
 visualfries validate-cues ./cues.json --duration 45 --json
 visualfries caption-scene \
   --video ./input.mp4 \
@@ -91,34 +94,44 @@ import { createCaptionScene, inspectScene, normalizeTranscript } from 'visualfri
 Agent helpers also include timed text overlays:
 
 ```ts
-import { addAgentBrollSequence, addAgentTextOverlays, addAgentTransitions } from 'visualfries/agent';
+import {
+	addAgentBrollSequence,
+	addAgentTextOverlays,
+	addAgentTransitions
+} from 'visualfries/agent';
 
 const sceneWithOverlays = addAgentTextOverlays({
-  scene,
-  overlays: [
-    { text: 'LOVE THIS 😍', start: 0.4, end: 1.1, style: 'hook-punch' },
-    { text: 'NECK 🤯', start: 1.1, end: 1.7, style: 'shock-word' }
-  ]
+	scene,
+	overlays: [
+		{ text: 'LOVE THIS 😍', start: 0.4, end: 1.1, style: 'hook-punch' },
+		{ text: 'NECK 🤯', start: 1.1, end: 1.7, style: 'shock-word' }
+	]
 });
 
 const sceneWithBroll = addAgentBrollSequence({
-  scene,
-  cues: [
-    { url: './broll/profile.mp4', start: 2.0, end: 5.0, type: 'VIDEO' },
-    { url: './broll/chart.png', start: 5.0, end: 7.0, type: 'IMAGE' }
-  ]
+	scene,
+	cues: [
+		{ url: './broll/profile.mp4', start: 2.0, end: 5.0, type: 'VIDEO' },
+		{ url: './broll/chart.png', start: 5.0, end: 7.0, type: 'IMAGE' }
+	]
 });
 
 const sceneWithTransitions = addAgentTransitions({
-  scene,
-  transitions: [
-    { time: 2.0, style: 'dip-to-black' },
-    { time: 5.0, style: 'swipe-left', color: '#04483D' }
-  ]
+	scene,
+	transitions: [
+		{ time: 2.0, style: 'dip-to-black' },
+		{ time: 5.0, style: 'swipe-left', color: '#04483D' }
+	]
 });
 ```
 
-See [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md) and [docs/AGENT_PATTERNS.md](docs/AGENT_PATTERNS.md).
+Start with [Authoring Best Practices](docs/AUTHORING_BEST_PRACTICES.md): native TEXT policy,
+component decision tree, animation runtime matrix, compositing truth, frame-QA, and known limits.
+Then see [Agent Workflow](docs/AGENT_WORKFLOW.md), [Agent Patterns](docs/AGENT_PATTERNS.md),
+and the [2026 authoring-system audit](docs/AUTHORING_SYSTEM_AUDIT.md).
+
+Visible typography defaults to native `TEXT`. Do not rasterize ordinary badges/metrics into
+`IMAGE`, and do not add a `SHAPE` solely as a text background when TEXT can own the treatment.
 
 ## Quick Start
 

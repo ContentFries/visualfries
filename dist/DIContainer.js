@@ -42,6 +42,8 @@ import { LayersManager } from './managers/LayersManager.svelte.js';
 import { MediaSeekingHook } from './components/hooks/MediaSeekingHook.js';
 import { VerifyGifHook } from './components/hooks/VerifyGifHook.js';
 import { DeterministicMediaFrameHook } from './components/hooks/DeterministicMediaFrameHook.js';
+import { PixiVisualTransformHook } from './components/hooks/PixiVisualTransformHook.js';
+import { CanvasFillHook } from './components/hooks/CanvasFillHook.js';
 import { ComponentAnimationTransformer } from './animations/transformers/AnimationReferenceTransformer.js';
 import { AnimationPresetsRegister } from './animations/AnimationPresetsRegister.js';
 import { SplitTextCache } from './animations/SplitTextCache.js';
@@ -95,6 +97,8 @@ export const registerNewContainer = function (data, instances) {
         deterministicMediaFrameHook: asClass(DeterministicMediaFrameHook, {
             lifetime: Lifetime.TRANSIENT
         }),
+        pixiVisualTransformHook: asClass(PixiVisualTransformHook, { lifetime: Lifetime.TRANSIENT }),
+        canvasFillHook: asClass(CanvasFillHook, { lifetime: Lifetime.TRANSIENT }),
         videoTextureHook: asClass(PixiVideoTextureHook, { lifetime: Lifetime.TRANSIENT }),
         splitScreenHook: asClass(PixiSplitScreenDisplayObjectHook, { lifetime: Lifetime.TRANSIENT }),
         htmlTextHook: asClass(HtmlTextHook, { lifetime: Lifetime.TRANSIENT }),
@@ -144,10 +148,17 @@ export const registerNewContainer = function (data, instances) {
     containers.set(data.id, childContainer);
     return childContainer;
 };
-export const removeContainer = function (sceneId) {
-    if (containers.has(sceneId)) {
-        const container = containers.get(sceneId);
-        container.dispose();
+export const evictContainer = function (sceneId) {
+    const container = containers.get(sceneId);
+    if (container)
         containers.delete(sceneId);
-    }
+    return container;
+};
+export const removeContainer = async function (sceneId, expectedContainer) {
+    const current = containers.get(sceneId);
+    if (expectedContainer && current !== expectedContainer)
+        return;
+    const container = evictContainer(sceneId);
+    if (container)
+        await container.dispose();
 };

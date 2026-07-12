@@ -45,7 +45,7 @@ export class SVGGenerator {
 
 		let fontData: string | null = null;
 
-		if (fontFamily && !isEmoji) {
+		if (fontFamily && !isEmoji && config.fontSource?.source === 'google') {
 			const cacheKey = `${fontFamily + weightAppend}_${getFontText}`;
 			if (cacheKey in this.fontDataBase64Cache) {
 				fontData = this.fontDataBase64Cache[cacheKey];

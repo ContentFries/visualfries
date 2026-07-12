@@ -2,6 +2,11 @@
 
 This document defines the agent-facing contract for VisualFries.
 
+Read [Authoring Best Practices](AUTHORING_BEST_PRACTICES.md) before authoring. It defines the
+native semantic component policy, runtime support matrix, effect/compositing limits, and required
+entry/settled/exit/reseek frame QA. Validation and inspection are structural gates, not rendering
+proof.
+
 ## Goal
 
 Make VisualFries usable by agents without requiring the ContentFries UI:
@@ -30,7 +35,7 @@ visualfries catalog [--json]
 visualfries doctor [--json]
 ```
 
-Use `produce` for authored edits that need more than captions plus generic cues. A production plan groups the edit into named beats and supports source trims, automatic video freeze-frame holds, richer editorial overlays, exact multi-track audio, transitions, and QA frames. The command keeps the plan editable, compiles production overlays to deterministic SVG assets, emits ordinary VisualFries scene JSON, renders at timeline event boundaries, then checks the finished audio lead-in.
+Use `produce` for authored edits that need more than captions plus generic cues. A production plan groups the edit into named beats and supports source trims, automatic video freeze-frame holds, native TEXT editorial overlays, exact multi-track audio, transitions, and QA frames. Visible typography compiles to native TEXT by default. `renderAs: "SVG"` is an explicit compatibility fallback for a documented native limitation. The command emits ordinary VisualFries scene JSON, renders at timeline event boundaries, then checks the finished audio lead-in.
 
 ```json
 {
@@ -300,6 +305,7 @@ Initial agent b-roll helper:
 Initial agent transition helper:
 
 - `addAgentTransitions` for fast full-frame transition covers at exact beat times.
+- Transition helper covers use animated native SHAPE rectangles.
 - Supported styles: `dip-to-black`, `flash`, `swipe-left`, `swipe-up`.
 
 Overlay rules:

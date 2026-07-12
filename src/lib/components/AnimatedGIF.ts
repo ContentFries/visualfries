@@ -19,6 +19,23 @@ interface FrameObject {
     end: number;
 }
 
+export const resolveGifFrameIndexAtTime = (
+    frames: ReadonlyArray<Pick<FrameObject, "start" | "end">>,
+    duration: number,
+    timeMs: number,
+    loop: boolean
+): number => {
+    if (!frames.length || duration <= 0) return 0;
+    const safeTime = Number.isFinite(timeMs) ? Math.max(0, timeMs) : 0;
+    const localTime = loop
+        ? safeTime % duration
+        : Math.min(safeTime, Math.max(0, duration - Number.EPSILON));
+    const index = frames.findIndex(
+        (frame) => frame.start <= localTime && frame.end > localTime
+    );
+    return index >= 0 ? index : frames.length - 1;
+};
+
 /** Default options for all AnimatedGIF objects. */
 interface AnimatedGIFOptions {
     /** Whether to start playing right away */
@@ -327,6 +344,24 @@ class AnimatedGIF extends Sprite {
         }
     }
 
+    /** Seek using authored GIF frame delays rather than assuming a fixed FPS. */
+    public seek(timeMs: number): void {
+        if (!Number.isFinite(this.duration) || this.duration <= 0) {
+            this._currentTime = 0;
+            if (this._frames.length > 0) this.updateFrameIndex(0);
+            return;
+        }
+
+        const safeTime = Number.isFinite(timeMs) ? Math.max(0, timeMs) : 0;
+        const localTime = this.loop
+            ? safeTime % this.duration
+            : Math.min(safeTime, Math.max(0, this.duration - Number.EPSILON));
+        this._currentTime = localTime;
+        this.updateFrameIndex(
+            resolveGifFrameIndexAtTime(this._frames, this.duration, safeTime, this.loop)
+        );
+    }
+
     /** Plays the animation. */
     public play(): void {
         if (this._playing) {
@@ -350,7 +385,9 @@ class AnimatedGIF extends Sprite {
      * @readonly
      */
     public get progress(): number {
-        return this._currentTime / this.duration;
+        return Number.isFinite(this.duration) && this.duration > 0
+            ? this._currentTime / this.duration
+            : 0;
     }
 
     /** `true` if the current animation is playing */

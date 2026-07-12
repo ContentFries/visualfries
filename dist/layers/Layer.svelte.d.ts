@@ -482,6 +482,12 @@ export declare class Layer implements ILayer {
                         unit: "px" | "em" | "rem" | "%";
                     } | null | undefined;
                     textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                    padding?: number | {
+                        top: number;
+                        right: number;
+                        bottom: number;
+                        left: number;
+                    } | undefined;
                     shadow?: {
                         enabled?: boolean | undefined;
                         preset?: string | undefined;
@@ -1101,6 +1107,12 @@ export declare class Layer implements ILayer {
                         unit: "px" | "em" | "rem" | "%";
                     } | null | undefined;
                     textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                    padding?: number | {
+                        top: number;
+                        right: number;
+                        bottom: number;
+                        left: number;
+                    } | undefined;
                     shadow?: {
                         enabled?: boolean | undefined;
                         preset?: string | undefined;
@@ -1694,6 +1706,12 @@ export declare class Layer implements ILayer {
                         unit: "px" | "em" | "rem" | "%";
                     } | null | undefined;
                     textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                    padding?: number | {
+                        top: number;
+                        right: number;
+                        bottom: number;
+                        left: number;
+                    } | undefined;
                     shadow?: {
                         enabled?: boolean | undefined;
                         preset?: string | undefined;
@@ -2285,6 +2303,12 @@ export declare class Layer implements ILayer {
                         unit: "px" | "em" | "rem" | "%";
                     } | null | undefined;
                     textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                    padding?: number | {
+                        top: number;
+                        right: number;
+                        bottom: number;
+                        left: number;
+                    } | undefined;
                     shadow?: {
                         enabled?: boolean | undefined;
                         preset?: string | undefined;
@@ -2910,6 +2934,12 @@ export declare class Layer implements ILayer {
                         unit: "px" | "em" | "rem" | "%";
                     } | null | undefined;
                     textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                    padding?: number | {
+                        top: number;
+                        right: number;
+                        bottom: number;
+                        left: number;
+                    } | undefined;
                     shadow?: {
                         enabled?: boolean | undefined;
                         preset?: string | undefined;
@@ -3505,6 +3535,12 @@ export declare class Layer implements ILayer {
                         unit: "px" | "em" | "rem" | "%";
                     } | null | undefined;
                     textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                    padding?: number | {
+                        top: number;
+                        right: number;
+                        bottom: number;
+                        left: number;
+                    } | undefined;
                     shadow?: {
                         enabled?: boolean | undefined;
                         preset?: string | undefined;
@@ -4051,6 +4087,12 @@ export declare class Layer implements ILayer {
                         unit: "px" | "em" | "rem" | "%";
                     } | null | undefined;
                     textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                    padding?: number | {
+                        top: number;
+                        right: number;
+                        bottom: number;
+                        left: number;
+                    } | undefined;
                     shadow?: {
                         enabled?: boolean | undefined;
                         preset?: string | undefined;
@@ -4602,6 +4644,12 @@ export declare class Layer implements ILayer {
                         unit: "px" | "em" | "rem" | "%";
                     } | null | undefined;
                     textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                    padding?: number | {
+                        top: number;
+                        right: number;
+                        bottom: number;
+                        left: number;
+                    } | undefined;
                     shadow?: {
                         enabled?: boolean | undefined;
                         preset?: string | undefined;
@@ -5146,6 +5194,12 @@ export declare class Layer implements ILayer {
                         unit: "px" | "em" | "rem" | "%";
                     } | null | undefined;
                     textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" | undefined;
+                    padding?: number | {
+                        top: number;
+                        right: number;
+                        bottom: number;
+                        left: number;
+                    } | undefined;
                     shadow?: {
                         enabled?: boolean | undefined;
                         preset?: string | undefined;

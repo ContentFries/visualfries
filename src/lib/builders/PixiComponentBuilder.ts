@@ -1,8 +1,4 @@
-import type {
-	IComponent,
-	IComponentBuilder,
-	IComponentHook as ComponentHook
-} from '$lib';
+import type { IComponent, IComponentBuilder, IComponentHook as ComponentHook } from '$lib';
 import { Component } from '$lib/components/Component.svelte.js';
 
 type PixiComponentCradle = {
@@ -26,6 +22,8 @@ type PixiComponentCradle = {
 	htmlToCanvasHook: ComponentHook;
 	mediaSeekingHook: ComponentHook;
 	deterministicMediaFrameHook: ComponentHook;
+	pixiVisualTransformHook: ComponentHook;
+	canvasFillHook: ComponentHook;
 };
 
 export class PixiComponentBuilder implements IComponentBuilder {
@@ -49,6 +47,8 @@ export class PixiComponentBuilder implements IComponentBuilder {
 	private animationHook: ComponentHook;
 	private mediaSeekingHook: ComponentHook;
 	private deterministicMediaFrameHook: ComponentHook;
+	private pixiVisualTransformHook: ComponentHook;
+	private canvasFillHook: ComponentHook;
 	constructor(cradle: PixiComponentCradle) {
 		this.component = cradle.component;
 		this.mediaHook = cradle.mediaHook;
@@ -70,10 +70,17 @@ export class PixiComponentBuilder implements IComponentBuilder {
 		this.htmlToCanvasHook = cradle.htmlToCanvasHook;
 		this.mediaSeekingHook = cradle.mediaSeekingHook;
 		this.deterministicMediaFrameHook = cradle.deterministicMediaFrameHook;
+		this.pixiVisualTransformHook = cradle.pixiVisualTransformHook;
+		this.canvasFillHook = cradle.canvasFillHook;
 	}
 
 	withCanvasShape() {
 		this.component.addHook(this.canvasShapeHook);
+		return this;
+	}
+
+	withCanvasFill() {
+		this.component.addHook(this.canvasFillHook);
 		return this;
 	}
 
@@ -131,6 +138,11 @@ export class PixiComponentBuilder implements IComponentBuilder {
 
 	withAnimation() {
 		this.component.addHook(this.animationHook);
+		return this;
+	}
+
+	withPixiAnimationTarget() {
+		this.component.addHook(this.pixiVisualTransformHook);
 		return this;
 	}
 

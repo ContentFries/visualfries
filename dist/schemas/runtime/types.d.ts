@@ -89,7 +89,7 @@ export interface ResourceManager<T, D, F> {
     get(id: string): T | undefined;
     getAll(): T[];
     update(id: string, data: Partial<F>, refreshType?: ComponentRefreshType): void;
-    delete(id: string): void;
+    delete(id: string): void | Promise<void>;
     create(data: D): Promise<T | null>;
     setOrder(id: string, newOrder: number): void;
     moveUp(id: string): void;
@@ -100,7 +100,7 @@ export interface ResourceManager<T, D, F> {
         id: string;
         data: Partial<F>;
     }>): void;
-    bulkDelete(ids: string[]): void;
+    bulkDelete(ids: string[]): void | Promise<void>;
     hide(id: string): void;
     show(id: string): void;
     toggle(id: string): void;
@@ -134,6 +134,7 @@ export interface ComponentBuilder {
     withHtmlText(): ComponentBuilder;
     withHtmlAnimation(): ComponentBuilder;
     withAnimation(): ComponentBuilder;
+    withPixiAnimationTarget(): ComponentBuilder;
     withSubtitles(): ComponentBuilder;
     withDisplayObject(): ComponentBuilder;
     withTexture(): ComponentBuilder;
@@ -142,6 +143,7 @@ export interface ComponentBuilder {
     withGif(): ComponentBuilder;
     withShape(): ComponentBuilder;
     withCanvasShape(): ComponentBuilder;
+    withCanvasFill(): ComponentBuilder;
     withProgressShape(): ComponentBuilder;
     withHtmlToCanvasHook(): ComponentBuilder;
 }
@@ -158,7 +160,7 @@ export interface Component {
     setup(): void;
     update(): void;
     refresh(type?: ComponentRefreshType): void;
-    destroy(): void;
+    destroy(): Promise<void>;
     setStart(start: number): Component;
     setEnd(end: number): Component;
     updateAppearance(appearance: Partial<AppearanceInput>): Component;
@@ -231,6 +233,21 @@ type Zone = {
     start: number;
     end: number;
 };
+export type ComponentAnimationExplanation = {
+    componentId: string;
+    type: ComponentData['type'];
+    time: number;
+    active: boolean;
+    relativeTime: number;
+    targetKind: 'html' | 'pixi' | 'none';
+    targetOwner: 'wrapper' | 'element' | 'pixi' | 'none';
+    computed: Record<string, number | string>;
+    animations: Array<{
+        id: string;
+        enabled: boolean;
+        startAt: number;
+    }>;
+};
 export interface SceneBuilder {
     readonly sceneData: Scene;
     readonly environment: RenderEnvironment;
@@ -262,6 +279,7 @@ export interface SceneBuilder {
     markDirty(): void;
     initialize(): Promise<void>;
     seek(time: number): Promise<void>;
+    explainComponentState(componentId: string): ComponentAnimationExplanation | null;
     replaceSourceOnTime(time: number, componentId: string, base64data: string): Promise<void>;
     setDeterministicFrameProvider(provider: DeterministicFrameProvider | null): void;
     getDeterministicFrameProvider(): DeterministicFrameProvider | null;
@@ -279,7 +297,7 @@ export interface SceneBuilder {
     removeLoadingComponent(componentId: string): void;
     buildCharactersList(): void;
     render(): void;
-    destroy(): void;
+    destroy(): Promise<void>;
     addComponent(componentData: ComponentInput): Promise<ComponentData | undefined>;
     addLayer(layerInput: SceneLayerInput): Promise<Layer | undefined>;
     addNewLayerWithComponents(components: ComponentInput[]): Promise<Layer | undefined>;

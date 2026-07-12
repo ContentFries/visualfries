@@ -1,3 +1,4 @@
+import { getCapabilityCatalog, getComponentCapability } from './capabilities.js';
 export const AGENT_CAPTION_PRESETS = [
     'reels-center',
     'reels-lower',
@@ -20,6 +21,8 @@ export const AGENT_TRANSITION_STYLES = ['dip-to-black', 'flash', 'swipe-left', '
 export const AGENT_TRANSCRIPT_FORMATS = ['json', 'srt', 'vtt'];
 export const AGENT_CLI_COMMANDS = [
     'doctor',
+    'catalog',
+    'validate',
     'init',
     'caption-scene',
     'preset-cues',
@@ -27,10 +30,19 @@ export const AGENT_CLI_COMMANDS = [
     'validate-cues',
     'qa',
     'inspect',
+    'explain',
+    'parity',
     'render',
-    'compose'
+    'compose',
+    'produce'
 ];
-export function getAgentCatalog() {
+export function getAgentCatalog(options = {}) {
+    const componentCapability = options.component
+        ? getComponentCapability(options.component)
+        : undefined;
+    if (options.component && !componentCapability) {
+        throw new Error(`Unknown VisualFries component type: ${options.component}`);
+    }
     return {
         captionPresets: [...AGENT_CAPTION_PRESETS],
         cuePresets: [...AGENT_CUE_PRESETS],
@@ -39,6 +51,7 @@ export function getAgentCatalog() {
         transitionStyles: [...AGENT_TRANSITION_STYLES],
         transcriptFormats: [...AGENT_TRANSCRIPT_FORMATS],
         cliCommands: [...AGENT_CLI_COMMANDS],
+        capabilities: componentCapability ? [componentCapability] : getCapabilityCatalog(),
         recommendedWorkflow: {
             routine: 'visualfries compose --video ./input.mp4 --transcript ./captions.srt --cue-preset hidden-engine-dynamic --cues ./cues.json --scene-output ./scene.json --qa-output ./qa/frames --render-mode preview --output ./preview.mp4',
             debug: [

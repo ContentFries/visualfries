@@ -71,7 +71,7 @@ export class ComponentDirector {
 	}
 
 	constructImage() {
-		this.builder.withImage().withTexture().withSplitScreen();
+		this.builder.withImage().withTexture().withSplitScreen().withAnimation();
 
 		return this.builder.getComponent();
 	}

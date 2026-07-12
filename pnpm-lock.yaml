@@ -29,6 +29,9 @@ importers:
       lodash-es:
         specifier: ^4.17.21
         version: 4.17.21
+      mediabunny:
+        specifier: 1.49.0
+        version: 1.49.0
       pixi.js-legacy:
         specifier: ^7.4.3
         version: 7.4.3(d1d99e8ae917814d844dec1222a79cec)
@@ -1077,6 +1080,12 @@ packages:
 
   '@types/css-font-loading-module@0.0.12':
     resolution: {integrity: sha512-x2tZZYkSxXqWvTDgveSynfjq/T2HyiZHXb00j/+gy19yp70PHCizM48XFdjBCWH7eHBD0R5i/pw9yMBP/BH5uA==}
+
+  '@types/dom-mediacapture-transform@0.1.12':
+    resolution: {integrity: sha512-d7/QsLRwF864A5mgIM/YrfiglHoYn7zgCcAoJgW404r+2DwnNr7EBbLnCWpmOMgH8y0te73L1AV6H1bmauaWFw==}
+
+  '@types/dom-webcodecs@0.1.13':
+    resolution: {integrity: sha512-O5hkiFIcjjszPIYyUSyvScyvrBoV3NOEEZx/pMlsu44TKzWNkLVBBxnxJz42in5n3QIolYOcBYFCPZZ0h8SkwQ==}
 
   '@types/earcut@2.1.4':
     resolution: {integrity: sha512-qp3m9PPz4gULB9MhjGID7wpo3gJ4bTGXm7ltNDsmOvsPduTeHp8wSW9YckBj3mljeOh4F0m2z/0JKAALRKbmLQ==}
@@ -2159,6 +2168,9 @@ packages:
 
   md5@2.3.0:
     resolution: {integrity: sha512-T1GITYmFaKuO91vxyoQMFETst+O71VUPEU3ze5GNzDm0OWdP8v1ziTaAEPUr/3kLsY3Sftgz242A1SetQiDL7g==}
+
+  mediabunny@1.49.0:
+    resolution: {integrity: sha512-hDMtS/q22GFjyB3Yum+a6NHhDtVnye6hgaYTjx3DPUfnckRjzxFmXmCc3UQXdvo7d6PUCl7KM6Y9MRWzlvnAJQ==}
 
   meow@8.1.2:
     resolution: {integrity: sha512-r85E3NdZ+mpYk1C6RjPFEMSE+s1iZMuHtsHAqY0DT3jZczl0diWUZ8g6oU7h0M9cD2EL+PzaYghhCLzR0ZNn5Q==}
@@ -4104,6 +4116,12 @@ snapshots:
 
   '@types/css-font-loading-module@0.0.12': {}
 
+  '@types/dom-mediacapture-transform@0.1.12':
+    dependencies:
+      '@types/dom-webcodecs': 0.1.13
+
+  '@types/dom-webcodecs@0.1.13': {}
+
   '@types/earcut@2.1.4': {}
 
   '@types/estree@1.0.8': {}
@@ -5223,6 +5241,11 @@ snapshots:
       charenc: 0.0.2
       crypt: 0.0.2
       is-buffer: 1.1.6
+
+  mediabunny@1.49.0:
+    dependencies:
+      '@types/dom-mediacapture-transform': 0.1.12
+      '@types/dom-webcodecs': 0.1.13
 
   meow@8.1.2:
     dependencies:

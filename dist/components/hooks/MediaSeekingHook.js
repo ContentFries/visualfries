@@ -190,7 +190,7 @@ export class MediaSeekingHook {
                 else {
                     media.currentTime = seekTo;
                 }
-                // Await seek completion using a robust multi-attempt strategy similar to Remotion
+                // Await seek completion using a robust multi-attempt strategy.
                 await new Promise((resolve) => {
                     const anyMedia = media;
                     let attempts = 0;

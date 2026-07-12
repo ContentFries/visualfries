@@ -223,7 +223,7 @@ export class MediaSeekingHook implements IComponentHook {
 					media.currentTime = seekTo;
 				}
 
-				// Await seek completion using a robust multi-attempt strategy similar to Remotion
+				// Await seek completion using a robust multi-attempt strategy.
 				await new Promise<void>((resolve) => {
 					const anyMedia = media as any;
 					let attempts = 0;

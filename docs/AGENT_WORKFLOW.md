@@ -345,9 +345,9 @@ visualfries render scene.json --output ./out.mp4 --skip-duplicates
 
 Do not use `--skip-duplicates` blindly on complex video-heavy scenes until QA frames look correct.
 
-## Replacement Path For HyperFrames
+## Complete Agent Production Path
 
-VisualFries needs these layers to fully replace HyperFrames for agents:
+VisualFries uses these layers for complete agent-driven production:
 
 1. CLI scene creation and validation. Done.
 2. Caption scene generator. Done.
@@ -361,4 +361,4 @@ VisualFries needs these layers to fully replace HyperFrames for agents:
 10. One-command agent compose workflow: `visualfries compose`. Done.
 11. Skill/cookbook examples for common agent jobs.
 
-The current implementation supports caption-scene creation, validation, inspection, QA frame rendering, MP4 rendering, b-roll cues, text overlays, simple transition cues, cue-file application from the CLI, starter cue presets, and one-command compose. The next gap versus HyperFrames is a richer pattern registry for reusable short-form scene layouts and more branded overlay packs.
+The current implementation supports caption-scene creation, validation, inspection, QA frame rendering, MP4 rendering, b-roll cues, text overlays, simple transition cues, cue-file application from the CLI, starter cue presets, and one-command compose.

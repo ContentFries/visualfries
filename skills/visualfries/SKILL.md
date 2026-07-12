@@ -16,7 +16,7 @@ Use this skill when the user asks to:
 
 ## Mental Model
 
-HyperFrames uses HTML files. VisualFries uses typed scene JSON:
+VisualFries uses typed scene JSON as its authoring format:
 
 ```text
 scene
@@ -45,7 +45,7 @@ visualfries produce ./production-plan.json \
   --output ./final.mp4
 ```
 
-`produce` is the preferred path for HyperFrames-class edits. It compiles editable plan text into deterministic SVG overlays, extracts freeze frames, segments rendering at timeline event boundaries, mixes audio, writes exact QA frames, and enforces the declared leading-silence limit.
+`produce` is the preferred path for authored, production-ready edits. It compiles editable plan text into deterministic SVG overlays, extracts freeze frames, segments rendering at timeline event boundaries, mixes audio, writes exact QA frames, and enforces the declared leading-silence limit.
 
 ## First Commands
 
@@ -323,6 +323,6 @@ notes.md
 
 For caption-only work, `scene.json` plus `inspect.json` is acceptable only when the user explicitly does not need a rendered asset yet.
 
-## Current Limitation
+## Current Coverage
 
-The CLI covers JSON creation, validation, inspection, production plans, automatic freeze holds, deterministic SVG overlays, exact audio tracks, timeline-segmented MP4 rendering, QA frames, captions, b-roll, transitions, cue files, and one-command compose/produce. The remaining gap versus HyperFrames is a larger branded pattern registry and higher-level reusable templates—not basic production rendering.
+The CLI covers JSON creation, validation, inspection, production plans, automatic freeze holds, deterministic SVG overlays, exact audio tracks, timeline-segmented MP4 rendering, QA frames, captions, b-roll, transitions, cue files, and one-command compose/produce.

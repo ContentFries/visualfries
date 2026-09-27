@@ -1,5 +1,10 @@
-<script>
-	import '../app.css';
+<script lang="ts">
+	import '../site/site.css';
+	import Nav from '../site/Nav.svelte';
+	import Footer from '../site/Footer.svelte';
+	let { children } = $props();
 </script>
 
-<slot />
+<Nav />
+{@render children()}
+<Footer />

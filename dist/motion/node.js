@@ -150,8 +150,10 @@ function rebaseCssUrls(css, dir) {
 }
 // ---------------------------------------------------------------- browser
 export function findChromium() {
+    // Same variables as `visualfries doctor`, then common system installs.
     const candidates = [
-        process.env.VISUALFRIES_CHROMIUM,
+        process.env.VISUALFRIES_CHROMIUM_PATH,
+        process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
         '/usr/bin/chromium',
         '/usr/bin/chromium-browser',
         '/usr/bin/google-chrome',

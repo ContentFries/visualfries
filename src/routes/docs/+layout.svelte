@@ -1,138 +1,97 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { afterNavigate } from '$app/navigation';
+	import { onMount } from 'svelte';
+	import '../../site/docs.css';
+	import { pages, sections, pageUrl, findPage, sectionLabel } from '../../site/docs';
+
 	let { children } = $props();
+	const current = $derived(findPage(page.url.pathname));
+	const section = $derived(current.page?.section ?? 'start');
+	const sectionPages = $derived(pages.filter((p) => p.section === section));
+
+	// "On this page" is built from the rendered headings, so pages stay plain Markdown.
+	let toc = $state<{ id: string; text: string }[]>([]);
+	let active = $state('');
+	let main: HTMLElement;
+	let observer: IntersectionObserver | undefined;
+
+	function buildToc() {
+		observer?.disconnect();
+		const heads = Array.from(main?.querySelectorAll('.prose h2[id]') ?? []) as HTMLElement[];
+		toc = heads.map((h) => ({ id: h.id, text: h.textContent ?? '' }));
+		active = toc[0]?.id ?? '';
+		observer = new IntersectionObserver(
+			(entries) => entries.forEach((e) => e.isIntersecting && (active = e.target.id)),
+			{ rootMargin: '-120px 0px -70% 0px' }
+		);
+		heads.forEach((h) => observer!.observe(h));
+	}
+	onMount(() => {
+		buildToc();
+		return () => observer?.disconnect();
+	});
+	afterNavigate(() => queueMicrotask(buildToc));
 </script>
 
-<div class="docs-container">
-	<nav class="sidebar">
-		<div class="logo">
-			<a href="/docs">
-				<span class="text-gradient">VisualFries</span>
-			</a>
-		</div>
+<nav class="docs-bar" aria-label="Docs sections">
+	<div class="docs-bar-wrap">
+		{#each sections as s}
+			{@const first = pages.find((p) => p.section === s.key)}
+			{#if first}
+				<a
+					href={pageUrl(first.slug)}
+					class:sep={s.key === 'scenes'}
+					aria-current={s.key === section ? 'true' : undefined}
+				>
+					{#if s.number}<b>{s.number}</b>{/if}{s.label}
+				</a>
+			{/if}
+		{/each}
+		<a href="/llms.txt">llms.txt</a>
+	</div>
+</nav>
 
-		<div class="nav-sections">
-			<div class="nav-section">
-				<h3>Getting Started</h3>
-				<a href="/docs">Introduction</a>
-				<a href="/docs#installation">Installation</a>
-				<a href="/docs/authoring">Authoring Best Practices</a>
-			</div>
+<div class="docs">
+	<aside class="side" aria-label="{sectionLabel(section)} pages">
+		<h4>{sectionLabel(section)}</h4>
+		<ul>
+			{#each sectionPages as p}
+				<li>
+					<a
+						href={pageUrl(p.slug)}
+						aria-current={p.slug === current.page?.slug ? 'page' : undefined}
+					>
+						{p.title}{#if p.planned}<span class="tag plan">planned</span>{/if}
+					</a>
+				</li>
+			{/each}
+		</ul>
+		<h4>Other sections</h4>
+		<ul>
+			{#each sections.filter((s) => s.key !== section) as s}
+				{@const first = pages.find((p) => p.section === s.key)}
+				{#if first}<li><a href={pageUrl(first.slug)}>{sectionLabel(s.key)}</a></li>{/if}
+			{/each}
+		</ul>
+	</aside>
 
-			<div class="nav-section">
-				<h3>API Reference</h3>
-				<a href="/docs/components">Components</a>
-				<a href="/docs/hooks">Hooks</a>
-			</div>
-
-			<div class="nav-section">
-				<h3>Showcase</h3>
-				<a href="/docs/examples">Live Examples</a>
-			</div>
-		</div>
-	</nav>
-
-	<main class="content">
+	<div class="docs-main" bind:this={main}>
 		{@render children()}
-	</main>
+	</div>
+
+	<aside class="toc" aria-label="On this page">
+		{#if toc.length}
+			<div class="eyebrow">On this page</div>
+			<ol>
+				{#each toc as item}
+					<li><a href="#{item.id}" class:on={active === item.id}>{item.text}</a></li>
+				{/each}
+			</ol>
+		{/if}
+		<div class="agent-note">
+			For agents: <a href="/llms.txt">llms.txt</a> lists every page as Markdown. Append
+			<code>.md</code> to any docs URL.
+		</div>
+	</aside>
 </div>
-
-<style>
-	:global(body) {
-		background-color: #0d0d0d;
-		color: #e0e0e0;
-		font-family:
-			'Inter',
-			system-ui,
-			-apple-system,
-			sans-serif;
-		margin: 0;
-		overflow-x: hidden;
-	}
-
-	.docs-container {
-		display: flex;
-		min-height: 100vh;
-	}
-
-	.sidebar {
-		width: 220px;
-		flex-shrink: 0;
-		background: rgba(15, 15, 15, 0.8);
-		backdrop-filter: blur(10px);
-		border-right: 1px solid rgba(255, 255, 255, 0.1);
-		padding: 2rem 1.5rem;
-		height: 100vh;
-		position: sticky;
-		top: 0;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.logo {
-		margin-bottom: 3rem;
-	}
-
-	.logo a {
-		font-size: 1.5rem;
-		font-weight: 800;
-		text-decoration: none;
-		letter-spacing: -1px;
-	}
-
-	.text-gradient {
-		background: linear-gradient(135deg, #60a5fa, #c084fc);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-	}
-
-	.nav-sections {
-		display: flex;
-		flex-direction: column;
-		gap: 2rem;
-	}
-
-	.nav-section h3 {
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: #666;
-		margin-bottom: 1rem;
-	}
-
-	.nav-section a {
-		display: block;
-		padding: 0.5rem 0;
-		color: #a0a0a0;
-		text-decoration: none;
-		font-size: 0.9rem;
-		transition:
-			color 0.2s ease,
-			transform 0.2s ease;
-	}
-
-	.nav-section a:hover {
-		color: #fff;
-		transform: translateX(4px);
-	}
-
-	.content {
-		flex: 1;
-		padding: 3rem;
-		min-width: 0;
-	}
-
-	@media (max-width: 768px) {
-		.docs-container {
-			flex-direction: column;
-		}
-		.sidebar {
-			width: 100%;
-			height: auto;
-			padding: 1rem;
-			position: relative;
-		}
-		.content {
-			padding: 2rem;
-		}
-	}
-</style>

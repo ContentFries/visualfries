@@ -1,0 +1,202 @@
+import { getContext, onMount } from 'svelte';
+import { gsap } from 'gsap';
+const CONTEXT_KEY = Symbol.for('visualfries.motion.clip');
+const AT_PATTERN = /^([A-Za-z_][A-Za-z0-9_]*)(\.start|\.end)?\s*([+-]\s*\d*\.?\d+)?$/;
+export class Clip {
+    /** Clip-local time in seconds. Reactive: use it directly in markup. */
+    t = $state(0);
+    /** Clip-local frame. Reactive. */
+    frame = $state(0);
+    id;
+    fps;
+    frames;
+    duration;
+    width;
+    height;
+    cue;
+    words;
+    props;
+    /** Program time of the clip start, for showing transcript timestamps. */
+    programStart;
+    constructor(data) {
+        this.id = data.id;
+        this.fps = data.fps;
+        this.frames = data.frames;
+        this.duration = data.duration;
+        [this.width, this.height] = data.size;
+        this.cue = data.cues;
+        this.words = data.words;
+        this.props = data.props;
+        this.programStart = data.start;
+    }
+    /**
+     * Resolve an `At` to clip-local seconds. Besides project cues, `start` (0) and `end`
+     * (clip length) always exist, so exits follow the clip when a new voiceover stretches it.
+     */
+    at(at) {
+        if (typeof at === 'number')
+            return at;
+        const m = AT_PATTERN.exec(at.trim());
+        const builtin = {
+            start: { start: 0, end: 0 },
+            end: { start: this.duration, end: this.duration }
+        };
+        const cue = m && (this.cue[m[1]] ?? builtin[m[1]]);
+        if (!m || !cue) {
+            const known = [...Object.keys(this.cue), 'start', 'end'].join(', ');
+            throw new Error(`Clip "${this.id}": unknown cue "${at}". Cues: ${known}.`);
+        }
+        const base = m[2] === '.end' ? cue.end : cue.start;
+        return base + (m[3] ? Number(m[3].replace(/\s+/g, '')) : 0);
+    }
+    /** Eased 0→1 progress starting at `at`, lasting `duration` seconds. */
+    p(at, duration = 0.6, ease = 'power2.out') {
+        if (!(duration > 0))
+            return this.t >= this.at(at) ? 1 : 0;
+        const x = clamp((this.t - this.at(at)) / duration);
+        return easeFn(ease)(x);
+    }
+    /** Eased 1→0 (for exits). */
+    out(at, duration = 0.4, ease = 'power2.in') {
+        return 1 - this.p(at, duration, ease);
+    }
+    after(at) {
+        return this.t >= this.at(at);
+    }
+    before(at) {
+        return this.t < this.at(at);
+    }
+    between(a, b) {
+        return this.t >= this.at(a) && this.t < this.at(b);
+    }
+    /** Index of the last passed moment, -1 before the first: `clip.step('a', 'b', 'c')`. */
+    step(...moments) {
+        let index = -1;
+        moments.forEach((m, i) => {
+            if (this.t >= this.at(m))
+                index = i;
+        });
+        return index;
+    }
+    /**
+     * Piecewise-linear map from clip time to a value; equal values create a hold.
+     * `clip.map([[0, 0], ['small', 1.2], ['agent', 5.1]])`
+     */
+    map(points, ease = 'none') {
+        const pts = points.map(([a, v]) => [this.at(a), v]);
+        for (let i = 1; i < pts.length; i++) {
+            if (pts[i][0] < pts[i - 1][0]) {
+                throw new Error(`Clip "${this.id}": map() moments must not go back in time; ${JSON.stringify(points[i][0])} (${pts[i][0].toFixed(2)}s) comes before ${JSON.stringify(points[i - 1][0])} (${pts[i - 1][0].toFixed(2)}s). The transcript probably changed.`);
+            }
+        }
+        if (this.t <= pts[0][0])
+            return pts[0][1];
+        for (let i = 1; i < pts.length; i++) {
+            const [ta, va] = pts[i - 1];
+            const [tb, vb] = pts[i];
+            if (this.t <= tb)
+                return va + (vb - va) * easeFn(ease)(tb === ta ? 1 : (this.t - ta) / (tb - ta));
+        }
+        return pts[pts.length - 1][1];
+    }
+    /** The word is being spoken now. */
+    speaking(word) {
+        return this.t >= word.localStart && this.t < word.localEnd;
+    }
+    /** The word has started. */
+    spoken(word) {
+        return this.t >= word.localStart;
+    }
+    /** The word belongs to the word binding `name`, or else to the words of cue `name`. */
+    has(name, word) {
+        const list = this.words[name] ?? this.cue[name]?.words;
+        if (!list) {
+            const known = [...Object.keys(this.words), ...Object.keys(this.cue)].join(', ') || '(none)';
+            throw new Error(`Clip "${this.id}": no word binding or cue "${name}". Known: ${known}.`);
+        }
+        return list.some((w) => w.id === word.id);
+    }
+}
+export const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+export const lerp = (a, b, p) => a + (b - a) * p;
+const easeCache = new Map();
+function easeFn(ease) {
+    if (typeof ease === 'function')
+        return ease;
+    let fn = easeCache.get(ease);
+    if (!fn) {
+        fn = gsap.parseEase(ease) ?? ((x) => x);
+        easeCache.set(ease, fn);
+    }
+    return fn;
+}
+/**
+ * Deterministic noise in [0, 1) for any combination of keys, e.g. `noise(i, clip.frame)`.
+ * Safe anywhere, including per-frame code: the same keys always give the same value.
+ */
+export function noise(...keys) {
+    let h = 2166136261;
+    for (const k of keys) {
+        h ^= Math.floor(k * 1000003) | 0;
+        h = Math.imul(h, 16777619);
+        h ^= h >>> 13;
+        h = Math.imul(h, 0x5bd1e995);
+        h ^= h >>> 15;
+    }
+    return (h >>> 0) / 4294967296;
+}
+/**
+ * Seeded generator for building things once (at setup). Do not call it per frame:
+ * its sequence depends on call order, so seeking would change the result. Use `noise`.
+ */
+export function random(seed = 1) {
+    let s = seed >>> 0;
+    return () => {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        return s / 4294967296;
+    };
+}
+function controller() {
+    const c = getContext(CONTEXT_KEY);
+    if (!c)
+        throw new Error('useClip/useTimeline/useFrame must be called inside a VisualFries motion block.');
+    return c;
+}
+/** The current clip: time, cues, bound transcript words, helpers. */
+export function useClip() {
+    return controller().clip;
+}
+/**
+ * Build a paused GSAP timeline in clip seconds. VisualFries seeks it to every frame,
+ * so there is no wall-clock playback. Selectors via `q` are scoped to this clip.
+ */
+export function useTimeline(build) {
+    const c = controller();
+    onMount(() => {
+        const tl = gsap.timeline({ paused: true });
+        const q = (selector) => Array.from(c.root.querySelectorAll(selector));
+        build({ tl, at: (a) => c.clip.at(a), q, clip: c.clip });
+        // Pad to the clip end, then record every tween's start values once so any seek order is equal.
+        if (tl.duration() < c.clip.duration)
+            tl.to({}, { duration: c.clip.duration - tl.duration() });
+        tl.progress(1, true).progress(0, true);
+        c.timelines.push(tl);
+        return () => {
+            tl.kill();
+            c.timelines.splice(c.timelines.indexOf(tl), 1);
+        };
+    });
+}
+/** Imperative per-frame drawing (canvas, procedural SVG, third-party engines). */
+export function useFrame(fn) {
+    const c = controller();
+    onMount(() => {
+        c.frameFns.push(fn);
+        return () => void c.frameFns.splice(c.frameFns.indexOf(fn), 1);
+    });
+}
+/** Delay the first frame until `promise` settles (asset decoding, engine setup). */
+export function useReady(promise) {
+    controller().ready.push(promise);
+}
+export { CONTEXT_KEY as MOTION_CONTEXT_KEY };

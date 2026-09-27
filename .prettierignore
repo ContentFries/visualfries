@@ -7,3 +7,6 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# verbatim homepage markup: whitespace inside <pre>-like code lines is significant
+src/site/home.html

@@ -1,483 +1,209 @@
 <!-- ============ THE ENGINE: pinned document → stage ============ -->
 <section class="engine" id="engine" aria-labelledby="h1">
-	<div class="wrap">
-		<div class="eng-head">
-			<div>
-				<span class="eyebrow">Open-source · Svelte 5 · MIT · the engine behind ContentFries</span>
-				<h1 id="h1">One document. <em>Every</em> surface.</h1>
-				<div class="cta">
-					<a class="btn" href="/docs/quickstart">Quickstart</a
-					><a class="ghost btn" href="https://github.com/ContentFries/visualfries">GitHub</a>
-				</div>
-			</div>
-			<div class="eng-right">
-				<p class="lead">
-					A <code>.vf.json</code> file describes what is on screen, when, and for which format. The
-					same file mounts live in an editor and renders frame-exact on a server. Scroll: one
-					document becomes a post, a reel and a render.
-				</p>
-				<div class="chapters" id="chapters" aria-label="Chapters">
-					<span class="on">01 Document</span><span>02 Blocks</span><span>03 Time</span
-					><span>04 Surfaces</span><span>05 Render</span>
-				</div>
-			</div>
-		</div>
+  <div class="wrap">
+    <div class="eng-head">
+      <div>
+        <span class="eyebrow">Open-source · Svelte 5 · MIT · the engine behind ContentFries</span>
+        <h1 id="h1">One document. <em>Every</em> surface.</h1>
+        <div class="cta"><a class="btn" href="/docs/quickstart">Quickstart</a><a class="btn ghost" href="https://github.com/ContentFries/visualfries">GitHub</a></div>
+      </div>
+      <div class="eng-right">
+        <p class="lead">A <code>.vf.json</code> file describes what is on screen, when, and for which format. The same file mounts live in an editor and renders frame-exact on a server. Scroll: one document becomes a post, a reel and a render.</p>
+        <div class="chapters" id="chapters" aria-label="Chapters">
+          <span class="on">01 Document</span><span>02 Blocks</span><span>03 Time</span><span>04 Surfaces</span><span>05 Render</span>
+        </div>
+      </div>
+    </div>
 
-		<div class="eng-body">
-			<div class="docp" aria-label="quote.vf.json, typed as you scroll">
-				<header><b>quote.vf.json</b><span id="doc-state">draft</span></header>
-				<div class="code" id="code">
-					<div class="ln" data-n="1"><span>{</span></div>
-					<div class="ln" data-n="2">
-						<span>
-							<span class="k">"size"</span>:
-							<span class="sw" id="sw-size"
-								><i>[<span class="n">1080</span>, <span class="n">1350</span>]</i
-								><i>[<span class="n">1080</span>, <span class="n">1920</span>]</i
-								><i>[<span class="n">1080</span>, <span class="n">1080</span>]</i
-								><i>[<span class="n">1920</span>, <span class="n">1080</span>]</i></span
-							>,</span
-						>
-					</div>
-					<div class="ln" data-n="3">
-						<span> <span class="k">"fps"</span>: <span class="n">30</span>,</span>
-					</div>
-					<div class="ln" data-n="4">
-						<span> <span class="k">"background"</span>: <span class="s">"#f4efe6"</span>,</span>
-					</div>
-					<div class="ln" data-n="5">
-						<span>
-							<span class="k">"fonts"</span>: [{ <span class="k">"family"</span>:
-							<span class="s">"Newsreader"</span>, <span class="k">"src"</span>:
-							<span class="s">"fonts/nr.ttf"</span> }],</span
-						>
-					</div>
-					<div class="ln" data-n="6">
-						<span> <span class="k">"clips"</span>: [{</span>
-					</div>
-					<div class="ln" data-n="7">
-						<span>
-							<span class="k">"block"</span>: <span class="s">"blocks/Quote.svelte"</span>,</span
-						>
-					</div>
-					<div class="ln" data-n="8">
-						<span>
-							<span class="k">"props"</span>: { <span class="k">"quote"</span>:
-							<span class="s">"Nothing is matched silently."</span> },</span
-						>
-					</div>
-					<div class="ln" data-n="9">
-						<span>
-							<span class="k">"from"</span>: <span class="s">"nothing is ever"</span>,
-							<span class="k">"until"</span>: <span class="s">"spoken ones"</span>,</span
-						>
-					</div>
-					<div class="ln" data-n="10">
-						<span>
-							<span class="k">"cues"</span>: { <span class="k">"reveal"</span>:
-							<span class="s">"nothing"</span>, <span class="k">"hit"</span>:
-							<span class="s">"silently"</span>, <span class="k">"by"</span>:
-							<span class="s">"suggests"</span> }</span
-						>
-					</div>
-					<div class="ln" data-n="11"><span> }],</span></div>
-					<div class="ln" data-n="12">
-						<span>
-							<span class="k">"transcript"</span>:
-							<span class="s">"voice.transcript.json"</span>,</span
-						>
-					</div>
-					<div class="ln" data-n="13">
-						<span>
-							<span class="k">"carousel"</span>: <span class="n">3</span>
-							<span class="c">// planned</span></span
-						>
-					</div>
-					<div class="ln" data-n="14"><span>}</span></div>
-				</div>
-				<div class="term" id="term">
-					<div>$ visualfries check quote.vf.json --determinism</div>
-					<div class="g">✓ 1 block · 142 frames · 0 mismatched across seek orders</div>
-					<div>$ visualfries render quote.vf.json --output out/ --jobs 6</div>
-					<div class="bar"><i id="bar"></i></div>
-					<div class="g">✓ out/quote.mp4 · out/quote-9x16.mp4 · manifest.json</div>
-				</div>
-			</div>
+    <div class="eng-body">
+      <div class="docp" aria-label="quote.vf.json, typed as you scroll">
+        <header><b>quote.vf.json</b><span id="doc-state">draft</span></header>
+        <div class="code" id="code">
+          <div class="ln" data-n="1"><span>{</span></div>
+          <div class="ln" data-n="2"><span>  <span class="k">"size"</span>: <span class="sw" id="sw-size"><i>[<span class="n">1080</span>, <span class="n">1350</span>]</i><i>[<span class="n">1080</span>, <span class="n">1920</span>]</i><i>[<span class="n">1080</span>, <span class="n">1080</span>]</i><i>[<span class="n">1920</span>, <span class="n">1080</span>]</i></span>,</span></div>
+          <div class="ln" data-n="3"><span>  <span class="k">"fps"</span>: <span class="n">30</span>,</span></div>
+          <div class="ln" data-n="4"><span>  <span class="k">"background"</span>: <span class="s">"#f4efe6"</span>,</span></div>
+          <div class="ln" data-n="5"><span>  <span class="k">"fonts"</span>: [{ <span class="k">"family"</span>: <span class="s">"Newsreader"</span>, <span class="k">"src"</span>: <span class="s">"fonts/nr.ttf"</span> }],</span></div>
+          <div class="ln" data-n="6"><span>  <span class="k">"clips"</span>: [{</span></div>
+          <div class="ln" data-n="7"><span>    <span class="k">"block"</span>: <span class="s">"blocks/Quote.svelte"</span>,</span></div>
+          <div class="ln" data-n="8"><span>    <span class="k">"props"</span>: { <span class="k">"quote"</span>: <span class="s">"Nothing is matched silently."</span> },</span></div>
+          <div class="ln" data-n="9"><span>    <span class="k">"from"</span>: <span class="s">"nothing is ever"</span>, <span class="k">"until"</span>: <span class="s">"spoken ones"</span>,</span></div>
+          <div class="ln" data-n="10"><span>    <span class="k">"cues"</span>: { <span class="k">"reveal"</span>: <span class="s">"nothing"</span>, <span class="k">"hit"</span>: <span class="s">"silently"</span>, <span class="k">"by"</span>: <span class="s">"suggests"</span> }</span></div>
+          <div class="ln" data-n="11"><span>  }],</span></div>
+          <div class="ln" data-n="12"><span>  <span class="k">"transcript"</span>: <span class="s">"voice.transcript.json"</span>,</span></div>
+          <div class="ln" data-n="13"><span>  <span class="k">"carousel"</span>: <span class="n">3</span>   <span class="c">// planned</span></span></div>
+          <div class="ln" data-n="14"><span>}</span></div>
+        </div>
+        <div class="term" id="term">
+          <div>$ visualfries check quote.vf.json --determinism</div>
+          <div class="g">✓ 1 block · 142 frames · 0 mismatched across seek orders</div>
+          <div>$ visualfries render quote.vf.json --output out/ --jobs 6</div>
+          <div class="bar"><i id="bar"></i></div>
+          <div class="g">✓ out/quote.mp4 · out/quote-9x16.mp4 · manifest.json</div>
+        </div>
+      </div>
 
-			<div class="stage" aria-label="Stage">
-				<div class="grid" aria-hidden="true"></div>
-				<div class="canvas" id="canvas">
-					<div class="frame ghost" id="g1" aria-hidden="true">
-						<span class="mark"></span>
-						<p class="quote">Nothing is <em>matched</em> silently.</p>
-						<p class="by">1 / 3</p>
-					</div>
-					<div class="frame ghost" id="g2" aria-hidden="true">
-						<span class="mark"></span>
-						<p class="quote">A missing phrase <em>suggests</em> the closest.</p>
-						<p class="by">3 / 3</p>
-					</div>
-					<div class="frame" id="frame">
-						<span class="mark" aria-hidden="true"></span>
-						<span class="size" id="size-lab">1080 × 1350</span>
-						<p class="quote" id="quote">
-							<span class="w">Nothing</span> <span class="w">is</span>
-							<span class="w">matched</span> <span class="w"><em>silently.</em></span>
-						</p>
-						<p class="by" id="by">— docs/MOTION.md</p>
-					</div>
-					<figure class="sheet" id="sheet" aria-label="Contact sheet of rendered frames">
-						<img src="/media/frame-0.jpg" alt="" loading="lazy" /><img
-							src="/media/frame-1.jpg"
-							alt=""
-							loading="lazy"
-						/><img src="/media/frame-2.jpg" alt="" loading="lazy" /><img
-							src="/media/frame-3.jpg"
-							alt=""
-							loading="lazy"
-						/>
-						<img src="/media/frame-4.jpg" alt="" loading="lazy" /><img
-							src="/media/frame-5.jpg"
-							alt=""
-							loading="lazy"
-						/><img src="/media/frame-6.jpg" alt="" loading="lazy" /><img
-							src="/media/frame-7.jpg"
-							alt=""
-							loading="lazy"
-						/>
-						<img src="/media/frame-8.jpg" alt="" loading="lazy" /><img
-							src="/media/frame-9.jpg"
-							alt=""
-							loading="lazy"
-						/><img src="/media/frame-10.jpg" alt="" loading="lazy" /><img
-							src="/media/frame-11.jpg"
-							alt=""
-							loading="lazy"
-						/>
-						<figcaption>
-							real frames · 16 inserts · 6 593 frames at 1080p in 5.5 min on CPU
-						</figcaption>
-					</figure>
-				</div>
-				<div class="ribbon" aria-hidden="true">
-					<div class="head" id="rhead"></div>
-					<span class="clock" id="rclock"></span>
-					<div class="words" id="rwords"></div>
-				</div>
-			</div>
-		</div>
+      <div class="stage" aria-label="Stage">
+        <div class="grid" aria-hidden="true"></div>
+        <div class="canvas" id="canvas">
+          <div class="frame ghost" id="g1" aria-hidden="true"><span class="mark"></span><p class="quote">Nothing is <em>matched</em> silently.</p><p class="by">1 / 3</p></div>
+          <div class="frame ghost" id="g2" aria-hidden="true"><span class="mark"></span><p class="quote">A missing phrase <em>suggests</em> the closest.</p><p class="by">3 / 3</p></div>
+          <div class="frame" id="frame">
+            <span class="mark" aria-hidden="true"></span>
+            <span class="size" id="size-lab">1080 × 1350</span>
+            <p class="quote" id="quote"><span class="w">Nothing</span> <span class="w">is</span> <span class="w">matched</span> <span class="w"><em>silently.</em></span></p>
+            <p class="by" id="by">— docs/MOTION.md</p>
+          </div>
+          <figure class="sheet" id="sheet" aria-label="Contact sheet of rendered frames">
+            <img src="/media/frame-0.jpg" alt="" loading="lazy"><img src="/media/frame-1.jpg" alt="" loading="lazy"><img src="/media/frame-2.jpg" alt="" loading="lazy"><img src="/media/frame-3.jpg" alt="" loading="lazy">
+            <img src="/media/frame-4.jpg" alt="" loading="lazy"><img src="/media/frame-5.jpg" alt="" loading="lazy"><img src="/media/frame-6.jpg" alt="" loading="lazy"><img src="/media/frame-7.jpg" alt="" loading="lazy">
+            <img src="/media/frame-8.jpg" alt="" loading="lazy"><img src="/media/frame-9.jpg" alt="" loading="lazy"><img src="/media/frame-10.jpg" alt="" loading="lazy"><img src="/media/frame-11.jpg" alt="" loading="lazy">
+            <figcaption>real frames · 16 inserts · 6 593 frames at 1080p in 5.5 min on CPU</figcaption>
+          </figure>
+        </div>
+        <div class="ribbon" aria-hidden="true">
+          <div class="head" id="rhead"></div>
+          <span class="clock" id="rclock"></span>
+          <div class="words" id="rwords"></div>
+        </div>
+      </div>
+    </div>
 
-		<div class="caps" id="caps" aria-live="polite">
-			<p>
-				<b>01 Document.</b> Size, fps, background, fonts. A document is data — an agent can write
-				it, a diff can review it.
-			</p>
-			<p>
-				<b>02 Blocks.</b> Any visual is a Svelte component with props. Text is real DOM: it wraps,
-				kerns and reflows like on the web.
-			</p>
-			<p>
-				<b>03 Time.</b> Cues are spoken words from a transcript, not typed seconds. The static post
-				just became a reel — same file.
-			</p>
-			<p>
-				<b>04 Surfaces.</b> Change <code>size</code> and the block reflows. 9:16, 1:1, 16:9 from one
-				document; carousels are planned.
-			</p>
-			<p>
-				<b>05 Render.</b> <code>check</code> runs every block in seconds; <code>render</code> writes
-				MP4 or ProRes 4444 alpha and a manifest for your NLE.
-			</p>
-		</div>
-	</div>
+    <div class="caps" id="caps" aria-live="polite">
+      <p><b>01 Document.</b> Size, fps, background, fonts. A document is data — an agent can write it, a diff can review it.</p>
+      <p><b>02 Blocks.</b> Any visual is a Svelte component with props. Text is real DOM: it wraps, kerns and reflows like on the web.</p>
+      <p><b>03 Time.</b> Cues are spoken words from a transcript, not typed seconds. The static post just became a reel — same file.</p>
+      <p><b>04 Surfaces.</b> Change <code>size</code> and the block reflows. 9:16, 1:1, 16:9 from one document; carousels are planned.</p>
+      <p><b>05 Render.</b> <code>check</code> runs every block in seconds; <code>render</code> writes MP4 or ProRes 4444 alpha and a manifest for your NLE.</p>
+    </div>
+  </div>
 </section>
 
 <!-- ============ LIVE EDIT (planned) ============ -->
 <section class="sec" id="live" aria-labelledby="h-live">
-	<div class="wrap">
-		<div class="sec-head">
-			<div>
-				<div class="eyebrow">Stills <span class="tag plan">planned</span></div>
-				<h2 id="h-live">Move the text. <em>Nothing</em> re-renders.</h2>
-			</div>
-			<p class="lead">
-				Text lives as DOM over the image, so dragging, resizing or restyling only changes the JSON
-				document. The background — later an AI-generated one with a text safe zone — is never
-				regenerated. Try it.
-			</p>
-		</div>
-		<div class="live">
-			<div class="post" id="post" aria-label="Interactive still: drag the text">
-				<div class="safe"></div>
-				<div
-					class="txt"
-					id="txt"
-					role="button"
-					tabindex="0"
-					aria-label="Draggable text. Use arrow keys to move."
-				>
-					Time from words, not seconds.<span class="h" id="handle" aria-hidden="true"></span>
-				</div>
-				<span class="meta">background: generated (mock) · 1080 × 1350</span>
-			</div>
-			<div class="live-doc">
-				<pre><code>{
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">Stills <span class="tag plan">planned</span></div>
+        <h2 id="h-live">Move the text. <em>Nothing</em> re-renders.</h2>
+      </div>
+      <p class="lead">Text lives as DOM over the image, so dragging, resizing or restyling only changes the JSON document. The background — later an AI-generated one with a text safe zone — is never regenerated. Try it.</p>
+    </div>
+    <div class="live">
+      <div class="post" id="post" aria-label="Interactive still: drag the text">
+        <div class="safe"></div>
+        <div class="txt" id="txt" role="button" tabindex="0" aria-label="Draggable text. Use arrow keys to move.">Time from words, not seconds.<span class="h" id="handle" aria-hidden="true"></span></div>
+        <span class="meta">background: generated (mock) · 1080 × 1350</span>
+      </div>
+      <div class="live-doc">
+<pre><code>{
   <span class="k">"block"</span>: <span class="s">"blocks/Headline.svelte"</span>,
   <span class="k">"layout"</span>: { <span class="k">"x"</span>: <span class="n" id="lx">130</span>, <span class="k">"y"</span>: <span class="n" id="ly">540</span>, <span class="k">"width"</span>: <span class="n" id="lw">690</span> },
   <span class="k">"props"</span>: { <span class="k">"text"</span>: <span class="s">"Time from words, not seconds."</span> }
 }</code></pre>
-				<div class="counter">
-					<div><b id="edits">0</b><span>document edits</span></div>
-					<div><b class="ok">0</b><span>re-renders</span></div>
-					<div>
-						<b id="frames">1</b
-						><span
-							>frames — click
-							<a href="#" id="reelify" style="color: var(--cool)">make it a reel</a></span
-						>
-					</div>
-				</div>
-				<p class="muted" style="font-size: 14px">
-					The editor and the renderer mount the same document. What you drag here is what
-					<code>render</code> gets. Today this is how ContentFries edits scenes; the stills workflow
-					with generated backgrounds and a one-click reel is on the roadmap.
-				</p>
-			</div>
-		</div>
-	</div>
+        <div class="counter">
+          <div><b id="edits">0</b><span>document edits</span></div>
+          <div><b class="ok">0</b><span>re-renders</span></div>
+          <div><b id="frames">1</b><span>frames — click <a href="#" id="reelify" style="color:var(--cool)">make it a reel</a></span></div>
+        </div>
+        <p class="muted" style="font-size:14px">The editor and the renderer mount the same document. What you drag here is what <code>render</code> gets. Today this is how ContentFries edits scenes; the stills workflow with generated backgrounds and a one-click reel is on the roadmap.</p>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- ============ PIPELINE ============ -->
 <section class="sec" id="pipeline" aria-labelledby="h-pipe">
-	<div class="wrap">
-		<div class="sec-head">
-			<div>
-				<div class="eyebrow">The engine</div>
-				<h2 id="h-pipe">Five ideas, in order.</h2>
-			</div>
-			<p class="lead">
-				The docs are organised the same way. If you know these five words you can read any
-				VisualFries file.
-			</p>
-		</div>
-		<div class="pipe">
-			<div class="rv">
-				<span class="n">01</span>
-				<h3>Document</h3>
-				<p>
-					JSON is the source of truth. Scenes (<code>scene.json</code>) with layers of VIDEO, IMAGE,
-					TEXT, SUBTITLES, SHAPE, GIF, AUDIO — or motion projects (<code>.vf.json</code>).
-				</p>
-				<ul>
-					<li><span class="tag now">now</span>Scene JSON, composer API</li>
-					<li><span class="tag now">now</span><code>.vf.json</code> projects</li>
-				</ul>
-				<a href="/docs/project-file">Project file →</a>
-			</div>
-			<div class="rv">
-				<span class="n">02</span>
-				<h3>Blocks</h3>
-				<p>
-					Any visual is a Svelte component. Text is HTML/CSS (via SVG foreignObject in scenes, plain
-					DOM in blocks).
-				</p>
-				<ul>
-					<li>
-						<span class="tag now">now</span><code>useClip</code>, <code>useTimeline</code>,
-						<code>useFrame</code>
-					</li>
-					<li><span class="tag now">now</span>GSAP eases and timelines</li>
-				</ul>
-				<a href="/docs/blocks">Blocks →</a>
-			</div>
-			<div class="rv">
-				<span class="n">03</span>
-				<h3>Time</h3>
-				<p>
-					Cues from transcript words; seconds and frames when you want them. Re-time with
-					<code>--transcript</code>.
-				</p>
-				<ul>
-					<li><span class="tag now">now</span>Word-timed cues, "Did you mean"</li>
-					<li><span class="tag plan">plan</span>STT adapters, <code>visualfries setup</code></li>
-				</ul>
-				<a href="/docs/time-and-cues">Time &amp; cues →</a>
-			</div>
-			<div class="rv">
-				<span class="n">04</span>
-				<h3>Surfaces</h3>
-				<p>One document, many formats. Blocks are DOM, so text reflows per size.</p>
-				<ul>
-					<li><span class="tag now">now</span><code>size</code> per project, alpha renders</li>
-					<li><span class="tag plan">plan</span>9:16 / 1:1 / 16:9 variants, carousels, stills</li>
-				</ul>
-				<a href="/docs/surfaces">Surfaces →</a>
-			</div>
-			<div class="rv">
-				<span class="n">05</span>
-				<h3>Render</h3>
-				<p>
-					Deterministic frames: any frame in any order gives the same pixels. Live in the editor,
-					headless on a server.
-				</p>
-				<ul>
-					<li>
-						<span class="tag now">now</span><code>check</code>, <code>still</code>,
-						<code>render</code>, MP4, ProRes 4444
-					</li>
-					<li><span class="tag plan">plan</span>Live preview with scrubber</li>
-				</ul>
-				<a href="/docs/cli">Render →</a>
-			</div>
-		</div>
-	</div>
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">The engine</div>
+        <h2 id="h-pipe">Five ideas, in order.</h2>
+      </div>
+      <p class="lead">The docs are organised the same way. If you know these five words you can read any VisualFries file.</p>
+    </div>
+    <div class="pipe">
+      <div class="rv"><span class="n">01</span><h3>Document</h3><p>JSON is the source of truth. Scenes (<code>scene.json</code>) with layers of VIDEO, IMAGE, TEXT, SUBTITLES, SHAPE, GIF, AUDIO — or motion projects (<code>.vf.json</code>).</p><ul><li><span class="tag now">now</span>Scene JSON, composer API</li><li><span class="tag now">now</span><code>.vf.json</code> projects</li></ul><a href="/docs/project-file">Project file →</a></div>
+      <div class="rv"><span class="n">02</span><h3>Blocks</h3><p>Any visual is a Svelte component. Text is HTML/CSS (via SVG foreignObject in scenes, plain DOM in blocks).</p><ul><li><span class="tag now">now</span><code>useClip</code>, <code>useTimeline</code>, <code>useFrame</code></li><li><span class="tag now">now</span>GSAP eases and timelines</li></ul><a href="/docs/blocks">Blocks →</a></div>
+      <div class="rv"><span class="n">03</span><h3>Time</h3><p>Cues from transcript words; seconds and frames when you want them. Re-time with <code>--transcript</code>.</p><ul><li><span class="tag now">now</span>Word-timed cues, "Did you mean"</li><li><span class="tag plan">plan</span>STT adapters, <code>visualfries setup</code></li></ul><a href="/docs/time-and-cues">Time &amp; cues →</a></div>
+      <div class="rv"><span class="n">04</span><h3>Surfaces</h3><p>One document, many formats. Blocks are DOM, so text reflows per size.</p><ul><li><span class="tag now">now</span><code>size</code> per project, alpha renders</li><li><span class="tag plan">plan</span>9:16 / 1:1 / 16:9 variants, carousels, stills</li></ul><a href="/docs/surfaces">Surfaces →</a></div>
+      <div class="rv"><span class="n">05</span><h3>Render</h3><p>Deterministic frames: any frame in any order gives the same pixels. Live in the editor, headless on a server.</p><ul><li><span class="tag now">now</span><code>check</code>, <code>still</code>, <code>render</code>, MP4, ProRes 4444</li><li><span class="tag plan">plan</span>Live preview with scrubber</li></ul><a href="/docs/cli">Render →</a></div>
+    </div>
+  </div>
 </section>
 
 <!-- ============ PROOF ============ -->
 <section class="sec" id="proof" aria-labelledby="h-proof">
-	<div class="wrap">
-		<div class="sec-head">
-			<div>
-				<div class="eyebrow">Proof</div>
-				<h2 id="h-proof">Sixteen inserts of a real video, rebuilt.</h2>
-			</div>
-			<p class="lead">
-				Every explainer insert of a published YouTube video was rewritten as blocks timed by its
-				transcript, checked for determinism and rendered on a plain CPU.
-			</p>
-		</div>
-		<div class="proof">
-			<div class="nums rv">
-				<div>
-					<b>16</b><span>inserts, one <code>.vf.json</code>, one transcript</span>
-				</div>
-				<div><b>0</b><span>mismatched frames between seek orders</span></div>
-				<div><b>5.5</b><span>minutes for 6 593 frames at 1080p, CPU only</span></div>
-				<div><b>1</b><span>command to re-time all of them after a re-take</span></div>
-			</div>
-			<div class="vids">
-				<figure class="vid rv">
-					<video
-						src="/media/editable.mp4"
-						poster="/media/editable-poster.jpg"
-						muted
-						loop
-						playsinline
-						preload="metadata"
-						aria-label="Rendered insert: the text file stays editable"
-					></video>
-					<figcaption>D-editable · 1080p render, real</figcaption>
-				</figure>
-				<figure class="vid rv">
-					<video
-						src="/media/workflow.mp4"
-						muted
-						loop
-						playsinline
-						preload="metadata"
-						aria-label="Rendered insert: workflow"
-					></video>
-					<figcaption>Workflow · 1080p render, real</figcaption>
-				</figure>
-			</div>
-		</div>
-	</div>
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">Proof</div>
+        <h2 id="h-proof">Sixteen inserts of a real video, rebuilt.</h2>
+      </div>
+      <p class="lead">Every explainer insert of a published YouTube video was rewritten as blocks timed by its transcript, checked for determinism and rendered on a plain CPU.</p>
+    </div>
+    <div class="proof">
+      <div class="nums rv">
+        <div><b>16</b><span>inserts, one <code>.vf.json</code>, one transcript</span></div>
+        <div><b>0</b><span>mismatched frames between seek orders</span></div>
+        <div><b>5.5</b><span>minutes for 6 593 frames at 1080p, CPU only</span></div>
+        <div><b>1</b><span>command to re-time all of them after a re-take</span></div>
+      </div>
+      <div class="vids">
+        <figure class="vid rv"><video src="/media/editable.mp4" poster="/media/editable-poster.jpg" muted loop playsinline preload="metadata" aria-label="Rendered insert: the text file stays editable"></video><figcaption>D-editable · 1080p render, real</figcaption></figure>
+        <figure class="vid rv"><video src="/media/workflow.mp4" muted loop playsinline preload="metadata" aria-label="Rendered insert: workflow"></video><figcaption>Workflow · 1080p render, real</figcaption></figure>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- ============ FIT ============ -->
 <section class="sec" id="fit" aria-labelledby="h-fit">
-	<div class="wrap">
-		<div class="fit">
-			<div>
-				<div class="eyebrow" style="margin-bottom: 14px">Where it fits</div>
-				<h2 id="h-fit">When to use VisualFries</h2>
-				<ul>
-					<li>
-						You build in Svelte and want the editor and the renderer to mount the same document.
-					</li>
-					<li>Timing comes from speech: transcripts, re-takes, word-level captions.</li>
-					<li>Agents write or repair content, so JSON plus a CLI that fails loudly beats a GUI.</li>
-					<li>
-						You need alpha inserts (ProRes 4444) placed on an NLE timeline via
-						<code>manifest.json</code>.
-					</li>
-				</ul>
-				<p class="muted" style="margin-top: 20px; font-size: 15px">
-					In React, Remotion is the natural choice. For framework-free HTML compositions with a GSAP
-					timeline, HyperFrames. All three render a browser frame by frame; they differ in where the
-					document lives and who edits it.
-				</p>
-			</div>
-			<div class="tbl rv">
-				<table>
-					<thead>
-						<tr>
-							<th scope="col"></th>
-							<th scope="col">VisualFries</th>
-							<th scope="col">Remotion</th>
-							<th scope="col">HyperFrames</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr>
-							<td>Framework</td>
-							<td>Svelte 5</td>
-							<td>React</td>
-							<td>Plain HTML + GSAP</td>
-						</tr>
-						<tr>
-							<td>Source of truth</td>
-							<td>JSON document</td>
-							<td>React code</td>
-							<td>HTML composition</td>
-						</tr>
-						<tr>
-							<td>Timing</td>
-							<td>Transcript words, cues, seconds, frames</td>
-							<td>Frames</td>
-							<td>Seconds, data attributes</td>
-						</tr>
-						<tr>
-							<td>Live editing</td>
-							<td>Same document in the editor</td>
-							<td>Studio / props</td>
-							<td>Preview</td>
-						</tr>
-						<tr>
-							<td>Agent surface</td>
-							<td>clips · check · still · render · validate · qa</td>
-							<td>CLI + skills</td>
-							<td>CLI + skills</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
-		</div>
-	</div>
+  <div class="wrap">
+    <div class="fit">
+      <div>
+        <div class="eyebrow" style="margin-bottom:14px">Where it fits</div>
+        <h2 id="h-fit">When to use VisualFries</h2>
+        <ul>
+          <li>You build in Svelte and want the editor and the renderer to mount the same document.</li>
+          <li>Timing comes from speech: transcripts, re-takes, word-level captions.</li>
+          <li>Agents write or repair content, so JSON plus a CLI that fails loudly beats a GUI.</li>
+          <li>You need alpha inserts (ProRes 4444) placed on an NLE timeline via <code>manifest.json</code>.</li>
+        </ul>
+        <p class="muted" style="margin-top:20px;font-size:15px">In React, Remotion is the natural choice. For framework-free HTML compositions with a GSAP timeline, HyperFrames. All three render a browser frame by frame; they differ in where the document lives and who edits it.</p>
+      </div>
+      <div class="tbl rv">
+        <table>
+          <thead><tr><th scope="col"></th><th scope="col">VisualFries</th><th scope="col">Remotion</th><th scope="col">HyperFrames</th></tr></thead>
+          <tbody>
+            <tr><td>Framework</td><td>Svelte 5</td><td>React</td><td>Plain HTML + GSAP</td></tr>
+            <tr><td>Source of truth</td><td>JSON document</td><td>React code</td><td>HTML composition</td></tr>
+            <tr><td>Timing</td><td>Transcript words, cues, seconds, frames</td><td>Frames</td><td>Seconds, data attributes</td></tr>
+            <tr><td>Live editing</td><td>Same document in the editor</td><td>Studio / props</td><td>Preview</td></tr>
+            <tr><td>Agent surface</td><td>clips · check · still · render · validate · qa</td><td>CLI + skills</td><td>CLI + skills</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- ============ START ============ -->
 <section class="sec" id="start" aria-labelledby="h-start">
-	<div class="wrap">
-		<div class="start">
-			<div>
-				<div class="eyebrow" style="margin-bottom: 14px">Start</div>
-				<h2 id="h-start">Install, check, render.</h2>
-				<p class="lead" style="margin-top: 14px">
-					Svelte 5 project required. <code>doctor</code> tells you what is missing before the first
-					render.
-				</p>
-				<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px">
-					<a class="btn" href="/docs/quickstart">Quickstart →</a
-					><a class="ghost btn" href="/llms.txt">llms.txt</a>
-				</div>
-			</div>
-			<pre class="rv"><code>$ npm install visualfries
+  <div class="wrap">
+    <div class="start">
+      <div>
+        <div class="eyebrow" style="margin-bottom:14px">Start</div>
+        <h2 id="h-start">Install, check, render.</h2>
+        <p class="lead" style="margin-top:14px">Svelte 5 project required. <code>doctor</code> tells you what is missing before the first render.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px"><a class="btn" href="/docs/quickstart">Quickstart →</a><a class="btn ghost" href="/llms.txt">llms.txt</a></div>
+      </div>
+<pre class="rv"><code>$ npm install visualfries
 $ visualfries doctor                          <span class="c"># ffmpeg, Chromium, Playwright, temp dir</span>
 $ visualfries clips quote.vf.json             <span class="c"># words → times</span>
 $ visualfries check quote.vf.json --determinism
 $ visualfries still quote.vf.json --clip quote --output quote.png
 $ visualfries render quote.vf.json --output out/</code></pre>
-		</div>
-	</div>
+    </div>
+  </div>
 </section>

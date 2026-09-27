@@ -245,8 +245,8 @@ function findBrowserExecutable() {
 	// Keep in sync with findChromium() in src/lib/motion/node.ts.
 	const candidates = [
 		process.env.VISUALFRIES_CHROMIUM_PATH,
-		process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
 		process.env.VISUALFRIES_CHROMIUM, // legacy name
+		process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
 		'/usr/bin/chromium',
 		'/usr/bin/chromium-browser',
 		'/usr/bin/google-chrome',

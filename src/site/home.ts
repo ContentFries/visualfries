@@ -185,7 +185,6 @@ export function initHome(root: HTMLElement): () => void {
 		chapterOn(t, C[4], 4);
 		// the rendered frames below are 4:5, so the document returns to that size first
 		swap(C[4] + 0.02, 0, '1080 × 1350', S45);
-		t.to(['#g1', '#g2'], { opacity: 0, duration: 0.1 }, C[4] + 0.02);
 		t.set('#by', { textContent: '— docs/MOTION.md' }, C[4] + 0.02);
 		typeLine(t, 13, C[4] + 0.02);
 		t.set('#doc-state', { textContent: 'checked · rendered' }, C[4] + 0.4);

@@ -61,6 +61,8 @@ const config = {
 	preprocess: [vitePreprocess(), mdsvex(mdsvexOptions)],
 	kit: {
 		adapter: adapter({ pages: 'build', assets: 'build', strict: true }),
+		// Absolute /_app paths, so 404.html also works when served for /docs/missing.
+		paths: { relative: false },
 		prerender: { handleHttpError: 'fail', entries: ['*', '/404'] }
 	}
 };

@@ -24,11 +24,9 @@ VisualFries is an open-source Svelte 5 engine for visual content for social medi
 	onMount(() => {
 		const ready = createSceneBuilder(scene, container, { environment: 'client', autoPlay: true });
 		ready.catch((err) => console.error('Scene failed to load', err));
-		return () =>
-			void ready.then(
-				(b) => b.destroy(),
-				() => {}
-			);
+		return () => {
+			ready.then((b) => b.destroy()).catch(() => {});
+		};
 	});
 </script>
 

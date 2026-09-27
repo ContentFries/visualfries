@@ -17,7 +17,7 @@
 				'@type': 'SoftwareSourceCode',
 				name: 'VisualFries',
 				description:
-					'Open-source Svelte 5 library and headless engine for visual social-media content. A JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces. Scene documents mount live in an editor and render headless; motion blocks are functions of time, and the CLI verifies that frames render the same in any order.',
+					'Open-source Svelte 5 library and headless engine for visual social-media content. A JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces. Scene documents mount live in an editor and render headless; motion blocks are functions of time, and the CLI can compare frames rendered forward and in reverse.',
 				codeRepository: 'https://github.com/ContentFries/visualfries',
 				programmingLanguage: ['TypeScript', 'Svelte'],
 				license: 'https://opensource.org/licenses/MIT',
@@ -32,7 +32,7 @@
 						name: 'What is VisualFries?',
 						acceptedAnswer: {
 							'@type': 'Answer',
-							text: 'VisualFries is an MIT-licensed Svelte 5 library for programmatically creating video and image content for social media. A JSON document is the source of truth; visuals are Svelte components; text is HTML/CSS; animation is GSAP. Motion frames are designed to be deterministic and the CLI can verify it. It is the engine behind ContentFries.'
+							text: 'VisualFries is an MIT-licensed Svelte 5 library for programmatically creating video and image content for social media. A JSON document is the source of truth; visuals are Svelte components; text is HTML/CSS; animation is GSAP. Motion frames are designed to be deterministic, and check --determinism compares sampled frames rendered in different orders. It is the engine behind ContentFries.'
 						}
 					},
 					{
@@ -68,6 +68,7 @@
 	<meta property="og:image" content="https://visualfries.com/media/editable-poster.jpg" />
 	<meta name="twitter:card" content="summary_large_image" />
 	<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt" />
+	<link rel="describedby" type="text/plain" href="/llms.txt" />
 	{@html `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`}
 </svelte:head>
 

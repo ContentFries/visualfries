@@ -269,8 +269,8 @@ const findBrowserExecutable = (explicit) => {
     const candidates = [
         explicit,
         process.env.VISUALFRIES_CHROMIUM_PATH,
-        process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
         process.env.VISUALFRIES_CHROMIUM, // legacy name
+        process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
         '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
         path.join(os.homedir(), '.cache/puppeteer/chrome-headless-shell/mac_arm-131.0.6778.204/chrome-headless-shell-mac-arm64/chrome-headless-shell')
     ].filter(Boolean);

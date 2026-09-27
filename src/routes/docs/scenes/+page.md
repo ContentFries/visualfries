@@ -21,11 +21,9 @@ A scene app mounts a [scene document](/docs/scene-json) with `createSceneBuilder
 		// Report a failed load now, not only at unmount.
 		ready.catch((err) => console.error('Scene failed to load', err));
 		// Destroy the builder even if the component unmounts before it finished loading.
-		return () =>
-			void ready.then(
-				(builder) => builder.destroy(),
-				() => {}
-			);
+		return () => {
+			ready.then((builder) => builder.destroy()).catch(() => {});
+		};
 	});
 </script>
 

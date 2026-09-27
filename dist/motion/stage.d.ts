@@ -23,6 +23,10 @@ export type FrameResult = {
     mode: CaptureMode;
 };
 export type CaptureMode = 'html-in-canvas' | 'dom';
+export type CheckIssue = {
+    frame: number;
+    message: string;
+};
 /**
  * Browser side of motion rendering. Everything that decides pixels lives here so
  * preview, local export and server export run the same code.
@@ -35,5 +39,9 @@ export declare function createMotionStage(options: StageOptions): {
         fps: number;
     }>;
     frame: (n: number, capture?: boolean) => Promise<FrameResult>;
+    check: (frames: number[]) => {
+        errors: CheckIssue[];
+        warnings: CheckIssue[];
+    };
     unload: () => void;
 };

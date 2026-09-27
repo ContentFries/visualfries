@@ -3,11 +3,13 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { MotionProjectShape } from './project.js';
 import { parseTranscriptWords } from './transcript.js';
 import { resolveMotionProject } from './resolve.js';
+import { resolveMoment } from './moment.js';
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CHROMIUM_FLAGS = ['--enable-blink-features=CanvasDrawElement', '--font-render-hinting=none'];
@@ -24,7 +26,20 @@ export async function loadMotionProject(file, opts = {}) {
     const words = transcriptPath
         ? parseTranscriptWords(JSON.parse(await fs.readFile(transcriptPath, 'utf8')))
         : null;
-    return { file: abs, dir, project, words, resolved: resolveMotionProject(project, words) };
+    const transcriptHash = words
+        ? createHash('sha1')
+            .update(JSON.stringify(words.map((w) => [w.raw, w.start, w.end])))
+            .digest('hex')
+            .slice(0, 12)
+        : null;
+    return {
+        file: abs,
+        dir,
+        project,
+        words,
+        transcriptHash,
+        resolved: resolveMotionProject(project, words)
+    };
 }
 /** Throws on errors of the given clips (all clips when omitted), including clips that failed to resolve. */
 export function assertNoErrors(loaded, clipIds) {
@@ -166,7 +181,11 @@ async function openClip(browser, bundle, clip, invalidate) {
         info = await page.evaluate((data) => window.__vfMotionStage.load(data), clip);
     }
     catch (error) {
-        throw new Error(`Clip "${clip.id}" failed to load: ${error.message}\n${errors.join('\n')}`);
+        // Keep the page's message, drop Playwright's prefix and the bundle stack trace.
+        const message = error.message
+            .replace(/^page\.evaluate: (Error: )?/, '')
+            .split('\n    at ')[0];
+        throw new Error([`Clip "${clip.id}" failed to load: ${message}`, ...errors].join('\n'));
     }
     return {
         mode: info.mode,
@@ -178,31 +197,105 @@ async function openClip(browser, bundle, clip, invalidate) {
                 return Buffer.from(r.image.slice(r.image.indexOf(',') + 1), 'base64');
             return page.locator('#vf-stage').screenshot({ omitBackground: clip.alpha, type: 'png' });
         },
+        async check(frames) {
+            const found = await page.evaluate((list) => window.__vfMotionStage.check(list), frames);
+            for (const e of errors)
+                found.errors.push({ frame: -1, message: e });
+            return found;
+        },
         close: () => page.close()
     };
 }
 /** Frame for "extra", "extra.end+0.3", "2.5s", "f120", "end", "mid". */
 export function frameForAt(clip, at) {
-    const last = clip.frames - 1;
-    const pick = (n) => Math.max(0, Math.min(last, Math.round(n)));
-    if (at === 'end')
-        return last;
-    if (at === 'mid')
-        return pick(last / 2);
-    if (/^f\d+$/.test(at))
-        return pick(Number(at.slice(1)));
-    if (/^-?\d*\.?\d+s?$/.test(at))
-        return pick(parseFloat(at) * clip.fps);
-    const m = /^([A-Za-z_][A-Za-z0-9_]*)(\.start|\.end)?([+-]\d*\.?\d+)?$/.exec(at);
-    const builtin = {
-        start: { start: 0, end: 0 },
-        end: { start: clip.duration, end: clip.duration }
-    };
-    const cue = m && (clip.cues[m[1]] ?? builtin[m[1]]);
-    if (!m || !cue)
-        throw new Error(`Clip "${clip.id}": unknown moment "${at}". Cues: ${Object.keys(clip.cues).join(', ')}`);
-    const base = m[2] === '.end' ? cue.end : cue.start;
-    return pick((base + (m[3] ? Number(m[3]) : 0)) * clip.fps);
+    const seconds = resolveMoment(at, {
+        id: clip.id,
+        cues: clip.cues,
+        duration: clip.duration,
+        fps: clip.fps
+    });
+    return Math.max(0, Math.min(clip.frames - 1, Math.round(seconds * clip.fps)));
+}
+/**
+ * Mount every block and run its logic across the clip without rendering video: resolution
+ * errors, runtime errors (unknown cue, bad ease, map order), wall-clock CSS animations and,
+ * optionally, whether sampled frames come out identical in two seek orders.
+ */
+export async function checkMotionProject(loaded, opts = {}) {
+    const wanted = opts.clips?.length ? opts.clips : loaded.project.clips.map((c) => c.id);
+    const results = wanted.map((id) => {
+        const diags = loaded.resolved.diagnostics.filter((d) => d.clip === id);
+        return {
+            id,
+            ok: false,
+            errors: diags
+                .filter((d) => d.level === 'error')
+                .map((d) => ({ message: `${d.field}: ${d.message}` })),
+            warnings: diags
+                .filter((d) => d.level === 'warning')
+                .map((d) => ({ message: `${d.field}: ${d.message}` }))
+        };
+    });
+    const runnable = results
+        .filter((r) => !r.errors.length)
+        .map((r) => loaded.resolved.clips.find((c) => c.id === r.id))
+        .filter((c) => !!c);
+    if (runnable.length) {
+        const bundle = await bundleMotionProject(loaded, runnable);
+        const browser = await launch();
+        try {
+            for (const clip of runnable) {
+                const result = results.find((r) => r.id === clip.id);
+                let page;
+                try {
+                    page = await openClip(browser, bundle, clip);
+                    result.mode = page.mode;
+                    // Every 5th frame plus the frames around each cue.
+                    const frames = new Set();
+                    for (let f = 0; f < clip.frames; f += 5)
+                        frames.add(f);
+                    for (const cue of Object.values(clip.cues))
+                        for (const d of [-1, 0, 1, 18])
+                            frames.add(cue.frame + d);
+                    frames.add(clip.frames - 1);
+                    const list = [...frames].filter((f) => f >= 0 && f < clip.frames).sort((a, b) => a - b);
+                    const found = await page.check(list);
+                    result.errors.push(...found.errors);
+                    result.warnings.push(...found.warnings);
+                    if (opts.determinism && !found.errors.length) {
+                        const sample = list.filter((_, i) => i % Math.max(1, Math.floor(list.length / 12)) === 0);
+                        const hash = (b) => createHash('sha1').update(b).digest('hex');
+                        const forward = new Map();
+                        for (const f of sample)
+                            forward.set(f, hash(await page.capture(f)));
+                        const differ = [];
+                        for (const f of [...sample].reverse())
+                            if (hash(await page.capture(f)) !== forward.get(f))
+                                differ.push(f);
+                        if (differ.length) {
+                            result.nondeterministic = differ.sort((a, b) => a - b);
+                            result.errors.push({
+                                message: `Frames ${result.nondeterministic.join(', ')} look different depending on seek order. Something depends on history (wall-clock time, stateful random, state kept between frames).`
+                            });
+                        }
+                    }
+                }
+                catch (error) {
+                    result.errors.push({ message: error.message });
+                }
+                finally {
+                    await page?.close();
+                }
+            }
+        }
+        finally {
+            await browser.close();
+            await fs.rm(bundle.dir, { recursive: true, force: true });
+        }
+    }
+    for (const r of results)
+        r.ok = r.errors.length === 0;
+    return results;
 }
 /** Moments worth checking: start, each cue + 0.6 s settle, end. */
 export function defaultMoments(clip) {
@@ -382,7 +475,8 @@ export async function renderMotionClips(loaded, opts) {
                 programEnd: clip.end,
                 alpha: clip.alpha,
                 mode,
-                seconds: (Date.now() - t0) / 1000
+                seconds: (Date.now() - t0) / 1000,
+                transcript: loaded.transcriptHash
             };
             results.push(r);
             opts.onProgress?.(`${clip.id}: ${clip.frames} frames in ${r.seconds.toFixed(1)} s (${mode})`);
@@ -402,7 +496,20 @@ export async function renderMotionClips(loaded, opts) {
         previous = [];
     }
     const rendered = new Set(results.map((r) => r.id));
-    const merged = [...previous.filter((c) => !rendered.has(c.id)), ...results].sort((a, b) => a.programStartFrame - b.programStartFrame);
-    await fs.writeFile(manifestPath, JSON.stringify({ fps: loaded.project.fps, clips: merged }, null, 2));
+    const current = new Set(loaded.project.clips.map((c) => c.id));
+    const kept = previous
+        .filter((c) => !rendered.has(c.id) && current.has(c.id))
+        .map((c) => ({ ...c, stale: c.transcript !== loaded.transcriptHash || undefined }));
+    const stale = kept.filter((c) => c.stale).map((c) => c.id);
+    if (stale.length) {
+        opts.onProgress?.(`Warning: ${stale.join(', ')} were rendered against another transcript; their placement may be off. Re-render them.`);
+    }
+    const merged = [...kept, ...results].sort((a, b) => a.programStartFrame - b.programStartFrame);
+    await fs.writeFile(manifestPath, JSON.stringify({
+        fps: loaded.project.fps,
+        size: loaded.project.size,
+        transcript: loaded.transcriptHash,
+        clips: merged
+    }, null, 2));
     return results;
 }

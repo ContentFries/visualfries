@@ -1,7 +1,8 @@
 import type { MotionWordRef, ResolvedClip, ResolvedCue } from './resolve.js';
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
- * a cue with an offset ("extra+0.4", "extra.end-0.2") or clip-local seconds (1.5).
+ * a cue with an offset ("extra+0.4", "extra.end-0.2"), the built-in "start"/"end",
+ * "2.5s", "f120", "mid", or clip-local seconds as a number (1.5).
  */
 export type At = string | number;
 export type Ease = string | ((x: number) => number);

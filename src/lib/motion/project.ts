@@ -44,9 +44,20 @@ export const MotionClipShape = z.object({
 	until: MotionAnchorShape,
 	/** Seconds added after `until` (negative trims). */
 	tail: z.number().optional(),
-	/** Numbers are clip-local seconds; phrases are searched inside the clip. */
+	/**
+	 * Phrases are searched inside the clip. Numbers are clip-local seconds and `{ frame }` is a
+	 * clip-local frame. "start" and "end" are built in.
+	 */
 	cues: z
-		.record(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'cue name: identifier'), MotionAnchorShape)
+		.record(
+			z
+				.string()
+				.regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'cue name: identifier')
+				.refine((name) => name !== 'start' && name !== 'end', {
+					message: 'cue names "start" and "end" are built in'
+				}),
+			MotionAnchorShape
+		)
 		.optional(),
 	words: z.record(z.string(), MotionWordsShape).optional(),
 	props: z.record(z.string(), z.unknown()).optional(),

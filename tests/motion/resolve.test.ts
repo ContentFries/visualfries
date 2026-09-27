@@ -38,7 +38,7 @@ describe('motion resolve', () => {
 		);
 		const clip = r.clips[0];
 		expect(clip.start).toBeCloseTo(31 / 30);
-		expect(r.diagnostics).toEqual([]);
+		expect(r.diagnostics.filter((d) => d.level === 'error')).toEqual([]);
 		expect(clip.words.all[0].text).toBe('Úvod');
 	});
 
@@ -47,7 +47,8 @@ describe('motion resolve', () => {
 			project({ from: 'úvod', until: 'koniec', cues: { x: 'ktoré sú' } }),
 			words
 		);
-		expect(r.diagnostics[0].message).toMatch(/ambiguous.*#1 at 1\.50s.*#2 at 2\.60s/);
+		const error = r.diagnostics.find((d) => d.level === 'error')!;
+		expect(error.message).toMatch(/ambiguous.*#1 at 1\.50s.*#2 at 2\.60s/);
 	});
 
 	it('supports occurrence and the last-word edge', () => {
@@ -76,10 +77,44 @@ describe('motion resolve', () => {
 
 	it('warns about a cue on the exclusive end', () => {
 		const r = resolveMotionProject(
-			project({ from: 'úvod', until: { say: 'koniec', edge: 'start' }, cues: { end: 'koniec' } }),
+			project({
+				from: 'úvod',
+				until: { say: 'koniec', edge: 'start' },
+				cues: { finale: 'koniec' }
+			}),
 			words
 		);
-		expect(r.diagnostics[0]).toMatchObject({ level: 'warning', field: 'cues.end' });
+		expect(r.diagnostics).toContainEqual(
+			expect.objectContaining({ level: 'warning', field: 'cues.finale' })
+		);
+	});
+
+	it('warns about one-word range anchors', () => {
+		const r = resolveMotionProject(project({ from: 'úvod', until: 'koniec' }), words);
+		expect(r.diagnostics.map((d) => d.field)).toEqual(['from', 'until']);
+	});
+
+	it('suggests the closest phrase when a re-take changed the words', () => {
+		const r = resolveMotionProject(
+			project({ from: 'úvod', until: 'koniec', cues: { extra: 'navyše' } }),
+			words
+		);
+		const error = r.diagnostics.find((d) => d.level === 'error')!;
+		expect(error.message).toMatch(/Did you mean "naviac" at 2\.00s/);
+	});
+
+	it('reserves the built-in cue names', () => {
+		expect(() => project({ from: 'úvod', until: 'koniec', cues: { end: 'koniec' } })).toThrow(
+			/built in/
+		);
+	});
+
+	it('reads { frame } in cues as a clip-local frame', () => {
+		const r = resolveMotionProject(
+			project({ from: 'úvod', until: 'koniec', cues: { f: { frame: 15 } } }),
+			words
+		);
+		expect(r.clips[0].cues.f.start).toBeCloseTo(0.5);
 	});
 });
 
@@ -112,6 +147,17 @@ describe('motion clip helpers', () => {
 		const dup = clip.cue.dup.words;
 		expect(clip.has('dup', dup[0])).toBe(true);
 		expect(clip.has('extra', dup[0])).toBe(false);
+	});
+
+	it('throws on an unknown ease instead of animating linearly', () => {
+		expect(() => clip.p('extra', 0.6, 'power2.Out')).toThrow(/Unknown ease "power2.Out"/);
+	});
+
+	it('shares one moment grammar with the CLI', () => {
+		expect(clip.at('f15')).toBeCloseTo(0.5);
+		expect(clip.at('1.5s')).toBeCloseTo(1.5);
+		expect(clip.at('mid')).toBeCloseTo(clip.duration / 2);
+		expect(clip.at('extra.end - 0.1')).toBeCloseTo(clip.cue.extra.end - 0.1);
 	});
 
 	it('refuses a map that goes back in time', () => {

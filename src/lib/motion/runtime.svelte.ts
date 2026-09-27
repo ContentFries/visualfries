@@ -1,16 +1,17 @@
 import { getContext, onMount } from 'svelte';
 import { gsap } from 'gsap';
 import type { MotionWordRef, ResolvedClip, ResolvedCue } from './resolve.js';
+import { resolveMoment } from './moment.js';
 
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
- * a cue with an offset ("extra+0.4", "extra.end-0.2") or clip-local seconds (1.5).
+ * a cue with an offset ("extra+0.4", "extra.end-0.2"), the built-in "start"/"end",
+ * "2.5s", "f120", "mid", or clip-local seconds as a number (1.5).
  */
 export type At = string | number;
 export type Ease = string | ((x: number) => number);
 
 const CONTEXT_KEY = Symbol.for('visualfries.motion.clip');
-const AT_PATTERN = /^([A-Za-z_][A-Za-z0-9_]*)(\.start|\.end)?\s*([+-]\s*\d*\.?\d+)?$/;
 
 export class Clip {
 	/** Clip-local time in seconds. Reactive: use it directly in markup. */
@@ -46,19 +47,12 @@ export class Clip {
 	 * (clip length) always exist, so exits follow the clip when a new voiceover stretches it.
 	 */
 	at(at: At): number {
-		if (typeof at === 'number') return at;
-		const m = AT_PATTERN.exec(at.trim());
-		const builtin: Record<string, { start: number; end: number }> = {
-			start: { start: 0, end: 0 },
-			end: { start: this.duration, end: this.duration }
-		};
-		const cue = m && (this.cue[m[1]] ?? builtin[m[1]]);
-		if (!m || !cue) {
-			const known = [...Object.keys(this.cue), 'start', 'end'].join(', ');
-			throw new Error(`Clip "${this.id}": unknown cue "${at}". Cues: ${known}.`);
-		}
-		const base = m[2] === '.end' ? cue.end : cue.start;
-		return base + (m[3] ? Number(m[3].replace(/\s+/g, '')) : 0);
+		return resolveMoment(at, {
+			id: this.id,
+			cues: this.cue,
+			duration: this.duration,
+			fps: this.fps
+		});
 	}
 
 	/** Eased 0→1 progress starting at `at`, lasting `duration` seconds. */
@@ -146,7 +140,13 @@ function easeFn(ease: Ease): (x: number) => number {
 	if (typeof ease === 'function') return ease;
 	let fn = easeCache.get(ease);
 	if (!fn) {
-		fn = gsap.parseEase(ease) ?? ((x: number) => x);
+		const parsed = gsap.parseEase(ease);
+		if (typeof parsed !== 'function') {
+			throw new Error(
+				`Unknown ease "${ease}". Use a GSAP name such as "power2.out", "back.out(1.7)", "expo.inOut", "none", or a function.`
+			);
+		}
+		fn = parsed;
 		easeCache.set(ease, fn);
 	}
 	return fn;

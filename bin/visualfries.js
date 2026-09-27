@@ -50,6 +50,7 @@ Usage:
 
 Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries clips <project.vf.json> [--clip <id>] [--json]
+  visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]
   visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
   visualfries render <project.vf.json> --output <dir> [--clip <id>]... [--jobs <n>]
 
@@ -1576,6 +1577,39 @@ async function motionClipsCommand(args) {
 	if (diagnostics.some((d) => d.level === 'error')) process.exitCode = 1;
 }
 
+async function motionCheckCommand(args) {
+	const file = args[0];
+	if (!file)
+		throw new Error(
+			'Usage: visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]'
+		);
+	const { loadMotionProject, checkMotionProject } = await motionModule();
+	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const results = await checkMotionProject(loaded, {
+		clips: readAllFlags(args, '--clip'),
+		determinism: hasFlag(args, '--determinism')
+	});
+	if (hasFlag(args, '--json')) {
+		console.log(JSON.stringify(results, null, 2));
+	} else {
+		for (const r of results) {
+			console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.id}${r.mode ? `  (${r.mode})` : ''}`);
+			for (const e of r.errors)
+				console.log(
+					`  error${e.frame !== undefined && e.frame >= 0 ? ` @f${e.frame}` : ''}: ${e.message}`
+				);
+			for (const w of r.warnings) console.log(`  warning: ${w.message}`);
+		}
+		const failed = results.filter((r) => !r.ok).length;
+		console.log(
+			failed
+				? `${failed} of ${results.length} clips need attention.`
+				: `All ${results.length} clips pass.`
+		);
+	}
+	if (results.some((r) => !r.ok)) process.exitCode = 1;
+}
+
 async function motionStillCommand(args) {
 	const file = args[0];
 	const clip = readFlag(args, '--clip');
@@ -1692,6 +1726,7 @@ async function main() {
 	if (command === 'produce') return produceCommand(args);
 	if (command === 'clips') return motionClipsCommand(args);
 	if (command === 'still') return motionStillCommand(args);
+	if (command === 'check') return motionCheckCommand(args);
 	if (command === 'render' && args[0] && (await isMotionProjectFile(args[0])))
 		return motionRenderCommand(args);
 	if (command === 'render') return renderCommand(args);

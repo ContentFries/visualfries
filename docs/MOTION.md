@@ -40,8 +40,11 @@ my-video/
   or `{ "say": "…", "edge": "start"|"last"|"end", "occurrence": 2, "offset": -0.1 }`
   (`last` = when the phrase's last word starts).
 - **`cues`** are named moments inside the clip. Phrases are searched only inside the clip;
-  numbers are clip-local seconds. A missing or ambiguous phrase is an error that lists
-  every occurrence with its time, never a silent first match.
+  numbers and `{ "frame": n }` are clip-local. `start` and `end` are built in and cannot be
+  redefined. A missing phrase suggests the closest spoken ones ("Did you mean …"); an
+  ambiguous phrase lists every occurrence with its time. Nothing is ever matched silently.
+- One-word `from`/`until` anchors produce a warning: they are searched in the whole
+  transcript and easily become ambiguous after a re-take.
 - A cue keeps its phrase's words: `clip.has('duplicate', word)` tells whether a word belongs
   to the cue, so a phrase is declared once.
 - **`words`** binds transcript words for the block: a phrase, `"clip"` (every word in the
@@ -79,10 +82,11 @@ Transcripts: Soniox-style `{ "words": [{ "text", "startMs", "endMs" }] }` or
 | `clip.cue.extra`                                | `{ start, end, frame, words }`                       |
 | `clip.words.row`, `clip.props`                  | bound words, props from the project                  |
 
-`at` is a cue (`'extra'`), a cue edge (`'extra.end'`), a cue with offset (`'extra+0.4'`,
-`'extra.end-0.2'`) or clip-local seconds (`1.5`). `start` and `end` always exist, so an exit
-written as `'end-0.3'` follows the clip when a new voiceover makes it longer. Eases are GSAP
-names or functions.
+`at` uses the same grammar everywhere (blocks and `still --at`): a cue (`'extra'`), a cue
+edge (`'extra.end'`), a cue with offset (`'extra+0.4'`, `'extra.end-0.2'`), `'2.5s'`, `'f120'`,
+`'mid'`, or clip-local seconds as a number. `start` and `end` always exist, so an exit written
+as `'end-0.3'` follows the clip when a new voiceover makes it longer. Eases are GSAP names or
+functions; an unknown name is an error, never a silent linear ease.
 
 **Svelte is not React.** A plain `const` in `<script>` is computed once:
 
@@ -119,13 +123,24 @@ before blocks mount). Svelte drops leading whitespace inside an element: write
 
 ```bash
 visualfries clips video.vf.json                    # resolved times, cues, bound words, errors
+visualfries check video.vf.json [--determinism]    # run every block without rendering (seconds)
 visualfries still video.vf.json --clip B --output b.png            # sheet: start, every cue, end
 visualfries still video.vf.json --clip B --at extra --at extra.end+0.5 --output b.png
 visualfries render video.vf.json --output out/ [--clip B] [--jobs 6]   # MP4 / MOV + manifest.json
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover
 ```
 
-`manifest.json` lists every clip's program start frame for placing it on an NLE timeline.
+`check` mounts every block and runs it across the clip: unknown cues, bad eases, maps that go
+back in time, CSS animations running on wall-clock time, and with `--determinism` frames
+that differ between seek orders. Run it after every edit; it takes seconds.
+
+`manifest.json` lists every clip's program start frame for placing it on an NLE timeline and
+the transcript it was timed against. Re-rendering some clips keeps the others; clips timed
+against an older transcript are marked `stale`.
+
+A re-take that changes words (not just timing) makes the affected cues fail with a suggestion,
+e.g. `"naviac" not found … Did you mean "navyše" at 59.80s?`. Update the phrase in the JSON;
+the block stays untouched.
 
 ## How frames are made
 

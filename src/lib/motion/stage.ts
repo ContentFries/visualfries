@@ -26,6 +26,7 @@ export type FrameResult = {
 	mode: CaptureMode;
 };
 export type CaptureMode = 'html-in-canvas' | 'dom';
+export type CheckIssue = { frame: number; message: string };
 
 /**
  * Browser side of motion rendering. Everything that decides pixels lives here so
@@ -176,5 +177,39 @@ export function createMotionStage(options: StageOptions) {
 		stage = null;
 	}
 
-	return { mode, load, frame, unload };
+	/**
+	 * Run the clip's logic at the given frames without painting: collects exceptions (unknown
+	 * cues, bad eases, maps going back in time) and wall-clock CSS animations.
+	 */
+	function check(frames: number[]): { errors: CheckIssue[]; warnings: CheckIssue[] } {
+		const errors: CheckIssue[] = [];
+		const warnings: CheckIssue[] = [];
+		for (const n of frames) {
+			try {
+				applyTime(n);
+			} catch (error) {
+				const message = (error as Error).message;
+				if (!errors.some((e) => e.message === message)) errors.push({ frame: n, message });
+			}
+		}
+		const running = document.getAnimations();
+		if (running.length) {
+			const where = running
+				.slice(0, 3)
+				.map((a) => {
+					const el = (a.effect as KeyframeEffect | null)?.target as Element | null;
+					return el
+						? `<${el.tagName.toLowerCase()}${el.className ? ` class="${el.className}"` : ''}>`
+						: 'element';
+				})
+				.join(', ');
+			warnings.push({
+				frame: frames[frames.length - 1] ?? 0,
+				message: `${running.length} CSS animation(s)/transition(s) run on wall-clock time (${where}); they will not follow seeks. Drive them from clip time instead.`
+			});
+		}
+		return { errors, warnings };
+	}
+
+	return { mode, load, frame, check, unload };
 }

@@ -1,7 +1,7 @@
 import { getContext, onMount } from 'svelte';
 import { gsap } from 'gsap';
+import { resolveMoment } from './moment.js';
 const CONTEXT_KEY = Symbol.for('visualfries.motion.clip');
-const AT_PATTERN = /^([A-Za-z_][A-Za-z0-9_]*)(\.start|\.end)?\s*([+-]\s*\d*\.?\d+)?$/;
 export class Clip {
     /** Clip-local time in seconds. Reactive: use it directly in markup. */
     t = $state(0);
@@ -34,20 +34,12 @@ export class Clip {
      * (clip length) always exist, so exits follow the clip when a new voiceover stretches it.
      */
     at(at) {
-        if (typeof at === 'number')
-            return at;
-        const m = AT_PATTERN.exec(at.trim());
-        const builtin = {
-            start: { start: 0, end: 0 },
-            end: { start: this.duration, end: this.duration }
-        };
-        const cue = m && (this.cue[m[1]] ?? builtin[m[1]]);
-        if (!m || !cue) {
-            const known = [...Object.keys(this.cue), 'start', 'end'].join(', ');
-            throw new Error(`Clip "${this.id}": unknown cue "${at}". Cues: ${known}.`);
-        }
-        const base = m[2] === '.end' ? cue.end : cue.start;
-        return base + (m[3] ? Number(m[3].replace(/\s+/g, '')) : 0);
+        return resolveMoment(at, {
+            id: this.id,
+            cues: this.cue,
+            duration: this.duration,
+            fps: this.fps
+        });
     }
     /** Eased 0→1 progress starting at `at`, lasting `duration` seconds. */
     p(at, duration = 0.6, ease = 'power2.out') {
@@ -125,7 +117,11 @@ function easeFn(ease) {
         return ease;
     let fn = easeCache.get(ease);
     if (!fn) {
-        fn = gsap.parseEase(ease) ?? ((x) => x);
+        const parsed = gsap.parseEase(ease);
+        if (typeof parsed !== 'function') {
+            throw new Error(`Unknown ease "${ease}". Use a GSAP name such as "power2.out", "back.out(1.7)", "expo.inOut", "none", or a function.`);
+        }
+        fn = parsed;
         easeCache.set(ease, fn);
     }
     return fn;

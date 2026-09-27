@@ -1,5 +1,5 @@
 import type { MotionAnchor, MotionClip, MotionProject, MotionWords } from './project.js';
-import { describeWords, findPhrase, type MotionWord } from './transcript.js';
+import { describeWords, findPhrase, suggestPhrases, type MotionWord } from './transcript.js';
 
 export type MotionWordRef = MotionWord & {
 	/** Seconds relative to the clip start. */
@@ -63,11 +63,18 @@ function resolvePhrase(
 	const hits = findPhrase(words, say, window?.from, window?.to);
 	if (!hits.length) {
 		const anywhere = window ? findPhrase(words, say) : [];
+		const similar = suggestPhrases(words, say, window?.from, window?.to);
 		const hint = anywhere.length
 			? ` It occurs outside this clip at ${anywhere.map((h) => h.start.toFixed(2) + 's').join(', ')}.`
-			: window
-				? ` Words here: ${describeWords(words, window.from, 6)}`
-				: '';
+			: similar.length
+				? ` Did you mean ${similar
+						.map(
+							(h) => `"${h.text}" at ${h.start.toFixed(2)}s (${describeWords(words, h.start, 2)})`
+						)
+						.join('; ')}?`
+				: window
+					? ` Words in the clip start: ${describeWords(words, window.from, 6)}`
+					: '';
 		throw new AnchorError(`Phrase "${say}" not found${window ? ' inside the clip' : ''}.${hint}`);
 	}
 	if (occurrence !== undefined) {
@@ -104,7 +111,8 @@ function resolveAnchor(
 	}
 	if (typeof anchor === 'string') anchor = { say: anchor };
 	if ('frame' in anchor) {
-		const time = anchor.frame / fps + (anchor.offset ?? 0);
+		// Program frame for clip ranges, clip-local frame for cues (like numbers).
+		const time = (localBase ?? 0) + anchor.frame / fps + (anchor.offset ?? 0);
 		return { time, end: time, words: [] };
 	}
 	const hit = resolvePhrase(words, anchor.say, window, anchor.occurrence);
@@ -171,6 +179,23 @@ export function resolveMotionClip(
 		return null;
 	}
 	endSec += clip.tail ?? 0;
+	for (const field of ['from', 'until'] as const) {
+		const anchor = clip[field];
+		const say =
+			typeof anchor === 'string'
+				? anchor
+				: typeof anchor === 'object' && 'say' in anchor
+					? anchor.say
+					: null;
+		if (say && say.trim().split(/\s+/).length === 1) {
+			diagnostics.push({
+				level: 'warning',
+				clip: clip.id,
+				field,
+				message: `One-word anchor "${say}" is searched in the whole transcript and easily becomes ambiguous after a re-take. Use 2–3 words.`
+			});
+		}
+	}
 	const startFrame = Math.round(startSec * fps);
 	const endFrame = Math.round(endSec * fps);
 	if (endFrame <= startFrame) {

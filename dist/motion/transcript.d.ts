@@ -22,3 +22,9 @@ export type PhraseMatch = {
 /** All occurrences of `phrase` whose first word starts within [from, to] (program seconds). */
 export declare function findPhrase(words: MotionWord[], phrase: string, from?: number, to?: number): PhraseMatch[];
 export declare function describeWords(words: MotionWord[], around: number, span?: number): string;
+export type PhraseSuggestion = PhraseMatch & {
+    text: string;
+    similarity: number;
+};
+/** Closest spoken phrases to `phrase` (same length ±1 word) for "did you mean" hints. */
+export declare function suggestPhrases(words: MotionWord[], phrase: string, from?: number, to?: number, limit?: number): PhraseSuggestion[];

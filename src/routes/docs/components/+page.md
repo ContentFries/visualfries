@@ -20,16 +20,16 @@ Every scene component has an `id`, a `type`, a `timeline` with `startAt` and `en
 
 ## Types
 
-| Type            | What it draws                                        | Key fields                                                                             |
-| --------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| TEXT            | HTML/CSS text rendered through SVG foreignObject     | `text`, `appearance.text` (font, size, weight, color, align, shadow, outline, padding) |
-| SUBTITLES       | Word-timed captions from transcript data             | `appearance.text`, `activeWord` highlighting, optional AI emojis                       |
-| VIDEO           | A video file                                         | `source` (url, assetId, trim), `volume`, `muted`, `playback`, `crop`                   |
-| IMAGE           | A still image                                        | `source`, `crop`                                                                       |
-| GIF             | An animated GIF                                      | `source`, `playback` (loop, speed)                                                     |
-| SHAPE           | Rectangle, circle, triangle, star, or a progress bar | `shape` (`type`, `cornerRadius`, `progressConfig`)                                     |
-| COLOR, GRADIENT | Solid or linear/radial gradient fills                | fill settings                                                                          |
-| AUDIO           | Sound only                                           | `source`, `volume`                                                                     |
+| Type            | What it draws                                                                            | Key fields                                                                                                                                        |
+| --------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TEXT            | HTML/CSS text (live DOM in an app; SVG foreignObject into the canvas for server renders) | `text`, `appearance.text` (`fontFamily`, `fontSource`, `fontSize`, `fontWeight`, `color`, `textAlign`, shadow, outline, padding)                  |
+| SUBTITLES       | Word-timed captions from transcript data                                                 | `timingAnchor`, `source.assetId`, subtitle data on the scene; `appearance.text` with `activeWord` / `activeLine` highlighting; optional AI emojis |
+| VIDEO           | A video file                                                                             | `source` (url, assetId, trim), `volume`, `muted`, `playback`, `crop`                                                                              |
+| IMAGE           | A still image                                                                            | `source`, `crop`                                                                                                                                  |
+| GIF             | An animated GIF                                                                          | `source`, `playback` (loop, speed)                                                                                                                |
+| SHAPE           | Rectangle, circle, triangle, star, or a progress bar                                     | `shape` (`type`, `progressConfig`). `cornerRadius` is accepted but not drawn yet.                                                                 |
+| COLOR, GRADIENT | Solid or linear/radial gradient fills                                                    | `appearance.background`: a color, or a gradient definition                                                                                        |
+| AUDIO           | Sound only                                                                               | `source`, `volume`                                                                                                                                |
 
 Use TEXT for visible typography. Do not rasterize badges or numbers into IMAGE, and do not add a SHAPE only as a text background when TEXT's own background can do it.
 
@@ -49,4 +49,4 @@ npx visualfries catalog --component TEXT --capabilities --json
 
 ## Effects
 
-`fillBackgroundBlur` (fill empty space with a blurred copy, for vertical video from landscape) and `layoutSplit` (split screen) render today. Text shadow and solid outline are set in `appearance.text`. Some effects exist in the schema only; `validate --strict-runtime-support` rejects them.
+On IMAGE and VIDEO, `fillBackgroundBlur` (fill empty space with a blurred copy, for vertical video from landscape) and `layoutSplit` (split screen) render today. Text shadow and solid outline are set in `appearance.text`. Some effects exist in the schema only; `validate --strict-runtime-support` reports the ones in its catalogue of known limits, but not every accepted field is checked, so look at QA frames.

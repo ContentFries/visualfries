@@ -16,19 +16,21 @@ A motion project is one JSON file, usually named `<name>.vf.json`. It lists clip
 	"fonts": [{ "family": "Futura", "src": "fonts/Jost.ttf", "weight": "100 900" }],
 	"styles": ["theme/film.css"],
 	"background": "#17120e",
-	"clips": []
+	"clips": [ … ]
 }
 ```
 
-| Field        | Type              | Meaning                                                                                       |
-| ------------ | ----------------- | --------------------------------------------------------------------------------------------- |
-| `size`       | `[width, height]` | Output size in pixels.                                                                        |
-| `fps`        | number            | Frames per second.                                                                            |
-| `transcript` | path              | Word-level transcript of the voiceover. Required when anything is anchored to a phrase.       |
-| `fonts`      | list              | Font files loaded before any block mounts. A variable font declares its range as `"100 900"`. |
-| `styles`     | list              | Global CSS files (themes, shared classes). Relative `url()` references keep working.          |
-| `background` | CSS color         | Default background of every clip.                                                             |
-| `clips`      | list              | The clips, described below.                                                                   |
+A fragment: a project needs at least one clip.
+
+| Field        | Type              | Meaning                                                                                                              |
+| ------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `size`       | `[width, height]` | Required. Output size in pixels, positive integers.                                                                  |
+| `fps`        | number            | Required. Frames per second, positive.                                                                               |
+| `transcript` | path              | Word-level transcript of the voiceover. Required when anything is anchored to a phrase or when a clip binds `words`. |
+| `fonts`      | list              | Font files loaded before any block mounts. A variable font declares its range as `"100 900"`.                        |
+| `styles`     | list              | Global CSS files (themes, shared classes). Relative `url()` references keep working.                                 |
+| `background` | CSS color         | Default background of every opaque clip.                                                                             |
+| `clips`      | list              | Required, at least one. Described below.                                                                             |
 
 Ship fonts with the project. A render must never depend on what happens to be installed on the machine.
 
@@ -52,17 +54,17 @@ Ship fonts with the project. A render must never depend on what happens to be in
 }
 ```
 
-| Field           | Meaning                                                                 |
-| --------------- | ----------------------------------------------------------------------- |
-| `id`            | Letters, digits, `.`, `-`, `_`. Used by the CLI and in `manifest.json`. |
-| `block`         | Path to the Svelte component that draws the clip.                       |
-| `from`, `until` | Where the clip sits in the program. See anchors below.                  |
-| `tail`          | Seconds added after `until` (negative trims).                           |
-| `cues`          | Named moments inside the clip. `start` and `end` are built in.          |
-| `words`         | Transcript words handed to the block.                                   |
-| `props`         | Any data for the block, read as `clip.props`.                           |
-| `alpha`         | Render with a transparent background as ProRes 4444 `.mov`.             |
-| `background`    | Per-clip background color.                                              |
+| Field           | Meaning                                                                                            |
+| --------------- | -------------------------------------------------------------------------------------------------- |
+| `id`            | Required and unique. Letters, digits, `.`, `-`, `_`. Used by the CLI and in `manifest.json`.       |
+| `block`         | Required. Path to the Svelte component that draws the clip.                                        |
+| `from`, `until` | Required. Where the clip sits in the program. See anchors below.                                   |
+| `tail`          | Seconds added after `until` (negative trims).                                                      |
+| `cues`          | Named moments inside the clip. Names are identifiers; `start` and `end` are built in and reserved. |
+| `words`         | Transcript words handed to the block.                                                              |
+| `props`         | Any data for the block, read as `clip.props`.                                                      |
+| `alpha`         | Render with a transparent background as ProRes 4444 `.mov`; `background` is then ignored.          |
+| `background`    | Per-clip background color for opaque clips.                                                        |
 
 ## Anchors
 
@@ -75,7 +77,7 @@ Ship fonts with the project. A render must never depend on what happens to be in
 | Seconds             | `12.5`                                                                | Program seconds for `from`/`until`; clip seconds for cues.            |
 | Frame               | `{ "frame": 274 }`                                                    | Program frame for `from`/`until`; clip frame for cues.                |
 
-Cue phrases are searched only inside the clip, so a common word can be a cue as long as it is said once in that clip. Clip ranges are searched in the whole transcript; use two or three words for them. The full rules, including what happens when a phrase is missing or appears twice, are in [Time and cues](/docs/time-and-cues).
+`from` is searched in the whole transcript. `until` is searched from the clip's start onward, so its `occurrence` counts only matches after `from`. Cue phrases are searched inside the clip, so a common word can be a cue as long as it is said once there. Use two or three words for `from` and `until`. The full rules, including what happens when a phrase is missing or appears twice, are in [Time and cues](/docs/time-and-cues).
 
 ## Word bindings
 

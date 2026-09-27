@@ -191,3 +191,18 @@ pre code {
 		scroll-behavior: auto;
 	}
 }
+
+.skip {
+	position: fixed;
+	left: 12px;
+	top: -60px;
+	z-index: 100;
+	background: var(--ink);
+	color: var(--bg);
+	padding: 8px 12px;
+	border-radius: var(--r);
+	text-decoration: none;
+}
+.skip:focus {
+	top: calc(12px + env(safe-area-inset-top, 0px));
+}

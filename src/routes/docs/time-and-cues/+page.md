@@ -17,7 +17,7 @@ In a motion project a clip is placed by **what is said**, not by typed seconds. 
 }
 ```
 
-`from` starts the clip on the first word of its phrase. `until` ends it when the last word of its phrase ends, plus `tail`. Both snap to whole frames. Range phrases are searched in the **whole transcript**, so use two or three words; a one-word range anchor produces a warning.
+`from` starts the clip on the first word of its phrase. `until` ends it when the last word of its phrase ends, plus `tail`. Both snap to whole frames. `from` is searched in the **whole transcript**; `until` is searched from `from` onward. Use two or three words for both; a one-word range anchor produces a warning.
 
 ## Naming moments
 
@@ -30,7 +30,7 @@ In a motion project a clip is placed by **what is said**, not by typed seconds. 
 }
 ```
 
-A cue phrase is searched **only inside the clip**. `edge` picks the moment: `start` (default), `last` (when the last word starts) or `end`. `occurrence` picks the n-th match; `offset` shifts in seconds. Numbers and `{ "frame": n }` are clip-local. `start` and `end` are built in and cannot be redefined.
+A cue phrase is searched **inside the clip**: its first word must start within the clip, the rest may run past the end. `edge` picks the moment: `start` (default), `last` (when the last word starts) or `end`. `occurrence` picks the n-th match inside the clip. `offset` shifts the cue's start in seconds; its end stays at the end of the phrase. Numbers and `{ "frame": n }` are clip-local. `start` and `end` are built in and cannot be redefined. A cue outside the rendered frames is a warning, not an error.
 
 A block then writes `clip.p('extra')`, `clip.after('duplicate')` or `clip.has('duplicate', word)`; the cue also carries its words.
 

@@ -11,7 +11,6 @@ export function initHome(root: HTMLElement): () => void {
 	const qa = <T extends Element = HTMLElement>(s: string) =>
 		Array.from(root.querySelectorAll(s)) as T[];
 	const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-	const cleanups: (() => void)[] = [];
 
 	// ---- transcript ribbon: real cue mechanics, phrase → time ----
 	const words: [string, number, number][] = [
@@ -67,16 +66,14 @@ export function initHome(root: HTMLElement): () => void {
 
 	function build() {
 		const canvas = q('#canvas');
-		const cw = canvas.clientWidth;
-		const ch = canvas.clientHeight;
-		const fit = (w: number, h: number) => {
-			const s = Math.min((cw - 48) / w, (ch - 48) / h);
-			return {
-				width: Math.round(w * s),
-				height: Math.round(h * s),
-				'--fs': Math.round((w * s) / 11)
-			};
-		};
+		// Sizes are functions: GSAP re-evaluates them when ScrollTrigger refreshes after a resize.
+		const scale = (w: number, h: number) =>
+			Math.min((canvas.clientWidth - 48) / w, (canvas.clientHeight - 48) / h);
+		const fit = (w: number, h: number, k = 1) => ({
+			width: () => Math.round(w * scale(w, h) * k),
+			height: () => Math.round(h * scale(w, h) * k),
+			'--fs': () => Math.round((w * scale(w, h) * k) / 11)
+		});
 		const S45 = fit(1080, 1350);
 		const S916 = fit(1080, 1920);
 		const S11 = fit(1080, 1080);
@@ -165,27 +162,24 @@ export function initHome(root: HTMLElement): () => void {
 		swap(C[3] + 0.35, 2, '1080 × 1080', S11);
 		swap(C[3] + 0.62, 3, '1920 × 1080', S169);
 		typeLine(t, 12, C[3] + 0.85);
-		const Scar = {
-			width: Math.round(S11.width * 0.6),
-			height: Math.round(S11.height * 0.6),
-			'--fs': Math.round(S11['--fs'] * 0.6)
-		};
+		const Scar = fit(1080, 1080, 0.6);
 		swap(C[3] + 0.9, 2, '1080 × 1080', Scar);
 		['#g1', '#g2'].forEach((id) =>
 			t.set(id, { ...Scar, opacity: 0, x: 0, scale: 0.9 }, C[3] + 0.9)
 		);
-		const off = Math.min(Scar.width * 1.08, cw / 2 - Scar.width / 2 - 8);
+		const off = () => Math.min(Scar.width() * 1.08, canvas.clientWidth / 2 - Scar.width() / 2 - 8);
 		t.to(
 			'#g1',
-			{ opacity: 1, x: -off, scale: 0.92, duration: 0.3, ease: 'power3.out' },
+			{ opacity: 1, x: () => -off(), scale: 0.92, duration: 0.3, ease: 'power3.out' },
 			C[3] + 0.95
 		);
 		t.to(
 			'#g2',
-			{ opacity: 1, x: off, scale: 0.92, duration: 0.3, ease: 'power3.out' },
+			{ opacity: 1, x: () => off(), scale: 0.92, duration: 0.3, ease: 'power3.out' },
 			C[3] + 0.95
 		);
 		t.set('#by', { textContent: '2 / 3' }, C[3] + 0.95);
+		t.to('#plan-flag', { opacity: 1, duration: 0.1 }, C[3] + 0.95);
 
 		// 05 Render
 		chapterOn(t, C[4], 4);
@@ -199,7 +193,7 @@ export function initHome(root: HTMLElement): () => void {
 		t.to('#bar', { width: '100%', duration: 0.4 }, C[4] + 0.42);
 		t.to(term[4], { opacity: 1, duration: 0.05 }, C[4] + 0.85);
 		t.to(
-			['#frame', '#g1', '#g2'],
+			['#frame', '#g1', '#g2', '#plan-flag'],
 			{ opacity: 0, scale: 0.8, duration: 0.2, ease: 'power2.in' },
 			C[4] + 0.35
 		);
@@ -296,15 +290,20 @@ export function initHome(root: HTMLElement): () => void {
 	})();
 
 	// ---- wire to scroll ----
-	let master = build();
-	if (reduce) {
-		master.progress(1);
-		qa<HTMLVideoElement>('video').forEach((v) => (v.controls = true));
-		return () => master.kill();
-	}
 	root.classList.add('motion');
 	gsap.registerPlugin(ScrollTrigger);
-	const mm = gsap.matchMedia();
+	const ctx = gsap.context(() => {}, root);
+	let master = build();
+	if (reduce) {
+		// No scroll animation: show the finished state, videos stay under the viewer's control.
+		master.progress(1);
+		return () => {
+			master.kill();
+			ctx.revert();
+			root.classList.remove('motion');
+		};
+	}
+	const mm = gsap.matchMedia(root);
 	mm.add('(min-width: 900px)', () => {
 		master.kill();
 		master = build();
@@ -320,46 +319,44 @@ export function initHome(root: HTMLElement): () => void {
 		});
 	});
 	mm.add('(max-width: 899px)', () => {
+		// Phones and narrow windows: no pinning, the story scrubs while the section passes.
 		master.kill();
 		master = build();
-		const fits = q('#engine').scrollHeight <= innerHeight;
 		ScrollTrigger.create({
 			trigger: '#engine',
-			start: fits ? 'top top' : 'top 60%',
-			end: fits ? '+=400%' : 'bottom 25%',
-			pin: fits,
+			start: 'top 70%',
+			end: 'bottom 30%',
 			scrub: 0.8,
 			animation: master,
-			anticipatePin: 1
+			invalidateOnRefresh: true
 		});
 	});
-	qa('.rv').forEach((el) =>
-		gsap.to(el, {
-			opacity: 1,
-			y: 0,
-			duration: 0.8,
-			ease: 'power2.out',
-			scrollTrigger: { trigger: el, start: 'top 88%', once: true }
-		})
-	);
-	qa<HTMLVideoElement>('video').forEach((v) =>
-		ScrollTrigger.create({
-			trigger: v,
-			start: 'top 85%',
-			end: 'bottom 15%',
-			onEnter: () => void v.play().catch(() => {}),
-			onLeave: () => v.pause(),
-			onEnterBack: () => void v.play().catch(() => {}),
-			onLeaveBack: () => v.pause()
-		})
-	);
-	cleanups.push(
-		() => mm.revert(),
-		() => master.kill()
-	);
+	ctx.add(() => {
+		qa('.rv').forEach((el) =>
+			gsap.to(el, {
+				opacity: 1,
+				y: 0,
+				duration: 0.8,
+				ease: 'power2.out',
+				scrollTrigger: { trigger: el, start: 'top 88%', once: true }
+			})
+		);
+		qa<HTMLVideoElement>('video').forEach((v) =>
+			ScrollTrigger.create({
+				trigger: v,
+				start: 'top 85%',
+				end: 'bottom 15%',
+				onEnter: () => void v.play().catch(() => {}),
+				onLeave: () => v.pause(),
+				onEnterBack: () => void v.play().catch(() => {}),
+				onLeaveBack: () => v.pause()
+			})
+		);
+	});
 	return () => {
-		cleanups.forEach((c) => c());
-		ScrollTrigger.getAll().forEach((s) => s.kill());
+		mm.revert();
+		ctx.revert();
+		master.kill();
 		root.classList.remove('motion');
 	};
 }

@@ -19,6 +19,7 @@ const headline = createComponentComposer('headline', 'TEXT', { startAt: 0, endAt
 		height: 250,
 		text: {
 			fontFamily: 'Montserrat',
+			fontSource: { source: 'google', family: 'Montserrat' },
 			fontSize: { value: 90, unit: 'px' },
 			fontWeight: '800',
 			color: '#FFFFFF',
@@ -49,7 +50,7 @@ const scene = createSceneComposer('my-scene', {
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `setAppearance(appearance)`         | Deep merge, so `text.color` does not erase `text.fontFamily`.                                                              |
 | `setText(text)`                     | Text of a TEXT component.                                                                                                  |
-| `setSource(source)`                 | `url`, `assetId` and trim for IMAGE, VIDEO, GIF, AUDIO, SUBTITLES.                                                         |
+| `setSource(source)`                 | `url`, `assetId` and trim for IMAGE, VIDEO, GIF and SUBTITLES. For AUDIO use `setProps({ source })`.                       |
 | `addAnimation(animation)`           | Append a preset or custom animation.                                                                                       |
 | `addEffect(key, effect)`            | Add or replace an effect.                                                                                                  |
 | `setName`, `setOrder`, `setVisible` | Display name, order, visibility.                                                                                           |
@@ -65,4 +66,4 @@ const scene = createSceneComposer('my-scene', {
 
 `createSceneComposer(id, settings)` with `setSettings`, `addLayer`, `addAsset` (register files that components reference by `assetId`), `addAudioTrack`, `setSubtitles`, `compose`.
 
-Keep asset ids consistent across video, subtitles and the asset list: components find their files through them.
+Keep asset ids consistent across video, subtitles and the asset list, and give media a `url` too: in an app, files load from `source.url`, while `assetId` links components to the asset list used by the Node render path and subtitles.

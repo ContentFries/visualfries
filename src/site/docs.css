@@ -399,3 +399,44 @@ html:has(.docs) {
 		transition: none;
 	}
 }
+
+/* phones: the side navigation moves below the article, so offer every page up front */
+.docs .all-docs {
+	display: none;
+}
+@media (max-width: 900px) {
+	.docs .all-docs {
+		display: block;
+		margin-top: 20px;
+		border: 1px solid var(--line);
+		border-radius: var(--r);
+		background: var(--panel);
+		padding: 10px 14px;
+		font-size: 15px;
+	}
+	.docs .all-docs summary {
+		cursor: pointer;
+		color: var(--ink);
+	}
+	.docs .all-docs h4 {
+		margin: 14px 0 4px;
+		font: 500 11px var(--mono);
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+	.docs .all-docs ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.docs .all-docs a {
+		display: block;
+		padding: 5px 0;
+		color: var(--ink-2);
+		text-decoration: none;
+	}
+	.docs .all-docs a[aria-current='page'] {
+		color: var(--accent);
+	}
+}

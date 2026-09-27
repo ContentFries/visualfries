@@ -1,10 +1,10 @@
 ---
 title: Determinism rules
-description: Every VisualFries frame must depend only on clip time. The rules for motion blocks, what visualfries check --determinism detects, and how the renderer makes seeking safe.
+description: A VisualFries frame should depend only on clip time. The rules for motion blocks, what visualfries check --determinism tests and what it does not, and how the renderer makes seeking safe.
 updated: 2026-09-27
 ---
 
-A VisualFries frame depends only on the clip's time. Frame 240 looks the same whether it is rendered first, last, after frame 239 or on another machine. This is what lets the renderer split a clip into parallel ranges and lets an agent look at any moment without playing the video.
+A VisualFries frame should depend only on the clip's time. With the same document, fonts, assets and Chromium version, frame 240 looks the same whether it is rendered first, last or after frame 239. This is what lets the renderer split a clip into parallel ranges and lets an agent look at any moment without playing the video. Other browser versions or operating systems can rasterize text slightly differently, so pin them for production renders.
 
 ## Rules for blocks
 
@@ -25,7 +25,7 @@ npx visualfries check project.vf.json --determinism
 
 - unknown cues and moments, unknown eases, `map()` points that go back in time;
 - CSS animations and transitions running on wall-clock time;
-- with `--determinism`, sampled frames that look different when rendered forward and backward.
+- with `--determinism`, frames that look different when rendered forward and backward. It samples about a dozen frames in one browser page: it catches history-dependent blocks, it does not prove every frame on every machine.
 
 ```text
 FAIL bad  (html-in-canvas)
@@ -35,6 +35,6 @@ FAIL bad  (html-in-canvas)
 
 ## What the renderer does for you
 
-For every frame the stage sets the clip time, flushes Svelte, seeks GSAP timelines with callbacks suppressed, runs `useFrame` callbacks, forces a fresh raster of the stage, waits for the browser's paint (a paint that does not happen within two seconds is an error, never a silent timeout) and only then captures. Fonts load before blocks mount, and each timeline is primed once so tweens record their start values regardless of seek order.
+For every frame the stage sets the clip time, flushes Svelte, seeks GSAP timelines with callbacks suppressed, runs `useFrame` callbacks, forces a fresh raster of the stage, waits for the browser's paint (a paint that does not happen within two seconds is an error in both capture modes, never a silent timeout) and only then captures. Fonts load before blocks mount, and each timeline is primed once so tweens record their start values regardless of seek order.
 
-The CF004 example was verified with every frame of three clips (2 187 frames) rendered in sequential, reverse and random order: zero differing frames.
+In our tests every frame of three CF004 clips (2 187 frames), rendered in sequential, reverse, random and parity-shifted order, came out identical on one machine. The setup is listed in [How rendering works](/docs/rendering#performance).

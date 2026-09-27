@@ -1,10 +1,10 @@
 ---
 title: Fonts
-description: How VisualFries loads fonts. Motion projects declare font files in the project; scene apps use a chain of font providers with Google Fonts as the default.
+description: How VisualFries loads fonts. Motion projects declare font files in the project and fail when one cannot load; scene text declares its source per component and can use a chain of font providers.
 updated: 2026-09-27
 ---
 
-Text in VisualFries is real HTML and CSS, so it needs real font files. A missing font is an error, never a silent fallback that changes line breaks.
+Text in VisualFries is real HTML and CSS, so it needs real font files. How fonts are declared differs between motion projects and scenes.
 
 ## Motion projects
 
@@ -19,23 +19,44 @@ Declare every font in the project file. Fonts load before any block mounts, and 
 
 `family` is the name your CSS uses, so a licensed or substitute file can stand in for a system font name. Variable fonts declare their weight range.
 
-## Scene apps: font providers
+## Scenes
 
-Scenes load fonts through a chain of providers. With no configuration, fonts come from Google Fonts. Add your own provider in front of it:
+Scene text names its font in `appearance.text` and says where it comes from with `fontSource`:
+
+```json
+"text": {
+  "fontFamily": "Montserrat",
+  "fontSource": { "source": "google", "family": "Montserrat" },
+  "fontWeight": "800"
+}
+```
+
+| `fontSource`                             | Result                                                                    |
+| ---------------------------------------- | ------------------------------------------------------------------------- |
+| `{ "source": "google" }`                 | The font is fetched through the provider chain (Google Fonts by default). |
+| `{ "source": "custom", "fileUrl": "…" }` | The font is loaded from your file.                                        |
+| none                                     | A browser or system font; nothing is downloaded.                          |
+
+A font that cannot be loaded is logged and the text falls back to another font; scene rendering does not stop. Check QA frames when typography matters.
+
+## Font providers
+
+The provider chain decides how `source: "google"` fonts are fetched. Add your own provider in front of Google Fonts:
 
 ```ts
 import { createSceneBuilder, createGoogleFontsProvider, type FontProvider } from 'visualfries';
 
-const localFonts: FontProvider = async (family) => {
-	if (!family.startsWith('local://')) return null; // let the next provider try
-	const res = await fetch(`/fonts/${family.replace('local://', '')}.ttf`);
-	return res.ok ? res.arrayBuffer() : null;
+const selfHosted: FontProvider = async (font) => {
+	// `font` arrives normalized, e.g. "Montserrat:wght@800": capitalized, spaces as "+", weight appended
+	const family = font.split(':')[0].replace(/\+/g, ' ');
+	const res = await fetch(`/fonts/${family}.woff2`);
+	return res.ok ? res.arrayBuffer() : null; // null lets the next provider try
 };
 
 const builder = await createSceneBuilder(scene, container, {
 	environment: 'client',
-	fontProviders: [localFonts, createGoogleFontsProvider()]
+	fontProviders: [selfHosted, createGoogleFontsProvider()]
 });
 ```
 
-A provider returns the font file as an `ArrayBuffer`, or `null` to pass to the next one.
+The chain is global for the page: the last `fontProviders` passed to `createSceneBuilder` applies to every scene.

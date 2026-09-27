@@ -31,15 +31,15 @@ Transcripts can be JSON, SRT or VTT. Caption presets: `reels-center`, `reels-low
 
 ## Check before rendering
 
-| Command                                                    | What it does                                                              |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `validate scene.json [--strict-runtime-support]`           | Schema validation; strict mode rejects fields the renderer does not draw. |
-| `inspect scene.json [--json] [--screenshots --output dir]` | Structure report, optionally with frames.                                 |
-| `explain scene.json --component <id> --frame <n>`          | The computed state of one component at one frame, from the real runtime.  |
-| `qa scene.json --output dir`                               | Renders QA frames around authored events.                                 |
-| `parity scene.json --output dir --frames 5,12,35`          | Compares preview and final render.                                        |
-| `catalog [--component TYPE] [--capabilities]`              | Supported components, animations and effects.                             |
-| `doctor`                                                   | Checks the render toolchain.                                              |
+| Command                                                    | What it does                                                                         |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `validate scene.json [--strict-runtime-support]`           | Schema validation; strict mode also reports known runtime limits from the catalogue. |
+| `inspect scene.json [--json] [--screenshots --output dir]` | Structure report, optionally with frames.                                            |
+| `explain scene.json --component <id> --frame <n>`          | The computed state of one component at one frame, from the real runtime.             |
+| `qa scene.json --output dir`                               | Renders QA frames around authored events.                                            |
+| `parity scene.json --output dir --frames 5,12,35`          | Compares preview and final render.                                                   |
+| `catalog [--component TYPE] [--capabilities]`              | Supported components, animations and effects.                                        |
+| `doctor`                                                   | Checks the render toolchain.                                                         |
 
 ## Render
 

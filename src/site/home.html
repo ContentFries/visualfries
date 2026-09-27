@@ -8,7 +8,7 @@
         <div class="cta"><a class="btn" href="/docs/quickstart">Quickstart</a><a class="btn ghost" href="https://github.com/ContentFries/visualfries">GitHub</a></div>
       </div>
       <div class="eng-right">
-        <p class="lead">A <code>.vf.json</code> file describes what is on screen, when, and for which format. The same file mounts live in an editor and renders frame-exact on a server. Scroll: one document becomes a post, a reel and a render.</p>
+        <p class="lead">A <code>.vf.json</code> file describes what is on screen, when, and for which format. Blocks are Svelte, cues are spoken words, and every frame renders the same way. Scroll: one document becomes a post, a reel and a render.</p>
         <div class="chapters" id="chapters" aria-label="Chapters">
           <span class="on">01 Document</span><span>02 Blocks</span><span>03 Time</span><span>04 Surfaces</span><span>05 Render</span>
         </div>
@@ -23,29 +23,30 @@
           <div class="ln" data-n="2"><span>  <span class="k">"size"</span>: <span class="sw" id="sw-size"><i>[<span class="n">1080</span>, <span class="n">1350</span>]</i><i>[<span class="n">1080</span>, <span class="n">1920</span>]</i><i>[<span class="n">1080</span>, <span class="n">1080</span>]</i><i>[<span class="n">1920</span>, <span class="n">1080</span>]</i></span>,</span></div>
           <div class="ln" data-n="3"><span>  <span class="k">"fps"</span>: <span class="n">30</span>,</span></div>
           <div class="ln" data-n="4"><span>  <span class="k">"background"</span>: <span class="s">"#f4efe6"</span>,</span></div>
-          <div class="ln" data-n="5"><span>  <span class="k">"fonts"</span>: [{ <span class="k">"family"</span>: <span class="s">"Newsreader"</span>, <span class="k">"src"</span>: <span class="s">"fonts/nr.ttf"</span> }],</span></div>
+          <div class="ln" data-n="5"><span>  <span class="k">"fonts"</span>: [{ <span class="k">"family"</span>: <span class="s">"Newsreader"</span>, <span class="k">"src"</span>: <span class="s">"fonts/Newsreader.ttf"</span>, <span class="k">"weight"</span>: <span class="s">"200 800"</span> }],</span></div>
           <div class="ln" data-n="6"><span>  <span class="k">"clips"</span>: [{</span></div>
-          <div class="ln" data-n="7"><span>    <span class="k">"block"</span>: <span class="s">"blocks/Quote.svelte"</span>,</span></div>
-          <div class="ln" data-n="8"><span>    <span class="k">"props"</span>: { <span class="k">"quote"</span>: <span class="s">"Nothing is matched silently."</span> },</span></div>
+          <div class="ln" data-n="7"><span>    <span class="k">"id"</span>: <span class="s">"quote"</span>, <span class="k">"block"</span>: <span class="s">"blocks/Quote.svelte"</span>,</span></div>
+          <div class="ln" data-n="8"><span>    <span class="k">"props"</span>: { <span class="k">"quote"</span>: <span class="s">"Nothing is matched silently."</span>, <span class="k">"by"</span>: <span class="s">"docs/MOTION.md"</span> },</span></div>
           <div class="ln" data-n="9"><span>    <span class="k">"from"</span>: <span class="s">"nothing is ever"</span>, <span class="k">"until"</span>: <span class="s">"spoken ones"</span>,</span></div>
           <div class="ln" data-n="10"><span>    <span class="k">"cues"</span>: { <span class="k">"reveal"</span>: <span class="s">"nothing"</span>, <span class="k">"hit"</span>: <span class="s">"silently"</span>, <span class="k">"by"</span>: <span class="s">"suggests"</span> }</span></div>
           <div class="ln" data-n="11"><span>  }],</span></div>
           <div class="ln" data-n="12"><span>  <span class="k">"transcript"</span>: <span class="s">"voice.transcript.json"</span>,</span></div>
-          <div class="ln" data-n="13"><span>  <span class="k">"carousel"</span>: <span class="n">3</span>   <span class="c">// planned</span></span></div>
+          <div class="ln" data-n="13"><span>  <span class="k">"styles"</span>: [<span class="s">"styles.css"</span>]</span></div>
           <div class="ln" data-n="14"><span>}</span></div>
         </div>
         <div class="term" id="term">
           <div>$ visualfries check quote.vf.json --determinism</div>
-          <div class="g">✓ 1 block · 142 frames · 0 mismatched across seek orders</div>
-          <div>$ visualfries render quote.vf.json --output out/ --jobs 6</div>
+          <div class="g">ok   quote  (html-in-canvas) · All 1 clips pass.</div>
+          <div>$ visualfries render quote.vf.json --output out/</div>
           <div class="bar"><i id="bar"></i></div>
-          <div class="g">✓ out/quote.mp4 · out/quote-9x16.mp4 · manifest.json</div>
+          <div class="g">quote: 189 frames in 2.9 s · out/quote.mp4 · out/manifest.json</div>
         </div>
       </div>
 
       <div class="stage" aria-label="Stage">
         <div class="grid" aria-hidden="true"></div>
         <div class="canvas" id="canvas">
+          <span class="tag plan plan-flag" id="plan-flag">carousel · planned</span>
           <div class="frame ghost" id="g1" aria-hidden="true"><span class="mark"></span><p class="quote">Nothing is <em>matched</em> silently.</p><p class="by">1 / 3</p></div>
           <div class="frame ghost" id="g2" aria-hidden="true"><span class="mark"></span><p class="quote">A missing phrase <em>suggests</em> the closest.</p><p class="by">3 / 3</p></div>
           <div class="frame" id="frame">
@@ -54,11 +55,10 @@
             <p class="quote" id="quote"><span class="w">Nothing</span> <span class="w">is</span> <span class="w">matched</span> <span class="w"><em>silently.</em></span></p>
             <p class="by" id="by">— docs/MOTION.md</p>
           </div>
-          <figure class="sheet" id="sheet" aria-label="Contact sheet of rendered frames">
-            <img src="/media/frame-0.jpg" alt="" loading="lazy"><img src="/media/frame-1.jpg" alt="" loading="lazy"><img src="/media/frame-2.jpg" alt="" loading="lazy"><img src="/media/frame-3.jpg" alt="" loading="lazy">
-            <img src="/media/frame-4.jpg" alt="" loading="lazy"><img src="/media/frame-5.jpg" alt="" loading="lazy"><img src="/media/frame-6.jpg" alt="" loading="lazy"><img src="/media/frame-7.jpg" alt="" loading="lazy">
-            <img src="/media/frame-8.jpg" alt="" loading="lazy"><img src="/media/frame-9.jpg" alt="" loading="lazy"><img src="/media/frame-10.jpg" alt="" loading="lazy"><img src="/media/frame-11.jpg" alt="" loading="lazy">
-            <figcaption>real frames · 16 inserts · 6 593 frames at 1080p in 5.5 min on CPU</figcaption>
+          <figure class="sheet" id="sheet" aria-label="Twelve rendered frames of quote.vf.json">
+            <img src="/media/quote-0.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-1.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-2.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-3.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-4.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-5.jpg" alt="" loading="lazy" width="360" height="450">
+            <img src="/media/quote-6.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-7.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-8.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-9.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-10.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-11.jpg" alt="" loading="lazy" width="360" height="450">
+            <figcaption>real frames of this document · 189 frames rendered by <code>visualfries render</code></figcaption>
           </figure>
         </div>
         <div class="ribbon" aria-hidden="true">
@@ -106,7 +106,7 @@
           <div><b class="ok">0</b><span>re-renders</span></div>
           <div><b id="frames">1</b><span>frames — click <a href="#" id="reelify" style="color:var(--cool)">make it a reel</a></span></div>
         </div>
-        <p class="muted" style="font-size:14px">The editor and the renderer mount the same document. What you drag here is what <code>render</code> gets. Today this is how ContentFries edits scenes; the stills workflow with generated backgrounds and a one-click reel is on the roadmap.</p>
+        <p class="muted" style="font-size:14px">In an editor, only the document changes while you drag; the image behind the text is never regenerated. ContentFries already edits its scene documents live this way. Stills with generated backgrounds and a one-click reel are on the roadmap.</p>
       </div>
     </div>
   </div>
@@ -150,8 +150,8 @@
         <div><b>1</b><span>command to re-time all of them after a re-take</span></div>
       </div>
       <div class="vids">
-        <figure class="vid rv"><video src="/media/editable.mp4" poster="/media/editable-poster.jpg" muted loop playsinline preload="metadata" aria-label="Rendered insert: the text file stays editable"></video><figcaption>D-editable · 1080p render, real</figcaption></figure>
-        <figure class="vid rv"><video src="/media/workflow.mp4" muted loop playsinline preload="metadata" aria-label="Rendered insert: workflow"></video><figcaption>Workflow · 1080p render, real</figcaption></figure>
+        <figure class="vid rv"><video src="/media/editable.mp4" poster="/media/editable-poster.jpg" width="1280" height="720" muted loop playsinline controls preload="metadata" aria-label="Rendered insert: the text file stays editable"></video><figcaption>D-editable · 1080p render, real</figcaption></figure>
+        <figure class="vid rv"><video src="/media/workflow.mp4" width="1280" height="720" muted loop playsinline controls preload="metadata" aria-label="Rendered insert: workflow"></video><figcaption>Workflow · 1080p render, real</figcaption></figure>
       </div>
     </div>
   </div>
@@ -195,15 +195,16 @@
       <div>
         <div class="eyebrow" style="margin-bottom:14px">Start</div>
         <h2 id="h-start">Install, check, render.</h2>
-        <p class="lead" style="margin-top:14px">Svelte 5 project required. <code>doctor</code> tells you what is missing before the first render.</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px"><a class="btn" href="/docs/quickstart">Quickstart →</a><a class="btn ghost" href="/llms.txt">llms.txt</a></div>
+        <p class="lead" style="margin-top:14px">The project above is real: download it, run four commands, get the MP4. <code>doctor</code> tells you what is missing before the first render.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px"><a class="btn" href="/docs/quickstart">Quickstart →</a><a class="btn ghost" href="/demo/quote.zip">Download quote.zip</a></div>
       </div>
-<pre class="rv"><code>$ npm install visualfries
-$ visualfries doctor                          <span class="c"># ffmpeg, Chromium, Playwright, temp dir</span>
-$ visualfries clips quote.vf.json             <span class="c"># words → times</span>
-$ visualfries check quote.vf.json --determinism
-$ visualfries still quote.vf.json --clip quote --output quote.png
-$ visualfries render quote.vf.json --output out/</code></pre>
+<pre class="rv"><code>$ npm install visualfries playwright
+$ npx playwright install chromium             <span class="c"># or use an installed Chromium</span>
+$ npx visualfries doctor                      <span class="c"># ffmpeg, Chromium, Playwright, temp dir</span>
+$ npx visualfries clips quote.vf.json         <span class="c"># words → times</span>
+$ npx visualfries check quote.vf.json --determinism
+$ npx visualfries still quote.vf.json --clip quote --output quote.png
+$ npx visualfries render quote.vf.json --output out/</code></pre>
     </div>
   </div>
 </section>

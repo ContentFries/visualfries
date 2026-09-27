@@ -30,6 +30,7 @@ export const pages: DocPage[] = [
 	{ slug: 'install', title: 'Install and doctor', section: 'start' },
 	{ slug: 'quickstart', title: 'Quickstart: a motion project', section: 'start' },
 	{ slug: 'when-to-use', title: 'When to use VisualFries', section: 'start' },
+	{ slug: 'troubleshooting', title: 'Troubleshooting', section: 'start' },
 
 	{ slug: 'project-file', title: 'The project file (.vf.json)', section: 'document' },
 	{ slug: 'scene-json', title: 'Scene JSON', section: 'document' },

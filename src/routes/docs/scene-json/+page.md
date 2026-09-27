@@ -34,7 +34,14 @@ A scene is the document format of VisualFries apps. It describes a fixed-length 
 						"y": 100,
 						"width": 980,
 						"height": 250,
-						"text": { "fontFamily": "Montserrat", "color": "#FFFFFF" }
+						"text": {
+							"fontFamily": "Montserrat",
+							"fontSource": { "source": "google", "family": "Montserrat" },
+							"fontSize": 90,
+							"fontWeight": "800",
+							"color": "#FFFFFF",
+							"textAlign": "center"
+						}
 					}
 				}
 			]
@@ -44,12 +51,14 @@ A scene is the document format of VisualFries apps. It describes a fixed-length 
 }
 ```
 
+This example passes `visualfries validate --strict-runtime-support`.
+
 | Part         | Meaning                                                                                               |
 | ------------ | ----------------------------------------------------------------------------------------------------- |
 | `settings`   | Size, duration in seconds, fps, background.                                                           |
 | `layers`     | Stacked groups of components. A higher `order` draws on top.                                          |
 | `components` | Typed items with a `timeline` (`startAt`, `endAt` in seconds), `appearance` and type-specific fields. |
-| `assets`     | Files used by components. Components link to them by `assetId`.                                       |
+| `assets`     | Files used by components, linked by `assetId`. In an app, media still load from `source.url`.         |
 
 Component types are VIDEO, IMAGE, GIF, TEXT, SUBTITLES, SHAPE, COLOR, GRADIENT and AUDIO. Each is described in [Scene components](/docs/components).
 
@@ -71,4 +80,4 @@ npx visualfries validate scene.json --strict-runtime-support
 npx visualfries inspect scene.json --json
 ```
 
-`--strict-runtime-support` rejects fields the schema accepts but the renderer does not draw. See [Scene CLI and captions](/docs/scene-cli).
+`--strict-runtime-support` also reports fields the schema accepts but the runtime is known not to support. It checks a catalogue of known limits, so keep looking at QA frames. See [Scene CLI and captions](/docs/scene-cli).

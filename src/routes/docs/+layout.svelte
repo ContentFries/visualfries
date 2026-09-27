@@ -76,9 +76,28 @@
 		</ul>
 	</aside>
 
-	<div class="docs-main" bind:this={main}>
+	<main class="docs-main" id="content" bind:this={main}>
+		<details class="all-docs">
+			<summary>All docs pages</summary>
+			{#each sections as s}
+				{@const list = pages.filter((p) => p.section === s.key)}
+				{#if list.length}
+					<h4>{sectionLabel(s.key)}</h4>
+					<ul>
+						{#each list as p}
+							<li>
+								<a
+									href={pageUrl(p.slug)}
+									aria-current={p.slug === current.page?.slug ? 'page' : undefined}>{p.title}</a
+								>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			{/each}
+		</details>
 		{@render children()}
-	</div>
+	</main>
 
 	<aside class="toc" aria-label="On this page">
 		{#if toc.length}

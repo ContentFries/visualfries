@@ -21,7 +21,7 @@ Common sizes: `[1080, 1920]` for Reels and Shorts, `[1080, 1350]` for a 4:5 feed
 | default         | H.264 `.mp4`, `yuv420p`, CRF 14              |
 | `"alpha": true` | ProRes 4444 `.mov` with a real alpha channel |
 
-Transparent clips are meant for an editor's timeline: lower thirds, sign-offs, overlays over camera footage. `manifest.json` gives each clip's start frame so it can be placed exactly on the program.
+Renders are silent. Transparent clips are meant for an editor's timeline: lower thirds, sign-offs, overlays over camera footage. `manifest.json` gives each clip's start frame so it can be placed exactly on the program, over the voiceover it was timed to.
 
 ## Backgrounds
 

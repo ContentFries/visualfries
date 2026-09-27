@@ -1,7 +1,7 @@
 <!-- mdsvex layout for every docs page: title, actions, SEO, previous/next. -->
 <script lang="ts">
 	import { page } from '$app/state';
-	import { findPage, pageUrl, sectionLabel } from './docs';
+	import { findPage, pageUrl, pages, sectionLabel } from './docs';
 
 	let { title = '', description = '', updated = '', children } = $props();
 
@@ -44,7 +44,8 @@
 					{
 						'@type': 'ListItem',
 						position: 2,
-						name: current.page ? sectionLabel(current.page.section) : 'Docs'
+						name: current.page ? sectionLabel(current.page.section) : 'Docs',
+						item: `https://visualfries.com${pageUrl(pages.find((p) => p.section === current.page?.section)?.slug ?? '')}`
 					},
 					{ '@type': 'ListItem', position: 3, name: title, item: url }
 				]

@@ -5,6 +5,7 @@
 	let { children } = $props();
 </script>
 
+<a class="skip" href="#content">Skip to content</a>
 <Nav />
 {@render children()}
 <Footer />

@@ -9,14 +9,34 @@ const sources = import.meta.glob('/src/routes/docs/**/+page.md', {
 
 const SITE = 'https://visualfries.com';
 
+// The scene JSON behind the live examples page.
+const exampleScenes = import.meta.glob('/src/lib/examples/0*.json', {
+	query: '?raw',
+	import: 'default',
+	eager: true
+}) as Record<string, string>;
+
+const fence = '```';
+
 // Pages written in Svelte (live demos) describe themselves here.
 const svelteOnly: Record<string, { description: string; body: string }> = {
 	examples: {
 		description:
 			'Scene JSON examples mounted live in the browser with the real VisualFries engine.',
-		body: 'This page mounts real scene JSON with `createSceneBuilder` in your browser: basic text, animated text, a video background and word-timed subtitles. Each example shows its JSON next to the running scene. Open it in a browser to interact.'
+		body: [
+			'The web page mounts each scene below with `createSceneBuilder` in the browser; the interactive part is browser-only. The site replaces the remote sample video URL with its own clip.',
+			...Object.entries(exampleScenes)
+				.sort(([a], [b]) => a.localeCompare(b))
+				.map(([file, json]) => `## ${file.split('/').pop()}\n\n${fence}json\n${json.trim()}\n${fence}`)
+		].join('\n\n')
 	}
 };
+
+/** Apply `fn` to prose only; fenced code blocks pass through byte for byte. */
+export function outsideFences(markdown: string, fn: (prose: string) => string): string {
+	const parts = markdown.split(/(^```[^\n]*\n[\s\S]*?^```[ \t]*$)/m);
+	return parts.map((part, i) => (i % 2 ? part : fn(part))).join('');
+}
 
 function frontmatter(raw: string) {
 	const m = /^---\n([\s\S]*?)\n---\n?/.exec(raw);
@@ -38,10 +58,12 @@ export function pageMarkdown(page: DocPage): string {
 	if (raw) {
 		const fm = frontmatter(raw);
 		description = fm.data.description ?? '';
-		body = fm.body
-			.replace(/<script[\s\S]*?<\/script>\n?/g, '')
-			.replace(/<span class="tag plan">planned<\/span>/g, '(planned)')
-			.trim();
+		// Remove the page's own Svelte <script> blocks, never code inside examples.
+		body = outsideFences(fm.body, (prose) =>
+			prose
+				.replace(/<script[\s\S]*?<\/script>\n?/g, '')
+				.replace(/<span class="tag plan">planned<\/span>/g, '(planned)')
+		).trim();
 	} else if (svelteOnly[page.slug]) {
 		description = svelteOnly[page.slug].description;
 		body = svelteOnly[page.slug].body;
@@ -62,7 +84,7 @@ export function llmsTxt(): string {
 	const lines = [
 		'# VisualFries',
 		'',
-		'> Open-source (MIT) Svelte 5 engine for visual social-media content. One JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces; it mounts live in an editor and renders frame-exact on a server. Motion projects time animations by the words of a transcript.',
+		'> Open-source (MIT) Svelte 5 engine for visual social-media content. A JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces. Scene documents mount live in an editor; motion projects time animations by the words of a transcript; every frame renders deterministically.',
 		'',
 		'Every page below is available as Markdown by appending `.md` to its URL. The whole documentation in one file: ' +
 			`${SITE}/llms-full.txt`,

@@ -25,7 +25,19 @@ The mode is chosen automatically and reported by `check` and `render`. A 2D canv
 
 ## Performance
 
-The CF004 project renders 6 593 frames at 1080p in about five and a half minutes on a 12-core CPU (roughly 20 frames per second overall). Each clip is split into parallel page ranges; `--jobs` sets how many.
+| Measurement                                                                                         | Result                                                  |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| CF004 project, 16 clips, 6 593 frames at 1920×1080                                                  | about 5 min 30 s (roughly 20 frames per second overall) |
+| Quickstart project, 189 frames at 1080×1350                                                         | 2.9 s                                                   |
+| `check` of the 16 CF004 clips                                                                       | about 6 s                                               |
+| 2D canvas vs software WebGL (SwiftShader), one test scene at 720p                                   | about 4× faster per frame                               |
+| Every frame of 3 CF004 clips (2 187 frames) in sequential, reverse, random and parity-shifted order | 0 differing frames                                      |
+
+Measured on 2026-09-27 on a server with 12 vCPUs (AMD EPYC 9645), no GPU, Chromium 154, ffmpeg 8.1, `html-in-canvas` capture, default `--jobs` (6). Each clip is split into parallel page ranges; `--jobs` sets how many. Numbers on other machines will differ.
+
+## Audio
+
+Motion renders are silent. They are inserts that belong on top of the program audio: `manifest.json` gives each clip's start frame so an editor or a script can place it on the voiceover.
 
 ## Running it in your own service
 

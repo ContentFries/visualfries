@@ -24,10 +24,10 @@ VisualFries is a good choice when the document matters as much as the pixels: wh
 
 All three render a browser page frame by frame. They differ in where the document lives and who edits it.
 
-|                 | VisualFries                                                | Remotion         | HyperFrames              |
-| --------------- | ---------------------------------------------------------- | ---------------- | ------------------------ |
-| Framework       | Svelte 5                                                   | React            | Plain HTML + GSAP        |
-| Source of truth | JSON document                                              | React code       | HTML composition         |
-| Timing          | Transcript words, cues, seconds, frames                    | Frames           | Seconds, data attributes |
-| Live editing    | Same document mounted in an app                            | Studio and props | Preview                  |
-| Agent surface   | `clips`, `check`, `still`, `render`, scene `validate`/`qa` | CLI and skills   | CLI and skills           |
+|                 | VisualFries                                                | Remotion                       | HyperFrames                 |
+| --------------- | ---------------------------------------------------------- | ------------------------------ | --------------------------- |
+| Framework       | Svelte 5                                                   | React                          | Plain HTML + GSAP           |
+| Source of truth | JSON document                                              | React code                     | HTML composition            |
+| Primary timing  | Transcript phrases as anchors, plus seconds and frames     | Frames, with caption utilities | Seconds and data attributes |
+| Editing         | Scene documents mounted live in your app                   | Studio and input props         | Studio editor and preview   |
+| Agent surface   | `clips`, `check`, `still`, `render`, scene `validate`/`qa` | CLI and skills                 | CLI and skills              |

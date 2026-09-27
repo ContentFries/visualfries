@@ -1,31 +1,40 @@
 ---
 title: 'Quickstart: a motion project'
-description: Build a motion project in six steps. Write a .vf.json document and a Svelte block, time it by the words of a transcript, check it, look at a contact sheet and render an MP4.
+description: Build and render a VisualFries motion project in six steps. Install VisualFries and Playwright, get the quote project, read its document and block, check it, look at a contact sheet and render a silent MP4.
 updated: 2026-09-27
 ---
 
-A **motion project** is a `.vf.json` document that says which Svelte components ("blocks") play when, timed by the words of a transcript. This page takes you from an empty folder to a rendered MP4 in six steps.
+A **motion project** is a `.vf.json` document that says which Svelte components ("blocks") play when, timed by the words of a transcript. This page takes you from an empty folder to a rendered MP4 with the same `quote` project that runs on the homepage.
 
 ## 1. Install
 
 ```bash
-npm install visualfries
+mkdir my-video && cd my-video
+npm init -y
+npm install visualfries svelte playwright
+npx playwright install chromium   # or point VISUALFRIES_CHROMIUM_PATH at an installed Chromium
 npx visualfries doctor
 ```
 
-See [Install and doctor](/docs/install) if a check fails.
+Rendering also needs [ffmpeg](https://ffmpeg.org) on your `PATH`. `playwright` is an optional peer dependency, so npm does not install it for you. See [Install and doctor](/docs/install) if a check fails.
 
-## 2. Lay out the folder
+## 2. Get the project
+
+```bash
+curl -LO https://visualfries.com/demo/quote.zip
+unzip quote.zip -d quote && cd quote
+```
 
 ```text
 quote/
   quote.vf.json          which block plays when, and on which words
   voice.transcript.json  word timestamps of the voiceover
   blocks/Quote.svelte    what the clip looks like and how it moves
-  fonts/Newsreader.ttf   ship fonts with the project
+  styles.css             shared CSS for every block
+  fonts/Newsreader.ttf   the font, shipped with the project (OFL)
 ```
 
-A transcript is a list of words with start and end times. Soniox-style milliseconds and plain seconds both work (see [Transcripts](/docs/transcripts)):
+The transcript is a list of words with start and end times in milliseconds (see [Transcripts](/docs/transcripts)):
 
 ```json
 {
@@ -34,72 +43,66 @@ A transcript is a list of words with start and end times. Soniox-style milliseco
 		{ "text": "is", "startMs": 450, "endMs": 550 },
 		{ "text": "ever", "startMs": 600, "endMs": 900 },
 		{ "text": "matched", "startMs": 1000, "endMs": 1500 },
-		{ "text": "silently.", "startMs": 1600, "endMs": 2300 }
+		{ "text": "silently,", "startMs": 1600, "endMs": 2300 }
 	]
 }
 ```
 
-## 3. Write the document
+The file in the zip continues with "a missing phrase suggests the closest spoken ones."
+
+## 3. Read the document
 
 ```json
 {
 	"size": [1080, 1350],
 	"fps": 30,
-	"transcript": "voice.transcript.json",
-	"fonts": [{ "family": "Newsreader", "src": "fonts/Newsreader.ttf", "weight": "400 700" }],
 	"background": "#f4efe6",
+	"fonts": [{ "family": "Newsreader", "src": "fonts/Newsreader.ttf", "weight": "200 800" }],
 	"clips": [
 		{
 			"id": "quote",
 			"block": "blocks/Quote.svelte",
+			"props": { "quote": "Nothing is matched silently.", "by": "docs/MOTION.md" },
 			"from": "nothing is ever",
-			"until": "matched silently",
-			"tail": 1,
-			"cues": { "hit": "silently" },
-			"props": { "quote": "Nothing is matched silently.", "by": "docs/MOTION.md" }
+			"until": "spoken ones",
+			"cues": { "reveal": "nothing", "hit": "silently", "by": "suggests" }
 		}
-	]
+	],
+	"transcript": "voice.transcript.json",
+	"styles": ["styles.css"]
 }
 ```
 
-`from` and `until` are phrases from the transcript; the clip starts on the first word and ends when the last word ends, plus `tail` seconds. `cues` are named moments inside the clip. Details: [The project file](/docs/project-file) and [Time and cues](/docs/time-and-cues).
+The clip starts on "nothing" and ends when "ones" ends. `cues` name moments inside it: the quote appears on "nothing", the last word lights up on "silently", the credit fades in on "suggests". Details: [The project file](/docs/project-file) and [Time and cues](/docs/time-and-cues).
 
-## 4. Write the block
+## 4. Read the block
 
 ```svelte
 <script>
 	import { useClip } from 'visualfries/motion';
 	const clip = useClip();
+	const words = clip.props.quote.split(' ');
+	const size = Math.round(clip.width / 11); // follows the surface size
 </script>
 
-<figure>
-	<blockquote style:opacity={clip.p(0, 0.8)}>{clip.props.quote}</blockquote>
-	<figcaption style:opacity={clip.p('hit')}>— {clip.props.by}</figcaption>
+<figure style:font-size="{size}px">
+	<blockquote>
+		{#each words as word, i}
+			{@const last = i === words.length - 1}
+			{@const p = clip.p(`reveal+${i * 0.12}`, 0.5)}
+			<span
+				class:last
+				style:color={last && clip.after('hit') ? 'var(--accent)' : null}
+				style:opacity={p}
+				style:transform="translateY({(1 - p) * 0.3}em)">{word}</span
+			>{' '}
+		{/each}
+	</blockquote>
+	<figcaption style:opacity={clip.p('by')}>— {clip.props.by}</figcaption>
 </figure>
-
-<style>
-	figure {
-		position: absolute;
-		inset: 0;
-		display: grid;
-		place-content: center;
-		padding: 120px;
-		margin: 0;
-	}
-	blockquote {
-		margin: 0;
-		font: 500 96px/1.05 Newsreader;
-		color: #17130f;
-	}
-	figcaption {
-		margin-top: 40px;
-		font: 28px monospace;
-		color: #6b6259;
-	}
-</style>
 ```
 
-`clip.p('hit')` is an eased 0 → 1 progress that starts when "silently" is spoken. Every value in the markup is live, because VisualFries sets the clip's time before each frame. More in [Motion blocks](/docs/blocks) and [The clip object](/docs/clip-api).
+`clip.p('reveal+0.24')` is an eased 0 → 1 progress that starts 0.24 s after "nothing" is said; `clip.after('hit')` becomes true when "silently" starts. Every value in the markup is live, because VisualFries sets the clip's time before each frame. The file in the zip adds a spinning mark, an underline and styles. More in [Motion blocks](/docs/blocks) and [The clip object](/docs/clip-api).
 
 ## 5. Resolve and check
 
@@ -108,7 +111,16 @@ npx visualfries clips quote.vf.json
 npx visualfries check quote.vf.json --determinism
 ```
 
-`clips` prints when every clip and cue happens. `check` mounts the block and runs it across the whole clip in seconds: unknown cues, bad ease names, CSS animations that ignore clip time, and frames that change with seek order are reported before you render.
+```text
+quote  0.000–6.300s  frame 0  189 frames  blocks/Quote.svelte
+  cue reveal         0.00s "Nothing"
+  cue hit            1.60s "silently"
+  cue by             4.10s "suggests"
+ok   quote  (html-in-canvas)
+All 1 clips pass.
+```
+
+`clips` prints when every clip and cue happens. `check` mounts the block and runs it across the clip without rendering: unknown cues, bad ease names, CSS animations that ignore clip time, and sampled frames that change with seek order are reported before you render.
 
 ## 6. Look, then render
 
@@ -117,7 +129,7 @@ npx visualfries still quote.vf.json --clip quote --output quote.png
 npx visualfries render quote.vf.json --output out/
 ```
 
-`still` writes one contact sheet with the start, every cue and the end, so you (or your agent) can review the whole clip in one image. `render` writes `out/quote.mp4` and `out/manifest.json`. Add `"alpha": true` to a clip for a transparent ProRes 4444 `.mov`.
+`still` writes one contact sheet with frame 0, frame 10, each cue plus 0.6 s and the last frame. `render` writes `out/quote.mp4` and `out/manifest.json` (189 frames took 2.9 s on our test server). The video is **silent**: motion clips are inserts you place over your own voiceover, using the start frame in `manifest.json`. Add `"alpha": true` to a clip for a transparent ProRes 4444 `.mov`.
 
 ## Where next
 

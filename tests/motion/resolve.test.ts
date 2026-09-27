@@ -180,3 +180,11 @@ describe('motion clip helpers', () => {
 		).toThrow(/must not go back in time/);
 	});
 });
+
+describe('motion transcript normalization', () => {
+	it('ignores dashes at word edges', () => {
+		const w = parseTranscriptWords([{ word: 'silently—', start: 1, end: 2 }]);
+		expect(w[0].text).toBe('silently');
+		expect(findPhrase(w, 'silently')).toHaveLength(1);
+	});
+});

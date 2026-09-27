@@ -9,7 +9,7 @@
 
 	const title = 'VisualFries — one document, every surface';
 	const description =
-		'VisualFries is an open-source Svelte 5 engine for social video and stills. One JSON document describes blocks, time and surfaces; it mounts live in an editor and renders frame-exact on a server.';
+		'VisualFries is an open-source Svelte 5 engine for social video. A JSON document describes blocks, time and surfaces; motion clips are timed by the words of a transcript, scene documents mount live in an editor, and every frame renders deterministically.';
 	const jsonLd = {
 		'@context': 'https://schema.org',
 		'@graph': [
@@ -17,7 +17,7 @@
 				'@type': 'SoftwareSourceCode',
 				name: 'VisualFries',
 				description:
-					'Open-source Svelte 5 library and headless engine for visual social-media content. One JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces; it mounts live in an editor and renders deterministically on a server.',
+					'Open-source Svelte 5 library and headless engine for visual social-media content. A JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces. Scene documents mount live in an editor; every document renders deterministically on a server.',
 				codeRepository: 'https://github.com/ContentFries/visualfries',
 				programmingLanguage: ['TypeScript', 'Svelte'],
 				license: 'https://opensource.org/licenses/MIT',
@@ -71,6 +71,6 @@
 	{@html `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`}
 </svelte:head>
 
-<main class="home" bind:this={root}>
+<main class="home" id="content" bind:this={root}>
 	{@html markup}
 </main>

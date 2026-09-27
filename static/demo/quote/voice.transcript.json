@@ -1,0 +1,69 @@
+{
+  "words": [
+    {
+      "text": "Nothing",
+      "startMs": 0,
+      "endMs": 400
+    },
+    {
+      "text": "is",
+      "startMs": 450,
+      "endMs": 550
+    },
+    {
+      "text": "ever",
+      "startMs": 600,
+      "endMs": 900
+    },
+    {
+      "text": "matched",
+      "startMs": 1000,
+      "endMs": 1500
+    },
+    {
+      "text": "silently,",
+      "startMs": 1600,
+      "endMs": 2300
+    },
+    {
+      "text": "a",
+      "startMs": 2900,
+      "endMs": 3000
+    },
+    {
+      "text": "missing",
+      "startMs": 3050,
+      "endMs": 3500
+    },
+    {
+      "text": "phrase",
+      "startMs": 3550,
+      "endMs": 3950
+    },
+    {
+      "text": "suggests",
+      "startMs": 4100,
+      "endMs": 4700
+    },
+    {
+      "text": "the",
+      "startMs": 4750,
+      "endMs": 4850
+    },
+    {
+      "text": "closest",
+      "startMs": 4900,
+      "endMs": 5400
+    },
+    {
+      "text": "spoken",
+      "startMs": 5450,
+      "endMs": 5900
+    },
+    {
+      "text": "ones.",
+      "startMs": 5950,
+      "endMs": 6300
+    }
+  ]
+}

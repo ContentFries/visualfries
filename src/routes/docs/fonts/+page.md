@@ -41,7 +41,12 @@ A font that cannot be loaded is logged and the text falls back to another font; 
 
 ## Font providers
 
-The provider chain decides how `source: "google"` fonts are fetched. Add your own provider in front of Google Fonts:
+Scene text is drawn in two ways, and fonts reach each one differently:
+
+- **Live DOM text** in the editor preview loads `source: "google"` fonts straight from the Google Fonts stylesheet; `fontProviders` do not change that.
+- **Text snapshots** are SVG images of TEXT and SUBTITLES components that the canvas draws when a scene is created with `environment: 'server'` (frame rendering). They embed the font data, and that data comes from the provider chain.
+
+Put your own provider in front of Google Fonts when the renderer should embed self-hosted files, for example on a server without access to Google:
 
 ```ts
 import { createSceneBuilder, createGoogleFontsProvider, type FontProvider } from 'visualfries';
@@ -54,7 +59,7 @@ const selfHosted: FontProvider = async (font) => {
 };
 
 const builder = await createSceneBuilder(scene, container, {
-	environment: 'client',
+	environment: 'server',
 	fontProviders: [selfHosted, createGoogleFontsProvider()]
 });
 ```

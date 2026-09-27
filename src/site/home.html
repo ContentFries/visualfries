@@ -8,7 +8,7 @@
         <div class="cta"><a class="btn" href="/docs/quickstart">Quickstart</a><a class="btn ghost" href="https://github.com/ContentFries/visualfries">GitHub</a></div>
       </div>
       <div class="eng-right">
-        <p class="lead">A <code>.vf.json</code> file describes what is on screen, when, and for which format. Blocks are Svelte, cues are spoken words, and every frame renders the same way. Scroll: one document becomes a post, a reel and a render.</p>
+        <p class="lead">A <code>.vf.json</code> file describes what is on screen, when, and for which format. Blocks are Svelte, cues are spoken words, and the CLI checks every frame before it renders. Scroll: one document becomes a post, a reel and a render.</p>
         <div class="chapters" id="chapters" aria-label="Chapters">
           <span class="on">01 Document</span><span>02 Blocks</span><span>03 Time</span><span>04 Surfaces</span><span>05 Render</span>
         </div>
@@ -127,7 +127,7 @@
       <div class="rv"><span class="n">02</span><h3>Blocks</h3><p>Any visual is a Svelte component. Text is HTML/CSS (via SVG foreignObject in scenes, plain DOM in blocks).</p><ul><li><span class="tag now">now</span><code>useClip</code>, <code>useTimeline</code>, <code>useFrame</code></li><li><span class="tag now">now</span>GSAP eases and timelines</li></ul><a href="/docs/blocks">Blocks →</a></div>
       <div class="rv"><span class="n">03</span><h3>Time</h3><p>Cues from transcript words; seconds and frames when you want them. Re-time with <code>--transcript</code>.</p><ul><li><span class="tag now">now</span>Word-timed cues, "Did you mean"</li><li><span class="tag plan">plan</span>STT adapters, <code>visualfries setup</code></li></ul><a href="/docs/time-and-cues">Time &amp; cues →</a></div>
       <div class="rv"><span class="n">04</span><h3>Surfaces</h3><p>One document, many formats. Blocks are DOM, so text reflows per size.</p><ul><li><span class="tag now">now</span><code>size</code> per project, alpha renders</li><li><span class="tag plan">plan</span>9:16 / 1:1 / 16:9 variants, carousels, stills</li></ul><a href="/docs/surfaces">Surfaces →</a></div>
-      <div class="rv"><span class="n">05</span><h3>Render</h3><p>Deterministic frames: any frame in any order gives the same pixels. Live in the editor, headless on a server.</p><ul><li><span class="tag now">now</span><code>check</code>, <code>still</code>, <code>render</code>, MP4, ProRes 4444</li><li><span class="tag plan">plan</span>Live preview with scrubber</li></ul><a href="/docs/cli">Render →</a></div>
+      <div class="rv"><span class="n">05</span><h3>Render</h3><p>A motion frame is a function of time: with the same fonts and Chromium, <code>check --determinism</code> compares frames rendered in different orders. Scenes play live in the editor and render headless.</p><ul><li><span class="tag now">now</span><code>check</code>, <code>still</code>, <code>render</code>, MP4, ProRes 4444</li><li><span class="tag plan">plan</span>Live preview with scrubber</li></ul><a href="/docs/cli">Render →</a></div>
     </div>
   </div>
 </section>
@@ -145,8 +145,8 @@
     <div class="proof">
       <div class="nums rv">
         <div><b>16</b><span>inserts, one <code>.vf.json</code>, one transcript</span></div>
-        <div><b>0</b><span>mismatched frames between seek orders</span></div>
-        <div><b>5.5</b><span>minutes for 6 593 frames at 1080p, CPU only</span></div>
+        <div><b>0</b><span>mismatches in 2 187 frames rendered in four seek orders</span></div>
+        <div><b>5.5</b><span>minutes for 6 593 frames at 1080p on 12 vCPU, no GPU</span></div>
         <div><b>1</b><span>command to re-time all of them after a re-take</span></div>
       </div>
       <div class="vids">
@@ -178,9 +178,9 @@
           <tbody>
             <tr><td>Framework</td><td>Svelte 5</td><td>React</td><td>Plain HTML + GSAP</td></tr>
             <tr><td>Source of truth</td><td>JSON document</td><td>React code</td><td>HTML composition</td></tr>
-            <tr><td>Timing</td><td>Transcript words, cues, seconds, frames</td><td>Frames</td><td>Seconds, data attributes</td></tr>
-            <tr><td>Live editing</td><td>Same document in the editor</td><td>Studio / props</td><td>Preview</td></tr>
-            <tr><td>Agent surface</td><td>clips · check · still · render · validate · qa</td><td>CLI + skills</td><td>CLI + skills</td></tr>
+            <tr><td>Primary timing</td><td>Transcript phrases as anchors, plus seconds and frames</td><td>Frames, with caption utilities</td><td>Seconds and data attributes</td></tr>
+            <tr><td>Editing</td><td>Scene documents mounted live in your app</td><td>Studio and input props</td><td>Studio editor and preview</td></tr>
+            <tr><td>Agent surface</td><td>clips · check · still · render · validate · qa</td><td>CLI and skills</td><td>CLI and skills</td></tr>
           </tbody>
         </table>
       </div>

@@ -4,7 +4,7 @@ description: A motion block is a Svelte 5 component that reads clip time. Write 
 updated: 2026-09-27
 ---
 
-A **motion block** is a Svelte 5 component that draws one clip. It reads the clip's time from `useClip()`; VisualFries sets that time before every frame, so the same block renders identically in a preview, a contact sheet and a final video.
+A **motion block** is a Svelte 5 component that draws one clip. It reads the clip's time from `useClip()`; VisualFries sets that time before every frame, so a block that follows the [determinism rules](/docs/determinism) gives the same frame in a contact sheet and in the final video.
 
 ## Three ways to animate
 

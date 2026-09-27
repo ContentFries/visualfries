@@ -30,7 +30,7 @@ In a motion project a clip is placed by **what is said**, not by typed seconds. 
 }
 ```
 
-A cue phrase is searched **inside the clip**: its first word must start within the clip, the rest may run past the end. `edge` picks the moment: `start` (default), `last` (when the last word starts) or `end`. `occurrence` picks the n-th match inside the clip. `offset` shifts the cue's start in seconds; its end stays at the end of the phrase. Numbers and `{ "frame": n }` are clip-local. `start` and `end` are built in and cannot be redefined. A cue outside the rendered frames is a warning, not an error.
+A cue phrase is searched **inside the clip**: its first word must start between the clip's `from` and `until` anchors (both ends inclusive, measured before rounding to frames), the rest may run past the end. A word that starts up to one frame before the clip's first frame, because the start was rounded to a frame, gives a cue a few milliseconds below zero; it behaves like a cue at the clip start. `edge` picks the moment: `start` (default), `last` (when the last word starts) or `end`. `occurrence` picks the n-th match inside the clip. `offset` shifts the cue's start in seconds; its end stays at the end of the phrase. Numbers and `{ "frame": n }` are clip-local. `start` and `end` are built in and cannot be redefined. A cue outside the rendered frames is a warning, not an error.
 
 A block then writes `clip.p('extra')`, `clip.after('duplicate')` or `clip.has('duplicate', word)`; the cue also carries its words.
 

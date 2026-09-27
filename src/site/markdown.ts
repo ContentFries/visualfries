@@ -27,7 +27,9 @@ const svelteOnly: Record<string, { description: string; body: string }> = {
 			'The web page mounts each scene below with `createSceneBuilder` in the browser; the interactive part is browser-only. The site replaces the remote sample video URL with its own clip.',
 			...Object.entries(exampleScenes)
 				.sort(([a], [b]) => a.localeCompare(b))
-				.map(([file, json]) => `## ${file.split('/').pop()}\n\n${fence}json\n${json.trim()}\n${fence}`)
+				.map(
+					([file, json]) => `## ${file.split('/').pop()}\n\n${fence}json\n${json.trim()}\n${fence}`
+				)
 		].join('\n\n')
 	}
 };
@@ -84,7 +86,7 @@ export function llmsTxt(): string {
 	const lines = [
 		'# VisualFries',
 		'',
-		'> Open-source (MIT) Svelte 5 engine for visual social-media content. A JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces. Scene documents mount live in an editor; motion projects time animations by the words of a transcript; every frame renders deterministically.',
+		'> Open-source (MIT) Svelte 5 engine for visual social-media content. A JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces. Scene documents mount live in an editor; motion projects time animations by the words of a transcript and render frame by frame in headless Chromium.',
 		'',
 		'Every page below is available as Markdown by appending `.md` to its URL. The whole documentation in one file: ' +
 			`${SITE}/llms-full.txt`,

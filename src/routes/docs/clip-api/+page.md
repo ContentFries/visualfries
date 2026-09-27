@@ -18,7 +18,7 @@ updated: 2026-09-27
 | `clip.out(at, dur = 0.4, ease = 'power2.in')`             | 1 → 0     | Eased exit.                                                                                                                        |
 | `clip.after(at)`, `clip.before(at)`, `clip.between(a, b)` | boolean   | Compare the current time with moments. `between` includes `a`, excludes `b`.                                                       |
 | `clip.step(a, b, c)`                                      | index     | The last moment passed, -1 before the first.                                                                                       |
-| `clip.map([[at, value], …], ease?)`                       | number    | Piecewise map from time to a value. Points must be in time order; equal values hold.                                               |
+| `clip.map([[at, value], …], ease?)`                       | number    | Piecewise map from time to a value. At least one point, in time order; equal values hold.                                          |
 | `clip.at(at)`                                             | seconds   | Resolve a moment to clip seconds.                                                                                                  |
 | `clip.speaking(word)`, `clip.spoken(word)`                | boolean   | The word is being said (start included, end excluded), or has started.                                                             |
 | `clip.has(name, word)`                                    | boolean   | The word belongs to binding `name`, or to the words of cue `name`.                                                                 |

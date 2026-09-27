@@ -9,7 +9,7 @@
 
 	const title = 'VisualFries — one document, every surface';
 	const description =
-		'VisualFries is an open-source Svelte 5 engine for social video. A JSON document describes blocks, time and surfaces; motion clips are timed by the words of a transcript, scene documents mount live in an editor, and every frame renders deterministically.';
+		'VisualFries is an open-source Svelte 5 engine for social video. A JSON document describes blocks, time and surfaces; motion clips are timed by the words of a transcript, scene documents mount live in an editor and render headless.';
 	const jsonLd = {
 		'@context': 'https://schema.org',
 		'@graph': [
@@ -17,7 +17,7 @@
 				'@type': 'SoftwareSourceCode',
 				name: 'VisualFries',
 				description:
-					'Open-source Svelte 5 library and headless engine for visual social-media content. A JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces. Scene documents mount live in an editor; every document renders deterministically on a server.',
+					'Open-source Svelte 5 library and headless engine for visual social-media content. A JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces. Scene documents mount live in an editor and render headless; motion blocks are functions of time, and the CLI verifies that frames render the same in any order.',
 				codeRepository: 'https://github.com/ContentFries/visualfries',
 				programmingLanguage: ['TypeScript', 'Svelte'],
 				license: 'https://opensource.org/licenses/MIT',
@@ -32,7 +32,7 @@
 						name: 'What is VisualFries?',
 						acceptedAnswer: {
 							'@type': 'Answer',
-							text: 'VisualFries is an MIT-licensed Svelte 5 library for programmatically creating video and image content for social media. A JSON document is the source of truth; visuals are Svelte components; text is HTML/CSS; animation is GSAP; every frame renders deterministically. It is the engine behind ContentFries.'
+							text: 'VisualFries is an MIT-licensed Svelte 5 library for programmatically creating video and image content for social media. A JSON document is the source of truth; visuals are Svelte components; text is HTML/CSS; animation is GSAP. Motion frames are designed to be deterministic and the CLI can verify it. It is the engine behind ContentFries.'
 						}
 					},
 					{

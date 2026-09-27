@@ -1,10 +1,10 @@
 ---
 title: What is VisualFries
-description: VisualFries is an open-source Svelte 5 engine for social video and stills. One JSON document describes what is on screen, when, and in which format; it mounts live in an editor and renders frame-exact on a server.
+description: VisualFries is an open-source Svelte 5 engine for social video and stills. Scene documents mount live in an editor; motion projects time Svelte blocks by the words of a transcript and render to MP4 or ProRes.
 updated: 2026-09-27
 ---
 
-VisualFries is an MIT-licensed Svelte 5 engine for making visual content for social media from code and data. A JSON document is the source of truth, visuals are Svelte components and HTML/CSS, animation is GSAP, and frames render deterministically: the same document, fonts and browser give the same pixels whenever a frame is rendered. It is the engine behind [ContentFries](https://contentfries.com), which turns one long video into a week of clips, captions and posts.
+VisualFries is an MIT-licensed Svelte 5 engine for making visual content for social media from code and data. A JSON document is the source of truth, visuals are Svelte components and HTML/CSS, animation is GSAP. Motion blocks are functions of time, so with the same document, fonts and browser a frame is meant to look the same whenever it is rendered; `check --determinism` verifies that ([rules](/docs/determinism)). It is the engine behind [ContentFries](https://contentfries.com), which turns one long video into a week of clips, captions and posts.
 
 ## Two ways to use it
 

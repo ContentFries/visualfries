@@ -5,7 +5,7 @@
 
 **One document. Every surface.**
 
-VisualFries is an open-source Svelte 5 engine for visual content for social media. A JSON document describes what is on screen, when, and in which format; visuals are Svelte components and real HTML/CSS; animation is GSAP. Scene documents mount live in an editor, motion clips are timed by the words of a transcript, and frames render deterministically on a server. It is the engine behind [ContentFries](https://contentfries.com).
+VisualFries is an open-source Svelte 5 engine for visual content for social media. A JSON document describes what is on screen, when, and in which format; visuals are Svelte components and real HTML/CSS; animation is GSAP. Scene documents mount live in an editor, motion clips are timed by the words of a transcript and render frame by frame in headless Chromium. It is the engine behind [ContentFries](https://contentfries.com).
 
 **Docs: [visualfries.com/docs](https://visualfries.com/docs)** · for agents: [visualfries.com/llms.txt](https://visualfries.com/llms.txt)
 
@@ -23,7 +23,12 @@ VisualFries is an open-source Svelte 5 engine for visual content for social medi
 	let container: HTMLDivElement;
 	onMount(() => {
 		const ready = createSceneBuilder(scene, container, { environment: 'client', autoPlay: true });
-		return () => void ready.then((b) => b.destroy());
+		ready.catch((err) => console.error('Scene failed to load', err));
+		return () =>
+			void ready.then(
+				(b) => b.destroy(),
+				() => {}
+			);
 	});
 </script>
 

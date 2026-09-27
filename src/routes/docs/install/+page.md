@@ -31,7 +31,7 @@ The `visualfries` command is installed with the package. Run it with `npx visual
 npx visualfries doctor
 ```
 
-`doctor` reports Node, ffmpeg, Playwright, a Chromium executable and whether the temp directory is writable; fix every `FAIL` before a render. Vite and the Svelte Vite plugin are needed only to render scene JSON, so they show `WARN` when missing and do not fail the check. `--json` prints the same report with a `sceneRenders` flag.
+VisualFries needs Node.js 20 or newer. `doctor` reports Node, ffmpeg, Playwright, a Chromium executable and whether the temp directory is writable; fix every `FAIL` before a render. Vite and the Svelte Vite plugin are needed only to render scene JSON, so they show `WARN` when missing and do not fail the check. `--json` prints the same report with a `sceneRenders` flag.
 
 Chromium is looked up in this order: `VISUALFRIES_CHROMIUM_PATH`, `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, common system locations (`/usr/bin/chromium`, Google Chrome), then Playwright's own build:
 

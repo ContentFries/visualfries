@@ -192,7 +192,7 @@ export function resolveMotionClip(
 				level: 'warning',
 				clip: clip.id,
 				field,
-				message: `One-word anchor "${say}" is searched in the whole transcript and easily becomes ambiguous after a re-take. Use 2–3 words.`
+				message: `One-word anchor "${say}" is searched ${field === 'until' ? 'from the clip start onward' : 'in the whole transcript'} and easily becomes ambiguous after a re-take. Use 2–3 words.`
 			});
 		}
 	}

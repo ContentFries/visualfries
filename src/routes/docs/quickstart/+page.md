@@ -16,7 +16,7 @@ npx playwright install chromium   # or point VISUALFRIES_CHROMIUM_PATH at an ins
 npx visualfries doctor
 ```
 
-Rendering also needs [ffmpeg](https://ffmpeg.org) on your `PATH`. `playwright` is an optional peer dependency, so npm does not install it for you. See [Install and doctor](/docs/install) if a check fails.
+Requires Node.js 20 or newer. Rendering also needs [ffmpeg](https://ffmpeg.org) on your `PATH` (or `FFMPEG_PATH`). `playwright` is an optional peer dependency, so npm does not install it for you. See [Install and doctor](/docs/install) if a check fails.
 
 ## 2. Get the project
 

@@ -246,6 +246,7 @@ function findBrowserExecutable() {
 	const candidates = [
 		process.env.VISUALFRIES_CHROMIUM_PATH,
 		process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+		process.env.VISUALFRIES_CHROMIUM, // legacy name
 		'/usr/bin/chromium',
 		'/usr/bin/chromium-browser',
 		'/usr/bin/google-chrome',
@@ -1165,10 +1166,11 @@ async function doctorCommand(args) {
 		process.env.VISUALFRIES_TMPDIR || (existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir());
 	const checks = {
 		node: {
-			ok: true,
-			version: process.version
+			ok: Number(process.versions.node.split('.')[0]) >= 20,
+			version: process.version,
+			required: '>=20'
 		},
-		ffmpeg: await probeCommand('ffmpeg', ['-version']),
+		ffmpeg: await probeCommand(process.env.FFMPEG_PATH || 'ffmpeg', ['-version']),
 		// Needed only to render scene JSON; motion projects bundle blocks with esbuild.
 		vite: {
 			...(await checkOptionalModule('vite', 'VISUALFRIES_VITE_MODULES')),

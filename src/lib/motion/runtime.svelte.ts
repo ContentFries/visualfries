@@ -93,6 +93,8 @@ export class Clip {
 	 * `clip.map([[0, 0], ['small', 1.2], ['agent', 5.1]])`
 	 */
 	map(points: [At, number][], ease: Ease = 'none'): number {
+		if (!points.length)
+			throw new Error(`Clip "${this.id}": map() needs at least one [moment, value] point.`);
 		const pts = points.map(([a, v]) => [this.at(a), v] as const);
 		for (let i = 1; i < pts.length; i++) {
 			if (pts[i][0] < pts[i - 1][0]) {

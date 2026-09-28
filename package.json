@@ -66,6 +66,15 @@
 			"types": "./dist/browser/index.d.ts",
 			"import": "./dist/browser/index.js",
 			"default": "./dist/browser/index.js"
+		},
+		"./motion": {
+			"types": "./dist/motion/index.d.ts",
+			"svelte": "./dist/motion/index.js",
+			"default": "./dist/motion/index.js"
+		},
+		"./motion/node": {
+			"types": "./dist/motion/node.d.ts",
+			"default": "./dist/motion/node.js"
 		}
 	},
 	"peerDependencies": {
@@ -103,8 +112,8 @@
 		"jsdom": "^26.1.0",
 		"knip": "^5.65.0",
 		"md5": "^2.3.0",
-		"postcss": "^8.4.47",
 		"playwright": "^1.52.0",
+		"postcss": "^8.4.47",
 		"prettier": "^3.3.2",
 		"prettier-plugin-svelte": "^3.2.6",
 		"prettier-plugin-tailwindcss": "^0.7.0",
@@ -121,6 +130,7 @@
 		"awilix": "^12.0.3",
 		"dompurify": "^3.3.0",
 		"earcut": "^2.2.4",
+		"esbuild": "^0.25.12",
 		"gifuct-js": "^2.1.2",
 		"gsap": "^3.13.0",
 		"hls.js": "^1.5.17",

@@ -48,6 +48,18 @@ Usage:
   visualfries catalog [--component <TYPE>] [--capabilities] [--json]
   visualfries doctor [--json]
 
+Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
+  visualfries clips <project.vf.json> [--clip <id>] [--json]
+  visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]
+  visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
+  visualfries render <project.vf.json> --output <dir> [--clip <id>]... [--jobs <n>]
+
+  --transcript <file>  resolve cues against another transcript (new voiceover)
+
+  <moment>: cue name ("extra"), cue edge/offset ("extra.end+0.3"), seconds ("2.5s"),
+            frame ("f120"), "mid" or "end". Several --at (or none: every cue) produce
+            one labelled contact sheet.
+
 caption-scene options:
   --preset <name>       reels-center | reels-lower | podcast-clean | hidden-engine-center
   --language <code>     Default: en
@@ -1503,6 +1515,162 @@ async function parityCommand(args) {
 	if (!manifest.passed && hasFlag(args, '--strict')) process.exitCode = 1;
 }
 
+// ---------------------------------------------------------------- motion projects
+
+async function motionModule() {
+	return import('../dist/motion/node.js');
+}
+
+async function isMotionProjectFile(file) {
+	if (file.endsWith('.vf.json')) return true;
+	try {
+		const data = await readJson(file);
+		return Array.isArray(data?.clips) && !('layers' in data);
+	} catch {
+		return false;
+	}
+}
+
+function readAllFlags(args, name) {
+	const values = [];
+	args.forEach((arg, i) => {
+		if (arg === name && args[i + 1] !== undefined) values.push(args[i + 1]);
+	});
+	return values;
+}
+
+function formatCue(cue) {
+	const words = cue.words.map((w) => w.text).join(' ');
+	return `${cue.start.toFixed(2)}s${words ? ` "${words}"` : ''}`;
+}
+
+async function motionClipsCommand(args) {
+	const file = args[0];
+	if (!file) throw new Error('Usage: visualfries clips <project.vf.json> [--clip <id>] [--json]');
+	const { loadMotionProject } = await motionModule();
+	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const only = readAllFlags(args, '--clip');
+	const clips = loaded.resolved.clips.filter((c) => !only.length || only.includes(c.id));
+	const diagnostics = loaded.resolved.diagnostics.filter(
+		(d) => !only.length || !d.clip || only.includes(d.clip)
+	);
+	if (hasFlag(args, '--json')) {
+		console.log(JSON.stringify({ clips, diagnostics }, null, 2));
+	} else {
+		for (const c of clips) {
+			console.log(
+				`${c.id}  ${c.start.toFixed(3)}–${c.end.toFixed(3)}s  frame ${c.startFrame}  ${c.frames} frames  ${c.block}${c.alpha ? '  alpha' : ''}`
+			);
+			for (const [name, cue] of Object.entries(c.cues))
+				console.log(`  cue ${name.padEnd(14)} ${formatCue(cue)}`);
+			for (const [name, words] of Object.entries(c.words))
+				console.log(
+					`  words ${name.padEnd(12)} ${words.length} words: ${words
+						.map((w) => w.text)
+						.slice(0, 12)
+						.join(' ')}${words.length > 12 ? ' …' : ''}`
+				);
+		}
+		for (const d of diagnostics)
+			console.log(`${d.level.toUpperCase()} ${d.clip ?? '-'} ${d.field}: ${d.message}`);
+	}
+	if (diagnostics.some((d) => d.level === 'error')) process.exitCode = 1;
+}
+
+async function motionCheckCommand(args) {
+	const file = args[0];
+	if (!file)
+		throw new Error(
+			'Usage: visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]'
+		);
+	const { loadMotionProject, checkMotionProject } = await motionModule();
+	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const results = await checkMotionProject(loaded, {
+		clips: readAllFlags(args, '--clip'),
+		determinism: hasFlag(args, '--determinism')
+	});
+	if (hasFlag(args, '--json')) {
+		console.log(JSON.stringify(results, null, 2));
+	} else {
+		for (const r of results) {
+			console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.id}${r.mode ? `  (${r.mode})` : ''}`);
+			for (const e of r.errors)
+				console.log(
+					`  error${e.frame !== undefined && e.frame >= 0 ? ` @f${e.frame}` : ''}: ${e.message}`
+				);
+			for (const w of r.warnings) console.log(`  warning: ${w.message}`);
+		}
+		const failed = results.filter((r) => !r.ok).length;
+		console.log(
+			failed
+				? `${failed} of ${results.length} clips need attention.`
+				: `All ${results.length} clips pass.`
+		);
+	}
+	if (results.some((r) => !r.ok)) process.exitCode = 1;
+}
+
+async function motionStillCommand(args) {
+	const file = args[0];
+	const clip = readFlag(args, '--clip');
+	const output = readFlag(args, '--output');
+	if (!file || !clip || !output) {
+		throw new Error(
+			'Usage: visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>'
+		);
+	}
+	const { loadMotionProject, renderStills, composeSheet, defaultMoments } = await motionModule();
+	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const resolved = loaded.resolved.clips.find((c) => c.id === clip);
+	let moments = readAllFlags(args, '--at');
+	if (!moments.length && resolved) moments = defaultMoments(resolved);
+	const stills = await renderStills(
+		loaded,
+		moments.map((at) => ({ clip, at })),
+		{ invalidate: readFlag(args, '--invalidate') }
+	);
+	const png =
+		stills.length === 1
+			? stills[0].png
+			: await composeSheet(
+					stills.map((s) => ({
+						label: `${s.at}  ·  f${s.frame}  ·  ${(s.frame / loaded.project.fps).toFixed(2)}s`,
+						png: s.png
+					})),
+					{ columns: numberFlag(args, '--columns') }
+				);
+	await fs.mkdir(path.dirname(path.resolve(output)), { recursive: true });
+	await fs.writeFile(output, png);
+	console.log(
+		JSON.stringify({
+			output,
+			clip,
+			mode: stills[0]?.mode,
+			stills: stills.map((s) => ({ at: s.at, frame: s.frame }))
+		})
+	);
+}
+
+async function motionRenderCommand(args) {
+	const file = args[0];
+	const output = readFlag(args, '--output');
+	if (!output)
+		throw new Error(
+			'Usage: visualfries render <project.vf.json> --output <dir> [--clip <id>]... [--jobs <n>]'
+		);
+	const { loadMotionProject, renderMotionClips } = await motionModule();
+	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const results = await renderMotionClips(loaded, {
+		output,
+		clips: readAllFlags(args, '--clip'),
+		jobs: numberFlag(args, '--jobs'),
+		invalidate: readFlag(args, '--invalidate'),
+		keepFrames: hasFlag(args, '--keep-frames'),
+		onProgress: (msg) => console.error(msg)
+	});
+	console.log(JSON.stringify({ output: path.resolve(output), clips: results }, null, 2));
+}
+
 async function renderCommand(args) {
 	const scenePath = args[0];
 	const output = readFlag(args, '--output');
@@ -1556,6 +1724,11 @@ async function main() {
 	if (command === 'apply-cues') return applyCuesCommand(args);
 	if (command === 'compose') return composeCommand(args);
 	if (command === 'produce') return produceCommand(args);
+	if (command === 'clips') return motionClipsCommand(args);
+	if (command === 'still') return motionStillCommand(args);
+	if (command === 'check') return motionCheckCommand(args);
+	if (command === 'render' && args[0] && (await isMotionProjectFile(args[0])))
+		return motionRenderCommand(args);
 	if (command === 'render') return renderCommand(args);
 	if (command === 'catalog') return catalogCommand(args);
 	if (command === 'explain') return explainCommand(args);

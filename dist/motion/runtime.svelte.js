@@ -179,7 +179,9 @@ export function useTimeline(build) {
         c.timelines.push(tl);
         return () => {
             tl.kill();
-            c.timelines.splice(c.timelines.indexOf(tl), 1);
+            const i = c.timelines.indexOf(tl);
+            if (i >= 0)
+                c.timelines.splice(i, 1);
         };
     });
 }
@@ -188,7 +190,11 @@ export function useFrame(fn) {
     const c = controller();
     onMount(() => {
         c.frameFns.push(fn);
-        return () => void c.frameFns.splice(c.frameFns.indexOf(fn), 1);
+        return () => {
+            const i = c.frameFns.indexOf(fn);
+            if (i >= 0)
+                c.frameFns.splice(i, 1);
+        };
     });
 }
 /** Delay the first frame until `promise` settles (asset decoding, engine setup). */

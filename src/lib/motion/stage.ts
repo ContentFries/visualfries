@@ -62,6 +62,16 @@ export function createMotionStage(options: StageOptions) {
 	let seeks = 0;
 
 	async function load(data: ResolvedClip) {
+		try {
+			return await mountClip(data);
+		} catch (error) {
+			// A font or useReady failure must not leave a half-loaded clip on the page.
+			unload();
+			throw error;
+		}
+	}
+
+	async function mountClip(data: ResolvedClip) {
 		unload();
 		const [width, height] = data.size;
 		stage = document.createElement('div');

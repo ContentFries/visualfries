@@ -52,6 +52,11 @@ export function parseTranscriptWords(input: unknown): MotionWord[] {
 
 export type PhraseMatch = { words: MotionWord[]; start: number; end: number };
 
+/** Words with a speakable token: punctuation-only entries ("–", "…") never break a phrase. */
+function spokenWords(words: MotionWord[]): MotionWord[] {
+	return words.filter((w) => normalizeToken(w.raw));
+}
+
 /** All occurrences of `phrase` whose first word starts within [from, to] (program seconds). */
 export function findPhrase(
 	words: MotionWord[],
@@ -61,6 +66,7 @@ export function findPhrase(
 ): PhraseMatch[] {
 	const tokens = phrase.split(/\s+/).map(normalizeToken).filter(Boolean);
 	if (!tokens.length) return [];
+	words = spokenWords(words);
 	const matches: PhraseMatch[] = [];
 	for (let i = 0; i + tokens.length <= words.length; i++) {
 		if (words[i].start < from || words[i].start > to) continue;
@@ -111,6 +117,7 @@ export function suggestPhrases(
 	const target = phrase.split(/\s+/).map(normalizeToken).filter(Boolean);
 	if (!target.length) return [];
 	const goal = target.join(' ');
+	words = spokenWords(words);
 	const out: PhraseSuggestion[] = [];
 	for (const n of new Set([target.length, target.length - 1, target.length + 1])) {
 		if (n < 1) continue;

@@ -330,6 +330,14 @@ export async function checkMotionProject(
 				.map((d) => ({ message: `${d.field}: ${d.message}` }))
 		};
 	});
+	for (const r of results) {
+		if (r.errors.length || loaded.resolved.clips.some((c) => c.id === r.id)) continue;
+		r.errors.push({
+			message: loaded.project.clips.some((c) => c.id === r.id)
+				? 'Clip did not resolve, so it was not checked.'
+				: `Unknown clip "${r.id}". Clips: ${loaded.project.clips.map((c) => c.id).join(', ')}.`
+		});
+	}
 	const runnable = results
 		.filter((r) => !r.errors.length)
 		.map((r) => loaded.resolved.clips.find((c) => c.id === r.id))
@@ -537,6 +545,13 @@ export async function renderMotionClips(
 		: loaded.resolved.clips;
 	await fs.mkdir(opts.output, { recursive: true });
 	const bundle = await bundleMotionProject(loaded, clips);
+	// libx264 with yuv420p needs even dimensions; fail before capturing, not after.
+	for (const clip of clips) {
+		if (!clip.alpha && clip.size.some((n) => n % 2))
+			throw new Error(
+				`Clip "${clip.id}": size ${clip.size.join('×')} must be even for H.264. Use even dimensions or "alpha": true.`
+			);
+	}
 	const browser = await launch();
 	const jobs = opts.jobs ?? Math.min(6, os.cpus().length);
 	const results: RenderedClip[] = [];

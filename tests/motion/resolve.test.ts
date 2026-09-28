@@ -26,6 +26,16 @@ function project(clip: Record<string, unknown>) {
 }
 
 describe('motion resolve', () => {
+	it('matches phrases across punctuation-only transcript words', () => {
+		const ws = parseTranscriptWords([
+			{ text: 'one', start: 0, end: 0.2 },
+			{ text: '…', start: 0.2, end: 0.25 },
+			{ text: 'two', start: 0.3, end: 0.5 }
+		]);
+		const [hit] = findPhrase(ws, 'one two');
+		expect(hit).toMatchObject({ start: 0, end: 0.5 });
+	});
+
 	it('matches phrases ignoring punctuation and case', () => {
 		expect(findPhrase(words, 'Naviac')).toHaveLength(1);
 		expect(findPhrase(words, 'ktoré sú')).toHaveLength(2);

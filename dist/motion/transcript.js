@@ -24,11 +24,16 @@ export function parseTranscriptWords(input) {
         return { id: `w${index}`, index, text: displayText(raw), raw, start, end };
     });
 }
+/** Words with a speakable token: punctuation-only entries ("–", "…") never break a phrase. */
+function spokenWords(words) {
+    return words.filter((w) => normalizeToken(w.raw));
+}
 /** All occurrences of `phrase` whose first word starts within [from, to] (program seconds). */
 export function findPhrase(words, phrase, from = -Infinity, to = Infinity) {
     const tokens = phrase.split(/\s+/).map(normalizeToken).filter(Boolean);
     if (!tokens.length)
         return [];
+    words = spokenWords(words);
     const matches = [];
     for (let i = 0; i + tokens.length <= words.length; i++) {
         if (words[i].start < from || words[i].start > to)
@@ -70,6 +75,7 @@ export function suggestPhrases(words, phrase, from = -Infinity, to = Infinity, l
     if (!target.length)
         return [];
     const goal = target.join(' ');
+    words = spokenWords(words);
     const out = [];
     for (const n of new Set([target.length, target.length - 1, target.length + 1])) {
         if (n < 1)

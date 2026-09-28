@@ -1,4 +1,4 @@
-import { ImageComponentShape } from '../..';
+import { ImageComponentShape } from '../../index.js';
 export class VerifyImageHook {
     types = ['setup', 'refresh', 'refresh:content'];
     priority = 1;

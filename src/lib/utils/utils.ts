@@ -1,11 +1,11 @@
-import { AppearanceShape, TextComponentShape } from '$lib';
+import { AppearanceShape, TextComponentShape } from '$lib/index.js';
 import type {
 	Appearance,
 	SceneLayer,
 	SubtitleComponent,
 	TextComponent,
 	SubtitleCollection
-} from '$lib';
+} from '$lib/index.js';
 import * as PIXI from 'pixi.js-legacy';
 import { v4 as uuidv4 } from 'uuid';
 

@@ -4,7 +4,7 @@
  * Type guards and helper functions for type-safe access to component-specific data
  * in hook contexts. Eliminates the need for `as any` casts throughout the codebase.
  */
-import type { Component, VideoComponent, AudioComponent, ImageComponent, GifComponent, TextComponent, SubtitleComponent, ShapeComponent, ColorComponent, GradientComponent, ComponentSource, IComponentContext } from '..';
+import type { Component, VideoComponent, AudioComponent, ImageComponent, GifComponent, TextComponent, SubtitleComponent, ShapeComponent, ColorComponent, GradientComponent, ComponentSource, IComponentContext } from '../index.js';
 export declare const MEDIA_COMPONENT_TYPES: readonly ["VIDEO", "AUDIO"];
 export declare const SOURCE_COMPONENT_TYPES: readonly ["VIDEO", "AUDIO", "IMAGE", "GIF"];
 export declare const VISUAL_COMPONENT_TYPES: readonly ["VIDEO", "IMAGE", "GIF", "TEXT", "SHAPE", "SUBTITLES", "COLOR", "GRADIENT"];

@@ -1,5 +1,5 @@
 import { EventManager } from './EventManager.js';
-import type { SubtitleCollection, Subtitle, Scene, SceneSubtitlesSettings } from '..';
+import type { SubtitleCollection, Subtitle, Scene, SceneSubtitlesSettings } from '../index.js';
 import type { TimeManager } from './TimeManager.svelte.js';
 export declare class SubtitlesManager {
     private builder;

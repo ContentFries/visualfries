@@ -1,4 +1,4 @@
-import type { AnimationPreset } from '../..';
+import type { AnimationPreset } from '../../index.js';
 export declare const linesHighlighter: AnimationPreset;
 /**
  * Lines reveal and fade preset

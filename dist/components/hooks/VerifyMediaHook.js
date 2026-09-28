@@ -1,4 +1,4 @@
-import { VideoComponentShape } from '../..';
+import { VideoComponentShape } from '../../index.js';
 export class VerifyMediaHook {
     types = ['setup', 'refresh:content'];
     priority = 1;

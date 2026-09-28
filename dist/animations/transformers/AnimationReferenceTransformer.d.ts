@@ -1,4 +1,4 @@
-import type { AnimationPreset } from '../..';
+import type { AnimationPreset } from '../../index.js';
 import type { AnimationPresetsRegister } from '../AnimationPresetsRegister.js';
 export declare class ComponentAnimationTransformer {
     private animationPresetsRegister;

@@ -6,9 +6,9 @@ import type {
 	HookType,
 	ComponentRefreshType,
 	ComponentData
-} from '$lib';
+} from '$lib/index.js';
 
-import type { AppearanceInput } from '$lib';
+import type { AppearanceInput } from '$lib/index.js';
 
 import { ComponentContext } from './ComponentContext.svelte.js';
 

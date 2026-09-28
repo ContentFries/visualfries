@@ -1,6 +1,6 @@
 import { EventManager } from './EventManager.js';
-import type { BuilderState, IStateManager } from '..';
-import type { RenderEnvironment, Scene as SceneData } from '..';
+import type { BuilderState, IStateManager } from '../index.js';
+import type { RenderEnvironment, Scene as SceneData } from '../index.js';
 import { TimeManager } from './TimeManager.svelte.js';
 import type { LayersManager } from './LayersManager.svelte.js';
 type Zone = {

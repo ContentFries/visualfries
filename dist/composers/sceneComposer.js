@@ -1,4 +1,4 @@
-import { SceneShape } from '..'; // Adjust path as needed
+import { SceneShape } from '../index.js'; // Adjust path as needed
 /**
  * A fluent, composable builder for creating a valid Scene object.
  */

@@ -1,5 +1,5 @@
-import type { IComponentContext, IComponentHook, HookType } from '$lib';
-import { GifComponentShape } from '$lib';
+import type { IComponentContext, IComponentHook, HookType } from '$lib/index.js';
+import { GifComponentShape } from '$lib/index.js';
 
 export class VerifyGifHook implements IComponentHook {
 	types: HookType[] = ['setup', 'refresh'];

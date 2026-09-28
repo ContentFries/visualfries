@@ -1,4 +1,4 @@
-import { AnimationPresetShape } from '..';
+import { AnimationPresetShape } from '../index.js';
 import { get } from 'lodash-es';
 export class AnimationPreset {
     preset;

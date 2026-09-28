@@ -3,7 +3,7 @@ import type {
 	IComponentHook,
 	HookType,
 	HookHandlers
-} from '$lib';
+} from '$lib/index.js';
 
 export class HtmlAnimationHook implements IComponentHook {
 	#handlers: HookHandlers = {

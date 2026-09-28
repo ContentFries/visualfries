@@ -1,4 +1,4 @@
-import type { HookType, IComponentContext, IComponentHook } from '$lib';
+import type { HookType, IComponentContext, IComponentHook } from '$lib/index.js';
 import { DeterministicRenderError } from '$lib/schemas/runtime/deterministic.js';
 import { DeterministicMediaManager } from '$lib/managers/DeterministicMediaManager.js';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';

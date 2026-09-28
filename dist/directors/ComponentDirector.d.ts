@@ -1,4 +1,4 @@
-import type { IComponentBuilder, ComponentData } from '..';
+import type { IComponentBuilder, ComponentData } from '../index.js';
 import { StateManager } from '../managers/StateManager.svelte.js';
 import { DeterministicMediaManager } from '../managers/DeterministicMediaManager.js';
 export declare class ComponentDirector {
@@ -13,13 +13,13 @@ export declare class ComponentDirector {
     private get shouldUseDeterministicMedia();
     setBuilder(builder: IComponentBuilder): void;
     setComponentData(data: ComponentData): void;
-    constructAuto(): import("..").IComponent;
-    constructVideo(): import("..").IComponent;
-    constructAudio(): import("..").IComponent;
-    constructImage(): import("..").IComponent;
-    constructGif(): import("..").IComponent;
-    constructShape(): import("..").IComponent;
-    constructFill(): import("..").IComponent;
-    constructSubtitle(): import("..").IComponent;
-    constructText(): import("..").IComponent;
+    constructAuto(): import("../index.js").IComponent;
+    constructVideo(): import("../index.js").IComponent;
+    constructAudio(): import("../index.js").IComponent;
+    constructImage(): import("../index.js").IComponent;
+    constructGif(): import("../index.js").IComponent;
+    constructShape(): import("../index.js").IComponent;
+    constructFill(): import("../index.js").IComponent;
+    constructSubtitle(): import("../index.js").IComponent;
+    constructText(): import("../index.js").IComponent;
 }

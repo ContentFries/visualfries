@@ -1,4 +1,4 @@
-import type { EventType, EventPayload, EventMap } from '$lib';
+import type { EventType, EventPayload, EventMap } from '$lib/index.js';
 
 export class EventManager extends EventTarget {
 	isReady = false;

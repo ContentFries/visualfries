@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js-legacy';
 
-import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
-import { VideoComponentShape } from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib/index.js';
+import { VideoComponentShape } from '$lib/index.js';
 import { z } from 'zod';
 
 export class PixiVideoTextureHook implements IComponentHook {

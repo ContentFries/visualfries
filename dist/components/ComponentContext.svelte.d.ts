@@ -1,6 +1,6 @@
 import { StateManager } from '../managers/StateManager.svelte.js';
 import { EventManager } from '../managers/EventManager.js';
-import type { IComponentContext, ComponentData, ResourceTypes, IComponentHook, HookType, ComponentProps } from '..';
+import type { IComponentContext, ComponentData, ResourceTypes, IComponentHook, HookType, ComponentProps } from '../index.js';
 export declare class ComponentContext implements IComponentContext {
     #private;
     disabled: boolean;

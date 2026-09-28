@@ -1,4 +1,4 @@
-import type { FontType, Scene } from '$lib';
+import type { FontType, Scene } from '$lib/index.js';
 
 export type FontVariantDescriptor = {
 	family: string;

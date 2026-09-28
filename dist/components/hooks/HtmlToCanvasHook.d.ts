@@ -1,4 +1,4 @@
-import type { IComponentContext, IComponentHook, HookType } from '../..';
+import type { IComponentContext, IComponentHook, HookType } from '../../index.js';
 import { StateManager } from '../../managers/StateManager.svelte.js';
 export declare class HtmlToCanvasHook implements IComponentHook {
     #private;

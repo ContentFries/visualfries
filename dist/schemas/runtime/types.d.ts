@@ -5,7 +5,7 @@ import type { LayersManager } from '../../managers/LayersManager.svelte.js';
 import type { SubtitlesManager } from '../../managers/SubtitlesManager.svelte.js';
 import type { EventManager } from '../../managers/EventManager.js';
 import type { PixiAnimationTarget } from '../../animations/PixiAnimationTarget.js';
-import type { Component as SceneLayerComponent, ComponentBase, AppearanceInput, Scene, RenderEnvironment, ComponentInput, SceneLayerInput, SceneLayer, VideoComponentShape, ImageComponentShape, GifComponentShape, Subtitle } from '../..';
+import type { Component as SceneLayerComponent, ComponentBase, AppearanceInput, Scene, RenderEnvironment, ComponentInput, SceneLayerInput, SceneLayer, VideoComponentShape, ImageComponentShape, GifComponentShape, Subtitle } from '../../index.js';
 import type { DeterministicMediaConfig, DeterministicFrameProvider, DeterministicDiagnosticsReport, FrameImageEncodingOptions, RenderFrameRangeOptions, RenderFrameRangeSummary } from './deterministic.js';
 declare const SCENE_LAYER_COMPONENT_TYPE: readonly ["IMAGE", "GIF", "VIDEO", "TEXT", "SHAPE", "AUDIO", "COLOR", "GRADIENT", "SUBTITLES"];
 export type SceneLayerComponentType = (typeof SCENE_LAYER_COMPONENT_TYPE)[number];

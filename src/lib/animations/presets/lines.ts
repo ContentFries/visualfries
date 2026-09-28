@@ -1,4 +1,4 @@
-import type { AnimationPreset } from '$lib';
+import type { AnimationPreset } from '$lib/index.js';
 
 export const linesHighlighter: AnimationPreset = {
 	id: 'lined-highlight',

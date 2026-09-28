@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js-legacy';
-import type { Scene, RenderEnvironment, SceneLayerInput, ComponentInput, SceneSubtitlesSettings, FontType } from './';
+import type { Scene, RenderEnvironment, SceneLayerInput, ComponentInput, SceneSubtitlesSettings, FontType } from './index.js';
 import { CommandRunner } from './commands/CommandRunner.js';
 import { StateManager } from './managers/StateManager.svelte.js';
 import { TimelineManager } from './managers/TimelineManager.svelte.js';
@@ -7,8 +7,8 @@ import { EventManager } from './managers/EventManager.js';
 import { DomManager } from './managers/DomManager.js';
 import { AppManager } from './managers/AppManager.svelte.js';
 import { ComponentsManager } from './managers/ComponentsManager.svelte.js';
-import type { EventMap, EventType, EventPayload, BuilderState, ISceneBuilder } from './';
-import type { DeterministicFrameProvider, DeterministicMediaConfig, DeterministicDiagnosticsReport, FrameImageEncodingOptions, RenderFrameRangeOptions, RenderFrameRangeSummary } from './';
+import type { EventMap, EventType, EventPayload, BuilderState, ISceneBuilder } from './index.js';
+import type { DeterministicFrameProvider, DeterministicMediaConfig, DeterministicDiagnosticsReport, FrameImageEncodingOptions, RenderFrameRangeOptions, RenderFrameRangeSummary } from './index.js';
 import { MediaManager } from './managers/MediaManager.js';
 import { DeterministicMediaManager } from './managers/DeterministicMediaManager.js';
 import { LayersManager } from './managers/LayersManager.svelte.js';
@@ -95,8 +95,8 @@ export declare class SceneBuilder implements ISceneBuilder {
     private loadFonts;
     initialize(): Promise<void>;
     private buildSceneTree;
-    addLayer(layerInput: SceneLayerInput): Promise<import("./").ILayer | undefined>;
-    addNewLayerWithComponents(components: ComponentInput[]): Promise<import("./").ILayer | undefined>;
+    addLayer(layerInput: SceneLayerInput): Promise<import("./index.js").ILayer | undefined>;
+    addNewLayerWithComponents(components: ComponentInput[]): Promise<import("./index.js").ILayer | undefined>;
     addComponent(componentInput: ComponentInput): Promise<{
         id: string;
         timeline: {

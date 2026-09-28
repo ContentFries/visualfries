@@ -1,5 +1,5 @@
-import type { IComponentContext, IComponentHook, HookType } from '$lib';
-import { ImageComponentShape } from '$lib';
+import type { IComponentContext, IComponentHook, HookType } from '$lib/index.js';
+import { ImageComponentShape } from '$lib/index.js';
 
 export class VerifyImageHook implements IComponentHook {
 	types: HookType[] = ['setup', 'refresh', 'refresh:content'];

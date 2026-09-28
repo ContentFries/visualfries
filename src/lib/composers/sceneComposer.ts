@@ -8,7 +8,7 @@ import {
 	SceneShape,
 	type SceneLayerInput,
 	type SceneSubtitlesSettings
-} from '$lib'; // Adjust path as needed
+} from '$lib/index.js'; // Adjust path as needed
 
 /**
  * A fluent, composable builder for creating a valid Scene object.

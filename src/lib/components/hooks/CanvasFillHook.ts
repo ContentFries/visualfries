@@ -4,7 +4,7 @@ import type {
 	IComponentContext,
 	IComponentHook,
 	HookType
-} from '$lib';
+} from '$lib/index.js';
 import type { StateManager } from '$lib/managers/StateManager.svelte.js';
 import { computeXYAngle } from '$lib/utils/canvas.js';
 

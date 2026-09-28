@@ -1,6 +1,6 @@
 import { fetchFont } from '../fonts/fontLoader.js';
 import { loadEmoji, getIconCode } from './emoji.js';
-import type { TextAppearance } from '$lib';
+import type { TextAppearance } from '$lib/index.js';
 import { sanitizeHtml } from './html.js';
 
 export class SVGGenerator {

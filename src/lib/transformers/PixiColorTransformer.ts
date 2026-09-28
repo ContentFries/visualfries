@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js-legacy';
-import type { ColorType, GradientDefinition } from '$lib';
-import { ColorTypeShape, GradientDefinitionShape } from '$lib';
+import type { ColorType, GradientDefinition } from '$lib/index.js';
+import { ColorTypeShape, GradientDefinitionShape } from '$lib/index.js';
 import tinycolor from 'tinycolor2';
 
 interface PixiColorResult {

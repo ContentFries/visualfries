@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js-legacy';
 import { gsap } from 'gsap';
-import { ComponentShape } from './';
+import { ComponentShape } from './index.js';
 import { buildCharactersListFromComponentsAndSubtitles, changeIdDeep } from './utils/utils.js';
 import { loadFonts } from './utils/document.js';
 import { discoverRequiredFontVariants } from './fonts/fontDiscovery.js';

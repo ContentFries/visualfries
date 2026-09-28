@@ -1,5 +1,5 @@
-import type { Animation, ColorType } from '$lib';
-import type { ComponentData } from '$lib';
+import type { Animation, ColorType } from '$lib/index.js';
+import type { ComponentData } from '$lib/index.js';
 import { get } from 'lodash-es';
 import { wordsHighlighter } from '../presets/words.js';
 import { AnimationPresetFactory } from './AnimationPresetFactory.js';

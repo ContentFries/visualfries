@@ -1,4 +1,4 @@
-import { ColorTypeShape, GradientDefinitionShape } from '..';
+import { ColorTypeShape, GradientDefinitionShape } from '../index.js';
 import tinycolor from 'tinycolor2';
 function buildGradientCss(gradient) {
     const colorsWithStops = gradient.colors

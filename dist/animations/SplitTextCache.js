@@ -1,4 +1,4 @@
-import { SplitText } from 'gsap/SplitText';
+import { SplitText } from 'gsap/SplitText.js';
 import gsap from 'gsap';
 /**
  * Singleton cache for SplitText instances.

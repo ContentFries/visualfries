@@ -1,8 +1,8 @@
-import { AnimationPresetShape, KeyframeAnimationShape } from '$lib';
+import { AnimationPresetShape, KeyframeAnimationShape } from '$lib/index.js';
 import type {
 	AnimationPreset,
 	AnimationReferenceTransformer
-} from '$lib';
+} from '$lib/index.js';
 import type { AnimationPresetsRegister } from '../AnimationPresetsRegister.js';
 
 abstract class AbstractNormalizationHandler implements AnimationReferenceTransformer {

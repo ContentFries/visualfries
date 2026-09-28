@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js-legacy';
-import { ColorTypeShape, GradientDefinitionShape } from '..';
+import { ColorTypeShape, GradientDefinitionShape } from '../index.js';
 import tinycolor from 'tinycolor2';
 export class PixiColorTransformer {
     static transform(background, width, height) {

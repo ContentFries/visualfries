@@ -1,4 +1,4 @@
-import { AnimationPresetShape } from '../..';
+import { AnimationPresetShape } from '../../index.js';
 import { TimelineManager } from '../../managers/TimelineManager.svelte.js';
 import { AnimationContext } from '../../animations/AnimationContext.js';
 import { GsapEngineAdaptor } from '../../animations/engines/GSAPEngineAdaptor.js';

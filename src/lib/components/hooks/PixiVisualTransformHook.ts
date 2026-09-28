@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js-legacy';
 
-import type { IComponentContext, IComponentHook, HookHandlers, HookType } from '$lib';
+import type { IComponentContext, IComponentHook, HookHandlers, HookType } from '$lib/index.js';
 import {
 	createPixiAnimationTarget,
 	type PixiAnimationTarget

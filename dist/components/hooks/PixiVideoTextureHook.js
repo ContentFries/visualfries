@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js-legacy';
-import { VideoComponentShape } from '../..';
+import { VideoComponentShape } from '../../index.js';
 import { z } from 'zod';
 export class PixiVideoTextureHook {
     // Note: 'refresh' is NOT included - timeline position changes don't need texture recreation.

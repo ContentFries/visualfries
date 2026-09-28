@@ -1,4 +1,4 @@
-import type { HookType, IComponentContext, IComponentHook } from '../..';
+import type { HookType, IComponentContext, IComponentHook } from '../../index.js';
 import type { StateManager } from '../../managers/StateManager.svelte.ts';
 import type { SubtitlesManager } from '../../managers/SubtitlesManager.svelte.ts';
 import type { EventManager } from '../../managers/EventManager.ts';

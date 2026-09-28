@@ -1,5 +1,5 @@
-import type { IComponentContext, IComponentHook, HookType } from '../..';
-import { GifComponentShape } from '../..';
+import type { IComponentContext, IComponentHook, HookType } from '../../index.js';
+import { GifComponentShape } from '../../index.js';
 import { z } from 'zod';
 import type { StateManager } from '../../managers/StateManager.svelte.ts';
 export declare class PixiGifHook implements IComponentHook {

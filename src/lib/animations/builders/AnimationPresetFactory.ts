@@ -3,7 +3,7 @@ import type {
 	AnimationSequenceItem,
 	SetupStep,
 	TweenVars
-} from '$lib';
+} from '$lib/index.js';
 
 export class AnimationPresetFactory {
 	static create(id: string): PresetComposer {

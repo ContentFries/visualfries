@@ -1,5 +1,5 @@
-import type { IComponentContext } from '../../../..';
-import type { PerimeterProgressConfig } from '../../../..';
+import type { IComponentContext } from '../../../../index.js';
+import type { PerimeterProgressConfig } from '../../../../index.js';
 import { ProgressRenderer } from './ProgressRenderer.js';
 export declare class PerimeterProgressRenderer extends ProgressRenderer {
     private config;

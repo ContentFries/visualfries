@@ -4,7 +4,7 @@ import type {
 	Subtitle,
 	FontType,
 	SubtitleCollection
-} from '$lib';
+} from '$lib/index.js';
 import type { DeterministicMediaConfig } from '$lib/schemas/runtime/deterministic.js';
 import {
 	DeterministicMediaConfigShape,

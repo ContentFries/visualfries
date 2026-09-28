@@ -1,4 +1,4 @@
-import type { ComponentData } from '$lib';
+import type { ComponentData } from '$lib/index.js';
 
 export const DEFAULT_MEDIA_PREROLL_SECONDS = 0.75;
 export const STREAMING_MEDIA_PREROLL_SECONDS = 2;

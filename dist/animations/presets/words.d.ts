@@ -1,4 +1,4 @@
-import type { AnimationPreset } from '../..';
+import type { AnimationPreset } from '../../index.js';
 /**
  * Words highlighter animation preset
  * Highlights words within text

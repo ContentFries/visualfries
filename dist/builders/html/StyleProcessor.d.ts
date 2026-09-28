@@ -1,4 +1,4 @@
-import type { Component } from '../..';
+import type { Component } from '../../index.js';
 export interface StyleProcessor<K = Component> {
     /**
      * Processes a part of the component's data to generate styles.

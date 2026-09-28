@@ -1,4 +1,4 @@
-import { ImageComponentShape } from '../..';
+import { ImageComponentShape } from '../../index.js';
 import { z } from 'zod';
 export class ImageHook {
     types = ['setup', 'refresh', 'refresh:content', 'destroy'];

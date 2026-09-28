@@ -1,4 +1,4 @@
-import type { Component } from '$lib';
+import type { Component } from '$lib/index.js';
 
 export interface StyleProcessor<K = Component> {
     /**

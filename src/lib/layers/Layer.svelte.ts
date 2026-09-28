@@ -1,10 +1,10 @@
-import type { ILayer, IComponent } from '$lib';
-import type { SceneLayer, Component as SceneLayerComponent, SceneLayerInput } from '$lib';
+import type { ILayer, IComponent } from '$lib/index.js';
+import type { SceneLayer, Component as SceneLayerComponent, SceneLayerInput } from '$lib/index.js';
 import { ComponentsManager } from '$lib/managers/ComponentsManager.svelte.js';
 import { EventManager } from '$lib/managers/EventManager.js';
 import { Container } from 'pixi.js-legacy';
 import md5 from 'md5';
-import type { EventType, EventPayload } from '$lib';
+import type { EventType, EventPayload } from '$lib/index.js';
 
 export class Layer implements ILayer {
 	#id: string;

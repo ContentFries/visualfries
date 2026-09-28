@@ -1,5 +1,5 @@
 import { gsap } from 'gsap';
-import type _SplitText from 'gsap/SplitText';
+import type _SplitText from 'gsap/SplitText.js';
 
 type GsapRegistry = {
 	ExpoScaleEase: gsap.ExpoScaleEase;

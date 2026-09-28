@@ -1,4 +1,4 @@
-import type { IComponentContext, IComponentHook, HookType } from '../..';
+import type { IComponentContext, IComponentHook, HookType } from '../../index.js';
 import type { DomManager } from '../../managers/DomManager.js';
 import type { ComponentsManager } from '../../managers/ComponentsManager.svelte.js';
 export declare class HtmlTextHook implements IComponentHook {

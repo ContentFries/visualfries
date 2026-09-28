@@ -1,6 +1,6 @@
 import { AppManager } from './AppManager.svelte.js';
-import type { ResourceManager, ILayer } from '$lib';
-import type { SceneLayer, SceneLayerInput } from '$lib';
+import type { ResourceManager, ILayer } from '$lib/index.js';
+import type { SceneLayer, SceneLayerInput } from '$lib/index.js';
 import { Layer } from '$lib/layers/Layer.svelte.js';
 import type { AwilixContainer } from 'awilix/browser';
 import { asValue } from 'awilix/browser';

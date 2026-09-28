@@ -1,4 +1,4 @@
-import type { TextAppearance } from '..';
+import type { TextAppearance } from '../index.js';
 export declare class SVGGenerator {
     private fontCache;
     private emojiCache;

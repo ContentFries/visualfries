@@ -1,4 +1,4 @@
-import { GifComponentShape } from '../..';
+import { GifComponentShape } from '../../index.js';
 import { z } from 'zod';
 import { AnimatedGIF } from '../AnimatedGIF.js';
 import { Container } from 'pixi.js-legacy';

@@ -1,4 +1,4 @@
-import type { Component, TextComponent } from '$lib';
+import type { Component, TextComponent } from '$lib/index.js';
 import { TextComponentHtmlBuilder } from './TextComponentHtmlBuilder.js';
 
 /**

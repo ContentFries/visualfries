@@ -1,5 +1,5 @@
-import type { IComponentContext, IComponentHook, HookType } from '$lib';
-import { VideoComponentShape } from '$lib';
+import type { IComponentContext, IComponentHook, HookType } from '$lib/index.js';
+import { VideoComponentShape } from '$lib/index.js';
 
 export class VerifyMediaHook implements IComponentHook {
 	types: HookType[] = ['setup', 'refresh:content'];

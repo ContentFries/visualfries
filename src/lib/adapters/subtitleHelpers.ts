@@ -7,8 +7,8 @@ import type {
 	SubtitleCollection,
 	Subtitle,
 	ColorType
-} from '$lib';
-import { SubtitleWithCompactWordsShape, ColorTypeShape } from '$lib';
+} from '$lib/index.js';
+import { SubtitleWithCompactWordsShape, ColorTypeShape } from '$lib/index.js';
 
 // ============================================================================
 // TYPE GUARDS

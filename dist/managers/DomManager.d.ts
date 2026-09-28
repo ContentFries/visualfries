@@ -1,4 +1,4 @@
-import type { RenderEnvironment } from '..';
+import type { RenderEnvironment } from '../index.js';
 import { StateManager } from './StateManager.svelte.js';
 export declare class DomManager {
     #private;

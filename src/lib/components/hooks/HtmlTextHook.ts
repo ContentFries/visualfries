@@ -1,4 +1,4 @@
-import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib/index.js';
 import type { DomManager } from '$lib/managers/DomManager.js';
 import type { ComponentsManager } from '$lib/managers/ComponentsManager.svelte.js';
 import { HtmlBuilderFactory } from '$lib/builders/html/HtmlBuilderFactory.js';

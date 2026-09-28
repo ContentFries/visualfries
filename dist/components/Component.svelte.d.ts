@@ -1,5 +1,5 @@
-import type { IComponent, IComponentContext, ComponentProps, IComponentHook, ComponentRefreshType, ComponentData } from '..';
-import type { AppearanceInput } from '..';
+import type { IComponent, IComponentContext, ComponentProps, IComponentHook, ComponentRefreshType, ComponentData } from '../index.js';
+import type { AppearanceInput } from '../index.js';
 import { ComponentContext } from './ComponentContext.svelte.js';
 export declare class Component implements IComponent {
     #private;

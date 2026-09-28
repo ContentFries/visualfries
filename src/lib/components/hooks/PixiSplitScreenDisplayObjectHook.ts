@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js-legacy';
 
-import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
-import { ImageComponentShape, LayoutSplitEffectShape, VideoComponentShape } from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib/index.js';
+import { ImageComponentShape, LayoutSplitEffectShape, VideoComponentShape } from '$lib/index.js';
 import { z } from 'zod';
 import type { StateManager } from '$lib/managers/StateManager.svelte.ts';
 import type { DeterministicMediaManager } from '$lib/managers/DeterministicMediaManager.ts';

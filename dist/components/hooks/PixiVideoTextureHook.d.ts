@@ -1,5 +1,5 @@
-import type { IComponentContext, IComponentHook, HookType } from '../..';
-import { VideoComponentShape } from '../..';
+import type { IComponentContext, IComponentHook, HookType } from '../../index.js';
+import { VideoComponentShape } from '../../index.js';
 import { z } from 'zod';
 export declare class PixiVideoTextureHook implements IComponentHook {
     #private;

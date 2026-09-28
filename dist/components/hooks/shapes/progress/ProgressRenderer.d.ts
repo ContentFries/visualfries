@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js-legacy';
-import type { IComponentContext } from '../../../..';
+import type { IComponentContext } from '../../../../index.js';
 /**
  * Base class for progress renderers
  */

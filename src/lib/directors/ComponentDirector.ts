@@ -1,4 +1,4 @@
-import type { IComponentBuilder, ComponentData } from '$lib';
+import type { IComponentBuilder, ComponentData } from '$lib/index.js';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 import { DeterministicMediaManager } from '$lib/managers/DeterministicMediaManager.js';
 

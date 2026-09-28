@@ -1,4 +1,4 @@
-import type { AnimationPreset, AnimationSequenceItem, SetupStep, TweenVars } from '../..';
+import type { AnimationPreset, AnimationSequenceItem, SetupStep, TweenVars } from '../../index.js';
 export declare class AnimationPresetFactory {
     static create(id: string): PresetComposer;
     static from(preset: AnimationPreset): PresetComposer;

@@ -1,7 +1,7 @@
 import { StateManager } from './StateManager.svelte.js';
 import { EventManager } from './EventManager.js';
-import type { ResourceManager, IComponent, ComponentData } from '..';
-import type { AppearanceInput } from '..';
+import type { ResourceManager, IComponent, ComponentData } from '../index.js';
+import type { AppearanceInput } from '../index.js';
 import { AppManager } from './AppManager.svelte.js';
 import { LayersManager } from './LayersManager.svelte.js';
 export declare class RenderManager {

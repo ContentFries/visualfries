@@ -1,4 +1,4 @@
-import type { Component } from '../..';
+import type { Component } from '../../index.js';
 export declare class StyleBuilder {
     private component;
     private processors;

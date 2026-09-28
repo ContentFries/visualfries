@@ -1,29 +1,77 @@
 <script lang="ts">
-	// Simple placeholder page
+	import { onMount } from 'svelte';
+	import '../site/home.css';
+	import markup from '../site/home.html?raw';
+	import { initHome } from '../site/home';
+
+	let root: HTMLElement;
+	onMount(() => initHome(root));
+
+	const title = 'VisualFries — one document, every surface';
+	const description =
+		'VisualFries is an open-source Svelte 5 engine for social video. A JSON document describes blocks, time and surfaces; motion clips are timed by the words of a transcript, scene documents mount live in an editor and render headless.';
+	const jsonLd = {
+		'@context': 'https://schema.org',
+		'@graph': [
+			{
+				'@type': 'SoftwareSourceCode',
+				name: 'VisualFries',
+				description:
+					'Open-source Svelte 5 library and headless engine for visual social-media content. A JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces. Scene documents mount live in an editor and render headless; motion blocks are functions of time, and the CLI can compare frames rendered forward and in reverse.',
+				codeRepository: 'https://github.com/ContentFries/visualfries',
+				programmingLanguage: ['TypeScript', 'Svelte'],
+				license: 'https://opensource.org/licenses/MIT',
+				url: 'https://visualfries.com/',
+				author: { '@type': 'Organization', name: 'ContentFries' }
+			},
+			{
+				'@type': 'FAQPage',
+				mainEntity: [
+					{
+						'@type': 'Question',
+						name: 'What is VisualFries?',
+						acceptedAnswer: {
+							'@type': 'Answer',
+							text: 'VisualFries is an MIT-licensed Svelte 5 library for programmatically creating video and image content for social media. A JSON document is the source of truth; visuals are Svelte components; text is HTML/CSS; animation is GSAP. Motion frames are designed to be deterministic, and check --determinism compares sampled frames rendered in different orders. It is the engine behind ContentFries.'
+						}
+					},
+					{
+						'@type': 'Question',
+						name: 'How are animations timed to a voiceover?',
+						acceptedAnswer: {
+							'@type': 'Answer',
+							text: 'A motion project anchors clips and cues to phrases of a word-level transcript instead of typed seconds. A new transcript re-times every clip; a phrase that no longer exists fails with a "Did you mean" suggestion.'
+						}
+					},
+					{
+						'@type': 'Question',
+						name: 'What does the CLI do?',
+						acceptedAnswer: {
+							'@type': 'Answer',
+							text: 'visualfries clips resolves transcript phrases to times, check runs every block in seconds and can verify determinism, still writes a contact sheet, and render writes MP4 or ProRes 4444 alpha plus manifest.json. Scene commands include validate, inspect, qa, catalog, explain and doctor.'
+						}
+					}
+				]
+			}
+		]
+	};
 </script>
 
 <svelte:head>
-	<title>VisualFries - Documentation Coming Soon</title>
-	<meta name="description" content="Documentation for VisualFries is coming soon" />
+	<title>{title}</title>
+	<meta name="description" content={description} />
+	<link rel="canonical" href="https://visualfries.com/" />
+	<meta property="og:type" content="website" />
+	<meta property="og:title" content={title} />
+	<meta property="og:description" content={description} />
+	<meta property="og:url" content="https://visualfries.com/" />
+	<meta property="og:image" content="https://visualfries.com/media/editable-poster.jpg" />
+	<meta name="twitter:card" content="summary_large_image" />
+	<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt" />
+	<link rel="describedby" type="text/plain" href="/llms.txt" />
+	{@html `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`}
 </svelte:head>
 
-<div class="min-h-screen flex items-center justify-center px-4">
-	<div class="text-center max-w-2xl">
-		<h1 class="text-6xl font-bold text-white mb-6">VisualFries</h1>
-		<p class="text-2xl text-gray-400 mb-4">Documentation Coming Soon</p>
-		<p class="text-gray-500">
-			We're working hard to bring you comprehensive documentation. Check back later!
-		</p>
-	</div>
-</div>
-
-<style>
-	:global(body) {
-		background-color: #0a0a0a;
-		color: #ffffff;
-		font-family:
-			system-ui,
-			-apple-system,
-			sans-serif;
-	}
-</style>
+<main class="home" id="content" bind:this={root}>
+	{@html markup}
+</main>

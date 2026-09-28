@@ -101,8 +101,15 @@ export function createMotionStage(options) {
     }
     function nextPaint() {
         return new Promise((resolve, reject) => {
-            if (!canvas)
-                return requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+            if (!canvas) {
+                // DOM mode: two animation frames, with the same timeout guarantee.
+                const timer = setTimeout(() => reject(new Error(`Paint did not happen within ${paintTimeout} ms.`)), paintTimeout);
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    clearTimeout(timer);
+                    resolve();
+                }));
+                return;
+            }
             const c = canvas;
             const timer = setTimeout(() => {
                 c.removeEventListener('paint', done);

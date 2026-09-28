@@ -3,333 +3,121 @@
 [![npm version](https://badge.fury.io/js/visualfries.svg)](https://badge.fury.io/js/visualfries)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**VisualFries** is a **Svelte 5** library for programmatically creating (not just) bite-sized video content for social media. Built on PIXI.js and GSAP (for powerful animations), it's designed primarily for headless rendering of dynamic scenes.
+**One document. Every surface.**
 
-A key feature of VisualFries is its unique approach to text rendering. It uses SVG `<foreignObject>` to render standard HTML and CSS, allowing you to style scenes and create complex text animations with familiar tools and the full power of GSAP.
+VisualFries is an open-source Svelte 5 engine for visual content for social media. A JSON document describes what is on screen, when, and in which format; visuals are Svelte components and real HTML/CSS; animation is GSAP. Scene documents mount live in an editor, motion clips are timed by the words of a transcript and render frame by frame in headless Chromium. It is the engine behind [ContentFries](https://contentfries.com).
 
-> ⚠️ **Alpha Software Notice** ⚠️
->
-> This library is currently in an **alpha** stage. It is not recommended for production use. The API is unstable and may change without notice. There are known bugs and likely many unknown ones. I welcome feedback and bug reports, but please be aware of its experimental nature.
+**Docs: [visualfries.com/docs](https://visualfries.com/docs)** · for agents: [visualfries.com/llms.txt](https://visualfries.com/llms.txt)
 
-## Project Philosophy & Status
+> VisualFries is in alpha. Scenes power a production app today; motion projects are new and experimental. APIs may change.
 
-**VisualFries is currently a solo project maintained by me, its creator.** I use this as a backbone of my SaaS, ContentFries.
+## Two ways to use it
 
-This means development is driven by a singular vision and you have a direct line to the person who built it. It also means resources are limited. I'm opening this up to the community to share what I've built, get feedback, and see where it goes. I wholeheartedly welcome contributions, bug reports, and ideas.
-
-## Key Features
-
-- **Built for Svelte 5:**
-- **Declarative, JSON-based Scenes:** Define your entire video as a structured, type-safe JSON object.
-- **HTML & CSS for Text:** Style text and overlays with standard CSS. No need to learn a proprietary canvas styling API.
-- **Powerful Animation Engine:** Leverage the full GSAP ecosystem for complex, timeline-based animations.
-- **Component-Based Architecture:** Build scenes by composing Videos, Images, Text, Shapes, and Subtitles.
-- **Fluent Scene Composition:** Use composer utilities to programmatically build scenes, layers, and components with a clean, chainable API.
-- **Headless & Server-Side Ready:** Designed for automated, server-side video generation.
-- **MIT Licensed:** Truly open-source and free for all uses.
-
-## Installation
-
-**Prerequisite:** Your project must be using **Svelte 5** or newer.
-
-```bash
-npm install visualfries
-```
-
-## Agent CLI
-
-VisualFries includes a small agent-facing CLI for scene JSON workflows that do not require opening the ContentFries UI.
-
-```bash
-visualfries validate scene.json
-visualfries inspect scene.json --json
-visualfries qa scene.json --output ./qa
-visualfries doctor --json
-visualfries catalog --component TEXT --capabilities --json
-visualfries validate scene.json --strict-runtime-support
-visualfries explain scene.json --component views-badge --frame 12 --json
-visualfries parity scene.json --frames 5,12,35 --rois qa/parity-rois.json --output qa/parity --json
-visualfries validate-cues ./cues.json --duration 45 --json
-visualfries caption-scene \
-  --video ./input.mp4 \
-  --transcript ./transcript.srt \
-  --preset hidden-engine-center \
-  --output ./scene.json
-visualfries preset-cues --duration 45 --preset hidden-engine-dynamic --output ./cues.json
-visualfries apply-cues ./scene.json --cues ./cues.json --output ./scene.with-cues.json
-visualfries render ./scene.json --output ./out.mp4
-```
-
-For static-heavy scenes, QA first and then use the faster duplicate-aware render:
-
-```bash
-visualfries render ./scene.json --output ./out.mp4 --skip-duplicates
-```
-
-`visualfries init` also creates a compose-ready package with `scene.json`, `cues.json`, `assets/`, `qa/`, and `notes.md`.
-
-For a one-command agent render:
-
-```bash
-visualfries compose \
-  --video ./input.mp4 \
-  --transcript ./transcript.srt \
-  --cue-preset hidden-engine-dynamic \
-  --cues ./cues.json \
-  --scene-output ./scene.json \
-  --qa-output ./qa/frames \
-  --output ./out.mp4
-```
-
-The `caption-scene` command creates a render-ready VisualFries scene with a full-frame video layer, subtitle layer, asset registry, and subtitle timing data from transcript JSON, SRT, or VTT.
-
-The `render` command opens a controlled browser renderer, captures the scene frame-by-frame, and encodes MP4 with `ffmpeg`. Use `--frames-only` when an agent needs QA frames before encoding.
-
-For Node automations, use the agent-only export:
-
-```ts
-import { createCaptionScene, inspectScene, normalizeTranscript } from 'visualfries/agent';
-```
-
-Agent helpers also include timed text overlays:
-
-```ts
-import {
-	addAgentBrollSequence,
-	addAgentTextOverlays,
-	addAgentTransitions
-} from 'visualfries/agent';
-
-const sceneWithOverlays = addAgentTextOverlays({
-	scene,
-	overlays: [
-		{ text: 'LOVE THIS 😍', start: 0.4, end: 1.1, style: 'hook-punch' },
-		{ text: 'NECK 🤯', start: 1.1, end: 1.7, style: 'shock-word' }
-	]
-});
-
-const sceneWithBroll = addAgentBrollSequence({
-	scene,
-	cues: [
-		{ url: './broll/profile.mp4', start: 2.0, end: 5.0, type: 'VIDEO' },
-		{ url: './broll/chart.png', start: 5.0, end: 7.0, type: 'IMAGE' }
-	]
-});
-
-const sceneWithTransitions = addAgentTransitions({
-	scene,
-	transitions: [
-		{ time: 2.0, style: 'dip-to-black' },
-		{ time: 5.0, style: 'swipe-left', color: '#04483D' }
-	]
-});
-```
-
-Start with [Authoring Best Practices](docs/AUTHORING_BEST_PRACTICES.md): native TEXT policy,
-component decision tree, animation runtime matrix, compositing truth, frame-QA, and known limits.
-Then see [Agent Workflow](docs/AGENT_WORKFLOW.md), [Agent Patterns](docs/AGENT_PATTERNS.md),
-and the [2026 authoring-system audit](docs/AUTHORING_SYSTEM_AUDIT.md).
-
-Visible typography defaults to native `TEXT`. Do not rasterize ordinary badges/metrics into
-`IMAGE`, and do not add a `SHAPE` solely as a text background when TEXT can own the treatment.
-
-## Quick Start
-
-The best way to use VisualFries is within a Svelte component.
+**Scenes** are JSON documents with layers of VIDEO, IMAGE, TEXT, SUBTITLES, SHAPE, GIF and AUDIO components. Mount one in a Svelte app, edit it live, render it headless. This is how the ContentFries editor works.
 
 ```svelte
-<!-- src/routes/+page.svelte -->
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { createSceneBuilder, type ISceneBuilder, type Scene } from 'visualfries';
-
-	let canvasContainer: HTMLDivElement;
-	let sceneBuilder: ISceneBuilder;
-
-	// Define your scene using a declarative JSON object
-	const myScene: Scene = {
-		id: 'my-first-scene',
-		version: '2.0',
-		settings: {
-			width: 1080,
-			height: 1080,
-			duration: 10,
-			fps: 30,
-			backgroundColor: '#1a1a1a'
-		},
-		layers: [
-			// ... your layers and components defined here
-		],
-		assets: []
-	};
-
-	onMount(async () => {
-		if (canvasContainer) {
-			sceneBuilder = await createSceneBuilder(myScene, canvasContainer, {
-				environment: 'client',
-				autoPlay: true
-			});
-		}
-	});
-
-	onDestroy(() => {
-		sceneBuilder?.destroy();
+	import { onMount } from 'svelte';
+	import { createSceneBuilder, type Scene } from 'visualfries';
+	let { scene }: { scene: Scene } = $props();
+	let container: HTMLDivElement;
+	onMount(() => {
+		const ready = createSceneBuilder(scene, container, { environment: 'client', autoPlay: true });
+		ready.catch((err) => console.error('Scene failed to load', err));
+		return () => {
+			ready.then((b) => b.destroy()).catch(() => {});
+		};
 	});
 </script>
 
-<div class="scene-container" bind:this={canvasContainer} />
-
-<style>
-	.scene-container {
-		width: 540px; /* Example scaled size */
-		height: 540px;
-		border: 1px solid #333;
-	}
-</style>
+<div bind:this={container} style="width: 540px; height: 960px"></div>
 ```
 
-## Scene Composition API
+**Motion projects** are `.vf.json` documents whose clips are your own Svelte components, timed by the **words of a transcript** instead of typed seconds. Made for explainer inserts, lower thirds and title cards that follow a voiceover, and for AI agents that write and repair them.
 
-While you can write the scene JSON by hand, the library includes a fluent API to make this process simple and type-safe.
-
-```typescript
-import { createSceneComposer, createLayerComposer, createComponentComposer } from 'visualfries';
-
-// 1. Create a composer for a TEXT component
-const headline = createComponentComposer('headline-text', 'TEXT', { startAt: 0, endAt: 5 })
-	.setAppearance({
-		x: 50,
-		y: 100,
-		width: 980,
-		height: 250,
-		text: {
-			fontFamily: 'Montserrat',
-			fontSize: 90,
-			fontWeight: '800',
-			color: '#FFFFFF',
-			textAlign: 'center'
+```json
+{
+	"size": [1080, 1350],
+	"fps": 30,
+	"transcript": "voice.transcript.json",
+	"clips": [
+		{
+			"id": "quote",
+			"block": "blocks/Quote.svelte",
+			"from": "nothing is ever",
+			"until": "matched silently",
+			"cues": { "hit": "silently" }
 		}
-	})
-	.setText('Hello, VisualFries!')
-	.compose();
-
-// 2. Create a layer and add the component
-const mainLayer = createLayerComposer('layer-1').addComponent(headline).compose();
-
-// 3. Create the scene
-const myScene = createSceneComposer('my-scene', {
-	width: 1080,
-	height: 1080,
-	duration: 10,
-	fps: 30
-})
-	.addLayer(mainLayer)
-	.compose();
-```
-
-## Custom Fonts Support
-
-VisualFries needs to load font files (.ttf, .woff2, etc.) to render text. The library uses a flexible font provider chain to allow you to load fonts from any source while retaining default support for Google Fonts.
-
-### Default Behavior: Google Fonts
-
-By default, with no configuration, VisualFries will automatically fetch fonts from Google Fonts. This works out of the box for any client-side application.
-
-### Extending Font Loading
-
-Instead of replacing the default behavior, you can add your own font providers to the front of the chain. This is the recommended approach for loading local or custom fonts.
-
-A font provider is a simple async function that receives a font family and must return a Promise<ArrayBuffer | null>. If it returns null, the library will try the next provider in the chain.
-
-**Example:** Adding a provider for local fonts while keeping Google Fonts as a fallback.
-
-Create your custom provider:
-
-```typescript
-// src/lib/localFontProvider.ts
-import type { FontProvider } from 'visualfries';
-
-export const localFontProvider: FontProvider = async (fontFamily) => {
-	// We only handle fonts that start with our special prefix
-	if (!fontFamily.startsWith('local://')) {
-		// For all other fonts (e.g., "Roboto"), we do nothing and
-		// let the next provider in the chain (the Google provider) handle it.
-		return null;
-	}
-
-	const fontName = fontFamily.replace('local://', '');
-	const fontUrl = `/fonts/${fontName}.ttf`; // Assuming fonts are in /static/fonts
-
-	try {
-		const response = await fetch(fontUrl);
-		if (!response.ok) {
-			console.error(`Failed to load local font: ${fontUrl}`);
-			return null;
-		}
-		return response.arrayBuffer();
-	} catch (error) {
-		console.error(`Error fetching local font: ${fontUrl}`, error);
-		return null;
-	}
-};
-```
-
-Configure the fontProviders array:
-
-When initializing the SceneBuilder, provide your custom provider and the default Google Fonts provider. The library will check yours first.
-
-```typescript
-// In your Svelte component
-import { createSceneBuilder, createGoogleFontsProvider } from 'visualfries';
-import { localFontProvider } from '$lib/localFontProvider';
-
-const builder = await createSceneBuilder(sceneData, container, {
-	environment: 'client',
-	fontProviders: [
-		// 1. Your provider is checked first.
-		localFontProvider,
-
-		// 2. If your provider returns null, the default provider is checked next.
-		createGoogleFontsProvider()
 	]
-});
+}
 ```
 
-## Server Renderer Mode (Canvas vs WebGL)
+```svelte
+<script>
+	import { useClip } from 'visualfries/motion';
+	const clip = useClip();
+</script>
 
-Server mode remains canvas-first by default for backward compatibility:
-
-```typescript
-await createSceneBuilder(sceneData, container, {
-	environment: 'server'
-	// serverRendererMode defaults to "canvas"
-});
+<blockquote style:opacity={clip.p(0, 0.8)}>Nothing is matched silently.</blockquote>
+<figcaption style:opacity={clip.p('hit')}>— lights up when "silently" is said</figcaption>
 ```
 
-To opt into GPU rendering on server/headless runtimes:
+A new voiceover re-times every clip with one flag. A phrase that is no longer said fails with a suggestion ("Did you mean …"), never silently.
 
-```typescript
-await createSceneBuilder(sceneData, container, {
-	environment: 'server',
-	serverRendererMode: 'webgl',
-	preferWebGL2: true,
-	powerPreference: 'high-performance'
-});
+## Install
+
+```bash
+npm install visualfries svelte playwright   # playwright only for rendering
+npx playwright install chromium             # or set VISUALFRIES_CHROMIUM_PATH
+npx visualfries doctor
 ```
 
-If WebGL is unavailable or initialization fails, Visualfries automatically falls back to canvas so deterministic render jobs keep running. When deterministic diagnostics are enabled, renderer selection and fallback reason are included in `getDiagnosticsReport()`.
-In `serverRendererMode: 'webgl'`, `fillBackgroundBlur` uses native `PIXI.BlurFilter` (same rendering path as client mode).
+Requires Svelte 5. Rendering needs Playwright, ffmpeg and a Chromium browser; no GPU. Try the [quote project](https://visualfries.com/demo/quote.zip) from the homepage.
+
+## Command line
+
+```bash
+# motion projects
+npx visualfries clips   project.vf.json                     # where every clip and cue lands
+npx visualfries check   project.vf.json --determinism       # run every block in seconds
+npx visualfries still   project.vf.json --clip quote --output quote.png
+npx visualfries render  project.vf.json --output out/       # MP4, or ProRes 4444 with alpha
+npx visualfries render  project.vf.json --output out/ --transcript retake.json
+
+# scenes
+npx visualfries caption-scene --video in.mp4 --transcript in.srt --preset reels-center --output scene.json
+npx visualfries validate scene.json --strict-runtime-support
+npx visualfries render scene.json --output out.mp4
+```
+
+## Documentation
+
+|                                                                                                                 |                                                |
+| --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| [Quickstart](https://visualfries.com/docs/quickstart)                                                           | A motion project from zero to MP4 in six steps |
+| [Time and cues](https://visualfries.com/docs/time-and-cues)                                                     | Anchoring clips to spoken phrases              |
+| [Motion blocks](https://visualfries.com/docs/blocks) · [The clip object](https://visualfries.com/docs/clip-api) | Writing blocks                                 |
+| [Scenes in an app](https://visualfries.com/docs/scenes) · [Composer API](https://visualfries.com/docs/composer) | Scene JSON, live editing                       |
+| [CLI](https://visualfries.com/docs/cli) · [Scene CLI](https://visualfries.com/docs/scene-cli)                   | Commands                                       |
+| [VisualFries for agents](https://visualfries.com/docs/agents)                                                   | How an AI agent should work with VisualFries   |
+
+The docs site lives in this repository (`src/routes`); every page is also available as Markdown by appending `.md` to its URL. Deeper notes for contributors are in [`docs/`](docs).
+
+## Roadmap
+
+Stills and carousels from the same blocks, quote cards on AI-generated backgrounds with a text safe zone, editing text without re-rendering, turning a post into a short reel, speech-to-text adapters with `visualfries setup`, and export in the viewer's browser. See [Stills, carousels, AI backgrounds](https://visualfries.com/docs/stills).
 
 ## Contributing
 
-As an early-stage, solo-developed project, contributions are highly encouraged! The best way to contribute right now is by:
+VisualFries is maintained by one developer and used in production by ContentFries. Issues, bug reports, documentation fixes and examples are welcome on [GitHub](https://github.com/ContentFries/visualfries/issues).
 
-- Opening an issue to report a bug or suggest a feature
-- Improving the documentation by clarifying confusing sections or adding new examples
-- Sharing your creations! Seeing what people build is the best motivation
-
-Please feel free to get in touch through GitHub Issues.
+```bash
+pnpm install
+pnpm dev            # the site and docs at localhost:5173
+pnpm test           # unit tests
+pnpm build          # static site in build/ and the package in dist/
+```
 
 ## License
 
-VisualFries is licensed under the MIT License.
+MIT

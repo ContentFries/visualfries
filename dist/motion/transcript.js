@@ -1,4 +1,4 @@
-const EDGE_PUNCTUATION = /^[\s"'„“”‚‘’«»(\[{¿¡]+|[\s"'„“”‚‘’«»)\]}.,;:!?…]+$/gu;
+const EDGE_PUNCTUATION = /^[\s"'„“”‚‘’«»(\[{¿¡—–]+|[\s"'„“”‚‘’«»)\]}.,;:!?…—–]+$/gu;
 export function displayText(raw) {
     return raw.replace(EDGE_PUNCTUATION, '');
 }

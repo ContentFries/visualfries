@@ -41,6 +41,14 @@ export async function loadMotionProject(file, opts = {}) {
         resolved: resolveMotionProject(project, words)
     };
 }
+/** Throws when a requested clip id does not exist in the project. */
+export function assertKnownClips(loaded, clipIds) {
+    const known = loaded.project.clips.map((c) => c.id);
+    const unknown = (clipIds ?? []).filter((id) => !known.includes(id));
+    if (unknown.length) {
+        throw new Error(`Unknown clip ${unknown.map((id) => `"${id}"`).join(', ')}. Clips: ${known.join(', ')}`);
+    }
+}
 /** Throws on errors of the given clips (all clips when omitted), including clips that failed to resolve. */
 export function assertNoErrors(loaded, clipIds) {
     const errors = loaded.resolved.diagnostics.filter((d) => d.level === 'error' && (!clipIds || !d.clip || clipIds.includes(d.clip)));
@@ -150,8 +158,11 @@ function rebaseCssUrls(css, dir) {
 }
 // ---------------------------------------------------------------- browser
 export function findChromium() {
+    // Same order as `visualfries doctor`; without a match Playwright uses its own build.
     const candidates = [
-        process.env.VISUALFRIES_CHROMIUM,
+        process.env.VISUALFRIES_CHROMIUM_PATH,
+        process.env.VISUALFRIES_CHROMIUM, // earlier name, kept for existing setups
+        process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
         '/usr/bin/chromium',
         '/usr/bin/chromium-browser',
         '/usr/bin/google-chrome',
@@ -160,7 +171,13 @@ export function findChromium() {
     return candidates.find((c) => c && existsSync(c));
 }
 async function launch() {
-    const { chromium } = await import('playwright');
+    let chromium;
+    try {
+        ({ chromium } = await import('playwright'));
+    }
+    catch {
+        throw new Error('playwright is required for rendering. Install it with `npm install playwright` (it is an optional peer dependency).');
+    }
     const executablePath = findChromium();
     return chromium.launch({
         executablePath,
@@ -222,6 +239,7 @@ export function frameForAt(clip, at) {
  * optionally, whether sampled frames come out identical in two seek orders.
  */
 export async function checkMotionProject(loaded, opts = {}) {
+    assertKnownClips(loaded, opts.clips);
     const wanted = opts.clips?.length ? opts.clips : loaded.project.clips.map((c) => c.id);
     const results = wanted.map((id) => {
         const diags = loaded.resolved.diagnostics.filter((d) => d.clip === id);

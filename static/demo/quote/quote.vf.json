@@ -1,0 +1,14 @@
+{
+  "size": [1080, 1350],
+  "fps": 30,
+  "background": "#f4efe6",
+  "fonts": [{ "family": "Newsreader", "src": "fonts/Newsreader.ttf", "weight": "200 800" }],
+  "clips": [{
+    "id": "quote", "block": "blocks/Quote.svelte",
+    "props": { "quote": "Nothing is matched silently.", "by": "docs/MOTION.md" },
+    "from": "nothing is ever", "until": "spoken ones",
+    "cues": { "reveal": "nothing", "hit": "silently", "by": "suggests" }
+  }],
+  "transcript": "voice.transcript.json",
+  "styles": ["styles.css"]
+}

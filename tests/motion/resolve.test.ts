@@ -29,7 +29,7 @@ describe('motion resolve', () => {
 	it('matches phrases across punctuation-only transcript words', () => {
 		const ws = parseTranscriptWords([
 			{ text: 'one', start: 0, end: 0.2 },
-			{ text: '…', start: 0.2, end: 0.25 },
+			{ text: '–', start: 0.2, end: 0.25 },
 			{ text: 'two', start: 0.3, end: 0.5 }
 		]);
 		const [hit] = findPhrase(ws, 'one two');
@@ -178,5 +178,13 @@ describe('motion clip helpers', () => {
 				['extra', 2]
 			])
 		).toThrow(/must not go back in time/);
+	});
+});
+
+describe('motion transcript normalization', () => {
+	it('ignores dashes at word edges', () => {
+		const w = parseTranscriptWords([{ word: 'silently—', start: 1, end: 2 }]);
+		expect(w[0].text).toBe('silently');
+		expect(findPhrase(w, 'silently')).toHaveLength(1);
 	});
 });

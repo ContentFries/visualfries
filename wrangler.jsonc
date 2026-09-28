@@ -1,0 +1,15 @@
+// visualfries.com: the prerendered SvelteKit site in build/, served as Workers static assets.
+// Deploy: `pnpm build && npx wrangler deploy`
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "visualfries-site",
+	"compatibility_date": "2026-09-01",
+	"assets": {
+		"directory": "./build",
+		// build/404.html is a real prerendered page; serve it with status 404
+		"not_found_handling": "404-page",
+		// /docs/install -> build/docs/install.html, matching trailingSlash = 'never'
+		"html_handling": "drop-trailing-slash"
+	},
+	"routes": [{ "pattern": "visualfries.com", "custom_domain": true }]
+}

@@ -396,6 +396,7 @@ const findBrowserExecutable = (explicit?: string): string | undefined => {
 	const candidates = [
 		explicit,
 		process.env.VISUALFRIES_CHROMIUM_PATH,
+		process.env.VISUALFRIES_CHROMIUM, // legacy name
 		process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
 		'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 		path.join(

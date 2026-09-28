@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
@@ -242,16 +242,27 @@ async function probeCommand(command, args = ['-version']) {
 }
 
 function findBrowserExecutable() {
+	// Keep in sync with findChromium() in src/lib/motion/node.ts.
 	const candidates = [
 		process.env.VISUALFRIES_CHROMIUM_PATH,
+		process.env.VISUALFRIES_CHROMIUM, // legacy name
 		process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-		'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-		path.join(
-			os.homedir(),
-			'.cache/puppeteer/chrome-headless-shell/mac_arm-131.0.6778.204/chrome-headless-shell-mac-arm64/chrome-headless-shell'
-		)
+		'/usr/bin/chromium',
+		'/usr/bin/chromium-browser',
+		'/usr/bin/google-chrome',
+		'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 	].filter(Boolean);
-	return candidates.find((candidate) => existsSync(candidate));
+	const found = candidates.find((candidate) => existsSync(candidate));
+	if (found) return found;
+	// Playwright's own build (npx playwright install chromium).
+	try {
+		const { chromium } = packageRequire('playwright');
+		const bundled = chromium.executablePath();
+		if (bundled && existsSync(bundled)) return bundled;
+	} catch {
+		// playwright not installed: reported by its own doctor check
+	}
+	return undefined;
 }
 
 function normalizeImageFormat(value) {
@@ -1155,15 +1166,23 @@ async function doctorCommand(args) {
 		process.env.VISUALFRIES_TMPDIR || (existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir());
 	const checks = {
 		node: {
-			ok: true,
-			version: process.version
+			ok: Number(process.versions.node.split('.')[0]) >= 20,
+			version: process.version,
+			required: '>=20'
 		},
-		ffmpeg: await probeCommand('ffmpeg', ['-version']),
-		vite: await checkOptionalModule('vite', 'VISUALFRIES_VITE_MODULES'),
-		svelteVitePlugin: await checkOptionalModule(
-			'@sveltejs/vite-plugin-svelte',
-			'VISUALFRIES_SVELTE_VITE_MODULES'
-		),
+		ffmpeg: await probeCommand(process.env.FFMPEG_PATH || 'ffmpeg', ['-version']),
+		// Needed only to render scene JSON; motion projects bundle blocks with esbuild.
+		vite: {
+			...(await checkOptionalModule('vite', 'VISUALFRIES_VITE_MODULES')),
+			scope: 'scenes'
+		},
+		svelteVitePlugin: {
+			...(await checkOptionalModule(
+				'@sveltejs/vite-plugin-svelte',
+				'VISUALFRIES_SVELTE_VITE_MODULES'
+			)),
+			scope: 'scenes'
+		},
 		playwright: await checkOptionalModule('playwright', 'VISUALFRIES_PLAYWRIGHT_MODULES'),
 		chromiumExecutable: (() => {
 			const executablePath = findBrowserExecutable();
@@ -1172,17 +1191,26 @@ async function doctorCommand(args) {
 				: {
 						ok: false,
 						error:
-							'No Chromium executable found. Set VISUALFRIES_CHROMIUM_PATH or PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH.'
+							'No Chromium executable found. Run `npx playwright install chromium`, or set VISUALFRIES_CHROMIUM_PATH.'
 					};
 		})(),
-		tempDir: {
-			ok: existsSync(tmpParent),
-			path: tmpParent
-		}
+		tempDir: (() => {
+			// Renders write frames here, so check that it is writable, not only that it exists.
+			try {
+				const probe = mkdtempSync(path.join(tmpParent, 'visualfries-doctor-'));
+				rmSync(probe, { recursive: true, force: true });
+				return { ok: true, path: tmpParent };
+			} catch (error) {
+				return { ok: false, path: tmpParent, message: `Not writable: ${error.message}` };
+			}
+		})()
 	};
-	const ok = Object.values(checks).every((check) => check.ok);
+	// Scene-only checks warn instead of failing: motion projects render without them.
+	const ok = Object.values(checks).every((check) => check.ok || check.scope === 'scenes');
+	const sceneRenders = Object.values(checks).every((check) => check.ok);
 	const report = {
 		ok,
+		sceneRenders,
 		version: VERSION,
 		packageRoot: PACKAGE_ROOT,
 		env: {
@@ -1200,7 +1228,10 @@ async function doctorCommand(args) {
 		console.log(`${ok ? 'OK' : 'FAIL'} visualfries doctor`);
 		for (const [name, check] of Object.entries(checks)) {
 			const detail = check.path ?? check.version ?? check.error ?? '';
-			console.log(`${check.ok ? 'OK' : 'FAIL'} ${name}${detail ? ` - ${detail}` : ''}`);
+			const status = check.ok ? 'OK' : check.scope === 'scenes' ? 'WARN' : 'FAIL';
+			const note =
+				!check.ok && check.scope === 'scenes' ? ' (needed only to render scene JSON)' : '';
+			console.log(`${status} ${name}${note}${detail ? ` - ${detail.split('\n')[0]}` : ''}`);
 		}
 	}
 	if (!ok) process.exitCode = 1;
@@ -1550,6 +1581,12 @@ async function motionClipsCommand(args) {
 	const { loadMotionProject } = await motionModule();
 	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
 	const only = readAllFlags(args, '--clip');
+	const unknown = only.filter((id) => !loaded.project.clips.some((c) => c.id === id));
+	if (unknown.length) {
+		throw new Error(
+			`Unknown clip ${unknown.map((id) => `"${id}"`).join(', ')}. Clips: ${loaded.project.clips.map((c) => c.id).join(', ')}`
+		);
+	}
 	const clips = loaded.resolved.clips.filter((c) => !only.length || only.includes(c.id));
 	const diagnostics = loaded.resolved.diagnostics.filter(
 		(d) => !only.length || !d.clip || only.includes(d.clip)

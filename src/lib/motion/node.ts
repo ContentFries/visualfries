@@ -57,6 +57,17 @@ export async function loadMotionProject(
 	};
 }
 
+/** Throws when a requested clip id does not exist in the project. */
+export function assertKnownClips(loaded: LoadedMotionProject, clipIds?: string[]) {
+	const known = loaded.project.clips.map((c) => c.id);
+	const unknown = (clipIds ?? []).filter((id) => !known.includes(id));
+	if (unknown.length) {
+		throw new Error(
+			`Unknown clip ${unknown.map((id) => `"${id}"`).join(', ')}. Clips: ${known.join(', ')}`
+		);
+	}
+}
+
 /** Throws on errors of the given clips (all clips when omitted), including clips that failed to resolve. */
 export function assertNoErrors(loaded: LoadedMotionProject, clipIds?: string[]) {
 	const errors = loaded.resolved.diagnostics.filter(
@@ -193,8 +204,11 @@ function rebaseCssUrls(css: string, dir: string): string {
 // ---------------------------------------------------------------- browser
 
 export function findChromium(): string | undefined {
+	// Same order as `visualfries doctor`; without a match Playwright uses its own build.
 	const candidates = [
-		process.env.VISUALFRIES_CHROMIUM,
+		process.env.VISUALFRIES_CHROMIUM_PATH,
+		process.env.VISUALFRIES_CHROMIUM, // earlier name, kept for existing setups
+		process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
 		'/usr/bin/chromium',
 		'/usr/bin/chromium-browser',
 		'/usr/bin/google-chrome',
@@ -215,7 +229,14 @@ type PageLike = {
 type BrowserLike = { newPage(opts: object): Promise<PageLike>; close(): Promise<void> };
 
 async function launch(): Promise<BrowserLike> {
-	const { chromium } = await import('playwright');
+	let chromium: { launch(opts: object): Promise<unknown> };
+	try {
+		({ chromium } = await import('playwright'));
+	} catch {
+		throw new Error(
+			'playwright is required for rendering. Install it with `npm install playwright` (it is an optional peer dependency).'
+		);
+	}
 	const executablePath = findChromium();
 	return chromium.launch({
 		executablePath,
@@ -316,6 +337,7 @@ export async function checkMotionProject(
 	loaded: LoadedMotionProject,
 	opts: { clips?: string[]; determinism?: boolean } = {}
 ): Promise<ClipCheck[]> {
+	assertKnownClips(loaded, opts.clips);
 	const wanted = opts.clips?.length ? opts.clips : loaded.project.clips.map((c) => c.id);
 	const results: ClipCheck[] = wanted.map((id) => {
 		const diags = loaded.resolved.diagnostics.filter((d) => d.clip === id);

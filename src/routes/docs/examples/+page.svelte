@@ -1,85 +1,60 @@
 <script lang="ts">
+	import DocsArticle from '../../../site/DocsArticle.svelte';
 	import InteractiveExample from '../InteractiveExample.svelte';
-	
-	// Import all examples
 	import example01 from '$lib/examples/01_basic_text.json';
 	import example02 from '$lib/examples/02_animated_text.json';
 	import example03 from '$lib/examples/03_video_background.json';
 	import example04 from '$lib/examples/04_real_subtitles.json';
+
+	import { page } from '$app/state';
+
+	// The examples ship with a public sample video that is no longer reachable; the site
+	// serves its own clip. Scene URLs must be absolute, so build it from the page origin.
+	const REMOTE =
+		'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+	const clip = $derived(new URL('/media/workflow.mp4', page.url).href);
+	const local = <T,>(scene: T): T => JSON.parse(JSON.stringify(scene).replaceAll(REMOTE, clip));
+	const video = $derived(local(example03));
+	const subtitles = $derived(local(example04));
 </script>
 
-<svelte:head>
-	<title>Live Examples | VisualFries Docs</title>
-</svelte:head>
-
-<section class="examples-page">
-	<div class="hero">
-		<h1>Live <span class="gradient">Examples</span></h1>
-		<p class="subtitle">A step-by-step progression through VisualFries features.</p>
-	</div>
-
-	<div class="examples-container">
-		<InteractiveExample 
-			sceneData={example01 as any} 
-			title="01. Basic Scene" 
-			description="A simple start with a black rectangle background and centered text."
+<DocsArticle
+	title="Live examples"
+	description="Scene JSON examples mounted live in the browser with the real VisualFries engine."
+	updated="2026-09-27"
+>
+	<p>
+		These scenes run in your browser with <code>createSceneBuilder</code>, the same engine
+		ContentFries uses. Each example shows its JSON next to the running scene.
+	</p>
+	<div class="examples">
+		<InteractiveExample
+			sceneData={example01 as any}
+			title="01 · Basic scene"
+			description="A rectangle background and centered text."
 		/>
-
-		<InteractiveExample 
-			sceneData={example02 as any} 
-			title="02. Basic Animation" 
-			description="Same scene, but with a GSAP-powered scale and fade entry."
+		<InteractiveExample
+			sceneData={example02 as any}
+			title="02 · Animated text"
+			description="The same scene with a GSAP scale and fade entry."
 		/>
-
-		<InteractiveExample 
-			sceneData={example03 as any} 
-			title="03. Video Background" 
-			description="Adding a MP4 video background using the VIDEO component."
+		<InteractiveExample
+			sceneData={video as any}
+			title="03 · Video background"
+			description="An MP4 background through the VIDEO component."
 		/>
-
-		<InteractiveExample 
-			sceneData={example04 as any} 
-			title="04. Real Subtitles" 
-			description="The pro way: using the SUBTITLES component with word-by-word highlighting."
+		<InteractiveExample
+			sceneData={subtitles as any}
+			title="04 · Word-timed subtitles"
+			description="The SUBTITLES component with word-by-word highlighting."
 		/>
 	</div>
-</section>
+</DocsArticle>
 
 <style>
-	.examples-page {
-		padding: 3rem;
-		max-width: 1400px;
-		margin: 0 auto;
-	}
-
-	.hero {
-		text-align: center;
-		margin-bottom: 5rem;
-	}
-
-	.hero h1 {
-		font-size: 3.5rem;
-		font-weight: 900;
-		letter-spacing: -2px;
-		margin: 0 0 1rem;
-	}
-
-	.gradient {
-		background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
-		-webkit-background-clip: text;
-		background-clip: text;
-		-webkit-text-fill-color: transparent;
-	}
-
-	.subtitle {
-		color: #888;
-		font-size: 1.1rem;
-		margin: 0;
-	}
-
-	.examples-container {
-		display: flex;
-		flex-direction: column;
-		gap: 2rem;
+	.examples {
+		display: grid;
+		gap: 28px;
+		margin-top: 28px;
 	}
 </style>

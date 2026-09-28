@@ -14,6 +14,8 @@ export type LoadedMotionProject = {
 export declare function loadMotionProject(file: string, opts?: {
     transcript?: string;
 }): Promise<LoadedMotionProject>;
+/** Throws when a requested clip id does not exist in the project. */
+export declare function assertKnownClips(loaded: LoadedMotionProject, clipIds?: string[]): void;
 /** Throws on errors of the given clips (all clips when omitted), including clips that failed to resolve. */
 export declare function assertNoErrors(loaded: LoadedMotionProject, clipIds?: string[]): void;
 type BundleResult = {

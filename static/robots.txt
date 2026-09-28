@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /browser-export-spike
+
+Sitemap: https://visualfries.com/sitemap.xml

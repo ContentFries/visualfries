@@ -29,7 +29,7 @@ describe('motion resolve', () => {
 	it('matches phrases across punctuation-only transcript words', () => {
 		const ws = parseTranscriptWords([
 			{ text: 'one', start: 0, end: 0.2 },
-			{ text: '…', start: 0.2, end: 0.25 },
+			{ text: '–', start: 0.2, end: 0.25 },
 			{ text: 'two', start: 0.3, end: 0.5 }
 		]);
 		const [hit] = findPhrase(ws, 'one two');

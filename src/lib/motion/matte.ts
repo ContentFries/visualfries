@@ -72,6 +72,7 @@ type Fal = {
 
 async function falJson(fal: Fal, url: string, init: RequestInit = {}) {
 	const response = await fal.fetch(url, {
+		signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
 		...init,
 		headers: {
 			Authorization: `Key ${fal.key}`,
@@ -94,6 +95,7 @@ async function falUpload(fal: Fal, file: string): Promise<string> {
 		}
 	);
 	const put = await fal.fetch(uploadUrl, {
+		signal: AbortSignal.timeout(TRANSFER_TIMEOUT_MS),
 		method: 'PUT',
 		body: new Uint8Array(await fs.readFile(file)),
 		headers: { 'Content-Type': 'video/mp4' }
@@ -102,6 +104,9 @@ async function falUpload(fal: Fal, file: string): Promise<string> {
 	return fileUrl;
 }
 
+/** One API call; uploads and downloads get longer. */
+const HTTP_TIMEOUT_MS = 60 * 1000;
+const TRANSFER_TIMEOUT_MS = 10 * 60 * 1000;
 /** A request still queued or running after this long is abandoned. */
 const FAL_REQUEST_TIMEOUT_MS = 20 * 60 * 1000;
 
@@ -179,7 +184,9 @@ export async function createSubjectMatte(input: string, opts: MatteOptions): Pro
 				const maskUrl = result.mask_video?.url;
 				if (!maskUrl) throw new Error(`fal.ai returned no mask for frames ${first}–${last}.`);
 				const raw = path.join(work, `mask-raw-${i}.mp4`);
-				const response = await fal.fetch(maskUrl);
+				const response = await fal.fetch(maskUrl, {
+					signal: AbortSignal.timeout(TRANSFER_TIMEOUT_MS)
+				});
 				if (!response.ok) throw new Error(`Mask download failed: ${response.status}`);
 				await fs.writeFile(raw, Buffer.from(await response.arrayBuffer()));
 				// Up to two missing frames are normal and padded below; more means a wrong mask.

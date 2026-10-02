@@ -47,11 +47,22 @@ type VideoInfo = {
     height: number;
     fps: number;
     frames: number;
-    /** False for a variable frame rate (average differs from the nominal rate). */
+    /** Seconds from the first frame to the end of the last one. */
+    duration: number;
+    /** False when the frame intervals are not all equal (variable frame rate, dropped frames). */
     constant: boolean;
 };
-/** Size, frame rate and frame count (decoded packets) of a video's first stream. */
+/**
+ * Size, nominal frame rate, frame count and duration of a video's first stream, from its packet
+ * timestamps. `constant` is false when any frame interval differs from the others (a dropped or
+ * repeated frame, a variable-frame-rate recording).
+ */
 export declare function probeVideo(file: string): Promise<VideoInfo>;
+/**
+ * Extracts the footage frames the given clips need (with a margin) into
+ * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
+ * Frames are cached by source, matte, frame rate and range.
+ */
 export declare function prepareFootage(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<string[]>;
 export type StillRequest = {
     clip: string;

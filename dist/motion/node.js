@@ -310,14 +310,46 @@ function ffprobeJson(file, args) {
             : reject(new Error(`ffprobe failed for ${file}: ${err.slice(-400)}`)));
     });
 }
-/** Size, frame rate and frame count (decoded packets) of a video's first stream. */
+/** Presentation timestamps (in time-base ticks) of every packet of the first video stream. */
+function packetTimestamps(file) {
+    return new Promise((resolve, reject) => {
+        const p = spawn(process.env.FFPROBE_PATH || 'ffprobe', [
+            '-v',
+            'error',
+            '-select_streams',
+            'v:0',
+            '-show_entries',
+            'packet=pts',
+            '-of',
+            'csv=p=0',
+            file
+        ]);
+        let out = '';
+        let err = '';
+        p.stdout.on('data', (d) => (out += d));
+        p.stderr.on('data', (d) => (err += d));
+        p.on('error', reject);
+        p.on('close', (code) => code === 0
+            ? resolve(out
+                .split('\n')
+                .map((line) => line.trim())
+                .filter((line) => line !== '' && line !== 'N/A')
+                .map(Number)
+                .filter((n) => Number.isFinite(n)))
+            : reject(new Error(`ffprobe failed for ${file}: ${err.slice(-400)}`)));
+    });
+}
+/**
+ * Size, nominal frame rate, frame count and duration of a video's first stream, from its packet
+ * timestamps. `constant` is false when any frame interval differs from the others (a dropped or
+ * repeated frame, a variable-frame-rate recording).
+ */
 export async function probeVideo(file) {
     const info = await ffprobeJson(file, [
         '-select_streams',
         'v:0',
-        '-count_packets',
         '-show_entries',
-        'stream=width,height,r_frame_rate,avg_frame_rate,nb_read_packets'
+        'stream=width,height,r_frame_rate,time_base'
     ]);
     const stream = info.streams?.[0];
     if (!stream)
@@ -327,22 +359,30 @@ export async function probeVideo(file) {
         return den ? num / den : num;
     };
     const fps = rate(stream.r_frame_rate);
-    const avg = rate(stream.avg_frame_rate);
+    const timeBase = rate(stream.time_base);
+    const pts = (await packetTimestamps(file)).sort((x, y) => x - y);
+    if (!pts.length)
+        throw new Error(`No video frames in ${file}`);
+    const step = 1 / fps / timeBase;
+    let constant = true;
+    for (let i = 1; i < pts.length; i++) {
+        // Allow one tick of rounding; anything else is a gap or a repeat.
+        if (Math.abs(pts[i] - pts[i - 1] - step) > 1) {
+            constant = false;
+            break;
+        }
+    }
     return {
         width: stream.width,
         height: stream.height,
         fps,
-        frames: Number(stream.nb_read_packets),
-        constant: !(avg > 0) || Math.abs(avg - fps) <= fps * 0.005
+        frames: pts.length,
+        duration: (pts[pts.length - 1] - pts[0]) * timeBase + 1 / fps,
+        constant
     };
 }
 /** Default seconds extracted around the clips, for `offset` and delayed copies. */
 const FOOTAGE_MARGIN_SECONDS = 2;
-/**
- * Extracts the footage frames the given clips need (with a margin) into
- * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
- * Frames are cached by source, matte, frame rate and range.
- */
 function edgeFrame(clips, startFrame, total) {
     if (total <= 0)
         return { first: 0, last: 0 };
@@ -350,6 +390,11 @@ function edgeFrame(clips, startFrame, total) {
     const index = before ? 0 : total - 1;
     return { first: index, last: index };
 }
+/**
+ * Extracts the footage frames the given clips need (with a margin) into
+ * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
+ * Frames are cached by source, matte, frame rate and range.
+ */
 export async function prepareFootage(loaded, clips) {
     const footage = loaded.project.footage ?? {};
     const fps = loaded.project.fps;
@@ -366,7 +411,7 @@ export async function prepareFootage(loaded, clips) {
         // input seek is exact. Otherwise decode from the start so the rate conversion keeps one
         // phase whatever range is extracted.
         const direct = info.constant && Math.abs(info.fps - fps) < 0.01;
-        const total = direct ? info.frames : Math.floor((info.frames / info.fps) * fps);
+        const total = direct ? info.frames : Math.round(info.duration * fps);
         const startFrame = Math.round((spec.start ?? 0) * fps);
         const margin = Math.round((spec.margin ?? FOOTAGE_MARGIN_SECONDS) * fps);
         // Clips that never overlap the footage hold its nearest edge frame.

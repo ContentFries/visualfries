@@ -56,11 +56,6 @@ type VideoInfo = {
     /** False when the frame intervals are not all equal (variable frame rate, dropped frames). */
     constant: boolean;
 };
-/**
- * Size, nominal frame rate, frame count and duration of a video's first stream, from its packet
- * timestamps. `constant` is false when any frame interval differs from the others (a dropped or
- * repeated frame, a variable-frame-rate recording).
- */
 export declare function probeVideo(file: string): Promise<VideoInfo>;
 /**
  * Extracts the footage frames the given clips need (with a margin) into

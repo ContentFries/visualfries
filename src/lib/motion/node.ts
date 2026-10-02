@@ -425,7 +425,10 @@ function ffprobeJson(file: string, args: string[]): Promise<any> {
 	});
 }
 
-/** Presentation timestamps (in time-base ticks) of every packet of the first video stream. */
+/**
+ * Presentation timestamps (in time-base ticks) of the frames the first video stream shows.
+ * Packets flagged for discard (edit-list preroll of a stream-copied cut) are left out.
+ */
 function packetTimestamps(file: string): Promise<number[]> {
 	return new Promise((resolve, reject) => {
 		const p = spawn(process.env.FFPROBE_PATH || 'ffprobe', [
@@ -434,7 +437,7 @@ function packetTimestamps(file: string): Promise<number[]> {
 			'-select_streams',
 			'v:0',
 			'-show_entries',
-			'packet=pts',
+			'packet=pts,flags',
 			'-of',
 			'csv=p=0',
 			file
@@ -449,9 +452,12 @@ function packetTimestamps(file: string): Promise<number[]> {
 				? resolve(
 						out
 							.split('\n')
-							.map((line) => line.split(',')[0].trim())
-							.filter((line) => line !== '' && line !== 'N/A')
-							.map(Number)
+							.map((line) => line.split(','))
+							.filter(([pts, flags = '']) => {
+								const value = pts?.trim();
+								return value && value !== 'N/A' && !flags.includes('D');
+							})
+							.map(([pts]) => Number(pts))
 							.filter((n) => Number.isFinite(n))
 					)
 				: reject(new Error(`ffprobe failed for ${file}: ${err.slice(-400)}`))
@@ -464,12 +470,20 @@ function packetTimestamps(file: string): Promise<number[]> {
  * timestamps. `constant` is false when any frame interval differs from the others (a dropped or
  * repeated frame, a variable-frame-rate recording).
  */
+function quarterTurn(stream: any): boolean {
+	const fromSideData = (stream.side_data_list ?? []).find(
+		(d: any) => d.rotation !== undefined
+	)?.rotation;
+	const rotation = Number(fromSideData ?? stream.tags?.rotate ?? 0);
+	return Math.abs(rotation) % 180 === 90;
+}
+
 export async function probeVideo(file: string): Promise<VideoInfo> {
 	const info = await ffprobeJson(file, [
 		'-select_streams',
 		'v:0',
 		'-show_entries',
-		'stream=width,height,r_frame_rate,time_base'
+		'stream=width,height,r_frame_rate,time_base:stream_side_data=rotation:stream_tags=rotate'
 	]);
 	const stream = info.streams?.[0];
 	if (!stream) throw new Error(`No video stream in ${file}`);
@@ -491,8 +505,10 @@ export async function probeVideo(file: string): Promise<VideoInfo> {
 		}
 	}
 	return {
-		width: stream.width,
-		height: stream.height,
+		// Decoders apply the rotation, so a portrait phone video decodes with swapped sides.
+		...(quarterTurn(stream)
+			? { width: stream.height, height: stream.width }
+			: { width: stream.width, height: stream.height }),
 		fps,
 		frames: pts.length,
 		duration: (pts[pts.length - 1] - pts[0]) * timeBase + 1 / fps,

@@ -7,7 +7,7 @@ import type {
 	IComponentHook,
 	HookType,
 	ComponentProps
-} from '$lib';
+} from '$lib/index.js';
 import { DeterministicRenderError } from '$lib/schemas/runtime/deterministic.js';
 import { isTimeWithinTimeline, TIMELINE_BOUNDARY_EPSILON } from '$lib/utils/timelineWindow.js';
 

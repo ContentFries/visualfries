@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js-legacy';
 
-import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib/index.js';
 
 export class PixiTextureHook implements IComponentHook {
 	types: HookType[] = ['update', 'refresh:content', 'destroy'];

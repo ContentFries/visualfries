@@ -1,8 +1,8 @@
-import type { HookType, IComponentContext, HookHandlers, IComponentHook } from '$lib';
+import type { HookType, IComponentContext, HookHandlers, IComponentHook } from '$lib/index.js';
 import type { StateManager } from '$lib/managers/StateManager.svelte.ts';
 import type { SubtitlesManager } from '$lib/managers/SubtitlesManager.svelte.ts';
 import type { EventManager } from '$lib/managers/EventManager.ts';
-import type { Subtitle, SubtitleComponent, TextComponent } from '$lib';
+import type { Subtitle, SubtitleComponent, TextComponent } from '$lib/index.js';
 import { gsap } from 'gsap';
 import { get } from 'lodash-es';
 

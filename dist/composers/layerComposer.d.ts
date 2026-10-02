@@ -1,4 +1,4 @@
-import { type SceneLayer, type Component } from '..';
+import { type SceneLayer, type Component } from '../index.js';
 /**
  * A fluent composer for a single SceneLayer object.
  */

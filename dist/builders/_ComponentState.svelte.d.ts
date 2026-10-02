@@ -1,5 +1,5 @@
-import type { ComponentData, ComponentProps } from '..';
-import type { Appearance, AppearanceInput } from '..';
+import type { ComponentData, ComponentProps } from '../index.js';
+import type { Appearance, AppearanceInput } from '../index.js';
 import { EventManager } from '../managers/EventManager.js';
 import { StateManager } from '../managers/StateManager.svelte.js';
 export declare class ComponentState implements ComponentProps {

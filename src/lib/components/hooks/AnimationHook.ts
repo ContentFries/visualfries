@@ -1,6 +1,6 @@
-import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
-import type { AnimationPreset as AnimationPresetData } from '$lib';
-import { AnimationPresetShape } from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib/index.js';
+import type { AnimationPreset as AnimationPresetData } from '$lib/index.js';
+import { AnimationPresetShape } from '$lib/index.js';
 
 import { TimelineManager } from '$lib/managers/TimelineManager.svelte.js';
 import { AnimationContext } from '$lib/animations/AnimationContext.js';

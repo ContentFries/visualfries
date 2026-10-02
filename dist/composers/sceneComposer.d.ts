@@ -1,4 +1,4 @@
-import { type Scene, type SceneSettingsInput, type SceneLayer, type SceneAssetInput, type AudioTrackInput, type SceneSubtitlesSettings } from '..';
+import { type Scene, type SceneSettingsInput, type SceneLayer, type SceneAssetInput, type AudioTrackInput, type SceneSubtitlesSettings } from '../index.js';
 /**
  * A fluent, composable builder for creating a valid Scene object.
  */

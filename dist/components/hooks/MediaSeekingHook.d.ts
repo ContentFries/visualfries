@@ -1,4 +1,4 @@
-import type { HookType, IComponentContext, IComponentHook } from '../..';
+import type { HookType, IComponentContext, IComponentHook } from '../../index.js';
 import { StateManager } from '../../managers/StateManager.svelte.js';
 export declare class MediaSeekingHook implements IComponentHook {
     #private;

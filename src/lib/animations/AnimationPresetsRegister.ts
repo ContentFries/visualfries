@@ -1,4 +1,4 @@
-import type { AnimationPreset } from "$lib";
+import type { AnimationPreset } from "$lib/index.js";
 import * as systemPresets from "./presets/index.js";
 
 export class AnimationPresetsRegister {

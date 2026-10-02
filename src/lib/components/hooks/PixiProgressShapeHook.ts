@@ -4,8 +4,8 @@ import type {
 	IComponentHook,
 	HookType,
 	HookHandlers
-} from '$lib';
-import type { ShapeComponent, ProgressConfig } from '$lib';
+} from '$lib/index.js';
+import type { ShapeComponent, ProgressConfig } from '$lib/index.js';
 import { setPlacementAndOpacity } from '$lib/utils/utils.js';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 import {

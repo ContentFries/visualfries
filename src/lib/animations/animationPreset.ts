@@ -3,7 +3,7 @@ import {
 	type AnimationPreset as AnimationPresetData,
 	type AnimationPresetInput,
 	type AnimationSequenceItem
-} from '$lib';
+} from '$lib/index.js';
 import { get } from 'lodash-es';
 
 export class AnimationPreset {

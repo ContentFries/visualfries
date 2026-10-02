@@ -1,4 +1,4 @@
-import type { Appearance, SceneLayer } from '..';
+import type { Appearance, SceneLayer } from '../index.js';
 import * as PIXI from 'pixi.js-legacy';
 export declare function changeIdDeep<T>(obj: T): T;
 export declare const buildCharactersListFromComponentsAndSubtitles: (layers: SceneLayer[], subtitlesCharactersList: string[]) => string[];

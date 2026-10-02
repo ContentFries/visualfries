@@ -1,5 +1,5 @@
-import type { ILayer, IComponent } from '..';
-import type { SceneLayer, SceneLayerInput } from '..';
+import type { ILayer, IComponent } from '../index.js';
+import type { SceneLayer, SceneLayerInput } from '../index.js';
 import { ComponentsManager } from '../managers/ComponentsManager.svelte.js';
 import { EventManager } from '../managers/EventManager.js';
 import { Container } from 'pixi.js-legacy';

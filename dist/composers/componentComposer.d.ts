@@ -1,5 +1,5 @@
-import { type Component, type ComponentInput, type AnimationInput, type AppearanceInput } from '..';
-import type { ComponentEffect, ComponentSourceInput } from '..';
+import { type Component, type ComponentInput, type AnimationInput, type AppearanceInput } from '../index.js';
+import type { ComponentEffect, ComponentSourceInput } from '../index.js';
 /**
  * A fluent composer for a single Component object.
  */

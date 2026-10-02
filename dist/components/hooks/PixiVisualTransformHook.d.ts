@@ -1,4 +1,4 @@
-import type { IComponentContext, IComponentHook, HookType } from '../..';
+import type { IComponentContext, IComponentHook, HookType } from '../../index.js';
 import type { StateManager } from '../../managers/StateManager.svelte.js';
 /**
  * Publishes one stable outer Pixi container as the visual animation owner.

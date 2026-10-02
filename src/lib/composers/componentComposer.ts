@@ -5,9 +5,9 @@ import {
 	ComponentShape,
 	type AnimationInput,
 	type AppearanceInput
-} from '$lib'; 
+} from '$lib/index.js'; 
 
-import type { ComponentEffect, ComponentSourceInput } from '$lib';
+import type { ComponentEffect, ComponentSourceInput } from '$lib/index.js';
 
 /**
  * A fluent composer for a single Component object.

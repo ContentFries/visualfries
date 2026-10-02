@@ -1,4 +1,4 @@
-import type { IComponent, IComponentBuilder, IComponentHook as ComponentHook } from '..';
+import type { IComponent, IComponentBuilder, IComponentHook as ComponentHook } from '../index.js';
 import { Component } from '../components/Component.svelte.js';
 type PixiComponentCradle = {
     component: Component;

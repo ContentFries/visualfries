@@ -1,8 +1,8 @@
-import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib/index.js';
 import { Texture, BaseTexture, Sprite, Container } from 'pixi.js-legacy';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 import { svgGenerator } from '$lib/utils/svgGenerator.js';
-import type { TextAppearance } from '$lib';
+import type { TextAppearance } from '$lib/index.js';
 
 export class HtmlToCanvasHook implements IComponentHook {
 	#handlers: HookHandlers = {

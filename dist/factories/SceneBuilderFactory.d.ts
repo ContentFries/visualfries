@@ -1,4 +1,4 @@
-import type { Scene, RenderEnvironment, Subtitle, FontType, SubtitleCollection } from '..';
+import type { Scene, RenderEnvironment, Subtitle, FontType, SubtitleCollection } from '../index.js';
 import type { DeterministicMediaConfig } from '../schemas/runtime/deterministic.js';
 import { SceneBuilder } from '../SceneBuilder.svelte.js';
 import type { FontProvider } from '../fonts/types.js';

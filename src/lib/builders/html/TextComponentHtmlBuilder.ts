@@ -1,6 +1,6 @@
 import { sanitizeText, wrapEmojis } from '$lib/utils/html.js';
 import { get } from 'lodash-es';
-import type { TextComponent } from '$lib';
+import type { TextComponent } from '$lib/index.js';
 
 import { HtmlBuilder, type WrapperConfig, type ElementConfig } from './HtmlBuilder.js';
 import { StyleBuilder } from './StyleBuilder.js';

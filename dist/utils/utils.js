@@ -1,4 +1,4 @@
-import { AppearanceShape, TextComponentShape } from '..';
+import { AppearanceShape, TextComponentShape } from '../index.js';
 import * as PIXI from 'pixi.js-legacy';
 import { v4 as uuidv4 } from 'uuid';
 export function changeIdDeep(obj) {

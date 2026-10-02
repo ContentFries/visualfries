@@ -1,5 +1,5 @@
-import type { IComponentContext, IComponentHook, HookType } from '../..';
-import { ImageComponentShape, VideoComponentShape } from '../..';
+import type { IComponentContext, IComponentHook, HookType } from '../../index.js';
+import { ImageComponentShape, VideoComponentShape } from '../../index.js';
 import { z } from 'zod';
 import type { StateManager } from '../../managers/StateManager.svelte.ts';
 import type { DeterministicMediaManager } from '../../managers/DeterministicMediaManager.ts';

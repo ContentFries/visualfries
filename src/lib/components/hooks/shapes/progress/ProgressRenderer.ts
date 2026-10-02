@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js-legacy';
-import type { IComponentContext } from '$lib';
-import type { ShapeComponent } from '$lib';
+import type { IComponentContext } from '$lib/index.js';
+import type { ShapeComponent } from '$lib/index.js';
 import { PixiColorTransformer } from '$lib/transformers/PixiColorTransformer.js';
 
 /**

@@ -1,7 +1,7 @@
 import { StateManager } from './StateManager.svelte.js';
 import { EventManager } from './EventManager.js';
-import type { MediaComponent, ResourceManager, IComponent, ComponentData, ComponentRefreshType } from '..';
-import type { AppearanceInput } from '..';
+import type { MediaComponent, ResourceManager, IComponent, ComponentData, ComponentRefreshType } from '../index.js';
+import type { AppearanceInput } from '../index.js';
 import { Component } from '../components/Component.svelte.js';
 import { type AwilixContainer } from 'awilix/browser';
 import type { LayersManager } from './LayersManager.svelte.js';

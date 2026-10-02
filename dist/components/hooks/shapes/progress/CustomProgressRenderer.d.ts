@@ -1,5 +1,5 @@
-import type { IComponentContext } from '../../../..';
-import type { CustomProgressConfig } from '../../../..';
+import type { IComponentContext } from '../../../../index.js';
+import type { CustomProgressConfig } from '../../../../index.js';
 import { ProgressRenderer } from './ProgressRenderer.js';
 export declare class CustomProgressRenderer extends ProgressRenderer {
     private config;

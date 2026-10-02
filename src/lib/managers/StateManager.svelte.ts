@@ -1,6 +1,6 @@
 import { EventManager } from './EventManager.js';
-import type { BuilderState, EventPayload, IStateManager } from '$lib';
-import type { RenderEnvironment, Scene as SceneData } from '$lib';
+import type { BuilderState, EventPayload, IStateManager } from '$lib/index.js';
+import type { RenderEnvironment, Scene as SceneData } from '$lib/index.js';
 import { TimeManager } from './TimeManager.svelte.js';
 import type { LayersManager } from './LayersManager.svelte.js';
 

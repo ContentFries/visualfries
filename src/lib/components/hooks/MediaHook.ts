@@ -1,5 +1,5 @@
 import { MediaManager } from '$lib/managers/MediaManager.js';
-import type { IComponentContext, IComponentHook, HookType } from '$lib';
+import type { IComponentContext, IComponentHook, HookType } from '$lib/index.js';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 import { shouldPrepareMediaAtTime } from '$lib/utils/mediaWindow.js';
 

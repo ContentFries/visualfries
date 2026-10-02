@@ -1,5 +1,5 @@
-import type { ComponentData, ComponentProps } from '$lib';
-import type { Appearance, AppearanceInput, VideoComponent, TextComponent } from '$lib';
+import type { ComponentData, ComponentProps } from '$lib/index.js';
+import type { Appearance, AppearanceInput, VideoComponent, TextComponent } from '$lib/index.js';
 import { EventManager } from '$lib/managers/EventManager.js';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 import { merge } from 'lodash-es';

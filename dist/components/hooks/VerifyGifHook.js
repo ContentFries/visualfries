@@ -1,4 +1,4 @@
-import { GifComponentShape } from '../..';
+import { GifComponentShape } from '../../index.js';
 export class VerifyGifHook {
     types = ['setup', 'refresh'];
     priority = 1;

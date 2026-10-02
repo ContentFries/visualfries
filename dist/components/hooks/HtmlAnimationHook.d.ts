@@ -1,4 +1,4 @@
-import type { IComponentContext, IComponentHook, HookType } from '../..';
+import type { IComponentContext, IComponentHook, HookType } from '../../index.js';
 export declare class HtmlAnimationHook implements IComponentHook {
     #private;
     types: HookType[];

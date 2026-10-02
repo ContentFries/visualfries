@@ -1,5 +1,5 @@
 import type { StyleProcessor } from '../StyleProcessor.js';
-import type { Appearance } from '$lib';
+import type { Appearance } from '$lib/index.js';
 import type { HtmlElementStyle } from '../HtmlBuilder.js';
 import { ColorTransformer } from '$lib/transformers/ColorTransformer.js';
 import { get } from 'lodash-es';

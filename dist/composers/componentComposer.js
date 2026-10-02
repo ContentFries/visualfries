@@ -1,5 +1,5 @@
 import { merge } from 'lodash-es';
-import { ComponentShape } from '..';
+import { ComponentShape } from '../index.js';
 /**
  * A fluent composer for a single Component object.
  */

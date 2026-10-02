@@ -1,6 +1,6 @@
 import { EventManager } from './EventManager.js';
 import { normalizeSubtitle } from '../adapters/subtitleHelpers.js';
-import { SubtitleWithCompactWordsShape } from '..';
+import { SubtitleWithCompactWordsShape } from '../index.js';
 import { get, omit } from 'lodash-es';
 import { v4 as uuidv4 } from 'uuid';
 // Default settings

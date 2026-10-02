@@ -4,7 +4,7 @@ import type {
 	EngineTimeline,
 	EngineTarget
 } from './engines/AnimationEngineAdaptor.js';
-import type { AnimationSequenceItem, AnimationTimelinePosition } from '$lib';
+import type { AnimationSequenceItem, AnimationTimelinePosition } from '$lib/index.js';
 import { AnimationSetup } from './AnimationSetup.js';
 import { get } from 'lodash-es';
 import { v4 as uuidv4 } from 'uuid';

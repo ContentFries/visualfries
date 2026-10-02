@@ -6,8 +6,8 @@ import type {
 	IComponent,
 	ComponentData,
 	ComponentRefreshType
-} from '$lib';
-import type { AppearanceInput } from '$lib';
+} from '$lib/index.js';
+import type { AppearanceInput } from '$lib/index.js';
 import { Component } from '$lib/components/Component.svelte.js';
 import { ComponentDirector } from '$lib/directors/ComponentDirector.js';
 import { PixiComponentBuilder } from '$lib/builders/PixiComponentBuilder.js';

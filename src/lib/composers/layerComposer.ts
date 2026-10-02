@@ -4,7 +4,7 @@ import {
 	SceneLayerShape,
 	type Component,
 	type ComponentInput
-} from '$lib'; // Adjust path as needed
+} from '$lib/index.js'; // Adjust path as needed
 
 /**
  * A fluent composer for a single SceneLayer object.

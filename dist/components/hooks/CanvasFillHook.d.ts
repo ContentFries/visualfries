@@ -1,4 +1,4 @@
-import type { IComponentContext, IComponentHook, HookType } from '../..';
+import type { IComponentContext, IComponentHook, HookType } from '../../index.js';
 import type { StateManager } from '../../managers/StateManager.svelte.js';
 /** Renders COLOR and GRADIENT schema components into a Pixi texture source. */
 export declare class CanvasFillHook implements IComponentHook {

@@ -1,4 +1,4 @@
-import { AnimationPresetShape, KeyframeAnimationShape } from '../..';
+import { AnimationPresetShape, KeyframeAnimationShape } from '../../index.js';
 class AbstractNormalizationHandler {
     nextHandler = null;
     setNext(handler) {

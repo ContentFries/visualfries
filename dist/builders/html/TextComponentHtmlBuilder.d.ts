@@ -1,4 +1,4 @@
-import type { TextComponent } from '../..';
+import type { TextComponent } from '../../index.js';
 export declare class TextComponentHtmlBuilder {
     private component;
     private document;

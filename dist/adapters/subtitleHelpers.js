@@ -1,4 +1,4 @@
-import { SubtitleWithCompactWordsShape, ColorTypeShape } from '..';
+import { SubtitleWithCompactWordsShape, ColorTypeShape } from '../index.js';
 // ============================================================================
 // TYPE GUARDS
 // ============================================================================

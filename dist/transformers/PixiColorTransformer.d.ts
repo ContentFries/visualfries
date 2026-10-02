@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js-legacy';
-import type { ColorType } from '..';
+import type { ColorType } from '../index.js';
 interface PixiColorResult {
     type: 'solid' | 'gradient';
     color?: number;

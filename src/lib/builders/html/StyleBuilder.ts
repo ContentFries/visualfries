@@ -1,4 +1,4 @@
-import type { Component, TextComponent, Appearance, TextAppearance, ComponentEffect } from '$lib';
+import type { Component, TextComponent, Appearance, TextAppearance, ComponentEffect } from '$lib/index.js';
 import { AppearanceStyleProcessor } from './processors/AppearanceStyleProcessor.js';
 import { TextAppearanceStyleProcessor } from './processors/TextAppearanceStyleProcessor.js';
 import { TextEffectsStyleProcessor } from './processors/TextEffectsStyleProcessor.js';

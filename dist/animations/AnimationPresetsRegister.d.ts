@@ -1,4 +1,4 @@
-import type { AnimationPreset } from "..";
+import type { AnimationPreset } from "../index.js";
 export declare class AnimationPresetsRegister {
     #private;
     private presets;

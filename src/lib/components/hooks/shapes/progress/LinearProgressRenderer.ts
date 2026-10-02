@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js-legacy';
-import type { IComponentContext } from '$lib';
-import type { LinearProgressConfig } from '$lib';
+import type { IComponentContext } from '$lib/index.js';
+import type { LinearProgressConfig } from '$lib/index.js';
 import { ProgressRenderer } from './ProgressRenderer.js';
 
 export class LinearProgressRenderer extends ProgressRenderer {

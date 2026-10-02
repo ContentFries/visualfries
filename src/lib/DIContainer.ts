@@ -1,5 +1,5 @@
 import { createContainer, type AwilixContainer, asClass, asValue, Lifetime } from 'awilix/browser';
-import type { Scene as SceneData } from '$lib';
+import type { Scene as SceneData } from '$lib/index.js';
 import { SceneBuilder } from '$lib/SceneBuilder.svelte.js';
 import { RenderManager } from '$lib/managers/RenderManager.js';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';

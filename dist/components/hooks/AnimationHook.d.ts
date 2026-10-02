@@ -1,4 +1,4 @@
-import type { IComponentContext, IComponentHook, HookType } from '../..';
+import type { IComponentContext, IComponentHook, HookType } from '../../index.js';
 import { TimelineManager } from '../../managers/TimelineManager.svelte.js';
 import type { ComponentAnimationTransformer } from '../../animations/transformers/AnimationReferenceTransformer.js';
 import { SplitTextCache } from '../../animations/SplitTextCache.js';

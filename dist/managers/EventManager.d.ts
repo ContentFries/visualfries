@@ -1,4 +1,4 @@
-import type { EventType, EventPayload, EventMap } from '..';
+import type { EventType, EventPayload, EventMap } from '../index.js';
 export declare class EventManager extends EventTarget {
     isReady: boolean;
     constructor();

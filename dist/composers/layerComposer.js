@@ -1,4 +1,4 @@
-import { SceneLayerShape } from '..'; // Adjust path as needed
+import { SceneLayerShape } from '../index.js'; // Adjust path as needed
 /**
  * A fluent composer for a single SceneLayer object.
  */

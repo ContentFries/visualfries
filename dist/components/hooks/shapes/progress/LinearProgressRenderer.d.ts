@@ -1,5 +1,5 @@
-import type { IComponentContext } from '../../../..';
-import type { LinearProgressConfig } from '../../../..';
+import type { IComponentContext } from '../../../../index.js';
+import type { LinearProgressConfig } from '../../../../index.js';
 import { ProgressRenderer } from './ProgressRenderer.js';
 export declare class LinearProgressRenderer extends ProgressRenderer {
     private config;

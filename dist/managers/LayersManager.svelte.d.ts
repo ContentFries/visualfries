@@ -1,6 +1,6 @@
 import { AppManager } from './AppManager.svelte.js';
-import type { ResourceManager, ILayer } from '..';
-import type { SceneLayer, SceneLayerInput } from '..';
+import type { ResourceManager, ILayer } from '../index.js';
+import type { SceneLayer, SceneLayerInput } from '../index.js';
 import type { AwilixContainer } from 'awilix/browser';
 export declare class LayersManager implements ResourceManager<ILayer, SceneLayer, SceneLayerInput> {
     #private;

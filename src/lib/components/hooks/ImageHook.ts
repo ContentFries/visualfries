@@ -1,5 +1,5 @@
-import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
-import { ImageComponentShape } from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib/index.js';
+import { ImageComponentShape } from '$lib/index.js';
 import { z } from 'zod';
 
 export class ImageHook implements IComponentHook {

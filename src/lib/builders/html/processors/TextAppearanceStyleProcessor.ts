@@ -1,5 +1,5 @@
 import type { StyleProcessor } from '../StyleProcessor.js';
-import type { TextAppearance } from '$lib';
+import type { TextAppearance } from '$lib/index.js';
 import type { HtmlElementStyle } from '../HtmlBuilder.js';
 import { ColorTransformer } from '$lib/transformers/ColorTransformer.js';
 

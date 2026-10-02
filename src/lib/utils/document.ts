@@ -1,4 +1,4 @@
-import type { FontType } from '$lib';
+import type { FontType } from '$lib/index.js';
 import type { FontVariantDescriptor } from '$lib/fonts/fontDiscovery.js';
 import { extractConfiguredFontVariants } from '$lib/fonts/fontDiscovery.js';
 

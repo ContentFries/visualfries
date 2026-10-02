@@ -1,6 +1,6 @@
-import type { IComponentContext, IComponentHook, HookType } from '$lib';
+import type { IComponentContext, IComponentHook, HookType } from '$lib/index.js';
 import { computeXYAngle } from '$lib/utils/canvas.js';
-import type { ShapeComponent } from '$lib';
+import type { ShapeComponent } from '$lib/index.js';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 
 export class CanvasShapeHook implements IComponentHook {

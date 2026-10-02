@@ -10,8 +10,8 @@ import type {
 	Component as ComponentData,
 	SceneSubtitlesSettings,
 	FontType
-} from '$lib';
-import { ComponentShape } from '$lib';
+} from '$lib/index.js';
+import { ComponentShape } from '$lib/index.js';
 
 import { buildCharactersListFromComponentsAndSubtitles, changeIdDeep } from './utils/utils.js';
 import { loadFonts } from './utils/document.js';
@@ -28,7 +28,7 @@ import { AppManager } from './managers/AppManager.svelte.js';
 import { ComponentsManager } from './managers/ComponentsManager.svelte.js';
 import { v4 as uuidv4 } from 'uuid';
 
-import type { EventMap, EventType, EventPayload, BuilderState, ISceneBuilder } from '$lib';
+import type { EventMap, EventType, EventPayload, BuilderState, ISceneBuilder } from '$lib/index.js';
 import type {
 	DeterministicFrameProvider,
 	DeterministicMediaConfig,
@@ -36,7 +36,7 @@ import type {
 	FrameImageEncodingOptions,
 	RenderFrameRangeOptions,
 	RenderFrameRangeSummary
-} from '$lib';
+} from '$lib/index.js';
 
 import { MediaManager } from './managers/MediaManager.js';
 import { DeterministicMediaManager } from './managers/DeterministicMediaManager.js';

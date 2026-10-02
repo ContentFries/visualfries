@@ -1,8 +1,8 @@
 import * as PIXI from 'pixi.js-legacy';
 
-import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib';
+import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '$lib/index.js';
 import { setPlacementAndOpacity } from '$lib/utils/utils.js';
-import type { Appearance } from '$lib';
+import type { Appearance } from '$lib/index.js';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 
 export class PixiDisplayObjectHook implements IComponentHook {

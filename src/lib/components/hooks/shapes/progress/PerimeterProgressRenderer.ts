@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js-legacy';
-import type { IComponentContext } from '$lib';
-import type { PerimeterProgressConfig } from '$lib';
+import type { IComponentContext } from '$lib/index.js';
+import type { PerimeterProgressConfig } from '$lib/index.js';
 import { ProgressRenderer } from './ProgressRenderer.js';
 
 export class PerimeterProgressRenderer extends ProgressRenderer {

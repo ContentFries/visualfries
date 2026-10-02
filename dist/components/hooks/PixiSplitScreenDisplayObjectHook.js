@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js-legacy';
-import { ImageComponentShape, LayoutSplitEffectShape, VideoComponentShape } from '../..';
+import { ImageComponentShape, LayoutSplitEffectShape, VideoComponentShape } from '../../index.js';
 import { z } from 'zod';
 export class PixiSplitScreenDisplayObjectHook {
     types = ['update', 'destroy', 'refresh', 'refresh:content'];

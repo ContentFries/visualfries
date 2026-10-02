@@ -18,7 +18,7 @@ import type {
 	GradientComponent,
 	ComponentSource,
 	IComponentContext
-} from '$lib';
+} from '$lib/index.js';
 
 // ============================================================================
 // Component Type Constants

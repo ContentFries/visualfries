@@ -6,9 +6,9 @@ import type {
 	Scene,
 	SceneSubtitlesSettings,
 	CompactWordTuple
-} from '$lib';
+} from '$lib/index.js';
 import { normalizeSubtitle } from '$lib/adapters/subtitleHelpers.js';
-import { SubtitleWithCompactWordsShape } from '$lib';
+import { SubtitleWithCompactWordsShape } from '$lib/index.js';
 import type { TimeManager } from './TimeManager.svelte.js';
 import { get, omit } from 'lodash-es';
 import { v4 as uuidv4 } from 'uuid';

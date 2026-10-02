@@ -1,4 +1,4 @@
-import type { FontType, Scene } from '..';
+import type { FontType, Scene } from '../index.js';
 export type FontVariantDescriptor = {
     family: string;
     weight: number;

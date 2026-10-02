@@ -28,7 +28,7 @@ import type {
 	ImageComponentShape,
 	GifComponentShape,
 	Subtitle
-} from '$lib';
+} from '$lib/index.js';
 import type {
 	DeterministicMediaConfig,
 	DeterministicFrameProvider,

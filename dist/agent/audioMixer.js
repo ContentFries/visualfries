@@ -12,8 +12,6 @@ const REMOTE_AUDIO_INPUT_OPTIONS = [
     '1',
     '-reconnect_on_network_error',
     '1',
-    '-http_follow_location',
-    '1',
     '-multiple_requests',
     '1',
     '-rw_timeout',

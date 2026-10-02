@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.1](https://github.com/ContentFries/visualfries/compare/visualfries-v0.4.0...visualfries-v0.4.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **agent:** drop an ffmpeg input option ffmpeg does not have ([#55](https://github.com/ContentFries/visualfries/issues/55)) ([eba3a63](https://github.com/ContentFries/visualfries/commit/eba3a63800b4121bfe7cc4018c1f2c98d4059066))
+* **build:** declare workspace packages for older pnpm ([#52](https://github.com/ContentFries/visualfries/issues/52)) ([1b5440a](https://github.com/ContentFries/visualfries/commit/1b5440a5073193853e36c6650056c0a3a525353f))
+* **package:** make the published build importable from Node ESM ([#54](https://github.com/ContentFries/visualfries/issues/54)) ([f71111a](https://github.com/ContentFries/visualfries/commit/f71111af62ffeceda425f89d958ed31178706a3f))
+
 ## [0.4.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.3.2...visualfries-v0.4.0) (2026-09-28)
 
 

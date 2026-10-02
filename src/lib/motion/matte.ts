@@ -102,12 +102,18 @@ async function falUpload(fal: Fal, file: string): Promise<string> {
 	return fileUrl;
 }
 
+/** A request still queued or running after this long is abandoned. */
+const FAL_REQUEST_TIMEOUT_MS = 20 * 60 * 1000;
+
 async function falRun(fal: Fal, input: Record<string, unknown>): Promise<any> {
 	const queued = await falJson(fal, `https://queue.fal.run/${FAL_ENDPOINT}`, {
 		method: 'POST',
 		body: JSON.stringify(input)
 	});
+	const deadline = Date.now() + FAL_REQUEST_TIMEOUT_MS;
 	for (;;) {
+		if (Date.now() > deadline)
+			throw new Error(`fal.ai request ${queued.request_id} did not finish within 20 minutes.`);
 		const status = await falJson(fal, queued.status_url);
 		if (status.status === 'COMPLETED') break;
 		if (status.status !== 'IN_QUEUE' && status.status !== 'IN_PROGRESS')
@@ -129,14 +135,19 @@ export async function createSubjectMatte(input: string, opts: MatteOptions): Pro
 	const model = opts.model ?? 'Matting';
 	const started = Date.now();
 	const info = await probeVideo(input);
+	if (!info.constant)
+		throw new Error(
+			`${input} has a variable frame rate. Convert it first, e.g. ffmpeg -i in.mp4 -vf fps=30 -c:a copy out.mp4.`
+		);
 	const chunks = planMatteChunks(info.frames, opts.chunkFrames ?? 480);
 	const work = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-'));
 	const log = opts.onProgress ?? (() => {});
 	try {
 		const done: string[] = new Array(chunks.length);
 		let next = 0;
+		let failed = false;
 		const worker = async () => {
-			while (next < chunks.length) {
+			while (next < chunks.length && !failed) {
 				const i = next++;
 				const { first, last } = chunks[i];
 				const count = last - first + 1;
@@ -171,6 +182,12 @@ export async function createSubjectMatte(input: string, opts: MatteOptions): Pro
 				const response = await fal.fetch(maskUrl);
 				if (!response.ok) throw new Error(`Mask download failed: ${response.status}`);
 				await fs.writeFile(raw, Buffer.from(await response.arrayBuffer()));
+				// Up to two missing frames are normal and padded below; more means a wrong mask.
+				const rawFrames = (await probeVideo(raw)).frames;
+				if (rawFrames < count - 2 || rawFrames > count + 2)
+					throw new Error(
+						`fal.ai mask for frames ${first}–${last} has ${rawFrames} frames, expected ${count}.`
+					);
 				// The API may return a frame less; hold the last frame so chunks stay aligned.
 				const fixed = path.join(work, `mask-${i}.mp4`);
 				await ffmpeg([
@@ -192,9 +209,18 @@ export async function createSubjectMatte(input: string, opts: MatteOptions): Pro
 				log(`matte: frames ${first}–${last} done (${i + 1}/${chunks.length})`);
 			}
 		};
-		await Promise.all(
-			Array.from({ length: Math.min(opts.jobs ?? 3, chunks.length) }, () => worker())
+		// The first failure stops the other workers from sending more paid requests; the work
+		// folder is removed only after every worker has stopped.
+		const results = await Promise.allSettled(
+			Array.from({ length: Math.min(opts.jobs ?? 3, chunks.length) }, () =>
+				worker().catch((error) => {
+					failed = true;
+					throw error;
+				})
+			)
 		);
+		const rejected = results.find((r) => r.status === 'rejected');
+		if (rejected) throw (rejected as PromiseRejectedResult).reason;
 		const list = path.join(work, 'list.txt');
 		await fs.writeFile(list, done.map((f) => `file '${f.replace(/'/g, "'\\''")}'`).join('\n'));
 		await fs.mkdir(path.dirname(path.resolve(opts.output)), { recursive: true });

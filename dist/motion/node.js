@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { MotionProjectShape } from './project.js';
@@ -163,9 +163,9 @@ export async function bundleMotionProject(loaded, clips) {
 /** Project CSS is inlined into a page elsewhere; make its relative url(...) absolute. */
 function rebaseCssUrls(css, dir, roots) {
     return css.replace(/url\((\s*['"]?)([^'")]+)(['"]?\s*)\)/g, (all, open, ref, close) => {
-        if (/^(data:|https?:|file:|#|\/)/.test(ref))
+        if (/^(data:|https?:|#)/.test(ref))
             return all;
-        const abs = path.resolve(dir, ref);
+        const abs = ref.startsWith('file:') ? fileURLToPath(ref) : path.resolve(dir, ref);
         roots.push(path.dirname(abs));
         return `url(${open}${originUrl(abs)}${close})`;
     });
@@ -263,13 +263,23 @@ async function serveFromRoots(route, roots, errors) {
     const { pathname } = new URL(route.request().url());
     if (!pathname.startsWith('/@fs/'))
         return route.fulfill({ status: 404 });
-    const abs = fileURLToPath(`file://${pathname.slice('/@fs'.length)}`);
-    if (!roots.some((root) => abs === root || abs.startsWith(root + path.sep))) {
+    let abs;
+    let real;
+    try {
+        abs = fileURLToPath(`file://${pathname.slice('/@fs'.length)}`);
+        // Resolve symlinks first, so a link inside the project cannot reach outside it.
+        real = await fs.realpath(abs);
+    }
+    catch {
+        return route.fulfill({ status: 404 });
+    }
+    const realRoots = await Promise.all(roots.map((root) => fs.realpath(root).catch(() => root)));
+    if (!realRoots.some((root) => real === root || real.startsWith(root + path.sep))) {
         errors.push(`Blocked a request outside the project: ${abs}`);
         return route.fulfill({ status: 403 });
     }
     try {
-        const body = await fs.readFile(abs);
+        const body = await fs.readFile(real);
         return route.fulfill({
             status: 200,
             body,
@@ -307,26 +317,39 @@ export async function probeVideo(file) {
         'v:0',
         '-count_packets',
         '-show_entries',
-        'stream=width,height,r_frame_rate,nb_read_packets'
+        'stream=width,height,r_frame_rate,avg_frame_rate,nb_read_packets'
     ]);
     const stream = info.streams?.[0];
     if (!stream)
         throw new Error(`No video stream in ${file}`);
-    const [num, den] = String(stream.r_frame_rate).split('/').map(Number);
+    const rate = (value) => {
+        const [num, den] = String(value).split('/').map(Number);
+        return den ? num / den : num;
+    };
+    const fps = rate(stream.r_frame_rate);
+    const avg = rate(stream.avg_frame_rate);
     return {
         width: stream.width,
         height: stream.height,
-        fps: den ? num / den : num,
-        frames: Number(stream.nb_read_packets)
+        fps,
+        frames: Number(stream.nb_read_packets),
+        constant: !(avg > 0) || Math.abs(avg - fps) <= fps * 0.005
     };
 }
-/** Seconds of decoding margin around the clips, for `offset` and delayed copies. */
+/** Default seconds extracted around the clips, for `offset` and delayed copies. */
 const FOOTAGE_MARGIN_SECONDS = 2;
 /**
  * Extracts the footage frames the given clips need (with a margin) into
  * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
  * Frames are cached by source, matte, frame rate and range.
  */
+function edgeFrame(clips, startFrame, total) {
+    if (total <= 0)
+        return { first: 0, last: 0 };
+    const before = clips.every((c) => c.startFrame + c.frames <= startFrame);
+    const index = before ? 0 : total - 1;
+    return { first: index, last: index };
+}
 export async function prepareFootage(loaded, clips) {
     const footage = loaded.project.footage ?? {};
     const fps = loaded.project.fps;
@@ -339,11 +362,15 @@ export async function prepareFootage(loaded, clips) {
             if (file && !existsSync(file))
                 throw new Error(`Footage "${name}": file not found: ${file}`);
         const info = await probeVideo(src);
-        const total = Math.abs(info.fps - fps) < 0.01 ? info.frames : Math.floor((info.frames / info.fps) * fps);
+        // Same constant frame rate as the project: footage frames are program frames and a fast
+        // input seek is exact. Otherwise decode from the start so the rate conversion keeps one
+        // phase whatever range is extracted.
+        const direct = info.constant && Math.abs(info.fps - fps) < 0.01;
+        const total = direct ? info.frames : Math.floor((info.frames / info.fps) * fps);
         const startFrame = Math.round((spec.start ?? 0) * fps);
-        const range = footageFrameRange(clips, startFrame, total, Math.round(FOOTAGE_MARGIN_SECONDS * fps));
-        if (!range)
-            continue;
+        const margin = Math.round((spec.margin ?? FOOTAGE_MARGIN_SECONDS) * fps);
+        // Clips that never overlap the footage hold its nearest edge frame.
+        const range = footageFrameRange(clips, startFrame, total, margin) ?? edgeFrame(clips, startFrame, total);
         const stats = await Promise.all([src, matte].map((f) => (f ? fs.stat(f) : null)));
         const key = createHash('sha1')
             .update(JSON.stringify({
@@ -357,67 +384,79 @@ export async function prepareFootage(loaded, clips) {
             .slice(0, 12);
         const dir = path.join(loaded.dir, '.visualfries', 'footage', `${name}-${key}`);
         if (!existsSync(path.join(dir, 'done.json'))) {
-            const tmp = `${dir}.tmp-${process.pid}`;
-            await fs.rm(tmp, { recursive: true, force: true });
+            const tmp = `${dir}.tmp-${process.pid}-${randomUUID()}`;
             await fs.mkdir(path.join(tmp, 'plate'), { recursive: true });
-            const count = range.last - range.first + 1;
-            const seek = ['-ss', (range.first / fps).toFixed(6)];
-            await ffmpeg([
-                '-y',
-                ...seek,
-                '-i',
-                src,
-                '-vf',
-                `fps=${fps}`,
-                '-frames:v',
-                String(count),
-                '-start_number',
-                String(range.first),
-                '-q:v',
-                '2',
-                path.join(tmp, 'plate', '%06d.jpg')
-            ]);
-            if (matte) {
-                await fs.mkdir(path.join(tmp, 'subject'), { recursive: true });
+            try {
+                const count = range.last - range.first + 1;
+                const seek = direct ? ['-ss', (range.first / fps).toFixed(6)] : [];
+                const pick = direct
+                    ? `fps=${fps}`
+                    : `fps=${fps},trim=start_frame=${range.first}:end_frame=${range.last + 1},setpts=PTS-STARTPTS`;
                 await ffmpeg([
                     '-y',
                     ...seek,
                     '-i',
                     src,
-                    ...seek,
-                    '-i',
-                    matte,
-                    '-filter_complex',
-                    // A matte a frame or two short holds its last frame instead of dropping the picture.
-                    `[0:v]fps=${fps}[c];[1:v]fps=${fps},scale=${info.width}:${info.height},format=gray,tpad=stop_mode=clone:stop_duration=${FOOTAGE_MARGIN_SECONDS}[m];[c][m]alphamerge,format=rgba`,
+                    '-vf',
+                    pick,
                     '-frames:v',
                     String(count),
                     '-start_number',
                     String(range.first),
-                    '-compression_level',
-                    '1',
-                    path.join(tmp, 'subject', '%06d.png')
+                    '-q:v',
+                    '2',
+                    path.join(tmp, 'plate', '%06d.jpg')
                 ]);
+                if (matte) {
+                    await fs.mkdir(path.join(tmp, 'subject'), { recursive: true });
+                    await ffmpeg([
+                        '-y',
+                        ...seek,
+                        '-i',
+                        src,
+                        ...seek,
+                        '-i',
+                        matte,
+                        '-filter_complex',
+                        // A matte a frame or two short holds its last frame instead of dropping the picture.
+                        `[0:v]${pick}[c];[1:v]${pick},scale=${info.width}:${info.height},format=gray,tpad=stop_mode=clone:stop_duration=2[m];[c][m]alphamerge,format=rgba`,
+                        '-frames:v',
+                        String(count),
+                        '-start_number',
+                        String(range.first),
+                        '-compression_level',
+                        '1',
+                        path.join(tmp, 'subject', '%06d.png')
+                    ]);
+                }
+                const written = (await fs.readdir(path.join(tmp, 'plate'))).length;
+                await fs.writeFile(path.join(tmp, 'done.json'), JSON.stringify({
+                    name,
+                    src,
+                    matte,
+                    first: range.first,
+                    last: range.first + written - 1,
+                    total,
+                    width: info.width,
+                    height: info.height
+                }));
+                // Publish atomically. If another run published the same frames first, keep theirs:
+                // never delete a published folder another page may be reading.
+                await fs.rename(tmp, dir).catch(async (error) => {
+                    if (!existsSync(path.join(dir, 'done.json')))
+                        throw error;
+                });
             }
-            const written = (await fs.readdir(path.join(tmp, 'plate'))).length;
-            const last = range.first + written - 1;
-            await fs.writeFile(path.join(tmp, 'done.json'), JSON.stringify({
-                name,
-                src,
-                matte,
-                first: range.first,
-                last,
-                width: info.width,
-                height: info.height
-            }));
-            await fs.rm(dir, { recursive: true, force: true });
-            await fs.rename(tmp, dir);
+            finally {
+                await fs.rm(tmp, { recursive: true, force: true });
+            }
         }
         const done = JSON.parse(await fs.readFile(path.join(dir, 'done.json'), 'utf8'));
         frames[name] = {
             url: originUrl(dir) + '/',
             first: done.first,
             last: done.last,
+            total: done.total,
             width: done.width,
             height: done.height,
             startFrame,
@@ -637,7 +676,8 @@ function audioInput(loaded, clip) {
     if (!footage)
         throw new Error(`Clip "${clip.id}": unknown audio footage "${clip.audio}".`);
     const src = path.resolve(loaded.dir, footage.src);
-    const from = clip.start - (footage.start ?? 0);
+    // The picture places the footage on a whole frame; the sound follows the same frame.
+    const from = clip.start - Math.round((footage.start ?? 0) * clip.fps) / clip.fps;
     const delayMs = Math.max(0, Math.round(-from * 1000));
     return [
         '-ss',

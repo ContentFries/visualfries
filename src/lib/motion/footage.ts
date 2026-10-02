@@ -3,16 +3,22 @@ import type { FootageFrames } from './resolve.js';
 export type FootageLayer = 'plate' | 'subject';
 
 /**
- * URL of the footage frame shown at `programFrame`. Frames outside the extracted range hold the
- * nearest one, so a delayed copy (`offset`) at the clip start still has a picture.
+ * URL of the footage frame shown at `programFrame`. Before the footage starts and after it ends
+ * the nearest frame holds. A frame inside the footage that was not extracted is an error: raise
+ * the footage's `margin` (it happens with an `offset` larger than the margin).
  */
 export function footageFrameUrl(
 	footage: FootageFrames,
 	programFrame: number,
 	layer: FootageLayer
 ): string {
-	const index = Math.min(footage.last, Math.max(footage.first, programFrame - footage.startFrame));
-	const name = String(index).padStart(6, '0');
+	const wanted = Math.min(footage.total - 1, Math.max(0, programFrame - footage.startFrame));
+	if (wanted < footage.first || wanted > footage.last) {
+		throw new Error(
+			`Footage frame ${wanted} was not extracted (frames ${footage.first}–${footage.last}). Raise the footage's "margin" to cover the offset.`
+		);
+	}
+	const name = String(wanted).padStart(6, '0');
 	return layer === 'subject'
 		? `${footage.url}subject/${name}.png`
 		: `${footage.url}plate/${name}.jpg`;

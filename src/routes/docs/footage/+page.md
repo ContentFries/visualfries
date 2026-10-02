@@ -24,11 +24,12 @@ The [speaker-depth demo](https://github.com/ContentFries/visualfries/tree/main/s
 }
 ```
 
-| Field   | Meaning                                                                |
-| ------- | ---------------------------------------------------------------------- |
-| `src`   | The video, relative to the project file.                               |
-| `matte` | Optional greyscale video of the same footage; white = subject.         |
-| `start` | Program seconds at which the footage's first frame plays. Default `0`. |
+| Field    | Meaning                                                                                    |
+| -------- | ------------------------------------------------------------------------------------------ |
+| `src`    | The video, relative to the project file.                                                   |
+| `matte`  | Optional greyscale video of the same footage; white = subject.                             |
+| `start`  | Program seconds at which the footage's first frame plays. Default `0`.                     |
+| `margin` | Seconds extracted before and after the clips. Default `2`; raise it for a larger `offset`. |
 
 A clip's **`audio`** names a footage whose sound is muxed into the rendered clip, cut to the clip's program range.
 
@@ -48,12 +49,12 @@ A clip's **`audio`** names a footage whose sound is muxed into the rendered clip
 
 `<Footage>` is an `<img>` that shows the footage frame playing at the current program frame. Size and place it with CSS, wrap it in elements for transforms, filters and masks.
 
-| Prop             | Meaning                                                                                                     |
-| ---------------- | ----------------------------------------------------------------------------------------------------------- |
-| `name`           | Footage name from the project.                                                                              |
-| `layer`          | `plate`: the original picture. `subject`: only the subject (needs a matte).                                 |
-| `offset`         | Seconds; negative shows an earlier frame (a delayed echo). Frames outside the footage hold the nearest one. |
-| `class`, `style` | Passed to the `<img>`.                                                                                      |
+| Prop             | Meaning                                                                                                                                                                                   |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`           | Footage name from the project.                                                                                                                                                            |
+| `layer`          | `plate`: the original picture. `subject`: only the subject (needs a matte).                                                                                                               |
+| `offset`         | Seconds; negative shows an earlier frame (a delayed echo). Before the footage starts and after it ends the nearest frame holds; an offset larger than the footage's `margin` is an error. |
+| `class`, `style` | Passed to the `<img>`.                                                                                                                                                                    |
 
 `clip.footage.talk` has the footage's `width` and `height` for layout. Frames are loaded before each frame is captured, so stills, checks and renders are frame-accurate in any order.
 
@@ -65,7 +66,7 @@ The first command that needs frames extracts the range the clips use (plus two s
 FAL_KEY=… npx visualfries matte talk.mp4 --output talk.matte.mp4
 ```
 
-[`visualfries matte`](/docs/cli#matte) runs BiRefNet v2 on fal.ai, splits videos over 512 frames into several requests and checks that the matte has exactly as many frames as the input. Model `Matting` keeps hair and microphones. A 17-second 1000×1080 clip takes one to three minutes. A matte from any other tool works as long as it has the same size and frame count.
+[`visualfries matte`](/docs/cli#matte) runs BiRefNet v2 on fal.ai (constant frame rate only; convert a variable-frame-rate recording first), splits videos over 512 frames into several requests and checks that the matte has exactly as many frames as the input. Model `Matting` keeps hair and microphones. A 17-second 1000×1080 clip takes one to three minutes. A matte from any other tool works as long as it has the same size and frame count.
 
 ## Speaker depth, step by step
 

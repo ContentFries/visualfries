@@ -308,7 +308,7 @@ Use `visualfries qa scene.json --output ./qa` as the normal agent quality gate. 
 
 ## Speaker Depth (type behind a talking head)
 
-Use a **motion project** (`docs/MOTION.md`), not scene JSON, when the user wants words, light or effects behind the speaker, a cut-out speaker, or a copy of the speaker on screen. Worked example: `static/demo/speaker-depth` (README, project, block).
+Use a **motion project** (`docs/MOTION.md`), not scene JSON, when the user wants words, light or effects behind the speaker, a cut-out speaker, or a copy of the speaker on screen. Worked example: [`static/demo/speaker-depth`](https://github.com/ContentFries/visualfries/tree/main/static/demo/speaker-depth) in the VisualFries repository (README, project, block, fonts); it is not in the npm package, so fetch it from GitHub.
 
 ```text
 recording -> crop -> visualfries matte -> transcript -> project.vf.json (footage + cues) -> block -> still sheet -> render

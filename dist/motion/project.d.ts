@@ -69,6 +69,7 @@ export declare const MotionFootageShape: z.ZodObject<{
     src: z.ZodString;
     matte: z.ZodOptional<z.ZodString>;
     start: z.ZodOptional<z.ZodNumber>;
+    margin: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>;
 export type MotionFootage = z.infer<typeof MotionFootageShape>;
 export declare const MotionClipShape: z.ZodObject<{
@@ -167,6 +168,7 @@ export declare const MotionProjectShape: z.ZodObject<{
         src: z.ZodString;
         matte: z.ZodOptional<z.ZodString>;
         start: z.ZodOptional<z.ZodNumber>;
+        margin: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>>>;
     clips: z.ZodArray<z.ZodObject<{
         id: z.ZodString;

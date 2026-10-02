@@ -41,6 +41,8 @@ export type FootageFrames = {
     /** First and last extracted footage frame (inclusive). */
     first: number;
     last: number;
+    /** Frames in the whole footage (at the project frame rate). */
+    total: number;
     width: number;
     height: number;
     /** Program frame at which footage frame 0 plays. */

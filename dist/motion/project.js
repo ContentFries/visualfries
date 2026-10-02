@@ -42,7 +42,12 @@ export const MotionFootageShape = z.object({
     src: z.string().min(1),
     matte: z.string().min(1).optional(),
     /** Program seconds at which the footage's first frame plays. Default 0. */
-    start: z.number().optional()
+    start: z.number().optional(),
+    /**
+     * Seconds extracted before and after the clips. Default 2. Raise it for `<Footage offset>`
+     * larger than that.
+     */
+    margin: z.number().min(0).optional()
 });
 export const MotionClipShape = z.object({
     id: z.string().regex(/^[A-Za-z0-9._-]+$/, 'clip id: letters, digits, dot, dash, underscore'),

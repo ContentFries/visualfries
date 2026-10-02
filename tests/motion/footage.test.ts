@@ -8,6 +8,7 @@ const frames = {
 	url: 'http://visualfries.local/@fs/p/.visualfries/footage/talk-1/',
 	first: 30,
 	last: 120,
+	total: 121,
 	width: 1000,
 	height: 1080,
 	startFrame: 15,
@@ -20,9 +21,15 @@ describe('footageFrameUrl', () => {
 		expect(footageFrameUrl(frames, 60, 'subject')).toBe(`${frames.url}subject/000045.png`);
 	});
 
-	it('holds the nearest extracted frame outside the range', () => {
-		expect(footageFrameUrl(frames, 0, 'plate')).toBe(`${frames.url}plate/000030.jpg`);
+	it('holds the last frame after the footage ends', () => {
 		expect(footageFrameUrl(frames, 500, 'plate')).toBe(`${frames.url}plate/000120.jpg`);
+		expect(footageFrameUrl({ ...frames, first: 0 }, 0, 'plate')).toBe(
+			`${frames.url}plate/000000.jpg`
+		);
+	});
+
+	it('refuses a frame inside the footage that was not extracted', () => {
+		expect(() => footageFrameUrl(frames, 20, 'plate')).toThrow(/margin/);
 	});
 });
 

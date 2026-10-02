@@ -18,9 +18,11 @@ export declare function loadMotionProject(file: string, opts?: {
 export declare function assertKnownClips(loaded: LoadedMotionProject, clipIds?: string[]): void;
 /** Throws on errors of the given clips (all clips when omitted), including clips that failed to resolve. */
 export declare function assertNoErrors(loaded: LoadedMotionProject, clipIds?: string[]): void;
+/** `roots`: folders the page may read files from. */
 type BundleResult = {
     dir: string;
     html: string;
+    roots: string[];
 };
 /** Compile the project's blocks together with the stage runtime into one page. */
 export declare function bundleMotionProject(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<BundleResult>;
@@ -40,6 +42,20 @@ export type MotionPage = {
     }>;
     close(): Promise<void>;
 };
+type VideoInfo = {
+    width: number;
+    height: number;
+    fps: number;
+    frames: number;
+};
+/** Size, frame rate and frame count (decoded packets) of a video's first stream. */
+export declare function probeVideo(file: string): Promise<VideoInfo>;
+/**
+ * Extracts the footage frames the given clips need (with a margin) into
+ * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
+ * Frames are cached by source, matte, frame rate and range.
+ */
+export declare function prepareFootage(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<string[]>;
 export type StillRequest = {
     clip: string;
     at: string;

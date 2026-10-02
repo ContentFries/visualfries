@@ -1,0 +1,189 @@
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { spawn } from 'node:child_process';
+import { probeVideo } from './node.js';
+/** BiRefNet v2 on fal.ai rejects videos longer than 512 frames. */
+const FAL_MAX_FRAMES = 512;
+const FAL_ENDPOINT = 'fal-ai/birefnet/v2/video';
+/** Frame ranges `[first, last]` that cover `frames` in chunks of at most `size`. */
+export function planMatteChunks(frames, size) {
+    if (!(size > 0 && size <= FAL_MAX_FRAMES))
+        throw new Error(`Chunk size must be between 1 and ${FAL_MAX_FRAMES} frames, got ${size}.`);
+    const chunks = [];
+    for (let first = 0; first < frames; first += size)
+        chunks.push({ first, last: Math.min(frames, first + size) - 1 });
+    return chunks;
+}
+function run(cmd, args) {
+    return new Promise((resolve, reject) => {
+        const p = spawn(cmd, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+        let err = '';
+        p.stderr.on('data', (d) => (err += d));
+        p.on('error', reject);
+        p.on('close', (code) => code === 0 ? resolve() : reject(new Error(`${cmd} failed (${code}): ${err.slice(-600)}`)));
+    });
+}
+const ffmpeg = (args) => run(process.env.FFMPEG_PATH || 'ffmpeg', ['-y', ...args]);
+async function falJson(fal, url, init = {}) {
+    const response = await fal.fetch(url, {
+        ...init,
+        headers: {
+            Authorization: `Key ${fal.key}`,
+            'Content-Type': 'application/json',
+            ...(init.headers ?? {})
+        }
+    });
+    const text = await response.text();
+    if (!response.ok)
+        throw new Error(`fal.ai ${response.status} for ${url}: ${text.slice(0, 500)}`);
+    return text ? JSON.parse(text) : {};
+}
+async function falUpload(fal, file) {
+    const { upload_url: uploadUrl, file_url: fileUrl } = await falJson(fal, 'https://rest.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3', {
+        method: 'POST',
+        body: JSON.stringify({ content_type: 'video/mp4', file_name: path.basename(file) })
+    });
+    const put = await fal.fetch(uploadUrl, {
+        method: 'PUT',
+        body: new Uint8Array(await fs.readFile(file)),
+        headers: { 'Content-Type': 'video/mp4' }
+    });
+    if (!put.ok)
+        throw new Error(`fal.ai upload failed: ${put.status} ${await put.text()}`);
+    return fileUrl;
+}
+async function falRun(fal, input) {
+    const queued = await falJson(fal, `https://queue.fal.run/${FAL_ENDPOINT}`, {
+        method: 'POST',
+        body: JSON.stringify(input)
+    });
+    for (;;) {
+        const status = await falJson(fal, queued.status_url);
+        if (status.status === 'COMPLETED')
+            break;
+        if (status.status !== 'IN_QUEUE' && status.status !== 'IN_PROGRESS')
+            throw new Error(`fal.ai request ${queued.request_id} ended as ${status.status}.`);
+        await new Promise((r) => setTimeout(r, 2000));
+    }
+    return falJson(fal, queued.response_url);
+}
+/**
+ * Makes a greyscale matte video of `input` (white = subject) with BiRefNet v2 on fal.ai:
+ * splits the video into chunks the API accepts, keeps each chunk's frame count exact and
+ * joins them, so the matte has the same size, frame rate and frame count as the input.
+ */
+export async function createSubjectMatte(input, opts) {
+    const key = opts.falKey ?? process.env.FAL_KEY;
+    if (!key)
+        throw new Error('FAL_KEY is not set. Get a key at https://fal.ai/dashboard/keys.');
+    const fal = { key, fetch: opts.fetch ?? fetch };
+    const model = opts.model ?? 'Matting';
+    const started = Date.now();
+    const info = await probeVideo(input);
+    const chunks = planMatteChunks(info.frames, opts.chunkFrames ?? 480);
+    const work = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-'));
+    const log = opts.onProgress ?? (() => { });
+    try {
+        const done = new Array(chunks.length);
+        let next = 0;
+        const worker = async () => {
+            while (next < chunks.length) {
+                const i = next++;
+                const { first, last } = chunks[i];
+                const count = last - first + 1;
+                const part = path.join(work, `part-${i}.mp4`);
+                await ffmpeg([
+                    '-i',
+                    input,
+                    '-vf',
+                    `trim=start_frame=${first}:end_frame=${last + 1},setpts=PTS-STARTPTS`,
+                    '-an',
+                    '-c:v',
+                    'libx264',
+                    '-crf',
+                    '12',
+                    '-pix_fmt',
+                    'yuv420p',
+                    part
+                ]);
+                const videoUrl = await falUpload(fal, part);
+                const result = await falRun(fal, {
+                    video_url: videoUrl,
+                    model,
+                    operating_resolution: opts.resolution ?? '1024x1024',
+                    output_mask: true,
+                    refine_foreground: false,
+                    video_output_type: 'X264 (.mp4)',
+                    video_quality: 'maximum'
+                });
+                const maskUrl = result.mask_video?.url;
+                if (!maskUrl)
+                    throw new Error(`fal.ai returned no mask for frames ${first}–${last}.`);
+                const raw = path.join(work, `mask-raw-${i}.mp4`);
+                const response = await fal.fetch(maskUrl);
+                if (!response.ok)
+                    throw new Error(`Mask download failed: ${response.status}`);
+                await fs.writeFile(raw, Buffer.from(await response.arrayBuffer()));
+                // The API may return a frame less; hold the last frame so chunks stay aligned.
+                const fixed = path.join(work, `mask-${i}.mp4`);
+                await ffmpeg([
+                    '-i',
+                    raw,
+                    '-vf',
+                    `fps=${info.fps},scale=${info.width}:${info.height},format=gray,tpad=stop_mode=clone:stop=${count}`,
+                    '-frames:v',
+                    String(count),
+                    '-c:v',
+                    'libx264',
+                    '-crf',
+                    '10',
+                    '-pix_fmt',
+                    'yuv420p',
+                    fixed
+                ]);
+                done[i] = fixed;
+                log(`matte: frames ${first}–${last} done (${i + 1}/${chunks.length})`);
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(opts.jobs ?? 3, chunks.length) }, () => worker()));
+        const list = path.join(work, 'list.txt');
+        await fs.writeFile(list, done.map((f) => `file '${f.replace(/'/g, "'\\''")}'`).join('\n'));
+        await fs.mkdir(path.dirname(path.resolve(opts.output)), { recursive: true });
+        await ffmpeg([
+            '-f',
+            'concat',
+            '-safe',
+            '0',
+            '-i',
+            list,
+            '-r',
+            String(info.fps),
+            '-c:v',
+            'libx264',
+            '-crf',
+            '10',
+            '-pix_fmt',
+            'yuv420p',
+            '-movflags',
+            '+faststart',
+            opts.output
+        ]);
+        const out = await probeVideo(opts.output);
+        if (out.frames !== info.frames)
+            throw new Error(`Matte has ${out.frames} frames, the input has ${info.frames}.`);
+        return {
+            output: opts.output,
+            frames: out.frames,
+            fps: info.fps,
+            width: info.width,
+            height: info.height,
+            chunks: chunks.length,
+            model,
+            seconds: (Date.now() - started) / 1000
+        };
+    }
+    finally {
+        await fs.rm(work, { recursive: true, force: true });
+    }
+}

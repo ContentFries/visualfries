@@ -1,0 +1,39 @@
+{
+	"size": [1080, 1920],
+	"fps": 30,
+	"background": "#08090c",
+	"transcript": "talk.transcript.json",
+	"fonts": [
+		{ "family": "Anton", "src": "fonts/Anton-Regular.ttf" },
+		{ "family": "Inter", "src": "fonts/Inter.ttf", "weight": "100 900" }
+	],
+	"footage": {
+		"talk": { "src": "talk.mp4", "matte": "talk.matte.mp4" }
+	},
+	"clips": [
+		{
+			"id": "depth",
+			"block": "blocks/SpeakerDepth.svelte",
+			"from": 0,
+			"until": 17,
+			"audio": "talk",
+			"cues": {
+				"fall": "Každopádne",
+				"video": { "say": "video", "occurrence": 1 },
+				"editor": { "say": "video editor", "edge": "last" },
+				"ai": { "say": "AI", "occurrence": 1 },
+				"other": "oproti video editorovi",
+				"without": { "say": "ktorý ich nepoužíva", "edge": "last" },
+				"so": "tak jednoznačne",
+				"huge": "obrovský",
+				"lead": "navrch",
+				"but": "Ale stále",
+				"far": "ďaleko",
+				"ai2": { "say": "AI", "occurrence": 2 },
+				"fully": "plnohodnotne",
+				"replace": "nahradiť"
+			},
+			"words": { "captions": "clip" }
+		}
+	]
+}

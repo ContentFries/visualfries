@@ -10,9 +10,17 @@ import { MotionProjectShape } from './project.js';
 import { parseTranscriptWords } from './transcript.js';
 import { resolveMotionProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
+import { footageFrameRange } from './footage.js';
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CHROMIUM_FLAGS = ['--enable-blink-features=CanvasDrawElement', '--font-render-hinting=none'];
+/**
+ * Pages load the bundle, fonts, styles and footage frames from this one origin (served by
+ * Playwright from disk): HTML-in-Canvas leaves cross-origin images, such as file:// frames,
+ * out of the captured frame.
+ */
+const ORIGIN = 'http://visualfries.local';
+const originUrl = (abs) => `${ORIGIN}/@fs${pathToFileURL(abs).pathname}`;
 /** `transcript` overrides the project's transcript (e.g. a re-recorded voiceover); relative to cwd. */
 export async function loadMotionProject(file, opts = {}) {
     const abs = path.resolve(file);
@@ -133,28 +141,34 @@ export async function bundleMotionProject(loaded, clips) {
             }
         ]
     });
-    const fonts = (loaded.project.fonts ?? []).map((f) => ({
-        family: f.family,
-        url: pathToFileURL(path.resolve(loaded.dir, f.src)).href,
-        weight: f.weight,
-        style: f.style
-    }));
+    const roots = [outDir, loaded.dir];
+    const fonts = (loaded.project.fonts ?? []).map((f) => {
+        const abs = path.resolve(loaded.dir, f.src);
+        roots.push(path.dirname(abs));
+        return { family: f.family, url: originUrl(abs), weight: f.weight, style: f.style };
+    });
     let css = '';
     for (const file of loaded.project.styles ?? []) {
         const abs = path.resolve(loaded.dir, file);
-        css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs)) + '\n';
+        roots.push(path.dirname(abs));
+        css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs), roots) + '\n';
     }
+    roots.push(...(await prepareFootage(loaded, clips)));
     const cssBundle = path.join(outDir, 'bundle.css');
     const cssLink = existsSync(cssBundle) ? '<link rel="stylesheet" href="bundle.css">' : '';
     const html = path.join(outDir, 'index.html');
     await fs.writeFile(html, `<!doctype html><meta charset="utf-8">${cssLink}<script>window.__vfFonts=${JSON.stringify(fonts)};window.__vfCss=${JSON.stringify(css)};window.__vfInvalidate=new URLSearchParams(location.search).get('invalidate')||undefined;</script><body><script src="bundle.js"></script></body>`);
-    return { dir: outDir, html };
+    return { dir: outDir, html, roots };
 }
 /** Project CSS is inlined into a page elsewhere; make its relative url(...) absolute. */
-function rebaseCssUrls(css, dir) {
-    return css.replace(/url\((\s*['"]?)([^'")]+)(['"]?\s*)\)/g, (all, open, ref, close) => /^(data:|https?:|file:|#|\/)/.test(ref)
-        ? all
-        : `url(${open}${pathToFileURL(path.resolve(dir, ref)).href}${close})`);
+function rebaseCssUrls(css, dir, roots) {
+    return css.replace(/url\((\s*['"]?)([^'")]+)(['"]?\s*)\)/g, (all, open, ref, close) => {
+        if (/^(data:|https?:|file:|#|\/)/.test(ref))
+            return all;
+        const abs = path.resolve(dir, ref);
+        roots.push(path.dirname(abs));
+        return `url(${open}${originUrl(abs)}${close})`;
+    });
 }
 // ---------------------------------------------------------------- browser
 export function findChromium() {
@@ -192,7 +206,8 @@ async function openClip(browser, bundle, clip, invalidate) {
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e)));
     page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-    await page.goto(pathToFileURL(bundle.html).href + (invalidate ? `?invalidate=${invalidate}` : ''));
+    await page.route(`${ORIGIN}/**`, (route) => serveFromRoots(route, bundle.roots, errors));
+    await page.goto(originUrl(bundle.html) + (invalidate ? `?invalidate=${invalidate}` : ''));
     let info;
     try {
         info = await page.evaluate((data) => window.__vfMotionStage.load(data), clip);
@@ -222,6 +237,197 @@ async function openClip(browser, bundle, clip, invalidate) {
         },
         close: () => page.close()
     };
+}
+const CONTENT_TYPES = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.ttf': 'font/ttf',
+    '.otf': 'font/otf',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav'
+};
+/** Serves `${ORIGIN}/@fs/<absolute path>` from disk, only inside the allowed folders. */
+async function serveFromRoots(route, roots, errors) {
+    const { pathname } = new URL(route.request().url());
+    if (!pathname.startsWith('/@fs/'))
+        return route.fulfill({ status: 404 });
+    const abs = fileURLToPath(`file://${pathname.slice('/@fs'.length)}`);
+    if (!roots.some((root) => abs === root || abs.startsWith(root + path.sep))) {
+        errors.push(`Blocked a request outside the project: ${abs}`);
+        return route.fulfill({ status: 403 });
+    }
+    try {
+        const body = await fs.readFile(abs);
+        return route.fulfill({
+            status: 200,
+            body,
+            contentType: CONTENT_TYPES[path.extname(abs).toLowerCase()] ?? 'application/octet-stream'
+        });
+    }
+    catch {
+        return route.fulfill({ status: 404 });
+    }
+}
+function ffprobeJson(file, args) {
+    return new Promise((resolve, reject) => {
+        const p = spawn(process.env.FFPROBE_PATH || 'ffprobe', [
+            '-v',
+            'error',
+            ...args,
+            '-of',
+            'json',
+            file
+        ]);
+        let out = '';
+        let err = '';
+        p.stdout.on('data', (d) => (out += d));
+        p.stderr.on('data', (d) => (err += d));
+        p.on('error', reject);
+        p.on('close', (code) => code === 0
+            ? resolve(JSON.parse(out))
+            : reject(new Error(`ffprobe failed for ${file}: ${err.slice(-400)}`)));
+    });
+}
+/** Size, frame rate and frame count (decoded packets) of a video's first stream. */
+export async function probeVideo(file) {
+    const info = await ffprobeJson(file, [
+        '-select_streams',
+        'v:0',
+        '-count_packets',
+        '-show_entries',
+        'stream=width,height,r_frame_rate,nb_read_packets'
+    ]);
+    const stream = info.streams?.[0];
+    if (!stream)
+        throw new Error(`No video stream in ${file}`);
+    const [num, den] = String(stream.r_frame_rate).split('/').map(Number);
+    return {
+        width: stream.width,
+        height: stream.height,
+        fps: den ? num / den : num,
+        frames: Number(stream.nb_read_packets)
+    };
+}
+/** Seconds of decoding margin around the clips, for `offset` and delayed copies. */
+const FOOTAGE_MARGIN_SECONDS = 2;
+/**
+ * Extracts the footage frames the given clips need (with a margin) into
+ * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
+ * Frames are cached by source, matte, frame rate and range.
+ */
+export async function prepareFootage(loaded, clips) {
+    const footage = loaded.project.footage ?? {};
+    const fps = loaded.project.fps;
+    const roots = [];
+    const frames = {};
+    for (const [name, spec] of Object.entries(footage)) {
+        const src = path.resolve(loaded.dir, spec.src);
+        const matte = spec.matte ? path.resolve(loaded.dir, spec.matte) : null;
+        for (const file of [src, matte])
+            if (file && !existsSync(file))
+                throw new Error(`Footage "${name}": file not found: ${file}`);
+        const info = await probeVideo(src);
+        const total = Math.abs(info.fps - fps) < 0.01 ? info.frames : Math.floor((info.frames / info.fps) * fps);
+        const startFrame = Math.round((spec.start ?? 0) * fps);
+        const range = footageFrameRange(clips, startFrame, total, Math.round(FOOTAGE_MARGIN_SECONDS * fps));
+        if (!range)
+            continue;
+        const stats = await Promise.all([src, matte].map((f) => (f ? fs.stat(f) : null)));
+        const key = createHash('sha1')
+            .update(JSON.stringify({
+            src,
+            matte,
+            sizes: stats.map((st) => st && [st.size, st.mtimeMs]),
+            fps,
+            range
+        }))
+            .digest('hex')
+            .slice(0, 12);
+        const dir = path.join(loaded.dir, '.visualfries', 'footage', `${name}-${key}`);
+        if (!existsSync(path.join(dir, 'done.json'))) {
+            const tmp = `${dir}.tmp-${process.pid}`;
+            await fs.rm(tmp, { recursive: true, force: true });
+            await fs.mkdir(path.join(tmp, 'plate'), { recursive: true });
+            const count = range.last - range.first + 1;
+            const seek = ['-ss', (range.first / fps).toFixed(6)];
+            await ffmpeg([
+                '-y',
+                ...seek,
+                '-i',
+                src,
+                '-vf',
+                `fps=${fps}`,
+                '-frames:v',
+                String(count),
+                '-start_number',
+                String(range.first),
+                '-q:v',
+                '2',
+                path.join(tmp, 'plate', '%06d.jpg')
+            ]);
+            if (matte) {
+                await fs.mkdir(path.join(tmp, 'subject'), { recursive: true });
+                await ffmpeg([
+                    '-y',
+                    ...seek,
+                    '-i',
+                    src,
+                    ...seek,
+                    '-i',
+                    matte,
+                    '-filter_complex',
+                    // A matte a frame or two short holds its last frame instead of dropping the picture.
+                    `[0:v]fps=${fps}[c];[1:v]fps=${fps},scale=${info.width}:${info.height},format=gray,tpad=stop_mode=clone:stop_duration=${FOOTAGE_MARGIN_SECONDS}[m];[c][m]alphamerge,format=rgba`,
+                    '-frames:v',
+                    String(count),
+                    '-start_number',
+                    String(range.first),
+                    '-compression_level',
+                    '1',
+                    path.join(tmp, 'subject', '%06d.png')
+                ]);
+            }
+            const written = (await fs.readdir(path.join(tmp, 'plate'))).length;
+            const last = range.first + written - 1;
+            await fs.writeFile(path.join(tmp, 'done.json'), JSON.stringify({
+                name,
+                src,
+                matte,
+                first: range.first,
+                last,
+                width: info.width,
+                height: info.height
+            }));
+            await fs.rm(dir, { recursive: true, force: true });
+            await fs.rename(tmp, dir);
+        }
+        const done = JSON.parse(await fs.readFile(path.join(dir, 'done.json'), 'utf8'));
+        frames[name] = {
+            url: originUrl(dir) + '/',
+            first: done.first,
+            last: done.last,
+            width: done.width,
+            height: done.height,
+            startFrame,
+            subject: !!matte
+        };
+        roots.push(dir);
+    }
+    for (const clip of clips)
+        clip.footage = frames;
+    return roots;
 }
 /** Frame for "extra", "extra.end+0.3", "2.5s", "f120", "end", "mid". */
 export function frameForAt(clip, at) {
@@ -420,6 +626,35 @@ function ffmpeg(args, input) {
             p.stdin.end();
     });
 }
+/**
+ * ffmpeg input and mapping that mux the sound of the clip's `audio` footage, cut to the clip's
+ * program range. Silence fills anything the footage does not cover.
+ */
+function audioInput(loaded, clip) {
+    if (!clip.audio)
+        return [];
+    const footage = loaded.project.footage?.[clip.audio];
+    if (!footage)
+        throw new Error(`Clip "${clip.id}": unknown audio footage "${clip.audio}".`);
+    const src = path.resolve(loaded.dir, footage.src);
+    const from = clip.start - (footage.start ?? 0);
+    const delayMs = Math.max(0, Math.round(-from * 1000));
+    return [
+        '-ss',
+        Math.max(0, from).toFixed(6),
+        '-i',
+        src,
+        '-map',
+        '0:v',
+        '-map',
+        '1:a:0',
+        '-af',
+        `${delayMs ? `adelay=${delayMs}:all=1,` : ''}apad`,
+        '-t',
+        clip.duration.toFixed(6),
+        ...(clip.alpha ? ['-c:a', 'pcm_s16le'] : ['-c:a', 'aac', '-b:a', '192k'])
+    ];
+}
 export async function renderMotionClips(loaded, opts) {
     if (opts.jobs !== undefined && !(Number.isInteger(opts.jobs) && opts.jobs > 0)) {
         throw new Error(`--jobs must be a positive integer, got ${opts.jobs}.`);
@@ -490,6 +725,7 @@ export async function renderMotionClips(loaded, opts) {
                     String(clip.fps),
                     '-i',
                     path.join(framesDir, '%06d.png'),
+                    ...audioInput(loaded, clip),
                     ...codec,
                     file
                 ]);

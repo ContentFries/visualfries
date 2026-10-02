@@ -36,7 +36,7 @@ Without `--at` it renders frame 0, frame 10, each cue plus 0.6 s and the last fr
 npx visualfries render project.vf.json --output out/ [--clip <id>]... [--jobs <n>] [--keep-frames]
 ```
 
-Renders clips to `out/<id>.mp4`, or `out/<id>.mov` (ProRes 4444) for `"alpha": true` clips, splitting each clip into `--jobs` parallel ranges (default: up to six). The videos are silent. Writes `out/manifest.json`; this is the real output for the Quickstart project:
+Renders clips to `out/<id>.mp4`, or `out/<id>.mov` (ProRes 4444) for `"alpha": true` clips, splitting each clip into `--jobs` parallel ranges (default: up to six). The videos are silent unless the clip names a footage in `"audio"` ([Footage and mattes](/docs/footage)). Writes `out/manifest.json`; this is the real output for the Quickstart project:
 
 ```json
 {
@@ -70,6 +70,14 @@ Renders clips to `out/<id>.mp4`, or `out/<id>.mov` (ProRes 4444) for `"alpha": t
 | `stale`                                           | Present and `true` on kept entries timed against another transcript.             |
 
 A render refuses to start when any requested clip has errors, and verifies that every frame was written before encoding.
+
+## matte
+
+```bash
+FAL_KEY=… npx visualfries matte talk.mp4 --output talk.matte.mp4 [--model Matting] [--resolution 1024x1024]
+```
+
+Makes a greyscale matte (white = subject) for a [footage](/docs/footage) with BiRefNet v2 on fal.ai. Videos longer than 512 frames are split into requests of `--chunk-frames` (default 480, `--jobs` at once) and joined; the command fails unless the matte has exactly as many frames as the input. Models: `Matting` (default, keeps hair), `Portrait`, `General Use (Light)`, `General Use (Light 2K)`, `General Use (Heavy)`, `General Use (Dynamic)`.
 
 ## Node API
 

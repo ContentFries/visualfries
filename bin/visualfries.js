@@ -53,6 +53,9 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]
   visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
   visualfries render <project.vf.json> --output <dir> [--clip <id>]... [--jobs <n>]
+  visualfries matte <video> --output <matte.mp4> [--model Matting] [--resolution 1024x1024]
+                    subject matte (white = subject) for "footage" mattes; BiRefNet v2 on
+                    fal.ai, needs FAL_KEY. Split into <=512-frame requests automatically.
 
   --transcript <file>  resolve cues against another transcript (new voiceover)
 
@@ -1688,6 +1691,25 @@ async function motionStillCommand(args) {
 	);
 }
 
+async function matteCommand(args) {
+	const input = args[0];
+	const output = readFlag(args, '--output');
+	if (!input || !output)
+		throw new Error(
+			'Usage: visualfries matte <video> --output <matte.mp4> [--model Matting|Portrait|...] [--resolution 1024x1024|2048x2048] [--chunk-frames 480] [--jobs 3]'
+		);
+	const { createSubjectMatte } = await import('../dist/motion/matte.js');
+	const result = await createSubjectMatte(input, {
+		output,
+		model: readFlag(args, '--model'),
+		resolution: readFlag(args, '--resolution'),
+		chunkFrames: numberFlag(args, '--chunk-frames'),
+		jobs: numberFlag(args, '--jobs'),
+		onProgress: (msg) => console.error(msg)
+	});
+	console.log(JSON.stringify(result, null, 2));
+}
+
 async function motionRenderCommand(args) {
 	const file = args[0];
 	const output = readFlag(args, '--output');
@@ -1764,6 +1786,7 @@ async function main() {
 	if (command === 'clips') return motionClipsCommand(args);
 	if (command === 'still') return motionStillCommand(args);
 	if (command === 'check') return motionCheckCommand(args);
+	if (command === 'matte') return matteCommand(args);
 	if (command === 'render' && args[0] && (await isMotionProjectFile(args[0])))
 		return motionRenderCommand(args);
 	if (command === 'render') return renderCommand(args);

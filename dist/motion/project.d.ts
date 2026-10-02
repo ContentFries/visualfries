@@ -60,6 +60,17 @@ export declare const MotionFontShape: z.ZodObject<{
     }>>;
 }, z.core.$strip>;
 export type MotionFont = z.infer<typeof MotionFontShape>;
+/**
+ * A video the blocks draw frame by frame, e.g. the talking head the transcript belongs to.
+ * `matte` is a greyscale video of the same footage (white = subject); with it, blocks can draw
+ * the subject alone in front of anything (`visualfries matte` makes one).
+ */
+export declare const MotionFootageShape: z.ZodObject<{
+    src: z.ZodString;
+    matte: z.ZodOptional<z.ZodString>;
+    start: z.ZodOptional<z.ZodNumber>;
+}, z.core.$strip>;
+export type MotionFootage = z.infer<typeof MotionFootageShape>;
 export declare const MotionClipShape: z.ZodObject<{
     id: z.ZodString;
     block: z.ZodString;
@@ -134,6 +145,7 @@ export declare const MotionClipShape: z.ZodObject<{
     props: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     alpha: z.ZodOptional<z.ZodBoolean>;
     background: z.ZodOptional<z.ZodString>;
+    audio: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 export type MotionClip = z.infer<typeof MotionClipShape>;
 export declare const MotionProjectShape: z.ZodObject<{
@@ -151,6 +163,11 @@ export declare const MotionProjectShape: z.ZodObject<{
     }, z.core.$strip>>>;
     styles: z.ZodOptional<z.ZodArray<z.ZodString>>;
     background: z.ZodOptional<z.ZodString>;
+    footage: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodObject<{
+        src: z.ZodString;
+        matte: z.ZodOptional<z.ZodString>;
+        start: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>>>;
     clips: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         block: z.ZodString;
@@ -225,6 +242,7 @@ export declare const MotionProjectShape: z.ZodObject<{
         props: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
         alpha: z.ZodOptional<z.ZodBoolean>;
         background: z.ZodOptional<z.ZodString>;
+        audio: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export type MotionProject = z.infer<typeof MotionProjectShape>;

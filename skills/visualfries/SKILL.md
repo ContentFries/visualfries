@@ -1,6 +1,6 @@
 ---
 name: visualfries
-description: Create and validate VisualFries scene JSON, caption videos from transcripts, prepare agent-friendly video overlays, and hand off render-ready scenes without opening the ContentFries UI.
+description: Create and validate VisualFries scene JSON, caption videos from transcripts, prepare agent-friendly video overlays, build transcript-timed motion projects (including speaker-depth edits with type behind a talking head), and hand off render-ready scenes without opening the ContentFries UI.
 ---
 
 # VisualFries
@@ -306,6 +306,26 @@ Run `visualfries validate-cues ./cues.json --duration <seconds> --json` before a
 
 Use `visualfries qa scene.json --output ./qa` as the normal agent quality gate. It writes `inspect.json`, `screenshots.json`, and sampled `frames/` into one QA directory.
 
+## Speaker Depth (type behind a talking head)
+
+Use a **motion project** (`docs/MOTION.md`), not scene JSON, when the user wants words, light or effects behind the speaker, a cut-out speaker, or a copy of the speaker on screen. Worked example: `static/demo/speaker-depth` (README, project, block).
+
+```text
+recording -> crop -> visualfries matte -> transcript -> project.vf.json (footage + cues) -> block -> still sheet -> render
+```
+
+1. Find a stretch with only the talking head (no screen recordings or cutaways); scene detection with ffmpeg helps (`select='gt(scene,0.25)'`).
+2. Crop wider than 9:16 so the shoulders touch the left and right edges (e.g. `crop=1000:1080:x:0` from 1920×1080, face centred). Keep the sound.
+3. `FAL_KEY=… visualfries matte talk.mp4 --output talk.matte.mp4` (BiRefNet v2, model `Matting`). Look at one frame of the matte over a solid colour before going on.
+4. Transcript in seconds from the clip's first frame. Declare `"footage": { "talk": { "src": "talk.mp4", "matte": "talk.matte.mp4" } }` and the clip's `"audio": "talk"`.
+5. Name each beat after its word in `cues` (`{ "say": "AI", "occurrence": 2 }` for repeats, `"edge": "last"` for the last word of a phrase). Run `visualfries clips` and fix every cue that resolves to the wrong word.
+6. Block layers, back to front: backdrop → type layer → camera wrapper with `<Footage layer="plate">` (fade it out or keep it), optional `<Footage layer="subject" offset={-0.4}>` ghost, `<Footage layer="subject">` → captions on top.
+7. Put behind-the-head words low enough that the head covers part of them; words fully above the head look like plain titles. Fit the frame width (scale font-size to the word length).
+8. `visualfries check --determinism`, then `visualfries still … --output sheet.png` (start, every cue, end) and look at it: words clipped by the frame edge, unreadable words, matte errors around hands and microphone.
+9. `visualfries render project.vf.json --output out/` → `out/<clip>.mp4` with sound.
+
+Never use a `<video>` element in a block: it plays on wall-clock time. Animate on cues (`useTimeline` + `at('cue')`), keep randomness frame-keyed (`noise(frame, n)`).
+
 ## Agent Output Contract
 
 For any generated VisualFries video package, produce:
@@ -325,4 +345,4 @@ For caption-only work, `scene.json` plus `inspect.json` is acceptable only when 
 
 ## Current Coverage
 
-The CLI covers JSON creation, validation, inspection, production plans, automatic freeze holds, deterministic SVG overlays, exact audio tracks, timeline-segmented MP4 rendering, QA frames, captions, b-roll, transitions, cue files, and one-command compose/produce.
+The CLI covers JSON creation, validation, inspection, transcript-timed motion projects with footage and subject mattes, production plans, automatic freeze holds, deterministic SVG overlays, exact audio tracks, timeline-segmented MP4 rendering, QA frames, captions, b-roll, transitions, cue files, and one-command compose/produce.

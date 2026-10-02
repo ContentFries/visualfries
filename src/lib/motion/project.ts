@@ -37,6 +37,23 @@ export const MotionFontShape = z.object({
 });
 export type MotionFont = z.infer<typeof MotionFontShape>;
 
+const footageName = z
+	.string()
+	.regex(/^[A-Za-z_][A-Za-z0-9_-]*$/, 'footage name: letters, digits, dash, underscore');
+
+/**
+ * A video the blocks draw frame by frame, e.g. the talking head the transcript belongs to.
+ * `matte` is a greyscale video of the same footage (white = subject); with it, blocks can draw
+ * the subject alone in front of anything (`visualfries matte` makes one).
+ */
+export const MotionFootageShape = z.object({
+	src: z.string().min(1),
+	matte: z.string().min(1).optional(),
+	/** Program seconds at which the footage's first frame plays. Default 0. */
+	start: z.number().optional()
+});
+export type MotionFootage = z.infer<typeof MotionFootageShape>;
+
 export const MotionClipShape = z.object({
 	id: z.string().regex(/^[A-Za-z0-9._-]+$/, 'clip id: letters, digits, dot, dash, underscore'),
 	block: z.string().min(1),
@@ -63,7 +80,9 @@ export const MotionClipShape = z.object({
 	props: z.record(z.string(), z.unknown()).optional(),
 	/** Transparent background; rendered as ProRes 4444 .mov. */
 	alpha: z.boolean().optional(),
-	background: z.string().optional()
+	background: z.string().optional(),
+	/** Name of a footage whose sound is muxed into the rendered clip. */
+	audio: footageName.optional()
 });
 export type MotionClip = z.infer<typeof MotionClipShape>;
 
@@ -74,6 +93,7 @@ export const MotionProjectShape = z.object({
 	fonts: z.array(MotionFontShape).optional(),
 	styles: z.array(z.string()).optional(),
 	background: z.string().optional(),
+	footage: z.record(footageName, MotionFootageShape).optional(),
 	clips: z.array(MotionClipShape).min(1)
 });
 export type MotionProject = z.infer<typeof MotionProjectShape>;

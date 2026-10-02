@@ -18,6 +18,10 @@ export class Clip {
     props;
     /** Program time of the clip start, for showing transcript timestamps. */
     programStart;
+    /** Program frame of the clip start; `programStartFrame + frame` is the program frame. */
+    programStartFrame;
+    /** Frames of the project's footage (see `<Footage>`). */
+    footage;
     constructor(data) {
         this.id = data.id;
         this.fps = data.fps;
@@ -28,6 +32,8 @@ export class Clip {
         this.words = data.words;
         this.props = data.props;
         this.programStart = data.start;
+        this.programStartFrame = data.startFrame;
+        this.footage = data.footage ?? {};
     }
     /**
      * Resolve an `At` to clip-local seconds. Besides project cues, `start` (0) and `end`
@@ -187,7 +193,10 @@ export function useTimeline(build) {
         };
     });
 }
-/** Imperative per-frame drawing (canvas, procedural SVG, third-party engines). */
+/**
+ * Imperative per-frame drawing (canvas, procedural SVG, third-party engines). Return a promise
+ * when the frame needs something loaded first; VisualFries waits for it before capturing.
+ */
 export function useFrame(fn) {
     const c = controller();
     onMount(() => {

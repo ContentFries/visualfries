@@ -1,4 +1,4 @@
-import type { MotionWordRef, ResolvedClip, ResolvedCue } from './resolve.js';
+import type { FootageFrames, MotionWordRef, ResolvedClip, ResolvedCue } from './resolve.js';
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
  * a cue with an offset ("extra+0.4", "extra.end-0.2"), the built-in "start"/"end",
@@ -23,6 +23,10 @@ export declare class Clip {
     readonly props: Record<string, unknown>;
     /** Program time of the clip start, for showing transcript timestamps. */
     readonly programStart: number;
+    /** Program frame of the clip start; `programStartFrame + frame` is the program frame. */
+    readonly programStartFrame: number;
+    /** Frames of the project's footage (see `<Footage>`). */
+    readonly footage: Record<string, FootageFrames>;
     constructor(data: ResolvedClip);
     /**
      * Resolve an `At` to clip-local seconds. Besides project cues, `start` (0) and `end`
@@ -69,11 +73,12 @@ type TimelineBuild = (ctx: {
     q: (selector: string) => Element[];
     clip: Clip;
 }) => void;
+/** May return a promise (e.g. an image decode); the frame is captured after it settles. */
 type FrameFn = (ctx: {
     t: number;
     frame: number;
     clip: Clip;
-}) => void;
+}) => void | Promise<unknown>;
 export type ClipController = {
     clip: Clip;
     root: HTMLElement;
@@ -88,7 +93,10 @@ export declare function useClip(): Clip;
  * so there is no wall-clock playback. Selectors via `q` are scoped to this clip.
  */
 export declare function useTimeline(build: TimelineBuild): void;
-/** Imperative per-frame drawing (canvas, procedural SVG, third-party engines). */
+/**
+ * Imperative per-frame drawing (canvas, procedural SVG, third-party engines). Return a promise
+ * when the frame needs something loaded first; VisualFries waits for it before capturing.
+ */
 export declare function useFrame(fn: FrameFn): void;
 /** Delay the first frame until `promise` settles (asset decoding, engine setup). */
 export declare function useReady(promise: Promise<unknown>): void;

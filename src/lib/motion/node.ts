@@ -102,8 +102,11 @@ export function assertNoErrors(loaded: LoadedMotionProject, clipIds?: string[]) 
 
 // ---------------------------------------------------------------- bundling
 
-/** `roots`: folders the page may read files from. */
-type BundleResult = { dir: string; html: string; roots: string[] };
+/**
+ * What the page may read: whole `roots` (the bundle and extracted footage) and single `files`
+ * (declared fonts and assets the project CSS points to). Nothing else in the project is served.
+ */
+type BundleResult = { dir: string; html: string; roots: string[]; files: string[] };
 
 /** Compile the project's blocks together with the stage runtime into one page. */
 export async function bundleMotionProject(
@@ -179,17 +182,17 @@ export async function bundleMotionProject(
 		]
 	});
 
-	const roots = [outDir, loaded.dir];
+	const roots = [outDir];
+	const files: string[] = [];
 	const fonts = (loaded.project.fonts ?? []).map((f) => {
 		const abs = path.resolve(loaded.dir, f.src);
-		roots.push(path.dirname(abs));
+		files.push(abs);
 		return { family: f.family, url: originUrl(abs), weight: f.weight, style: f.style };
 	});
 	let css = '';
 	for (const file of loaded.project.styles ?? []) {
 		const abs = path.resolve(loaded.dir, file);
-		roots.push(path.dirname(abs));
-		css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs), roots) + '\n';
+		css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs), files) + '\n';
 	}
 	roots.push(...(await prepareFootage(loaded, clips)));
 	const cssBundle = path.join(outDir, 'bundle.css');
@@ -201,15 +204,15 @@ export async function bundleMotionProject(
 			css
 		)};window.__vfInvalidate=new URLSearchParams(location.search).get('invalidate')||undefined;</script><body><script src="bundle.js"></script></body>`
 	);
-	return { dir: outDir, html, roots };
+	return { dir: outDir, html, roots, files };
 }
 
 /** Project CSS is inlined into a page elsewhere; make its relative url(...) absolute. */
-function rebaseCssUrls(css: string, dir: string, roots: string[]): string {
+function rebaseCssUrls(css: string, dir: string, files: string[]): string {
 	return css.replace(/url\((\s*['"]?)([^'")]+)(['"]?\s*)\)/g, (all, open, ref, close) => {
 		if (/^(data:|https?:|#)/.test(ref)) return all;
 		const abs = ref.startsWith('file:') ? fileURLToPath(ref) : path.resolve(dir, ref);
-		roots.push(path.dirname(abs));
+		files.push(abs);
 		return `url(${open}${originUrl(abs)}${close})`;
 	});
 }
@@ -289,7 +292,7 @@ async function openClip(
 	const errors: string[] = [];
 	page.on('pageerror', (e) => errors.push(String(e)));
 	page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-	await page.route(`${ORIGIN}/**`, (route) => serveFromRoots(route, bundle.roots, errors));
+	await page.route(`${ORIGIN}/**`, (route) => serveAllowed(route, bundle, errors));
 	await page.goto(originUrl(bundle.html) + (invalidate ? `?invalidate=${invalidate}` : ''));
 	let info: { mode: 'html-in-canvas' | 'dom' };
 	try {
@@ -345,8 +348,12 @@ const CONTENT_TYPES: Record<string, string> = {
 	'.wav': 'audio/wav'
 };
 
-/** Serves `${ORIGIN}/@fs/<absolute path>` from disk, only inside the allowed folders. */
-async function serveFromRoots(route: RouteLike, roots: string[], errors: string[]) {
+/** Serves `${ORIGIN}/@fs/<absolute path>` from disk: only allowed folders and files. */
+async function serveAllowed(
+	route: RouteLike,
+	allowed: Pick<BundleResult, 'roots' | 'files'>,
+	errors: string[]
+) {
 	const { pathname } = new URL(route.request().url());
 	if (!pathname.startsWith('/@fs/')) return route.fulfill({ status: 404 });
 	let abs: string;
@@ -358,8 +365,11 @@ async function serveFromRoots(route: RouteLike, roots: string[], errors: string[
 	} catch {
 		return route.fulfill({ status: 404 });
 	}
-	const realRoots = await Promise.all(roots.map((root) => fs.realpath(root).catch(() => root)));
-	if (!realRoots.some((root) => real === root || real.startsWith(root + path.sep))) {
+	const realOf = (p: string) => fs.realpath(p).catch(() => p);
+	const realRoots = await Promise.all(allowed.roots.map(realOf));
+	const realFiles = await Promise.all(allowed.files.map(realOf));
+	const inRoot = realRoots.some((root) => real === root || real.startsWith(root + path.sep));
+	if (!inRoot && !realFiles.includes(real)) {
 		errors.push(`Blocked a request outside the project: ${abs}`);
 		return route.fulfill({ status: 403 });
 	}
@@ -515,6 +525,13 @@ export async function prepareFootage(
 		for (const file of [src, matte])
 			if (file && !existsSync(file)) throw new Error(`Footage "${name}": file not found: ${file}`);
 		const info = await probeVideo(src);
+		if (matte) {
+			const m = await probeVideo(matte);
+			if (Math.abs(m.duration - info.duration) > 2 / info.fps)
+				throw new Error(
+					`Footage "${name}": the matte is ${m.duration.toFixed(2)} s long, the video ${info.duration.toFixed(2)} s. Make the matte from this video (visualfries matte).`
+				);
+		}
 		// Same constant frame rate as the project: footage frames are program frames and a fast
 		// input seek is exact. Otherwise decode from the start so the rate conversion keeps one
 		// phase whatever range is extracted.
@@ -586,6 +603,13 @@ export async function prepareFootage(
 					]);
 				}
 				const written = (await fs.readdir(path.join(tmp, 'plate'))).length;
+				if (matte) {
+					const cutOuts = (await fs.readdir(path.join(tmp, 'subject'))).length;
+					if (cutOuts !== written)
+						throw new Error(
+							`Footage "${name}": ${cutOuts} subject frames for ${written} picture frames; the matte does not cover the clips.`
+						);
+				}
 				await fs.writeFile(
 					path.join(tmp, 'done.json'),
 					JSON.stringify({

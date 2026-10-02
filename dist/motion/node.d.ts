@@ -18,11 +18,15 @@ export declare function loadMotionProject(file: string, opts?: {
 export declare function assertKnownClips(loaded: LoadedMotionProject, clipIds?: string[]): void;
 /** Throws on errors of the given clips (all clips when omitted), including clips that failed to resolve. */
 export declare function assertNoErrors(loaded: LoadedMotionProject, clipIds?: string[]): void;
-/** `roots`: folders the page may read files from. */
+/**
+ * What the page may read: whole `roots` (the bundle and extracted footage) and single `files`
+ * (declared fonts and assets the project CSS points to). Nothing else in the project is served.
+ */
 type BundleResult = {
     dir: string;
     html: string;
     roots: string[];
+    files: string[];
 };
 /** Compile the project's blocks together with the stage runtime into one page. */
 export declare function bundleMotionProject(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<BundleResult>;

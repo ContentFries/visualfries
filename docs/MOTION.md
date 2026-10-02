@@ -25,11 +25,11 @@ my-video/
 		{
 			"id": "B-word-timestamps",
 			"block": "blocks/WordStamps.svelte",
-			"from": "jediné čo potrebuje",
-			"until": "videa vyhodiť",
-			"cues": { "stamps": "časové", "extra": "naviac", "duplicate": "duplicitné" },
-			"words": { "row": "ktoré sú naviac ktoré sú duplicitné", "extra": "naviac" },
-			"props": { "title": "Prepis po slovách" }
+			"from": "all it needs is",
+			"until": "cut from the video",
+			"cues": { "stamps": "timestamps", "extra": "extra", "duplicate": "duplicated" },
+			"words": { "row": "words that are extra and words that are duplicated", "extra": "extra" },
+			"props": { "title": "Transcript by words" }
 		}
 	]
 }
@@ -139,7 +139,7 @@ the transcript it was timed against. Re-rendering some clips keeps the others; c
 against an older transcript are marked `stale`.
 
 A re-take that changes words (not just timing) makes the affected cues fail with a suggestion,
-e.g. `"naviac" not found … Did you mean "navyše" at 59.80s?`. Update the phrase in the JSON;
+e.g. `"extra" not found … Did you mean "spare" at 59.80s?`. Update the phrase in the JSON;
 the block stays untouched.
 
 ## How frames are made

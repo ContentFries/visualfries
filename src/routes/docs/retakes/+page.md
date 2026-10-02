@@ -25,7 +25,7 @@ When the new take is final, point `transcript` in the project file at it.
 If the speaker says something different, the affected anchors fail loudly, and when similar words were spoken the error suggests them:
 
 ```text
-cues.extra: Phrase "naviac" not found inside the clip. Did you mean "navyše" at 59.80s?
+cues.extra: Phrase "extra" not found inside the clip. Did you mean "spare" at 59.80s?
 ```
 
 Update the phrase in the JSON. The block stays untouched. Run `check` after the change; it takes seconds.

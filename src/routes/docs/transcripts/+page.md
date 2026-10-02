@@ -11,20 +11,20 @@ A transcript gives every spoken word a start and an end. VisualFries reads word-
 Soniox-style JSON with milliseconds:
 
 ```json
-{ "words": [{ "text": "naviac,", "startMs": 58170, "endMs": 58590 }] }
+{ "words": [{ "text": "extra,", "startMs": 58170, "endMs": 58590 }] }
 ```
 
 Or a plain list in seconds, with `text` or `word`:
 
 ```json
-[{ "word": "naviac", "start": 58.17, "end": 58.59 }]
+[{ "word": "extra", "start": 58.17, "end": 58.59 }]
 ```
 
 Each word gets a stable id (`w812`), the transcribed `raw` text and a display `text` with edge punctuation removed.
 
 ## Matching
 
-Phrases are compared word by word, ignoring case and punctuation at word edges, and keeping diacritics (`sú` and `su` are different words). A phrase must match consecutive words.
+Phrases are compared word by word, ignoring case and punctuation at word edges, and keeping diacritics (`café` and `cafe` are different words). A phrase must match consecutive words.
 
 ## Speech to text <span class="tag plan">planned</span>
 

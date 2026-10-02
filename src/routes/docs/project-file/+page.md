@@ -40,15 +40,15 @@ Ship fonts with the project. A render must never depend on what happens to be in
 {
 	"id": "B-word-timestamps",
 	"block": "blocks/WordStamps.svelte",
-	"from": { "say": "jediné", "offset": -0.023 },
-	"until": "videa vyhodiť",
+	"from": { "say": "all it needs", "offset": -0.023 },
+	"until": "cut from the video",
 	"tail": 0.5,
 	"cues": {
-		"stamps": "časové",
-		"extra": "naviac",
-		"duplicate": { "say": "ktoré sú duplicitné", "edge": "last" }
+		"stamps": "timestamps",
+		"extra": "extra",
+		"duplicate": { "say": "words that are duplicated", "edge": "last" }
 	},
-	"words": { "row": "ktoré sú naviac ktoré sú duplicitné" },
+	"words": { "row": "words that are extra and words that are duplicated" },
 	"props": { "title": "Transcript by words" },
 	"alpha": false
 }
@@ -73,7 +73,7 @@ Ship fonts with the project. A render must never depend on what happens to be in
 | Form                | Example                                                               | Meaning                                                               |
 | ------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | Phrase              | `"matched silently"`                                                  | The first word of the phrase (for `until`: the end of its last word). |
-| Phrase with options | `{ "say": "naviac", "edge": "end", "occurrence": 2, "offset": -0.1 }` | `edge` is `start`, `last` (when the last word starts) or `end`.       |
+| Phrase with options | `{ "say": "extra", "edge": "end", "occurrence": 2, "offset": -0.1 }` | `edge` is `start`, `last` (when the last word starts) or `end`.       |
 | Seconds             | `12.5`                                                                | Program seconds for `from`/`until`; clip seconds for cues.            |
 | Frame               | `{ "frame": 274 }`                                                    | Program frame for `from`/`until`; clip frame for cues.                |
 
@@ -83,9 +83,9 @@ Ship fonts with the project. A render must never depend on what happens to be in
 
 ```json
 "words": {
-  "row": "ktoré sú naviac ktoré sú duplicitné",
+  "row": "words that are extra and words that are duplicated",
   "all": "clip",
-  "boxes": { "from": "časového", "until": "slová" }
+  "boxes": { "from": "every timestamp", "until": "the words" }
 }
 ```
 

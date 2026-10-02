@@ -11,8 +11,8 @@ In a motion project a clip is placed by **what is said**, not by typed seconds. 
 ```json
 {
 	"id": "B-word-timestamps",
-	"from": "jediné čo potrebuje",
-	"until": "videa vyhodiť",
+	"from": "all it needs is",
+	"until": "cut from the video",
 	"tail": 0.5
 }
 ```
@@ -23,9 +23,9 @@ In a motion project a clip is placed by **what is said**, not by typed seconds. 
 
 ```json
 "cues": {
-  "stamps": "časové",
-  "extra": "naviac",
-  "duplicate": { "say": "ktoré sú duplicitné", "edge": "last" },
+  "stamps": "timestamps",
+  "extra": "extra",
+  "duplicate": { "say": "words that are duplicated", "edge": "last" },
   "settle": 4.2
 }
 ```
@@ -39,15 +39,15 @@ A block then writes `clip.p('extra')`, `clip.after('duplicate')` or `clip.has('d
 A phrase that does not exist fails and suggests the closest spoken words:
 
 ```text
-ERROR B-word-timestamps cues.extra: Phrase "naviac" not found inside the clip.
-Did you mean "navyše" at 59.80s (ktoré@59.08 sú@59.40 navyše@59.80 ktoré@60.45)?
+ERROR B-word-timestamps cues.extra: Phrase "extra" not found inside the clip.
+Did you mean "spare" at 59.80s (words@59.08 that@59.40 spare@59.80 and@60.45)?
 ```
 
 A phrase said twice lists both occurrences and asks you to choose:
 
 ```text
-Phrase "malá" is ambiguous: #1 at 79.09s (…); #2 at 83.61s (…).
-Use a longer phrase or { "say": "malá", "occurrence": n }.
+Phrase "small" is ambiguous: #1 at 79.09s (…); #2 at 83.61s (…).
+Use a longer phrase or { "say": "small", "occurrence": n }.
 ```
 
 Matching ignores case and punctuation, and keeps diacritics.
@@ -60,10 +60,10 @@ npx visualfries clips cf004.vf.json --clip B-word-timestamps
 
 ```text
 B-word-timestamps  48.967–64.967s  frame 1469  480 frames  blocks/WordStamps.svelte
-  cue stamps         3.98s "časové"
-  cue extra          9.20s "naviac"
-  cue duplicate      10.10s "ktoré sú duplicitné"
-  words row          6 words: ktoré sú naviac ktoré sú duplicitné
+  cue stamps         3.98s "timestamps"
+  cue extra          9.20s "extra"
+  cue duplicate      10.10s "words that are duplicated"
+  words row          9 words: words that are extra and words that are duplicated
 ```
 
 Add `--json` for the full resolved clip, including every bound word with its times.

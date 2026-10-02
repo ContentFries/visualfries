@@ -234,25 +234,33 @@ export async function createSubjectMatte(input, opts) {
                     width: info.width,
                     height: info.height
                 });
-                // Up to two missing frames are normal and padded below; more means a wrong mask.
-                const rawFrames = (await probeVideo(raw)).frames;
-                if (rawFrames < count - 2 || rawFrames > count + 2)
-                    throw new Error(`${provider.name}: mask for frames ${first}–${last} has ${rawFrames} frames, expected ${count}.`);
                 const alphaDecoder = provider.output === 'alpha' ? await checkAlpha(raw, provider.name) : [];
-                // Mask frame n belongs to piece frame n whatever rate the provider wrote, so frames are
-                // retimed by index instead of resampled. Same size and frame count as the piece; a
-                // short mask holds its last frame.
-                const fixed = path.join(work, `mask-${i}.mp4`);
+                // Mask frame n belongs to piece frame n whatever rate or time base the provider wrote,
+                // so the masks are decoded to numbered images and rebuilt at the piece's rate.
+                const frameDir = path.join(work, `mask-frames-${i}`);
+                await fs.mkdir(frameDir);
                 await ffmpeg([
                     ...alphaDecoder,
                     '-i',
                     raw,
                     '-vf',
-                    `setpts=N/(${info.fps}*TB),scale=${info.width}:${info.height},${extract},tpad=stop_mode=clone:stop=${count}`,
+                    `scale=${info.width}:${info.height},${extract}`,
                     '-fps_mode',
-                    'cfr',
-                    '-r',
+                    'passthrough',
+                    path.join(frameDir, '%06d.png')
+                ]);
+                const decoded = (await fs.readdir(frameDir)).filter((f) => f.endsWith('.png')).sort();
+                // Up to two missing frames are normal and hold the last one; more means a wrong mask.
+                if (decoded.length < count - 2 || decoded.length > count + 2)
+                    throw new Error(`${provider.name}: mask for frames ${first}–${last} has ${decoded.length} frames, expected ${count}.`);
+                for (let n = decoded.length + 1; n <= count; n++)
+                    await fs.copyFile(path.join(frameDir, decoded[decoded.length - 1]), path.join(frameDir, `${String(n).padStart(6, '0')}.png`));
+                const fixed = path.join(work, `mask-${i}.mp4`);
+                await ffmpeg([
+                    '-framerate',
                     String(info.fps),
+                    '-i',
+                    path.join(frameDir, '%06d.png'),
                     '-frames:v',
                     String(count),
                     '-c:v',
@@ -263,6 +271,7 @@ export async function createSubjectMatte(input, opts) {
                     'yuv420p',
                     fixed
                 ]);
+                await fs.rm(frameDir, { recursive: true, force: true });
                 done[i] = fixed;
                 log(`matte: frames ${first}–${last} done (${i + 1}/${chunks.length})`);
             }

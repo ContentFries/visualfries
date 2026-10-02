@@ -200,6 +200,17 @@ describe('commandMatte paths and alpha', () => {
 				]).stdout[0];
 			expect(frame(14)).toBeLessThan(40);
 			expect(frame(15)).toBeGreaterThan(200);
+
+			// A coarse time base (AVI at 15 fps) must not shift the masks either.
+			await createSubjectMatte(input, {
+				output,
+				provider: commandMatte(
+					'ffmpeg -y -loglevel error -f lavfi -i color=black:s=160x120:r=15:d=2 -i {input} -map 0:v -vf "geq=lum=\'if(gte(N,15),255,0)\':cb=128:cr=128" -frames:v {frames} -c:v mjpeg {output}',
+					{ extension: '.avi' }
+				)
+			});
+			expect(frame(14)).toBeLessThan(40);
+			expect(frame(15)).toBeGreaterThan(200);
 			await fs.rm(dir, { recursive: true, force: true });
 		}
 	);

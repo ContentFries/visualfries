@@ -316,7 +316,7 @@ recording -> crop -> visualfries matte -> transcript -> project.vf.json (footage
 
 1. Find a stretch with only the talking head (no screen recordings or cutaways); scene detection with ffmpeg helps (`select='gt(scene,0.25)'`).
 2. Crop wider than 9:16 so the shoulders touch the left and right edges (e.g. `crop=1000:1080:x:0` from 1920×1080, face centred). Keep the sound.
-3. `FAL_KEY=… visualfries matte talk.mp4 --output talk.matte.mp4` (BiRefNet v2, model `Matting`). Look at one frame of the matte over a solid colour before going on.
+3. `FAL_KEY=… visualfries matte talk.mp4 --output talk.matte.mp4` (BiRefNet v2, model `Matting`), or a local segmentation tool with `--command "tool --in {input} --out {output}"` (`--command-output alpha` if it writes transparency). Look at one frame of the matte over a solid colour before going on.
 4. Transcript in seconds from the clip's first frame. Declare `"footage": { "talk": { "src": "talk.mp4", "matte": "talk.matte.mp4" } }` and the clip's `"audio": "talk"`.
 5. Name each beat after its word in `cues` (`{ "say": "AI", "occurrence": 2 }` for repeats, `"edge": "last"` for the last word of a phrase). Run `visualfries clips` and fix every cue that resolves to the wrong word.
 6. Block layers, back to front: backdrop → type layer → camera wrapper with `<Footage layer="plate">` (fade it out or keep it), optional `<Footage layer="subject" offset={-0.4}>` ghost, `<Footage layer="subject">` → captions on top.

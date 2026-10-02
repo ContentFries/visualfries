@@ -162,6 +162,48 @@ describe('commandMatte paths and alpha', () => {
 		await fs.rm(dir, { recursive: true, force: true });
 	});
 
+	it.skipIf(!hasFfmpeg)(
+		'maps mask frames by index when the provider writes another rate',
+		async () => {
+			const dir = await tempDir();
+			const input = path.join(dir, 'in.mp4');
+			ffmpeg([
+				'-f',
+				'lavfi',
+				'-i',
+				'testsrc2=size=160x120:rate=30:duration=1',
+				'-pix_fmt',
+				'yuv420p',
+				input
+			]);
+			const output = path.join(dir, 'matte.mp4');
+			await createSubjectMatte(input, {
+				output,
+				provider: commandMatte(
+					// 30 frames at 25 fps; white from frame 15 on.
+					'ffmpeg -y -loglevel error -f lavfi -i color=black:s=160x120:r=25:d=1.2 -i {input} -map 0:v -vf "geq=lum=\'if(gte(N,15),255,0)\':cb=128:cr=128" -frames:v {frames} -pix_fmt yuv420p {output}'
+				)
+			});
+			const frame = (n: number) =>
+				spawnSync('ffmpeg', [
+					'-loglevel',
+					'error',
+					'-i',
+					output,
+					'-vf',
+					`select=eq(n\\,${n}),crop=2:2:80:60,format=gray`,
+					'-frames:v',
+					'1',
+					'-f',
+					'rawvideo',
+					'-'
+				]).stdout[0];
+			expect(frame(14)).toBeLessThan(40);
+			expect(frame(15)).toBeGreaterThan(200);
+			await fs.rm(dir, { recursive: true, force: true });
+		}
+	);
+
 	it.skipIf(!hasFfmpeg)('refuses an alpha mask without transparency', async () => {
 		const dir = await tempDir();
 		const input = path.join(dir, 'in.mp4');

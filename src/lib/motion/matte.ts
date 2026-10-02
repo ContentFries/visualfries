@@ -377,14 +377,20 @@ export async function createSubjectMatte(input: string, opts: MatteOptions): Pro
 					);
 				const alphaDecoder =
 					provider.output === 'alpha' ? await checkAlpha(raw, provider.name) : [];
-				// Same size, rate and frame count as the piece; a short mask holds its last frame.
+				// Mask frame n belongs to piece frame n whatever rate the provider wrote, so frames are
+				// retimed by index instead of resampled. Same size and frame count as the piece; a
+				// short mask holds its last frame.
 				const fixed = path.join(work, `mask-${i}.mp4`);
 				await ffmpeg([
 					...alphaDecoder,
 					'-i',
 					raw,
 					'-vf',
-					`fps=${info.fps},scale=${info.width}:${info.height},${extract},tpad=stop_mode=clone:stop=${count}`,
+					`setpts=N/(${info.fps}*TB),scale=${info.width}:${info.height},${extract},tpad=stop_mode=clone:stop=${count}`,
+					'-fps_mode',
+					'cfr',
+					'-r',
+					String(info.fps),
 					'-frames:v',
 					String(count),
 					'-c:v',

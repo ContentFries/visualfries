@@ -174,7 +174,8 @@ export function resolveMotionClip(clip, project, words, diagnostics) {
         words: bound,
         props: clip.props ?? {},
         alpha: clip.alpha ?? false,
-        background: clip.alpha ? null : (clip.background ?? project.background ?? null)
+        background: clip.alpha ? null : (clip.background ?? project.background ?? null),
+        audio: clip.audio ?? null
     };
 }
 export function resolveMotionProject(project, words) {
@@ -192,6 +193,14 @@ export function resolveMotionProject(project, words) {
             continue;
         }
         ids.add(clip.id);
+        if (clip.audio && !project.footage?.[clip.audio]) {
+            diagnostics.push({
+                level: 'error',
+                clip: clip.id,
+                field: 'audio',
+                message: `Unknown footage "${clip.audio}". Footage: ${Object.keys(project.footage ?? {}).join(', ') || 'none'}`
+            });
+        }
         const resolved = resolveMotionClip(clip, project, words, diagnostics);
         if (resolved)
             clips.push(resolved);

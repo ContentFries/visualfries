@@ -3,17 +3,26 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { MotionProjectShape, type MotionProject } from './project.js';
 import { parseTranscriptWords, type MotionWord } from './transcript.js';
 import { resolveMotionProject, type ResolvedClip, type ResolvedProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
+import { footageFrameRange } from './footage.js';
+import type { FootageFrames } from './resolve.js';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CHROMIUM_FLAGS = ['--enable-blink-features=CanvasDrawElement', '--font-render-hinting=none'];
+/**
+ * Pages load the bundle, fonts, styles and footage frames from this one origin (served by
+ * Playwright from disk): HTML-in-Canvas leaves cross-origin images, such as file:// frames,
+ * out of the captured frame.
+ */
+const ORIGIN = 'http://visualfries.local';
+const originUrl = (abs: string) => `${ORIGIN}/@fs${pathToFileURL(abs).pathname}`;
 
 export type LoadedMotionProject = {
 	file: string;
@@ -93,7 +102,11 @@ export function assertNoErrors(loaded: LoadedMotionProject, clipIds?: string[]) 
 
 // ---------------------------------------------------------------- bundling
 
-type BundleResult = { dir: string; html: string };
+/**
+ * What the page may read: whole `roots` (the bundle and extracted footage) and single `files`
+ * (declared fonts and assets the project CSS points to). Nothing else in the project is served.
+ */
+type BundleResult = { dir: string; html: string; roots: string[]; files: string[] };
 
 /** Compile the project's blocks together with the stage runtime into one page. */
 export async function bundleMotionProject(
@@ -169,17 +182,19 @@ export async function bundleMotionProject(
 		]
 	});
 
-	const fonts = (loaded.project.fonts ?? []).map((f) => ({
-		family: f.family,
-		url: pathToFileURL(path.resolve(loaded.dir, f.src)).href,
-		weight: f.weight,
-		style: f.style
-	}));
+	const roots = [outDir];
+	const files: string[] = [];
+	const fonts = (loaded.project.fonts ?? []).map((f) => {
+		const abs = path.resolve(loaded.dir, f.src);
+		files.push(abs);
+		return { family: f.family, url: originUrl(abs), weight: f.weight, style: f.style };
+	});
 	let css = '';
 	for (const file of loaded.project.styles ?? []) {
 		const abs = path.resolve(loaded.dir, file);
-		css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs)) + '\n';
+		css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs), files) + '\n';
 	}
+	roots.push(...(await prepareFootage(loaded, clips)));
 	const cssBundle = path.join(outDir, 'bundle.css');
 	const cssLink = existsSync(cssBundle) ? '<link rel="stylesheet" href="bundle.css">' : '';
 	const html = path.join(outDir, 'index.html');
@@ -189,16 +204,21 @@ export async function bundleMotionProject(
 			css
 		)};window.__vfInvalidate=new URLSearchParams(location.search).get('invalidate')||undefined;</script><body><script src="bundle.js"></script></body>`
 	);
-	return { dir: outDir, html };
+	return { dir: outDir, html, roots, files };
 }
 
 /** Project CSS is inlined into a page elsewhere; make its relative url(...) absolute. */
-function rebaseCssUrls(css: string, dir: string): string {
-	return css.replace(/url\((\s*['"]?)([^'")]+)(['"]?\s*)\)/g, (all, open, ref, close) =>
-		/^(data:|https?:|file:|#|\/)/.test(ref)
-			? all
-			: `url(${open}${pathToFileURL(path.resolve(dir, ref)).href}${close})`
-	);
+function rebaseCssUrls(css: string, dir: string, files: string[]): string {
+	return css.replace(/url\((\s*['"]?)([^'")]+)(['"]?\s*)\)/g, (all, open, ref, close) => {
+		if (/^(data:|https?:|#)/.test(ref)) return all;
+		// Keep `#fragment` and `?query` (SVG filters and masks point into a file).
+		const cut = ref.search(/[?#]/);
+		const file = cut === -1 ? ref : ref.slice(0, cut);
+		const suffix = cut === -1 ? '' : ref.slice(cut);
+		const abs = file.startsWith('file:') ? fileURLToPath(file) : path.resolve(dir, file);
+		files.push(abs);
+		return `url(${open}${originUrl(abs)}${suffix}${close})`;
+	});
 }
 
 // ---------------------------------------------------------------- browser
@@ -217,8 +237,17 @@ export function findChromium(): string | undefined {
 	return candidates.find((c) => c && existsSync(c));
 }
 
+type RouteLike = {
+	request(): { url(): string };
+	fulfill(response: {
+		status: number;
+		body?: Buffer | string;
+		contentType?: string;
+	}): Promise<void>;
+};
 type PageLike = {
 	goto(url: string): Promise<unknown>;
+	route(url: string, handler: (route: RouteLike) => unknown): Promise<void>;
 	evaluate<R, A>(fn: (arg: A) => R | Promise<R>, arg: A): Promise<R>;
 	locator(sel: string): {
 		screenshot(opts: { omitBackground?: boolean; type?: 'png' }): Promise<Buffer>;
@@ -267,9 +296,8 @@ async function openClip(
 	const errors: string[] = [];
 	page.on('pageerror', (e) => errors.push(String(e)));
 	page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-	await page.goto(
-		pathToFileURL(bundle.html).href + (invalidate ? `?invalidate=${invalidate}` : '')
-	);
+	await page.route(`${ORIGIN}/**`, (route) => serveAllowed(route, bundle, errors));
+	await page.goto(originUrl(bundle.html) + (invalidate ? `?invalidate=${invalidate}` : ''));
 	let info: { mode: 'html-in-canvas' | 'dom' };
 	try {
 		info = await page.evaluate((data) => (window as any).__vfMotionStage.load(data), clip);
@@ -301,6 +329,345 @@ async function openClip(
 		},
 		close: () => page.close()
 	};
+}
+
+const CONTENT_TYPES: Record<string, string> = {
+	'.html': 'text/html; charset=utf-8',
+	'.js': 'text/javascript; charset=utf-8',
+	'.css': 'text/css; charset=utf-8',
+	'.json': 'application/json',
+	'.png': 'image/png',
+	'.jpg': 'image/jpeg',
+	'.jpeg': 'image/jpeg',
+	'.webp': 'image/webp',
+	'.gif': 'image/gif',
+	'.svg': 'image/svg+xml',
+	'.ttf': 'font/ttf',
+	'.otf': 'font/otf',
+	'.woff': 'font/woff',
+	'.woff2': 'font/woff2',
+	'.mp4': 'video/mp4',
+	'.webm': 'video/webm',
+	'.mp3': 'audio/mpeg',
+	'.wav': 'audio/wav'
+};
+
+/** Serves `${ORIGIN}/@fs/<absolute path>` from disk: only allowed folders and files. */
+async function serveAllowed(
+	route: RouteLike,
+	allowed: Pick<BundleResult, 'roots' | 'files'>,
+	errors: string[]
+) {
+	const { pathname } = new URL(route.request().url());
+	if (!pathname.startsWith('/@fs/')) return route.fulfill({ status: 404 });
+	let abs: string;
+	let real: string;
+	try {
+		abs = fileURLToPath(`file://${pathname.slice('/@fs'.length)}`);
+		// Resolve symlinks first, so a link inside the project cannot reach outside it.
+		real = await fs.realpath(abs);
+	} catch {
+		return route.fulfill({ status: 404 });
+	}
+	const realOf = (p: string) => fs.realpath(p).catch(() => p);
+	const realRoots = await Promise.all(allowed.roots.map(realOf));
+	const realFiles = await Promise.all(allowed.files.map(realOf));
+	const inRoot = realRoots.some((root) => real === root || real.startsWith(root + path.sep));
+	if (!inRoot && !realFiles.includes(real)) {
+		errors.push(`Blocked a request outside the project: ${abs}`);
+		return route.fulfill({ status: 403 });
+	}
+	try {
+		const body = await fs.readFile(real);
+		return route.fulfill({
+			status: 200,
+			body,
+			contentType: CONTENT_TYPES[path.extname(abs).toLowerCase()] ?? 'application/octet-stream'
+		});
+	} catch {
+		return route.fulfill({ status: 404 });
+	}
+}
+
+// ---------------------------------------------------------------- footage
+
+type VideoInfo = {
+	width: number;
+	height: number;
+	fps: number;
+	frames: number;
+	/** Seconds from the first frame to the end of the last one. */
+	duration: number;
+	/** False when the frame intervals are not all equal (variable frame rate, dropped frames). */
+	constant: boolean;
+};
+
+function ffprobeJson(file: string, args: string[]): Promise<any> {
+	return new Promise((resolve, reject) => {
+		const p = spawn(process.env.FFPROBE_PATH || 'ffprobe', [
+			'-v',
+			'error',
+			...args,
+			'-of',
+			'json',
+			file
+		]);
+		let out = '';
+		let err = '';
+		p.stdout.on('data', (d) => (out += d));
+		p.stderr.on('data', (d) => (err += d));
+		p.on('error', reject);
+		p.on('close', (code) =>
+			code === 0
+				? resolve(JSON.parse(out))
+				: reject(new Error(`ffprobe failed for ${file}: ${err.slice(-400)}`))
+		);
+	});
+}
+
+/**
+ * Presentation timestamps (in time-base ticks) of the frames the first video stream shows.
+ * Packets flagged for discard (edit-list preroll of a stream-copied cut) are left out.
+ */
+function packetTimestamps(file: string): Promise<number[]> {
+	return new Promise((resolve, reject) => {
+		const p = spawn(process.env.FFPROBE_PATH || 'ffprobe', [
+			'-v',
+			'error',
+			'-select_streams',
+			'v:0',
+			'-show_entries',
+			'packet=pts,flags',
+			'-of',
+			'csv=p=0',
+			file
+		]);
+		let out = '';
+		let err = '';
+		p.stdout.on('data', (d) => (out += d));
+		p.stderr.on('data', (d) => (err += d));
+		p.on('error', reject);
+		p.on('close', (code) =>
+			code === 0
+				? resolve(
+						out
+							.split('\n')
+							.map((line) => line.split(','))
+							.filter(([pts, flags = '']) => {
+								const value = pts?.trim();
+								return value && value !== 'N/A' && !flags.includes('D');
+							})
+							.map(([pts]) => Number(pts))
+							.filter((n) => Number.isFinite(n))
+					)
+				: reject(new Error(`ffprobe failed for ${file}: ${err.slice(-400)}`))
+		);
+	});
+}
+
+/**
+ * Size, nominal frame rate, frame count and duration of a video's first stream, from its packet
+ * timestamps. `constant` is false when any frame interval differs from the others (a dropped or
+ * repeated frame, a variable-frame-rate recording).
+ */
+function quarterTurn(stream: any): boolean {
+	const fromSideData = (stream.side_data_list ?? []).find(
+		(d: any) => d.rotation !== undefined
+	)?.rotation;
+	const rotation = Number(fromSideData ?? stream.tags?.rotate ?? 0);
+	return Math.abs(rotation) % 180 === 90;
+}
+
+export async function probeVideo(file: string): Promise<VideoInfo> {
+	const info = await ffprobeJson(file, [
+		'-select_streams',
+		'v:0',
+		'-show_entries',
+		'stream=width,height,r_frame_rate,time_base:stream_side_data=rotation:stream_tags=rotate'
+	]);
+	const stream = info.streams?.[0];
+	if (!stream) throw new Error(`No video stream in ${file}`);
+	const rate = (value: unknown) => {
+		const [num, den] = String(value).split('/').map(Number);
+		return den ? num / den : num;
+	};
+	const fps = rate(stream.r_frame_rate);
+	const timeBase = rate(stream.time_base);
+	const pts = (await packetTimestamps(file)).sort((x, y) => x - y);
+	if (!pts.length) throw new Error(`No video frames in ${file}`);
+	const step = 1 / fps / timeBase;
+	let constant = true;
+	for (let i = 1; i < pts.length; i++) {
+		// Allow one tick of rounding; anything else is a gap or a repeat.
+		if (Math.abs(pts[i] - pts[i - 1] - step) > 1) {
+			constant = false;
+			break;
+		}
+	}
+	return {
+		// Decoders apply the rotation, so a portrait phone video decodes with swapped sides.
+		...(quarterTurn(stream)
+			? { width: stream.height, height: stream.width }
+			: { width: stream.width, height: stream.height }),
+		fps,
+		frames: pts.length,
+		duration: (pts[pts.length - 1] - pts[0]) * timeBase + 1 / fps,
+		constant
+	};
+}
+
+/** Default seconds extracted around the clips, for `offset` and delayed copies. */
+const FOOTAGE_MARGIN_SECONDS = 2;
+
+function edgeFrame(clips: ResolvedClip[], startFrame: number, total: number) {
+	if (total <= 0) return { first: 0, last: 0 };
+	const before = clips.every((c) => c.startFrame + c.frames <= startFrame);
+	const index = before ? 0 : total - 1;
+	return { first: index, last: index };
+}
+
+/**
+ * Extracts the footage frames the given clips need (with a margin) into
+ * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
+ * Frames are cached by source, matte, frame rate and range.
+ */
+export async function prepareFootage(
+	loaded: LoadedMotionProject,
+	clips: ResolvedClip[]
+): Promise<string[]> {
+	const footage = loaded.project.footage ?? {};
+	const fps = loaded.project.fps;
+	const roots: string[] = [];
+	const frames: Record<string, FootageFrames> = {};
+	for (const [name, spec] of Object.entries(footage)) {
+		const src = path.resolve(loaded.dir, spec.src);
+		const matte = spec.matte ? path.resolve(loaded.dir, spec.matte) : null;
+		for (const file of [src, matte])
+			if (file && !existsSync(file)) throw new Error(`Footage "${name}": file not found: ${file}`);
+		const info = await probeVideo(src);
+		if (matte) {
+			const m = await probeVideo(matte);
+			// Two frames of difference are allowed; the epsilon absorbs float rounding.
+			if (Math.abs(m.duration - info.duration) > 2 / info.fps + 1e-6)
+				throw new Error(
+					`Footage "${name}": the matte is ${m.duration.toFixed(2)} s long, the video ${info.duration.toFixed(2)} s. Make the matte from this video (visualfries matte).`
+				);
+		}
+		// Same constant frame rate as the project: footage frames are program frames and a fast
+		// input seek is exact. Otherwise decode from the start so the rate conversion keeps one
+		// phase whatever range is extracted.
+		const direct = info.constant && Math.abs(info.fps - fps) < 0.01;
+		const total = direct ? info.frames : Math.round(info.duration * fps);
+		const startFrame = Math.round((spec.start ?? 0) * fps);
+		const margin = Math.round((spec.margin ?? FOOTAGE_MARGIN_SECONDS) * fps);
+		// Clips that never overlap the footage hold its nearest edge frame.
+		const range =
+			footageFrameRange(clips, startFrame, total, margin) ?? edgeFrame(clips, startFrame, total);
+		const stats = await Promise.all([src, matte].map((f) => (f ? fs.stat(f) : null)));
+		const key = createHash('sha1')
+			.update(
+				JSON.stringify({
+					src,
+					matte,
+					sizes: stats.map((st) => st && [st.size, st.mtimeMs]),
+					fps,
+					range
+				})
+			)
+			.digest('hex')
+			.slice(0, 12);
+		const dir = path.join(loaded.dir, '.visualfries', 'footage', `${name}-${key}`);
+		if (!existsSync(path.join(dir, 'done.json'))) {
+			const tmp = `${dir}.tmp-${process.pid}-${randomUUID()}`;
+			await fs.mkdir(path.join(tmp, 'plate'), { recursive: true });
+			try {
+				const count = range.last - range.first + 1;
+				const seek = direct ? ['-ss', (range.first / fps).toFixed(6)] : [];
+				const pick = direct
+					? `fps=${fps}`
+					: `fps=${fps},trim=start_frame=${range.first}:end_frame=${range.last + 1},setpts=PTS-STARTPTS`;
+				await ffmpeg([
+					'-y',
+					...seek,
+					'-i',
+					src,
+					'-vf',
+					pick,
+					'-frames:v',
+					String(count),
+					'-start_number',
+					String(range.first),
+					'-q:v',
+					'2',
+					path.join(tmp, 'plate', '%06d.jpg')
+				]);
+				if (matte) {
+					await fs.mkdir(path.join(tmp, 'subject'), { recursive: true });
+					await ffmpeg([
+						'-y',
+						...seek,
+						'-i',
+						src,
+						'-i',
+						matte,
+						'-filter_complex',
+						// The matte is padded before it is cut to the range, so a matte a frame or two
+						// short holds its last frame even when only the end of the footage is extracted.
+						`[0:v]${pick}[c];[1:v]fps=${fps},scale=${info.width}:${info.height},format=gray,tpad=stop_mode=clone:stop_duration=2,trim=start_frame=${range.first}:end_frame=${range.last + 1},setpts=PTS-STARTPTS[m];[c][m]alphamerge,format=rgba`,
+						'-frames:v',
+						String(count),
+						'-start_number',
+						String(range.first),
+						'-compression_level',
+						'1',
+						path.join(tmp, 'subject', '%06d.png')
+					]);
+				}
+				const written = (await fs.readdir(path.join(tmp, 'plate'))).length;
+				if (matte) {
+					const cutOuts = (await fs.readdir(path.join(tmp, 'subject'))).length;
+					if (cutOuts !== written)
+						throw new Error(
+							`Footage "${name}": ${cutOuts} subject frames for ${written} picture frames; the matte does not cover the clips.`
+						);
+				}
+				await fs.writeFile(
+					path.join(tmp, 'done.json'),
+					JSON.stringify({
+						name,
+						src,
+						matte,
+						first: range.first,
+						last: range.first + written - 1,
+						total,
+						width: info.width,
+						height: info.height
+					})
+				);
+				// Publish atomically. If another run published the same frames first, keep theirs:
+				// never delete a published folder another page may be reading.
+				await fs.rename(tmp, dir).catch(async (error) => {
+					if (!existsSync(path.join(dir, 'done.json'))) throw error;
+				});
+			} finally {
+				await fs.rm(tmp, { recursive: true, force: true });
+			}
+		}
+		const done = JSON.parse(await fs.readFile(path.join(dir, 'done.json'), 'utf8'));
+		frames[name] = {
+			url: originUrl(dir) + '/',
+			first: done.first,
+			last: done.last,
+			total: done.total,
+			width: done.width,
+			height: done.height,
+			startFrame,
+			subject: !!matte
+		};
+		roots.push(dir);
+	}
+	for (const clip of clips) clip.footage = frames;
+	return roots;
 }
 
 // ---------------------------------------------------------------- still / sheet
@@ -547,6 +914,35 @@ function ffmpeg(args: string[], input?: NodeJS.ReadableStream): Promise<void> {
 	});
 }
 
+/**
+ * ffmpeg input and mapping that mux the sound of the clip's `audio` footage, cut to the clip's
+ * program range. Silence fills anything the footage does not cover.
+ */
+function audioInput(loaded: LoadedMotionProject, clip: ResolvedClip): string[] {
+	if (!clip.audio) return [];
+	const footage = loaded.project.footage?.[clip.audio];
+	if (!footage) throw new Error(`Clip "${clip.id}": unknown audio footage "${clip.audio}".`);
+	const src = path.resolve(loaded.dir, footage.src);
+	// The picture places the footage on a whole frame; the sound follows the same frame.
+	const from = clip.start - Math.round((footage.start ?? 0) * clip.fps) / clip.fps;
+	const delayMs = Math.max(0, Math.round(-from * 1000));
+	return [
+		'-ss',
+		Math.max(0, from).toFixed(6),
+		'-i',
+		src,
+		'-map',
+		'0:v',
+		'-map',
+		'1:a:0',
+		'-af',
+		`${delayMs ? `adelay=${delayMs}:all=1,` : ''}apad`,
+		'-t',
+		clip.duration.toFixed(6),
+		...(clip.alpha ? ['-c:a', 'pcm_s16le'] : ['-c:a', 'aac', '-b:a', '192k'])
+	];
+}
+
 export async function renderMotionClips(
 	loaded: LoadedMotionProject,
 	opts: {
@@ -633,6 +1029,7 @@ export async function renderMotionClips(
 					String(clip.fps),
 					'-i',
 					path.join(framesDir, '%06d.png'),
+					...audioInput(loaded, clip),
 					...codec,
 					file
 				]);

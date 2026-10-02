@@ -85,7 +85,8 @@ export function createMotionStage(options) {
         await document.fonts.ready;
         return { mode, frames: data.frames, fps: data.fps };
     }
-    function applyTime(frame) {
+    /** Sets clip time and runs the clip's logic; resolves once every `useFrame` promise settles. */
+    async function applyTime(frame) {
         if (!active)
             throw new Error('No clip loaded.');
         const { controller, data } = active;
@@ -95,8 +96,13 @@ export function createMotionStage(options) {
         flushSync();
         for (const tl of controller.timelines)
             tl.seek(t, true);
-        for (const fn of controller.frameFns)
-            fn({ t, frame, clip: controller.clip });
+        const pending = [];
+        for (const fn of controller.frameFns) {
+            const result = fn({ t, frame, clip: controller.clip });
+            if (result && typeof result.then === 'function')
+                pending.push(result);
+        }
+        await Promise.all(pending);
         return t;
     }
     function nextPaint() {
@@ -126,7 +132,7 @@ export function createMotionStage(options) {
     /** Seek, repaint, draw. With `capture`, returns a PNG data URL (html-in-canvas mode only). */
     async function frame(n, capture = false) {
         const t0 = performance.now();
-        const t = applyTime(n);
+        const t = await applyTime(n);
         // Force a fresh raster of the whole subtree: Chromium otherwise reuses cached raster for
         // transform-animated layers and the pixels depend on seek history.
         const how = options.invalidate ?? 'filters';
@@ -160,12 +166,12 @@ export function createMotionStage(options) {
      * Run the clip's logic at the given frames without painting: collects exceptions (unknown
      * cues, bad eases, maps going back in time) and wall-clock CSS animations.
      */
-    function check(frames) {
+    async function check(frames) {
         const errors = [];
         const warnings = [];
         for (const n of frames) {
             try {
-                applyTime(n);
+                await applyTime(n);
             }
             catch (error) {
                 const message = error.message;

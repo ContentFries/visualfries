@@ -119,6 +119,40 @@ for one-off setup), text layout measured after mount (fonts are loaded
 before blocks mount). Svelte drops leading whitespace inside an element: write
 `<span>{' / FCPXML'}</span>`, not `<span> / FCPXML</span>`.
 
+## Footage and mattes
+
+A project can declare a video the blocks draw frame by frame, with an optional matte (greyscale,
+white = subject) for cutting the subject out:
+
+```json
+"footage": { "talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "start": 0 } },
+"clips": [{ "id": "depth", "block": "blocks/Depth.svelte", "from": 0, "until": 17, "audio": "talk" }]
+```
+
+```svelte
+<script>
+	import { Footage } from 'visualfries/motion';
+</script>
+
+<Footage name="talk" layer="plate" />
+<!-- original picture -->
+<h1>BEHIND</h1>
+<!-- covered by the head -->
+<Footage name="talk" layer="subject" />
+<!-- the speaker only -->
+<Footage name="talk" layer="subject" offset={-0.4} />
+<!-- 0.4 s earlier: an echo -->
+```
+
+`start` is the program second at which the footage's first frame plays; `offset` shifts a layer
+in seconds. A clip's `audio` muxes that footage's sound into the rendered clip. Frames are
+extracted once into `.visualfries/footage/` (JPEG plates, PNG cut-outs) and loaded before each
+frame is captured, so footage is frame-accurate in any seek order.
+
+`visualfries matte talk.mp4 --output talk.matte.mp4` makes the matte with BiRefNet v2 on fal.ai
+(`FAL_KEY`), in ≤512-frame requests, and checks the frame count. Worked example:
+`static/demo/speaker-depth`.
+
 ## CLI
 
 ```bash
@@ -128,6 +162,7 @@ visualfries still video.vf.json --clip B --output b.png            # sheet: star
 visualfries still video.vf.json --clip B --at extra --at extra.end+0.5 --output b.png
 visualfries render video.vf.json --output out/ [--clip B] [--jobs 6]   # MP4 / MOV + manifest.json
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover
+visualfries matte talk.mp4 --output talk.matte.mp4               # subject matte for footage (FAL_KEY)
 ```
 
 `check` mounts every block and runs it across the clip: unknown cues, bad eases, maps that go
@@ -147,6 +182,8 @@ the block stays untouched.
 The page renders the block into a `<canvas layoutsubtree>` and captures it with
 HTML-in-Canvas (`drawElementImage`, Chromium flag `CanvasDrawElement`). Without it the
 stage falls back to DOM screenshots. Each frame: set time → flush Svelte → seek GSAP
-timelines → run `useFrame` callbacks → force a fresh raster → wait for the paint (an error
-after 2 s, never a silent timeout) → capture. Any frame can be rendered in any order with
+timelines → run `useFrame` callbacks and wait for the promises they return (footage frames)
+→ force a fresh raster → wait for the paint (an error after 2 s, never a silent timeout) →
+capture. The page loads the bundle, fonts and footage from one origin served from disk, because
+HTML-in-Canvas leaves cross-origin images out of the capture. Any frame can be rendered in any order with
 identical pixels; `render` splits clips into ranges across pages.

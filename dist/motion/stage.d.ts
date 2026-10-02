@@ -39,9 +39,9 @@ export declare function createMotionStage(options: StageOptions): {
         fps: number;
     }>;
     frame: (n: number, capture?: boolean) => Promise<FrameResult>;
-    check: (frames: number[]) => {
+    check: (frames: number[]) => Promise<{
         errors: CheckIssue[];
         warnings: CheckIssue[];
-    };
+    }>;
     unload: () => void;
 };

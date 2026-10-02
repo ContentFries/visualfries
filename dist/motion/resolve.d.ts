@@ -29,6 +29,26 @@ export type ResolvedClip = {
     props: Record<string, unknown>;
     alpha: boolean;
     background: string | null;
+    /** Footage whose sound the render muxes into this clip. */
+    audio: string | null;
+    /** Frames of the project's footage, filled in by the node tooling before a page loads. */
+    footage?: Record<string, FootageFrames>;
+};
+/** Extracted frames of one footage, served to the page (see `<Footage>`). */
+export type FootageFrames = {
+    /** URL prefix; frames are `<url>plate/000123.jpg` and `<url>subject/000123.png`. */
+    url: string;
+    /** First and last extracted footage frame (inclusive). */
+    first: number;
+    last: number;
+    /** Frames in the whole footage (at the project frame rate). */
+    total: number;
+    width: number;
+    height: number;
+    /** Program frame at which footage frame 0 plays. */
+    startFrame: number;
+    /** Whether a matte was given, so `subject` frames exist. */
+    subject: boolean;
 };
 export type MotionDiagnostic = {
     level: 'error' | 'warning';

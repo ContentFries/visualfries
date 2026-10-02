@@ -18,9 +18,15 @@ export declare function loadMotionProject(file: string, opts?: {
 export declare function assertKnownClips(loaded: LoadedMotionProject, clipIds?: string[]): void;
 /** Throws on errors of the given clips (all clips when omitted), including clips that failed to resolve. */
 export declare function assertNoErrors(loaded: LoadedMotionProject, clipIds?: string[]): void;
+/**
+ * What the page may read: whole `roots` (the bundle and extracted footage) and single `files`
+ * (declared fonts and assets the project CSS points to). Nothing else in the project is served.
+ */
 type BundleResult = {
     dir: string;
     html: string;
+    roots: string[];
+    files: string[];
 };
 /** Compile the project's blocks together with the stage runtime into one page. */
 export declare function bundleMotionProject(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<BundleResult>;
@@ -40,6 +46,23 @@ export type MotionPage = {
     }>;
     close(): Promise<void>;
 };
+type VideoInfo = {
+    width: number;
+    height: number;
+    fps: number;
+    frames: number;
+    /** Seconds from the first frame to the end of the last one. */
+    duration: number;
+    /** False when the frame intervals are not all equal (variable frame rate, dropped frames). */
+    constant: boolean;
+};
+export declare function probeVideo(file: string): Promise<VideoInfo>;
+/**
+ * Extracts the footage frames the given clips need (with a margin) into
+ * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
+ * Frames are cached by source, matte, frame rate and range.
+ */
+export declare function prepareFootage(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<string[]>;
 export type StillRequest = {
     clip: string;
     at: string;

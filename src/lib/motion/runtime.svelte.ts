@@ -1,6 +1,6 @@
 import { getContext, onMount } from 'svelte';
 import { gsap } from 'gsap';
-import type { MotionWordRef, ResolvedClip, ResolvedCue } from './resolve.js';
+import type { FootageFrames, MotionWordRef, ResolvedClip, ResolvedCue } from './resolve.js';
 import { resolveMoment } from './moment.js';
 
 /**
@@ -29,6 +29,10 @@ export class Clip {
 	readonly props: Record<string, unknown>;
 	/** Program time of the clip start, for showing transcript timestamps. */
 	readonly programStart: number;
+	/** Program frame of the clip start; `programStartFrame + frame` is the program frame. */
+	readonly programStartFrame: number;
+	/** Frames of the project's footage (see `<Footage>`). */
+	readonly footage: Record<string, FootageFrames>;
 
 	constructor(data: ResolvedClip) {
 		this.id = data.id;
@@ -40,6 +44,8 @@ export class Clip {
 		this.words = data.words;
 		this.props = data.props;
 		this.programStart = data.start;
+		this.programStartFrame = data.startFrame;
+		this.footage = data.footage ?? {};
 	}
 
 	/**
@@ -189,7 +195,8 @@ type TimelineBuild = (ctx: {
 	q: (selector: string) => Element[];
 	clip: Clip;
 }) => void;
-type FrameFn = (ctx: { t: number; frame: number; clip: Clip }) => void;
+/** May return a promise (e.g. an image decode); the frame is captured after it settles. */
+type FrameFn = (ctx: { t: number; frame: number; clip: Clip }) => void | Promise<unknown>;
 
 export type ClipController = {
 	clip: Clip;
@@ -235,7 +242,10 @@ export function useTimeline(build: TimelineBuild): void {
 	});
 }
 
-/** Imperative per-frame drawing (canvas, procedural SVG, third-party engines). */
+/**
+ * Imperative per-frame drawing (canvas, procedural SVG, third-party engines). Return a promise
+ * when the frame needs something loaded first; VisualFries waits for it before capturing.
+ */
 export function useFrame(fn: FrameFn): void {
 	const c = controller();
 	onMount(() => {

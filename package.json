@@ -75,6 +75,10 @@
 		"./motion/node": {
 			"types": "./dist/motion/node.d.ts",
 			"default": "./dist/motion/node.js"
+		},
+		"./motion/matte": {
+			"types": "./dist/motion/matte.d.ts",
+			"default": "./dist/motion/matte.js"
 		}
 	},
 	"peerDependencies": {

@@ -32,6 +32,27 @@ export type ResolvedClip = {
 	props: Record<string, unknown>;
 	alpha: boolean;
 	background: string | null;
+	/** Footage whose sound the render muxes into this clip. */
+	audio: string | null;
+	/** Frames of the project's footage, filled in by the node tooling before a page loads. */
+	footage?: Record<string, FootageFrames>;
+};
+
+/** Extracted frames of one footage, served to the page (see `<Footage>`). */
+export type FootageFrames = {
+	/** URL prefix; frames are `<url>plate/000123.jpg` and `<url>subject/000123.png`. */
+	url: string;
+	/** First and last extracted footage frame (inclusive). */
+	first: number;
+	last: number;
+	/** Frames in the whole footage (at the project frame rate). */
+	total: number;
+	width: number;
+	height: number;
+	/** Program frame at which footage frame 0 plays. */
+	startFrame: number;
+	/** Whether a matte was given, so `subject` frames exist. */
+	subject: boolean;
 };
 
 export type MotionDiagnostic = {
@@ -266,7 +287,8 @@ export function resolveMotionClip(
 		words: bound,
 		props: clip.props ?? {},
 		alpha: clip.alpha ?? false,
-		background: clip.alpha ? null : (clip.background ?? project.background ?? null)
+		background: clip.alpha ? null : (clip.background ?? project.background ?? null),
+		audio: clip.audio ?? null
 	};
 }
 
@@ -288,6 +310,14 @@ export function resolveMotionProject(
 			continue;
 		}
 		ids.add(clip.id);
+		if (clip.audio && !project.footage?.[clip.audio]) {
+			diagnostics.push({
+				level: 'error',
+				clip: clip.id,
+				field: 'audio',
+				message: `Unknown footage "${clip.audio}". Footage: ${Object.keys(project.footage ?? {}).join(', ') || 'none'}`
+			});
+		}
 		const resolved = resolveMotionClip(clip, project, words, diagnostics);
 		if (resolved) clips.push(resolved);
 	}

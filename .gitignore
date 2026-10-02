@@ -29,3 +29,6 @@ vite.config.ts.timestamp-*
 # Debug routes (not tracked)
 /src/routes/debug
 .planning
+
+# VisualFries motion footage cache
+.visualfries/

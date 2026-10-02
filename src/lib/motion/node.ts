@@ -592,12 +592,12 @@ export async function prepareFootage(
 						...seek,
 						'-i',
 						src,
-						...seek,
 						'-i',
 						matte,
 						'-filter_complex',
-						// A matte a frame or two short holds its last frame instead of dropping the picture.
-						`[0:v]${pick}[c];[1:v]${pick},scale=${info.width}:${info.height},format=gray,tpad=stop_mode=clone:stop_duration=2[m];[c][m]alphamerge,format=rgba`,
+						// The matte is padded before it is cut to the range, so a matte a frame or two
+						// short holds its last frame even when only the end of the footage is extracted.
+						`[0:v]${pick}[c];[1:v]fps=${fps},scale=${info.width}:${info.height},format=gray,tpad=stop_mode=clone:stop_duration=2,trim=start_frame=${range.first}:end_frame=${range.last + 1},setpts=PTS-STARTPTS[m];[c][m]alphamerge,format=rgba`,
 						'-frames:v',
 						String(count),
 						'-start_number',

@@ -149,8 +149,9 @@ in seconds. A clip's `audio` muxes that footage's sound into the rendered clip. 
 extracted once into `.visualfries/footage/` (JPEG plates, PNG cut-outs) and loaded before each
 frame is captured, so footage is frame-accurate in any seek order.
 
-`visualfries matte talk.mp4 --output talk.matte.mp4` makes the matte with BiRefNet v2 on fal.ai
-(`FAL_KEY`), in ≤512-frame requests, and checks the frame count. Worked example:
+`visualfries matte talk.mp4 --output talk.matte.mp4` makes the matte: BiRefNet v2 on fal.ai
+(`FAL_KEY`) by default, or any local tool with `--command "tool {input} {output}"`, or any
+`MatteProvider` in Node. It splits, checks and joins the pieces frame-exact. Worked example:
 `static/demo/speaker-depth`.
 
 ## CLI
@@ -162,7 +163,7 @@ visualfries still video.vf.json --clip B --output b.png            # sheet: star
 visualfries still video.vf.json --clip B --at extra --at extra.end+0.5 --output b.png
 visualfries render video.vf.json --output out/ [--clip B] [--jobs 6]   # MP4 / MOV + manifest.json
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover
-visualfries matte talk.mp4 --output talk.matte.mp4               # subject matte for footage (FAL_KEY)
+visualfries matte talk.mp4 --output talk.matte.mp4               # subject matte (fal.ai or --command)
 ```
 
 `check` mounts every block and runs it across the clip: unknown cues, bad eases, maps that go

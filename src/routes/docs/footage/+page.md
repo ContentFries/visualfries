@@ -64,9 +64,30 @@ The first command that needs frames extracts the range the clips use (plus two s
 
 ```bash
 FAL_KEY=… npx visualfries matte talk.mp4 --output talk.matte.mp4
+npx visualfries matte talk.mp4 --output talk.matte.mp4 --command "rvm --in {input} --out {output}"
 ```
 
-[`visualfries matte`](/docs/cli#matte) runs BiRefNet v2 on fal.ai (constant frame rate only; convert a variable-frame-rate recording first), splits videos over 512 frames into several requests and checks that the matte has exactly as many frames as the input. Model `Matting` keeps hair and microphones. A 17-second 1000×1080 clip takes one to three minutes. A matte from any other tool works as long as it has the same size and frame count.
+[`visualfries matte`](/docs/cli#matte) does the bookkeeping every segmentation model needs: it splits the video into pieces the model accepts, checks each mask's frame count, scales and joins the masks, and verifies the result is frame-exact. Who segments is a **provider**: BiRefNet v2 on fal.ai by default (model `Matting` keeps hair and microphones; a 17-second 1000×1080 clip takes one to three minutes), or any local tool through `--command`. The input must have a constant frame rate; convert a variable-frame-rate recording first.
+
+A provider is a small object, so another API or model plugs in without touching the rest:
+
+```ts
+import { createSubjectMatte, type MatteProvider } from 'visualfries/motion/matte';
+
+const myModel: MatteProvider = {
+	name: 'my segmenter',
+	maxFrames: 900, // longest piece it accepts
+	parallel: 2, // pieces at once
+	output: 'luma', // or 'alpha' for a video with transparency
+	async segment({ input, output, frames, fps, width, height }) {
+		// read the piece at `input`, write its mask video to `output`
+	}
+};
+
+await createSubjectMatte('talk.mp4', { output: 'talk.matte.mp4', provider: myModel });
+```
+
+A matte made anywhere else works too, as long as it has the same size, frame rate and frame count as the video.
 
 ## Speaker depth, step by step
 

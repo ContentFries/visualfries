@@ -59,8 +59,9 @@ describe('planMatteChunks', () => {
 		expect(planMatteChunks(510, 512)).toEqual([{ first: 0, last: 509 }]);
 	});
 
-	it('rejects chunks above the API limit', () => {
-		expect(() => planMatteChunks(100, 600)).toThrow(/512/);
+	it('rejects chunks above the provider limit', () => {
+		expect(() => planMatteChunks(100, 600, 512)).toThrow(/512/);
+		expect(planMatteChunks(100, 600)).toEqual([{ first: 0, last: 99 }]);
 	});
 });
 

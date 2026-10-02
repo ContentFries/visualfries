@@ -74,10 +74,22 @@ A render refuses to start when any requested clip has errors, and verifies that 
 ## matte
 
 ```bash
+# BiRefNet v2 on fal.ai (default provider)
 FAL_KEY=… npx visualfries matte talk.mp4 --output talk.matte.mp4 [--model Matting] [--resolution 1024x1024]
+
+# any local tool: one run per piece, with placeholders
+npx visualfries matte talk.mp4 --output talk.matte.mp4 \
+  --command "python rvm.py --in {input} --out {output}" [--command-output luma|alpha] [--max-frames 900]
 ```
 
-Makes a greyscale matte (white = subject) for a [footage](/docs/footage) with BiRefNet v2 on fal.ai. Videos longer than 512 frames are split into requests of `--chunk-frames` (default 480, `--jobs` at once) and joined; the command fails unless the matte has exactly as many frames as the input. Models: `Matting` (default, keeps hair), `Portrait`, `General Use (Light)`, `General Use (Light 2K)`, `General Use (Heavy)`, `General Use (Dynamic)`.
+Makes a greyscale matte (white = subject) for a [footage](/docs/footage). VisualFries splits the video into pieces of `--chunk-frames` (default 480, at most the provider's limit; `--jobs` at once), hands each piece to the provider, checks that every mask has the piece's frame count (two missing frames are padded), scales it to the video and joins the pieces; the command fails unless the matte has exactly as many frames as the input.
+
+| Provider        |                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fal` (default) | BiRefNet v2 on fal.ai, `FAL_KEY`, ≤512 frames per request. Models: `Matting` (keeps hair), `Portrait`, `General Use (Light)`, `General Use (Light 2K)`, `General Use (Heavy)`, `General Use (Dynamic)`.                                                                                                                                                                                               |
+| `command`       | Your tool. Placeholders: `{input}`, `{output}` (paths, passed through environment variables so any character is safe), `{fps}`, `{width}`, `{height}`, `{frames}`. The tool writes greyscale with white = subject, or with `--command-output alpha` a video with transparency (ProRes 4444 `.mov` by default; `--command-ext .webm` for VP9 with alpha). A mask without an alpha channel is rejected. |
+
+In Node, pass any object with `name`, `maxFrames` and `segment(piece)` as `provider` to `createSubjectMatte` from `visualfries/motion/matte` ([example](/docs/footage#make-a-matte)).
 
 ## Node API
 

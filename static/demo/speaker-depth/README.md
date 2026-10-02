@@ -30,10 +30,15 @@ export FAL_KEY=…        # https://fal.ai/dashboard/keys
 npx visualfries matte talk.mp4 --output talk.matte.mp4
 ```
 
-`matte` runs BiRefNet v2 on fal.ai (model `Matting`, good on hair and microphones), splits
-long videos into ≤512-frame requests and checks that the matte has exactly as many frames as
-the clip. A 17-second clip takes one to three minutes. Any greyscale video of the same size and
-frame count works too (white = subject), e.g. from your own matting model.
+`matte` runs BiRefNet v2 on fal.ai by default (model `Matting`, good on hair and microphones),
+splits long videos into pieces and checks that the matte has exactly as many frames as the
+clip. A 17-second clip takes one to three minutes. To use your own model instead:
+
+```bash
+npx visualfries matte talk.mp4 --output talk.matte.mp4 --command "python rvm.py --in {input} --out {output}"
+```
+
+Any greyscale video of the same size and frame count works too (white = subject).
 
 ## 3. Transcript
 

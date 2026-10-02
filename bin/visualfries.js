@@ -53,9 +53,12 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]
   visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
   visualfries render <project.vf.json> --output <dir> [--clip <id>]... [--jobs <n>]
-  visualfries matte <video> --output <matte.mp4> [--model Matting] [--resolution 1024x1024]
-                    subject matte (white = subject) for "footage" mattes; BiRefNet v2 on
-                    fal.ai, needs FAL_KEY. Split into <=512-frame requests automatically.
+  visualfries matte <video> --output <matte.mp4> [--provider fal|command] [options]
+                    subject matte (white = subject) for "footage". Default provider: BiRefNet v2
+                    on fal.ai (FAL_KEY; --model Matting, --resolution 1024x1024). Any local tool:
+                    --command "tool --in {input} --out {output}" [--command-output luma|alpha]
+                    [--command-ext .webm] [--max-frames n]. Long videos are split, checked
+                    and joined frame-exact.
 
   --transcript <file>  resolve cues against another transcript (new voiceover)
 
@@ -1696,13 +1699,31 @@ async function matteCommand(args) {
 	const output = readFlag(args, '--output');
 	if (!input || !output)
 		throw new Error(
-			'Usage: visualfries matte <video> --output <matte.mp4> [--model Matting|Portrait|...] [--resolution 1024x1024|2048x2048] [--chunk-frames 480] [--jobs 3]'
+			'Usage: visualfries matte <video> --output <matte.mp4> [--provider fal|command] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs 3]'
 		);
-	const { createSubjectMatte } = await import('../dist/motion/matte.js');
+	const { createSubjectMatte, falBiRefNet, commandMatte } = await import('../dist/motion/matte.js');
+	const command = readFlag(args, '--command');
+	const providerName = readFlag(args, '--provider', command ? 'command' : 'fal');
+	let provider;
+	if (providerName === 'fal') {
+		provider = falBiRefNet({
+			model: readFlag(args, '--model'),
+			resolution: readFlag(args, '--resolution')
+		});
+	} else if (providerName === 'command') {
+		if (!command) throw new Error('--provider command needs --command "tool {input} {output}".');
+		provider = commandMatte(command, {
+			output: readFlag(args, '--command-output', 'luma'),
+			extension: readFlag(args, '--command-ext'),
+			maxFrames: numberFlag(args, '--max-frames'),
+			parallel: numberFlag(args, '--jobs')
+		});
+	} else {
+		throw new Error(`Unknown matte provider "${providerName}". Use fal or command.`);
+	}
 	const result = await createSubjectMatte(input, {
 		output,
-		model: readFlag(args, '--model'),
-		resolution: readFlag(args, '--resolution'),
+		provider,
 		chunkFrames: numberFlag(args, '--chunk-frames'),
 		jobs: numberFlag(args, '--jobs'),
 		onProgress: (msg) => console.error(msg)

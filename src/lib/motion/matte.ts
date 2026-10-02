@@ -38,6 +38,8 @@ export type MatteProvider = {
 	 * (a video with transparency, e.g. ProRes 4444 or VP9 WebM).
 	 */
 	output?: 'luma' | 'alpha';
+	/** File extension of the mask the provider writes. Default `.mp4`, `.mov` for alpha. */
+	extension?: string;
 	segment(chunk: MatteChunk): Promise<void>;
 };
 
@@ -151,39 +153,56 @@ export function falBiRefNet(
 	};
 }
 
-/** Quotes a value for `sh -c` (POSIX) or `cmd /c` (Windows). */
-function shellQuote(value: string): string {
-	if (process.platform === 'win32') return `"${value.replace(/"/g, '""')}"`;
-	return `'${value.replace(/'/g, `'\\''`)}'`;
-}
-
 /**
  * Runs any local tool once per piece. `template` is a shell command with placeholders:
- * `{input}`, `{output}` (quoted paths), `{fps}`, `{width}`, `{height}`, `{frames}`.
+ * `{input}`, `{output}` (paths), `{fps}`, `{width}`, `{height}`, `{frames}`.
  * The tool must write a video to `{output}`: greyscale with white = subject (`output: 'luma'`)
- * or a video with transparency (`output: 'alpha'`).
+ * or a video with transparency (`output: 'alpha'`; set `extension` to `.webm` for VP9).
  *
  *   commandMatte('python rvm.py --in {input} --out {output}')
  */
 export function commandMatte(
 	template: string,
-	opts: { maxFrames?: number; parallel?: number; output?: 'luma' | 'alpha' } = {}
+	opts: {
+		maxFrames?: number;
+		parallel?: number;
+		output?: 'luma' | 'alpha';
+		extension?: string;
+	} = {}
 ): MatteProvider {
 	if (!template.includes('{input}') || !template.includes('{output}'))
 		throw new Error('The matte command needs {input} and {output} placeholders.');
+	if (opts.output && opts.output !== 'luma' && opts.output !== 'alpha')
+		throw new Error(`Matte output must be "luma" or "alpha", got "${opts.output}".`);
+	const windows = process.platform === 'win32';
+	// Paths reach the shell as environment variables, expanded once and never parsed again,
+	// so quotes, spaces, `$` or `%` in a path cannot break or extend the command.
+	const variable = (name: string) => (windows ? `"%${name}%"` : `"$${name}"`);
 	return {
 		name: `command: ${template}`,
 		maxFrames: opts.maxFrames ?? Number.POSITIVE_INFINITY,
 		parallel: opts.parallel ?? 1,
 		output: opts.output ?? 'luma',
+		extension: opts.extension,
 		async segment(chunk) {
 			const command = template.replace(
 				/\{(input|output|fps|width|height|frames)\}/g,
 				(_, key: keyof MatteChunk) =>
-					key === 'input' || key === 'output' ? shellQuote(String(chunk[key])) : String(chunk[key])
+					key === 'input'
+						? variable('VF_MATTE_INPUT')
+						: key === 'output'
+							? variable('VF_MATTE_OUTPUT')
+							: String(chunk[key])
 			);
-			const [shell, flag] = process.platform === 'win32' ? ['cmd', '/c'] : ['sh', '-c'];
-			await run(shell, [flag, command], 'Matte command');
+			await run(
+				windows ? process.env.ComSpec || 'cmd.exe' : 'sh',
+				windows ? ['/d', '/s', '/c', `"${command}"`] : ['-c', command],
+				'Matte command',
+				{
+					env: { ...process.env, VF_MATTE_INPUT: chunk.input, VF_MATTE_OUTPUT: chunk.output },
+					windowsVerbatimArguments: windows
+				}
+			);
 		}
 	};
 }
@@ -231,9 +250,14 @@ export function planMatteChunks(
 	return chunks;
 }
 
-function run(cmd: string, args: string[], label = cmd): Promise<void> {
+function run(
+	cmd: string,
+	args: string[],
+	label = cmd,
+	options: { env?: NodeJS.ProcessEnv; windowsVerbatimArguments?: boolean } = {}
+): Promise<void> {
 	return new Promise((resolve, reject) => {
-		const p = spawn(cmd, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+		const p = spawn(cmd, args, { stdio: ['ignore', 'ignore', 'pipe'], ...options });
 		let err = '';
 		p.stderr.on('data', (d) => (err += d));
 		p.on('error', reject);
@@ -243,6 +267,43 @@ function run(cmd: string, args: string[], label = cmd): Promise<void> {
 	});
 }
 const ffmpeg = (args: string[]) => run(process.env.FFMPEG_PATH || 'ffmpeg', ['-y', ...args]);
+
+const ALPHA_PIXEL_FORMATS = /^(yuva|rgba|bgra|argb|abgr|gbrap|ya8|ya16|pal8)/;
+
+/**
+ * Throws unless the mask carries an alpha channel; returns the decoder arguments that keep it
+ * (FFmpeg's native VP9 decoder drops the alpha of a WebM, libvpx keeps it).
+ */
+async function checkAlpha(file: string, provider: string): Promise<string[]> {
+	const out = await new Promise<string>((resolve, reject) => {
+		const p = spawn(process.env.FFPROBE_PATH || 'ffprobe', [
+			'-v',
+			'error',
+			'-select_streams',
+			'v:0',
+			'-show_entries',
+			'stream=codec_name,pix_fmt:stream_tags=alpha_mode',
+			'-of',
+			'json',
+			file
+		]);
+		let text = '';
+		p.stdout.on('data', (d) => (text += d));
+		p.on('error', reject);
+		p.on('close', (code) =>
+			code === 0 ? resolve(text) : reject(new Error(`ffprobe failed for ${file}`))
+		);
+	});
+	const stream = JSON.parse(out).streams?.[0] ?? {};
+	const vp9Alpha =
+		stream.codec_name === 'vp9' &&
+		String(stream.tags?.alpha_mode ?? stream.tags?.ALPHA_MODE) === '1';
+	if (!vp9Alpha && !ALPHA_PIXEL_FORMATS.test(String(stream.pix_fmt)))
+		throw new Error(
+			`${provider}: the mask has no alpha channel (${stream.codec_name}, ${stream.pix_fmt}). Write transparency (ProRes 4444, VP9 WebM with alpha) or use luma output.`
+		);
+	return vp9Alpha ? ['-c:v', 'libvpx-vp9'] : [];
+}
 
 /**
  * Makes a greyscale matte video of `input` (white = subject) with a matte provider: splits the
@@ -295,7 +356,7 @@ export async function createSubjectMatte(input: string, opts: MatteOptions): Pro
 				]);
 				const raw = path.join(
 					work,
-					`mask-raw-${i}${provider.output === 'alpha' ? '.mov' : '.mp4'}`
+					`mask-raw-${i}${provider.extension ?? (provider.output === 'alpha' ? '.mov' : '.mp4')}`
 				);
 				await provider.segment({
 					input: part,
@@ -314,9 +375,12 @@ export async function createSubjectMatte(input: string, opts: MatteOptions): Pro
 					throw new Error(
 						`${provider.name}: mask for frames ${first}–${last} has ${rawFrames} frames, expected ${count}.`
 					);
+				const alphaDecoder =
+					provider.output === 'alpha' ? await checkAlpha(raw, provider.name) : [];
 				// Same size, rate and frame count as the piece; a short mask holds its last frame.
 				const fixed = path.join(work, `mask-${i}.mp4`);
 				await ffmpeg([
+					...alphaDecoder,
 					'-i',
 					raw,
 					'-vf',

@@ -95,6 +95,98 @@ describe('commandMatte', () => {
 	});
 });
 
+describe('commandMatte paths and alpha', () => {
+	it('rejects an unknown output mode', () => {
+		expect(() => commandMatte('t {input} {output}', { output: 'alhpa' as never })).toThrow(/luma/);
+	});
+
+	it.skipIf(!hasFfmpeg)('passes paths with quotes, $ and spaces untouched', async () => {
+		const dir = await tempDir();
+		const odd = path.join(dir, "it's $HOME `x` a b");
+		await fs.mkdir(odd);
+		const input = path.join(odd, 'in.mp4');
+		ffmpeg([
+			'-f',
+			'lavfi',
+			'-i',
+			'testsrc2=size=160x120:rate=30:duration=1',
+			'-pix_fmt',
+			'yuv420p',
+			input
+		]);
+		const output = path.join(odd, 'matte.mp4');
+		const result = await createSubjectMatte(input, {
+			output,
+			provider: commandMatte('ffmpeg -y -loglevel error -i {input} -vf format=gray {output}')
+		});
+		expect(result.frames).toBe(30);
+		await fs.rm(dir, { recursive: true, force: true });
+	});
+
+	it.skipIf(!hasFfmpeg)('keeps the alpha of a VP9 WebM mask', async () => {
+		const dir = await tempDir();
+		const input = path.join(dir, 'in.mp4');
+		ffmpeg([
+			'-f',
+			'lavfi',
+			'-i',
+			'testsrc2=size=160x120:rate=30:duration=1',
+			'-pix_fmt',
+			'yuv420p',
+			input
+		]);
+		const output = path.join(dir, 'matte.mp4');
+		await createSubjectMatte(input, {
+			output,
+			provider: commandMatte(
+				"ffmpeg -y -loglevel error -i {input} -vf \"format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(between(X,60,100)*between(Y,40,80),255,0)'\" -c:v libvpx-vp9 -pix_fmt yuva420p {output}",
+				{ output: 'alpha', extension: '.webm' }
+			)
+		});
+		const px = (x: number, y: number) =>
+			spawnSync('ffmpeg', [
+				'-loglevel',
+				'error',
+				'-i',
+				output,
+				'-frames:v',
+				'1',
+				'-vf',
+				`crop=2:2:${x}:${y},format=gray`,
+				'-f',
+				'rawvideo',
+				'-'
+			]).stdout[0];
+		expect(px(80, 60)).toBeGreaterThan(200);
+		expect(px(10, 10)).toBeLessThan(40);
+		await fs.rm(dir, { recursive: true, force: true });
+	});
+
+	it.skipIf(!hasFfmpeg)('refuses an alpha mask without transparency', async () => {
+		const dir = await tempDir();
+		const input = path.join(dir, 'in.mp4');
+		ffmpeg([
+			'-f',
+			'lavfi',
+			'-i',
+			'testsrc2=size=160x120:rate=30:duration=1',
+			'-pix_fmt',
+			'yuv420p',
+			input
+		]);
+		await expect(
+			createSubjectMatte(input, {
+				output: path.join(dir, 'matte.mp4'),
+				provider: commandMatte('ffmpeg -y -loglevel error -i {input} -c:v libx264 {output}', {
+					output: 'alpha',
+					extension: '.mp4'
+				})
+			})
+		).rejects.toThrow(/no alpha channel/);
+		await fs.rm(dir, { recursive: true, force: true });
+	});
+});
+
 describe('falBiRefNet', () => {
 	it('uploads the piece, waits for the queue and saves the mask', async () => {
 		const dir = await tempDir();

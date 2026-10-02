@@ -57,7 +57,8 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     subject matte (white = subject) for "footage". Default provider: BiRefNet v2
                     on fal.ai (FAL_KEY; --model Matting, --resolution 1024x1024). Any local tool:
                     --command "tool --in {input} --out {output}" [--command-output luma|alpha]
-                    [--max-frames n]. Long videos are split, checked and joined frame-exact.
+                    [--command-ext .webm] [--max-frames n]. Long videos are split, checked
+                    and joined frame-exact.
 
   --transcript <file>  resolve cues against another transcript (new voiceover)
 
@@ -1698,7 +1699,7 @@ async function matteCommand(args) {
 	const output = readFlag(args, '--output');
 	if (!input || !output)
 		throw new Error(
-			'Usage: visualfries matte <video> --output <matte.mp4> [--provider fal|command] [--command "tool {input} {output}"] [--command-output luma|alpha] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs 3]'
+			'Usage: visualfries matte <video> --output <matte.mp4> [--provider fal|command] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs 3]'
 		);
 	const { createSubjectMatte, falBiRefNet, commandMatte } = await import('../dist/motion/matte.js');
 	const command = readFlag(args, '--command');
@@ -1713,6 +1714,7 @@ async function matteCommand(args) {
 		if (!command) throw new Error('--provider command needs --command "tool {input} {output}".');
 		provider = commandMatte(command, {
 			output: readFlag(args, '--command-output', 'luma'),
+			extension: readFlag(args, '--command-ext'),
 			maxFrames: numberFlag(args, '--max-frames'),
 			parallel: numberFlag(args, '--jobs')
 		});

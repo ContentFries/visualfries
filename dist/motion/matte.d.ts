@@ -29,6 +29,8 @@ export type MatteProvider = {
      * (a video with transparency, e.g. ProRes 4444 or VP9 WebM).
      */
     output?: 'luma' | 'alpha';
+    /** File extension of the mask the provider writes. Default `.mp4`, `.mov` for alpha. */
+    extension?: string;
     segment(chunk: MatteChunk): Promise<void>;
 };
 export type BiRefNetModel = 'Matting' | 'Portrait' | 'General Use (Light)' | 'General Use (Light 2K)' | 'General Use (Heavy)' | 'General Use (Dynamic)';
@@ -47,9 +49,9 @@ export declare function falBiRefNet(opts?: {
 }): MatteProvider;
 /**
  * Runs any local tool once per piece. `template` is a shell command with placeholders:
- * `{input}`, `{output}` (quoted paths), `{fps}`, `{width}`, `{height}`, `{frames}`.
+ * `{input}`, `{output}` (paths), `{fps}`, `{width}`, `{height}`, `{frames}`.
  * The tool must write a video to `{output}`: greyscale with white = subject (`output: 'luma'`)
- * or a video with transparency (`output: 'alpha'`).
+ * or a video with transparency (`output: 'alpha'`; set `extension` to `.webm` for VP9).
  *
  *   commandMatte('python rvm.py --in {input} --out {output}')
  */
@@ -57,6 +59,7 @@ export declare function commandMatte(template: string, opts?: {
     maxFrames?: number;
     parallel?: number;
     output?: 'luma' | 'alpha';
+    extension?: string;
 }): MatteProvider;
 export type MatteOptions = {
     output: string;

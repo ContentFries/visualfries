@@ -445,7 +445,7 @@ function packetTimestamps(file: string): Promise<number[]> {
 				? resolve(
 						out
 							.split('\n')
-							.map((line) => line.trim())
+							.map((line) => line.split(',')[0].trim())
 							.filter((line) => line !== '' && line !== 'N/A')
 							.map(Number)
 							.filter((n) => Number.isFinite(n))

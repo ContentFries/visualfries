@@ -19,9 +19,9 @@ Every VisualFries error names what went wrong and, where possible, what to chang
 
 | Message                                                               | Fix                                                                                    |
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `Phrase "naviac" not found inside the clip. Did you mean "navyše" …?` | The words changed. Use the suggested phrase, or check you passed the right transcript. |
-| `Phrase "malá" is ambiguous: #1 at 79.09s …; #2 at 83.61s …`          | Use a longer phrase, or `{ "say": "malá", "occurrence": 2 }`.                          |
-| `One-word anchor "vecí" … easily becomes ambiguous`                   | A warning. Anchor `from`/`until` with two or three words.                              |
+| `Phrase "extra" not found inside the clip. Did you mean "spare" …?` | The words changed. Use the suggested phrase, or check you passed the right transcript. |
+| `Phrase "small" is ambiguous: #1 at 79.09s …; #2 at 83.61s …`          | Use a longer phrase, or `{ "say": "small", "occurrence": 2 }`.                          |
+| `One-word anchor "things" … easily becomes ambiguous`                   | A warning. Anchor `from`/`until` with two or three words.                              |
 | `Cue at 65.10s is never shown`                                        | The cue lands after the last frame. Move it, or extend the clip with `tail`.           |
 | `Unknown clip "B". Clips: …`                                          | A typo in `--clip`. The message lists the ids that exist.                              |
 

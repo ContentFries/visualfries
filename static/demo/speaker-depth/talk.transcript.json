@@ -1,36 +1,36 @@
 [
 {
-"text": "Každopádne,",
+"text": "Anyway,",
 "start": 0.1,
 "end": 0.64
 },
 {
-"text": "nejaký",
+"text": "a",
 "start": 0.76,
-"end": 1.06
+"end": 0.86
 },
 {
 "text": "video",
 "start": 1.12,
-"end": 1.18
+"end": 1.36
 },
 {
-"text": "editor,",
+"text": "editor",
 "start": 1.42,
 "end": 1.78
 },
 {
-"text": "ktorý",
-"start": 1.78,
-"end": 1.84
+"text": "who",
+"start": 1.8,
+"end": 1.95
 },
 {
-"text": "používa",
+"text": "uses",
 "start": 2.08,
 "end": 2.44
 },
 {
-"text": "tieto",
+"text": "these",
 "start": 2.56,
 "end": 2.74
 },
@@ -40,107 +40,132 @@
 "end": 2.98
 },
 {
-"text": "nástroje,",
+"text": "tools,",
 "start": 3.16,
 "end": 3.64
 },
 {
-"text": "oproti",
+"text": "compared",
 "start": 4.12,
 "end": 4.42
 },
 {
-"text": "video",
+"text": "to",
+"start": 4.44,
+"end": 4.52
+},
+{
+"text": "a",
 "start": 4.54,
 "end": 4.6
 },
 {
-"text": "editorovi,",
+"text": "video",
+"start": 4.62,
+"end": 4.86
+},
+{
+"text": "editor",
 "start": 4.9,
 "end": 5.38
 },
 {
-"text": "ktorý",
+"text": "who",
 "start": 5.44,
-"end": 5.5
+"end": 5.56
 },
 {
-"text": "ich",
+"text": "doesn't",
 "start": 5.62,
-"end": 5.68
+"end": 5.95
 },
 {
-"text": "nepoužíva,",
-"start": 5.8,
+"text": "use",
+"start": 6.0,
+"end": 6.14
+},
+{
+"text": "them,",
+"start": 6.16,
 "end": 6.34
 },
 {
-"text": "tak",
+"text": "so",
 "start": 6.7,
-"end": 6.76
+"end": 6.82
 },
 {
-"text": "jednoznačne",
+"text": "clearly",
 "start": 7.3,
 "end": 7.78
 },
 {
-"text": "bude",
+"text": "will",
 "start": 7.9,
 "end": 8.02
 },
 {
-"text": "mať",
+"text": "have",
 "start": 8.08,
 "end": 8.26
 },
 {
-"text": "obrovský",
+"text": "a",
+"start": 8.3,
+"end": 8.36
+},
+{
+"text": "huge",
 "start": 9.04,
 "end": 9.52
 },
 {
-"text": "navrch.",
+"text": "edge.",
 "start": 9.58,
 "end": 9.94
 },
 {
-"text": "Ale",
+"text": "But",
 "start": 10.06,
-"end": 10.12
+"end": 10.24
 },
 {
-"text": "stále",
+"text": "we're",
 "start": 10.42,
 "end": 10.6
 },
 {
-"text": "sme",
+"text": "still",
 "start": 11.02,
-"end": 11.2
+"end": 11.28
 },
 {
-"text": "veľmi",
+"text": "very",
 "start": 11.32,
 "end": 11.56
 },
 {
-"text": "ďaleko",
+"text": "far",
 "start": 11.68,
 "end": 11.92
 },
 {
-"text": "od",
+"text": "from",
 "start": 12.1,
-"end": 12.16
+"end": 12.2
 },
 {
-"text": "doby,",
+"text": "the",
 "start": 12.22,
+"end": 12.28
+},
+{
+"text": "day",
+"start": 12.3,
 "end": 12.46
 },
 {
-"text": "kedy",
+"text": "when",
 "start": 12.76,
 "end": 13.0
 },
@@ -150,38 +175,48 @@
 "end": 13.78
 },
 {
-"text": "by",
+"text": "could",
 "start": 14.02,
-"end": 14.08
+"end": 14.2
 },
 {
-"text": "celý",
+"text": "take",
 "start": 14.26,
 "end": 14.44
 },
 {
-"text": "ten",
+"text": "this",
 "start": 14.5,
-"end": 14.56
+"end": 14.6
 },
 {
-"text": "proces",
+"text": "whole",
 "start": 14.68,
-"end": 14.74
+"end": 14.9
 },
 {
-"text": "dokázala",
+"text": "job",
 "start": 15.04,
 "end": 15.46
 },
 {
-"text": "plnohodnotne",
+"text": "and",
+"start": 15.5,
+"end": 15.6
+},
+{
+"text": "fully",
 "start": 15.64,
 "end": 16.24
 },
 {
-"text": "nahradiť.",
+"text": "replace",
 "start": 16.36,
+"end": 16.7
+},
+{
+"text": "it.",
+"start": 16.72,
 "end": 16.96
 }
 ]

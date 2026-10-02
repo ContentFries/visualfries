@@ -2,13 +2,13 @@
 
 A 9:16 talking-head clip where the room falls away, words slam in **behind** the speaker's
 head, a grey copy of the speaker plays "the editor without AI", the mood turns blue on
-"veľmi ďaleko" and "NAHRADIŤ" gets struck out. Every beat is a cue on a spoken word.
+"far from" and "REPLACE" gets struck out. Every beat is a cue on a spoken word.
 
 It works because the footage has a **matte** (white = speaker): the block draws the original
 picture, then type and light, then the speaker cut out by the matte on top.
 
 The video itself is not in the repository. Bring your own talking head and follow the steps;
-the transcript here belongs to the original 17-second clip (Slovak).
+`talk.transcript.json` is a sample 17-second script to show the format and the cues.
 
 ## 1. Cut the clip
 

@@ -74,7 +74,7 @@
 		tl.to(st, { chipAi: 1, duration: 0.35, ease: 'back.out(2)' }, at('other+0.8'));
 		tl.to(st, { chipNo: 1, ghost: 0.45, duration: 0.4, ease: 'back.out(2)' }, at('without'));
 
-		// It blows away; OBROVSKÝ NAVRCH.
+		// It blows away; HUGE EDGE.
 		tl.to(st, { ghost: 0, ghostX: -900, ghostBlur: 30, chipNo: 0, duration: 0.7, ease: 'power3.in' }, at('so'));
 		tl.to(st, { chipAi: 0, duration: 0.3 }, at('so+0.5'));
 		tl.to(st, { camS: 1.06, camX: punch(1.06).x, camY: punch(1.06).y, duration: 1.7, ease: 'sine.inOut' }, at('so+0.6'));
@@ -85,7 +85,7 @@
 		tl.to(st, { camS: 1.14, camX: punch(1.14).x, camY: punch(1.14).y, duration: 0.5, ease: 'expo.out' }, at('huge'));
 		tl.to(st, { typeS: 1.05, duration: 1, ease: 'none' }, at('huge+0.4'));
 
-		// Mood drops to blue; ĎALEKO recedes into the distance.
+		// Mood drops to blue; FAR recedes into the distance.
 		tl.to(word('huge').concat(word('lead')), { opacity: 0, filter: 'blur(30px)', scale: 1.3, duration: 0.45, ease: 'power2.in' }, at('but-0.06'));
 		tl.to(st, { camS: 1, camX: 0, camY: 0, typeS: 1, duration: 1.4, ease: 'expo.inOut' }, at('but'));
 		tl.to(st, { tint: 0.85, cold: 1, spot: 0.45, duration: 0.9, ease: 'power2.inOut' }, at('but'));
@@ -95,7 +95,7 @@
 		});
 		tl.to([0, 1, 2].flatMap((k) => word(`far${k}`)), { opacity: 0, duration: 0.4 }, at('far+1.62'));
 
-		// AI returns as an outline; NAHRADIŤ gets struck out.
+		// AI returns as an outline; REPLACE gets struck out.
 		tl.fromTo(word('ai2'), { opacity: 0, scale: 0.85 }, { opacity: 0.55, scale: 1, duration: 0.5, ease: 'expo.out' }, at('ai2'));
 		tl.to(word('ai2'), { scale: 1.08, duration: 2.3, ease: 'none' }, at('ai2+0.4'));
 		tl.to(word('ai2'), { opacity: 0, duration: 0.3 }, at('replace-0.26'));
@@ -178,13 +178,13 @@
 	<div class="word" data-word="video" style="top:390px;font-size:330px">VIDEO</div>
 	<div class="word" data-word="editor" style="top:680px;font-size:330px">EDITOR</div>
 	<div class="word gold" data-word="ai" style="top:270px;font-size:980px">AI</div>
-	<div class="word gold" data-word="huge" style="top:480px;font-size:262px">OBROVSKÝ</div>
-	<div class="word gold" data-word="lead" style="top:760px;font-size:340px">NAVRCH</div>
+	<div class="word gold" data-word="huge" style="top:440px;font-size:360px">HUGE</div>
+	<div class="word gold" data-word="lead" style="top:760px;font-size:360px">EDGE</div>
 	{#each [0, 1, 2] as k}
-		<div class="word outline" data-word="far{k}" style="top:520px;font-size:300px">ĎALEKO</div>
+		<div class="word outline" data-word="far{k}" style="top:500px;font-size:380px">FAR</div>
 	{/each}
 	<div class="word outline gold-line" data-word="ai2" style="top:270px;font-size:980px">AI</div>
-	<div class="word" data-word="replace" style="top:700px;font-size:280px">NAHRADIŤ</div>
+	<div class="word" data-word="replace" style="top:700px;font-size:290px">REPLACE</div>
 	<div class="strike"></div>
 </div>
 
@@ -198,8 +198,8 @@
 	<div class="foot" bind:this={subjectBox} style:top="{FOOT_TOP}px" style:height="{FOOT_H}px">
 		<Footage name="talk" layer="subject" class="fill" />
 	</div>
-	<div class="chip ai" bind:this={chipAi}>s AI</div>
-	<div class="chip no" bind:this={chipNo}>bez AI</div>
+	<div class="chip ai" bind:this={chipAi}>with AI</div>
+	<div class="chip no" bind:this={chipNo}>no AI</div>
 </div>
 
 <div class="vignette"></div>

@@ -165,9 +165,13 @@ function rebaseCssUrls(css, dir, files) {
     return css.replace(/url\((\s*['"]?)([^'")]+)(['"]?\s*)\)/g, (all, open, ref, close) => {
         if (/^(data:|https?:|#)/.test(ref))
             return all;
-        const abs = ref.startsWith('file:') ? fileURLToPath(ref) : path.resolve(dir, ref);
+        // Keep `#fragment` and `?query` (SVG filters and masks point into a file).
+        const cut = ref.search(/[?#]/);
+        const file = cut === -1 ? ref : ref.slice(0, cut);
+        const suffix = cut === -1 ? '' : ref.slice(cut);
+        const abs = file.startsWith('file:') ? fileURLToPath(file) : path.resolve(dir, file);
         files.push(abs);
-        return `url(${open}${originUrl(abs)}${close})`;
+        return `url(${open}${originUrl(abs)}${suffix}${close})`;
     });
 }
 // ---------------------------------------------------------------- browser
@@ -412,7 +416,8 @@ export async function prepareFootage(loaded, clips) {
         const info = await probeVideo(src);
         if (matte) {
             const m = await probeVideo(matte);
-            if (Math.abs(m.duration - info.duration) > 2 / info.fps)
+            // Two frames of difference are allowed; the epsilon absorbs float rounding.
+            if (Math.abs(m.duration - info.duration) > 2 / info.fps + 1e-6)
                 throw new Error(`Footage "${name}": the matte is ${m.duration.toFixed(2)} s long, the video ${info.duration.toFixed(2)} s. Make the matte from this video (visualfries matte).`);
         }
         // Same constant frame rate as the project: footage frames are program frames and a fast

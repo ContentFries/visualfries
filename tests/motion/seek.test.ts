@@ -72,4 +72,29 @@ describe('seekTimeline', () => {
 		seekTimeline(tl, 0.6);
 		expect(o.scale).not.toBe(plain);
 	});
+
+	// Known limit, documented in /docs/determinism: GSAP's iteration bookkeeping inside a repeating
+	// child timeline is not reset by rewinding the parent. Kept as a test so a change shows up here.
+	it('does not cover overlapping repeat/yoyo child timelines (documented limit)', () => {
+		const make = () => {
+			const o = { x: 0 };
+			const tl = gsap.timeline({ paused: true });
+			tl.add(
+				gsap
+					.timeline({ repeat: 1 })
+					.fromTo(o, { x: 0 }, { x: 1, duration: 0.5, ease: 'none', immediateRender: false }, 0.5),
+				0
+			);
+			tl.add(gsap.timeline({ repeat: 1, yoyo: true }).to(o, { x: 0, duration: 0.5, ease: 'none' }, 0.5), 0.5);
+			tl.to({}, { duration: 5 - tl.duration() });
+			tl.progress(1, true).progress(0, true);
+			return { o, tl };
+		};
+		const fresh = make();
+		seekTimeline(fresh.tl, 40 / 30);
+		const reused = make();
+		seekTimeline(reused.tl, 30 / 30);
+		seekTimeline(reused.tl, 40 / 30);
+		expect(reused.o.x).not.toBe(fresh.o.x);
+	});
 });

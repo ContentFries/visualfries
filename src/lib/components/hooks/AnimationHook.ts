@@ -28,7 +28,6 @@ export class AnimationHook implements IComponentHook {
 	#context!: IComponentContext;
 	#currentId: string | undefined = undefined;
 	#componentTimeline: gsap.core.Timeline | undefined | null = undefined;
-	#animationsBuilt = false;
 
 	private timeline: TimelineManager;
 	private splitTextCache: SplitTextCache;
@@ -162,7 +161,6 @@ export class AnimationHook implements IComponentHook {
 					animationsTimeline.add(animation, animationTime ?? 0);
 					hasAnimations = true;
 				}
-				this.#animationsBuilt = true;
 			} catch (error) {
 				console.error('Error building animation', error, anim);
 			}

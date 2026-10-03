@@ -60,6 +60,25 @@ A clip's **`audio`** names a footage whose sound is muxed into the rendered clip
 
 The first command that needs frames extracts the range the clips use (plus two seconds on each side) into `.visualfries/footage/` next to the project, as JPEG plates and PNG cut-outs, and reuses them until the video, matte, frame rate or range changes. Add `.visualfries/` to `.gitignore`.
 
+## Follow the subject
+
+The matte also says where the speaker is. VisualFries measures the subject's box and the top of the head in every extracted frame, so a block can place things relative to the person instead of hard-coded pixels:
+
+```svelte
+<script>
+	import { useClip } from 'visualfries/motion';
+	const clip = useClip();
+	// Fractions of the footage frame; convert with the size you draw the footage at.
+	const head = $derived(clip.subject('talk'));
+</script>
+
+{#if head}
+	<h1 style:left="{head.headX * 1080}px" style:top="{head.headY * 1166 + 120}px">BEHIND</h1>
+{/if}
+```
+
+`clip.subject(name, frame, smooth)` returns `{ x, y, width, height, headX, headY }`, averaged over `smooth` seconds (default 0.15) so text that follows the person does not jitter. Use it for type behind the head, captions that avoid the face, a punch-in on the speaker, or a 9:16 crop that follows them.
+
 ## Make a matte
 
 ```bash
@@ -88,6 +107,44 @@ await createSubjectMatte('talk.mp4', { output: 'talk.matte.mp4', provider: myMod
 ```
 
 A matte made anywhere else works too, as long as it has the same size, frame rate and frame count as the video.
+
+## Speaker depth without writing a block
+
+The built-in block `@visualfries/speaker-depth` does the whole edit from JSON: the room falls away, words slam in behind the head on cues, an optional grey echo of the speaker, a mood change and captions on top. Words are placed under the top of the head automatically, from the matte.
+
+```json
+{
+	"id": "reel",
+	"block": "@visualfries/speaker-depth",
+	"from": 0,
+	"until": 17,
+	"audio": "talk",
+	"words": { "captions": "clip" },
+	"cues": { "ai": "AI", "huge": "huge", "far": "far from", "replace": "replace it" },
+	"props": {
+		"words": [
+			{ "text": "AI", "at": "ai", "style": "accent", "hit": true },
+			{ "text": "HUGE", "at": "huge", "style": "accent", "hit": true },
+			{ "text": "FAR", "at": "far", "style": "echo" },
+			{ "text": "REPLACE", "at": "replace", "style": "strike" }
+		],
+		"ghost": { "at": "ai+1", "until": "huge", "label": "no AI", "labelOwn": "with AI" },
+		"cold": { "at": "far", "until": "replace" },
+		"captions": { "preset": "bold" }
+	}
+}
+```
+
+| Prop                                                     | Meaning                                                                                                                                                                                                                                                                               |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `words`                                                  | `{ text, at, until?, style?, enter?, size?, y?, hit? }`. `style`: `solid`, `accent`, `outline`, `echo` (three receding copies), `strike`. `enter`: `slam`, `left`, `right`, `rise`. `y` (0–1) overrides the automatic height. `hit` adds a flash, a shake and a punch-in on the face. |
+| `intro`                                                  | Moment the room falls away (default `start`); `false` keeps the room.                                                                                                                                                                                                                 |
+| `ghost`                                                  | `{ at, until, label?, labelOwn? }`: a grey copy of the speaker, 0.4 s behind, beside them.                                                                                                                                                                                            |
+| `cold`                                                   | `{ at, until }`: the mood turns blue.                                                                                                                                                                                                                                                 |
+| `captions`                                               | [Captions](/docs/captions) props plus `words` (the selection name, default `captions`); `false` for none.                                                                                                                                                                             |
+| `footage`, `accent`, `alt`, `cool`, `font`, `background` | Which footage (default: the only one) and the colours and font.                                                                                                                                                                                                                       |
+
+The demo project `static/demo/speaker-depth/template.vf.json` is the full 17-second edit in about 40 lines of JSON.
 
 ## Speaker depth, step by step
 

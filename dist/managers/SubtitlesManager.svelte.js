@@ -196,11 +196,11 @@ function buildSubtitlesManager(timeManager, eventManager, sceneData, subtitles) 
     // When a subtitle is modified (text, timing, split, merge), it's marked dirty.
     // The derived subtitlesData block only validates dirty subtitles, skipping clean ones.
     // This reduces a 50ms+ operation to <1ms for most subtitle edits.
-    let validatedSubtitles = new Set();
+    const validatedSubtitles = new Set();
     // Cache for validated subtitle collections per asset/language
     // Key format: "assetId:lang"
     // This prevents recalculating unchanged languages when editing a single language
-    let validatedCollections = new Map();
+    const validatedCollections = new Map();
     function getSubtitlesCharactersList() {
         // loop all subtitles in index
         let charactersList = [];
@@ -649,7 +649,7 @@ function buildSubtitlesManager(timeManager, eventManager, sceneData, subtitles) 
             // Second pass: merge adjacent short subtitles when reasonable
             list = sorted[assetId]?.[lang] || [];
             for (let i = 0; i < list.length; i++) {
-                let sub = list[i];
+                const sub = list[i];
                 if (!sub)
                     continue;
                 const trimmedLen = (sub.text || '').trim().length;
@@ -916,7 +916,7 @@ function buildSubtitlesManager(timeManager, eventManager, sceneData, subtitles) 
             }
             // Create words arrays for both subtitles
             let firstWords = [];
-            let secondWords = [];
+            const secondWords = [];
             if (splitWordIndex === -1) {
                 // Split at word boundary - simple distribution
                 currentCharPos = 0;
@@ -1126,7 +1126,7 @@ function buildSubtitlesManager(timeManager, eventManager, sceneData, subtitles) 
                 return;
             }
             let nextStart;
-            let isLast = currentIndex === sortedSubs.length - 1;
+            const isLast = currentIndex === sortedSubs.length - 1;
             if (!isLast) {
                 // Get next subtitle's start time
                 nextStart = sortedSubs[currentIndex + 1].start_at;

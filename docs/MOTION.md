@@ -154,6 +154,14 @@ frame is captured, so footage is frame-accurate in any seek order.
 `MatteProvider` in Node. It splits, checks and joins the pieces frame-exact. Worked example:
 `static/demo/speaker-depth`.
 
+## Built-in blocks and captions
+
+`"block": "@visualfries/captions"` and `"block": "@visualfries/speaker-depth"` ship with
+VisualFries; their `props` replace a hand-written block. In your own blocks, `<Captions>`
+(`import { Captions } from 'visualfries/motion'`) draws word-timed captions with the presets
+`bold`, `karaoke`, `pill`, `punch` and `neon`, and `clip.subject('talk')` returns where the
+speaker is (box and top of the head, from the matte). See the Captions and Footage docs pages.
+
 ## CLI
 
 ```bash

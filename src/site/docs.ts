@@ -45,6 +45,7 @@ export const pages: DocPage[] = [
 
 	{ slug: 'surfaces', title: 'Sizes, alpha and formats', section: 'surfaces' },
 	{ slug: 'footage', title: 'Footage, mattes and speaker depth', section: 'surfaces' },
+	{ slug: 'captions', title: 'Captions', section: 'surfaces' },
 	{
 		slug: 'stills',
 		title: 'Stills, carousels, AI backgrounds',

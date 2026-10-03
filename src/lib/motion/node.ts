@@ -11,7 +11,7 @@ import { parseTranscriptWords, type MotionWord } from './transcript.js';
 import { resolveMotionProject, type ResolvedClip, type ResolvedProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
-import type { FootageFrames } from './resolve.js';
+import type { FootageFrames, SubjectBox } from './resolve.js';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -108,6 +108,19 @@ export function assertNoErrors(loaded: LoadedMotionProject, clipIds?: string[]) 
  */
 type BundleResult = { dir: string; html: string; roots: string[]; files: string[] };
 
+const BUILTIN_PREFIX = '@visualfries/';
+/** Blocks that ship with VisualFries; a clip names them as `"block": "@visualfries/captions"`. */
+const BUILTIN_BLOCKS: Record<string, string> = {
+	captions: 'Captions.svelte',
+	'speaker-depth': 'SpeakerDepth.svelte'
+};
+
+function blockFile(dir: string, block: string): string {
+	if (!block.startsWith(BUILTIN_PREFIX)) return path.resolve(dir, block);
+	const file = BUILTIN_BLOCKS[block.slice(BUILTIN_PREFIX.length)];
+	return file ? path.join(HERE, 'blocks', file) : path.join(HERE, 'blocks', '__missing__');
+}
+
 /** Compile the project's blocks together with the stage runtime into one page. */
 export async function bundleMotionProject(
 	loaded: LoadedMotionProject,
@@ -128,12 +141,18 @@ export async function bundleMotionProject(
 
 	const blocks = [...new Set(clips.map((c) => c.block))];
 	for (const block of blocks) {
-		if (!existsSync(path.resolve(loaded.dir, block)))
-			throw new Error(`Block file not found: ${block}`);
+		if (!existsSync(blockFile(loaded.dir, block)))
+			throw new Error(
+				block.startsWith(BUILTIN_PREFIX)
+					? `Unknown built-in block "${block}". Built-in blocks: ${Object.keys(BUILTIN_BLOCKS)
+							.map((b) => BUILTIN_PREFIX + b)
+							.join(', ')}.`
+					: `Block file not found: ${block}`
+			);
 	}
 	const entry = [
 		`import { createMotionStage } from ${JSON.stringify(stageModule)};`,
-		...blocks.map((b, i) => `import B${i} from ${JSON.stringify(path.resolve(loaded.dir, b))};`),
+		...blocks.map((b, i) => `import B${i} from ${JSON.stringify(blockFile(loaded.dir, b))};`),
 		`window.__vfMotionStage = createMotionStage({ blocks: { ${blocks
 			.map((b, i) => `${JSON.stringify(b)}: B${i}`)
 			.join(
@@ -670,6 +689,79 @@ export async function prepareFootage(
 	return roots;
 }
 
+/** Width of the downscaled matte the subject boxes are measured on. */
+const BOX_SAMPLE_WIDTH = 160;
+
+/**
+ * Bounding box of the subject in every extracted frame, measured on a downscaled matte
+ * (white above half = subject). Frames without a subject get null.
+ */
+async function matteBoxes(
+	matte: string,
+	info: { width: number; height: number },
+	fps: number,
+	range: { first: number; last: number },
+	count: number
+): Promise<(SubjectBox | null)[]> {
+	const w = BOX_SAMPLE_WIDTH;
+	const h = Math.max(2, Math.round((info.height / info.width) * w));
+	const raw = await ffmpegOutput([
+		'-i',
+		matte,
+		'-vf',
+		`fps=${fps},scale=${w}:${h}:flags=area,format=gray,tpad=stop_mode=clone:stop_duration=2,trim=start_frame=${range.first}:end_frame=${range.last + 1}`,
+		'-frames:v',
+		String(count),
+		'-f',
+		'rawvideo',
+		'-pix_fmt',
+		'gray',
+		'pipe:1'
+	]);
+	const boxes: (SubjectBox | null)[] = [];
+	for (let i = 0; i < count; i++) {
+		const frame = raw.subarray(i * w * h, (i + 1) * w * h);
+		boxes.push(frame.length === w * h ? measureSubject(frame, w, h) : null);
+	}
+	return boxes;
+}
+
+/** Subject box of one greyscale matte frame, in 0–1 coordinates. Exported for tests. */
+export function measureSubject(gray: Uint8Array, w: number, h: number): SubjectBox | null {
+	let x0 = w,
+		y0 = h,
+		x1 = -1,
+		y1 = -1;
+	for (let y = 0; y < h; y++)
+		for (let x = 0; x < w; x++)
+			if (gray[y * w + x] >= 128) {
+				if (x < x0) x0 = x;
+				if (x > x1) x1 = x;
+				if (y < y0) y0 = y;
+				if (y > y1) y1 = y;
+			}
+	if (x1 < 0) return null;
+	// The head: the subject's top rows (about a twelfth of the frame height), centred.
+	const band = Math.max(1, Math.round(h / 12));
+	let sum = 0,
+		n = 0;
+	for (let y = y0; y < Math.min(h, y0 + band); y++)
+		for (let x = x0; x <= x1; x++)
+			if (gray[y * w + x] >= 128) {
+				sum += x;
+				n++;
+			}
+	const r = (v: number) => Math.round(v * 10000) / 10000;
+	return {
+		x: r(x0 / w),
+		y: r(y0 / h),
+		width: r((x1 + 1 - x0) / w),
+		height: r((y1 + 1 - y0) / h),
+		headX: r((sum / n + 0.5) / w),
+		headY: r(y0 / h)
+	};
+}
+
 // ---------------------------------------------------------------- still / sheet
 
 export type StillRequest = { clip: string; at: string };
@@ -897,6 +989,24 @@ export type RenderedClip = {
 	/** Set when the clip was rendered against another transcript than the newest render. */
 	stale?: boolean;
 };
+
+function ffmpegOutput(args: string[]): Promise<Buffer> {
+	return new Promise((resolve, reject) => {
+		const p = spawn(process.env.FFMPEG_PATH || 'ffmpeg', args, {
+			stdio: ['ignore', 'pipe', 'pipe']
+		});
+		const out: Buffer[] = [];
+		let err = '';
+		p.stdout.on('data', (d: Buffer) => out.push(d));
+		p.stderr.on('data', (d) => (err += d));
+		p.on('error', reject);
+		p.on('close', (code) =>
+			code === 0
+				? resolve(Buffer.concat(out))
+				: reject(new Error(`ffmpeg failed (${code}): ${err.slice(-800)}`))
+		);
+	});
+}
 
 function ffmpeg(args: string[], input?: NodeJS.ReadableStream): Promise<void> {
 	return new Promise((resolve, reject) => {

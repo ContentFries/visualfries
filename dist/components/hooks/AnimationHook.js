@@ -23,7 +23,6 @@ export class AnimationHook {
     #context;
     #currentId = undefined;
     #componentTimeline = undefined;
-    #animationsBuilt = false;
     timeline;
     splitTextCache;
     types = Object.keys(this.#handlers);
@@ -115,7 +114,6 @@ export class AnimationHook {
                     animationsTimeline.add(animation, animationTime ?? 0);
                     hasAnimations = true;
                 }
-                this.#animationsBuilt = true;
             }
             catch (error) {
                 console.error('Error building animation', error, anim);

@@ -314,6 +314,8 @@ Use a **motion project** (`docs/MOTION.md`), not scene JSON, when the user wants
 recording -> crop -> visualfries matte -> transcript -> project.vf.json (footage + cues) -> block -> still sheet -> render
 ```
 
+Start with the built-in block `"block": "@visualfries/speaker-depth"`: the words behind the head, the echo, the mood change and the captions are all props (see the Footage docs page and `static/demo/speaker-depth/template.vf.json`). Write your own block only for a look the props cannot express; then use `clip.subject('talk')` to place things relative to the speaker and `<Captions>` for captions.
+
 1. Find a stretch with only the talking head (no screen recordings or cutaways); scene detection with ffmpeg helps (`select='gt(scene,0.25)'`).
 2. Crop wider than 9:16 so the shoulders touch the left and right edges (e.g. `crop=1000:1080:x:0` from 1920×1080, face centred). Keep the sound.
 3. `FAL_KEY=… visualfries matte talk.mp4 --output talk.matte.mp4` (BiRefNet v2, model `Matting`), or a local segmentation tool with `--command "tool --in {input} --out {output}"` (`--command-output alpha` if it writes transparency). Look at one frame of the matte over a solid colour before going on.

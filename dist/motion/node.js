@@ -75,6 +75,18 @@ export function assertNoErrors(loaded, clipIds) {
             errors.map((e) => `  ${e.clip ?? '-'} ${e.field}: ${e.message}`).join('\n'));
     }
 }
+const BUILTIN_PREFIX = '@visualfries/';
+/** Blocks that ship with VisualFries; a clip names them as `"block": "@visualfries/captions"`. */
+const BUILTIN_BLOCKS = {
+    captions: 'Captions.svelte',
+    'speaker-depth': 'SpeakerDepth.svelte'
+};
+function blockFile(dir, block) {
+    if (!block.startsWith(BUILTIN_PREFIX))
+        return path.resolve(dir, block);
+    const file = BUILTIN_BLOCKS[block.slice(BUILTIN_PREFIX.length)];
+    return file ? path.join(HERE, 'blocks', file) : path.join(HERE, 'blocks', '__missing__');
+}
 /** Compile the project's blocks together with the stage runtime into one page. */
 export async function bundleMotionProject(loaded, clips) {
     const esbuild = await import('esbuild');
@@ -91,12 +103,16 @@ export async function bundleMotionProject(loaded, clips) {
     ];
     const blocks = [...new Set(clips.map((c) => c.block))];
     for (const block of blocks) {
-        if (!existsSync(path.resolve(loaded.dir, block)))
-            throw new Error(`Block file not found: ${block}`);
+        if (!existsSync(blockFile(loaded.dir, block)))
+            throw new Error(block.startsWith(BUILTIN_PREFIX)
+                ? `Unknown built-in block "${block}". Built-in blocks: ${Object.keys(BUILTIN_BLOCKS)
+                    .map((b) => BUILTIN_PREFIX + b)
+                    .join(', ')}.`
+                : `Block file not found: ${block}`);
     }
     const entry = [
         `import { createMotionStage } from ${JSON.stringify(stageModule)};`,
-        ...blocks.map((b, i) => `import B${i} from ${JSON.stringify(path.resolve(loaded.dir, b))};`),
+        ...blocks.map((b, i) => `import B${i} from ${JSON.stringify(blockFile(loaded.dir, b))};`),
         `window.__vfMotionStage = createMotionStage({ blocks: { ${blocks
             .map((b, i) => `${JSON.stringify(b)}: B${i}`)
             .join(', ')} }, fonts: window.__vfFonts, css: window.__vfCss, invalidate: window.__vfInvalidate });`
@@ -544,6 +560,71 @@ export async function prepareFootage(loaded, clips) {
         clip.footage = frames;
     return roots;
 }
+/** Width of the downscaled matte the subject boxes are measured on. */
+const BOX_SAMPLE_WIDTH = 160;
+/**
+ * Bounding box of the subject in every extracted frame, measured on a downscaled matte
+ * (white above half = subject). Frames without a subject get null.
+ */
+async function matteBoxes(matte, info, fps, range, count) {
+    const w = BOX_SAMPLE_WIDTH;
+    const h = Math.max(2, Math.round((info.height / info.width) * w));
+    const raw = await ffmpegOutput([
+        '-i',
+        matte,
+        '-vf',
+        `fps=${fps},scale=${w}:${h}:flags=area,format=gray,tpad=stop_mode=clone:stop_duration=2,trim=start_frame=${range.first}:end_frame=${range.last + 1}`,
+        '-frames:v',
+        String(count),
+        '-f',
+        'rawvideo',
+        '-pix_fmt',
+        'gray',
+        'pipe:1'
+    ]);
+    const boxes = [];
+    for (let i = 0; i < count; i++) {
+        const frame = raw.subarray(i * w * h, (i + 1) * w * h);
+        boxes.push(frame.length === w * h ? measureSubject(frame, w, h) : null);
+    }
+    return boxes;
+}
+/** Subject box of one greyscale matte frame, in 0–1 coordinates. Exported for tests. */
+export function measureSubject(gray, w, h) {
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++)
+            if (gray[y * w + x] >= 128) {
+                if (x < x0)
+                    x0 = x;
+                if (x > x1)
+                    x1 = x;
+                if (y < y0)
+                    y0 = y;
+                if (y > y1)
+                    y1 = y;
+            }
+    if (x1 < 0)
+        return null;
+    // The head: the subject's top rows (about a twelfth of the frame height), centred.
+    const band = Math.max(1, Math.round(h / 12));
+    let sum = 0, n = 0;
+    for (let y = y0; y < Math.min(h, y0 + band); y++)
+        for (let x = x0; x <= x1; x++)
+            if (gray[y * w + x] >= 128) {
+                sum += x;
+                n++;
+            }
+    const r = (v) => Math.round(v * 10000) / 10000;
+    return {
+        x: r(x0 / w),
+        y: r(y0 / h),
+        width: r((x1 + 1 - x0) / w),
+        height: r((y1 + 1 - y0) / h),
+        headX: r((sum / n + 0.5) / w),
+        headY: r(y0 / h)
+    };
+}
 /** Frame for "extra", "extra.end+0.3", "2.5s", "f120", "end", "mid". */
 export function frameForAt(clip, at) {
     const seconds = resolveMoment(at, {
@@ -725,6 +806,21 @@ export async function composeSheet(images, opts = {}) {
     finally {
         await browser.close();
     }
+}
+function ffmpegOutput(args) {
+    return new Promise((resolve, reject) => {
+        const p = spawn(process.env.FFMPEG_PATH || 'ffmpeg', args, {
+            stdio: ['ignore', 'pipe', 'pipe']
+        });
+        const out = [];
+        let err = '';
+        p.stdout.on('data', (d) => out.push(d));
+        p.stderr.on('data', (d) => (err += d));
+        p.on('error', reject);
+        p.on('close', (code) => code === 0
+            ? resolve(Buffer.concat(out))
+            : reject(new Error(`ffmpeg failed (${code}): ${err.slice(-800)}`)));
+    });
 }
 function ffmpeg(args, input) {
     return new Promise((resolve, reject) => {

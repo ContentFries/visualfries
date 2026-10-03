@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { footageFrameRange, footageFrameUrl } from '../../src/lib/motion/footage.js';
+import { footageFrameRange, footageFrameUrl, subjectBox } from '../../src/lib/motion/footage.js';
+import { measureSubject } from '../../src/lib/motion/node.js';
 import { planMatteChunks } from '../../src/lib/motion/matte.js';
 import { MotionProjectShape } from '../../src/lib/motion/project.js';
 import { resolveMotionProject } from '../../src/lib/motion/resolve.js';
@@ -96,5 +97,49 @@ describe('footage in the project file', () => {
 				clips: [{ id: 'a', block: 'b.svelte', from: 0, until: 1 }]
 			})
 		).toThrow();
+	});
+});
+
+describe('subject boxes', () => {
+	it('measures the box and the top of the head on a matte frame', () => {
+		const w = 10,
+			h = 10;
+		const gray = new Uint8Array(w * h);
+		// Shoulders across rows 6–9, head at columns 4–5 from row 2.
+		for (let y = 2; y < 10; y++)
+			for (let x = 0; x < w; x++) if (y >= 6 || x === 4 || x === 5) gray[y * w + x] = 255;
+		expect(measureSubject(gray, w, h)).toEqual({
+			x: 0,
+			y: 0.2,
+			width: 1,
+			height: 0.8,
+			headX: 0.5,
+			headY: 0.2
+		});
+		expect(measureSubject(new Uint8Array(w * h), w, h)).toBeNull();
+	});
+
+	it('looks up and smooths the box for a program frame', () => {
+		const box = (x: number) => ({
+			x,
+			y: 0.2,
+			width: 0.5,
+			height: 0.8,
+			headX: x + 0.25,
+			headY: 0.2
+		});
+		const withBoxes = {
+			...frames,
+			first: 30,
+			last: 33,
+			boxes: [box(0.1), box(0.2), null, box(0.3)]
+		};
+		expect(subjectBox(withBoxes, 15 + 31)?.x).toBe(0.2);
+		expect(subjectBox(withBoxes, 15 + 31, 1)?.x).toBeCloseTo(0.15);
+		// Missing frames are skipped; frames outside the extracted range hold the edge.
+		expect(subjectBox(withBoxes, 15 + 32)).toBeNull();
+		expect(subjectBox(withBoxes, 15 + 32, 1)?.x).toBeCloseTo(0.25);
+		expect(subjectBox(withBoxes, 15 + 200)?.x).toBe(0.3);
+		expect(subjectBox(frames, 60)).toBeNull();
 	});
 });

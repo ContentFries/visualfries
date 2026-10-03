@@ -137,7 +137,7 @@ describe('SubtitlesManager - Usage Examples', () => {
 				}
 			});
 
-			const originalText = manager.data['video-1']?.default[0].text!;
+			const originalText = manager.data['video-1']!.default[0].text!;
 
 			// Context 1: Subtitle Editor (always show punctuation)
 			const editorContext = {

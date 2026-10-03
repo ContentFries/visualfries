@@ -400,6 +400,9 @@ const findBrowserExecutable = (explicit?: string): string | undefined => {
 		process.env.VISUALFRIES_CHROMIUM_PATH,
 		process.env.VISUALFRIES_CHROMIUM, // legacy name
 		process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+		'/usr/bin/chromium',
+		'/usr/bin/chromium-browser',
+		'/usr/bin/google-chrome',
 		'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 		path.join(
 			os.homedir(),

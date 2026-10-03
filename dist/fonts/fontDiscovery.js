@@ -173,6 +173,21 @@ const collectComponentTextVariants = (component, configuredLookup, output) => {
         });
     }
 };
+/**
+ * Where a text component's font comes from: its own `fontSource`, else a font configured on the
+ * builder under the same family or alias, else nowhere (a system font). Font loading and SVG
+ * inlining share this rule, so a font that loads is also the font that gets drawn.
+ */
+export const resolveTextFontSource = (text, configuredFonts) => {
+    if (text.fontSource?.source)
+        return text.fontSource.source;
+    const family = normalizeFamily(text.fontFamily ?? undefined)?.toLowerCase();
+    if (!family)
+        return null;
+    const match = parseConfiguredFonts(configuredFonts).find((font) => font.family.toLowerCase() === family ||
+        font.aliases.some((alias) => alias.toLowerCase() === family));
+    return match?.source ?? null;
+};
 export const extractConfiguredFontVariants = (configuredFonts = []) => {
     const variants = new Map();
     const parsedFonts = parseConfiguredFonts(configuredFonts);

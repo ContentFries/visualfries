@@ -130,6 +130,20 @@ export type RenderedClip = {
     /** Set when the clip was rendered against another transcript than the newest render. */
     stale?: boolean;
 };
+/** The encoder went away while frames were being piped; the frames themselves were fine. */
+export declare class FramePipeError extends Error {
+}
+type FrameSink = {
+    write(png: Buffer): Promise<void>;
+    end(): Promise<void>;
+    kill(): void;
+};
+/**
+ * Pages take frames in turn (page j renders j, j + jobs, …) and a reorder buffer hands them to
+ * ffmpeg in order. A page waits while it is more than a few frames ahead of the encoder, so
+ * memory stays flat; frames are deterministic in any order, which `check --determinism` proves.
+ */
+export declare function pipeFrames(frames: number, jobs: number, open: () => Promise<Pick<MotionPage, 'capture' | 'close'>>, sink: FrameSink): Promise<void>;
 export declare function renderMotionClips(loaded: LoadedMotionProject, opts: {
     output: string;
     clips?: string[];

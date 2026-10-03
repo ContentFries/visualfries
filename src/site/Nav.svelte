@@ -75,4 +75,18 @@
 			display: none;
 		}
 	}
+	@media (max-width: 400px) {
+		.wrap {
+			gap: 12px;
+		}
+		nav {
+			gap: 14px;
+		}
+		.brand {
+			font-size: 19px;
+		}
+		nav .btn {
+			padding: 0 12px;
+		}
+	}
 </style>

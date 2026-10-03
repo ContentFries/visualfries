@@ -1,4 +1,9 @@
 packages:
   - '.'
+# pnpm 10 reads onlyBuiltDependencies; pnpm 11 reads allowBuilds and fails the install on any
+# dependency with an unapproved build script. canvas stays unbuilt, as it always has been.
 onlyBuiltDependencies:
   - esbuild
+allowBuilds:
+  esbuild: true
+  canvas: false

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.4.1...visualfries-v0.5.0) (2026-10-02)
+
+
+### Features
+
+* **motion:** footage with subject mattes, clip audio and the matte command ([#57](https://github.com/ContentFries/visualfries/issues/57)) ([ee4c2a3](https://github.com/ContentFries/visualfries/commit/ee4c2a3aa01e1b68e081402d2492430d68b3b598))
+* **motion:** pluggable matte providers ([#58](https://github.com/ContentFries/visualfries/issues/58)) ([cb0ea1c](https://github.com/ContentFries/visualfries/commit/cb0ea1ca6b696510b84df96de762cd93f920dd36))
+
+
+### Bug Fixes
+
+* **types:** declare gsap/SplitText.js ([#61](https://github.com/ContentFries/visualfries/issues/61)) ([29deaed](https://github.com/ContentFries/visualfries/commit/29deaeda733f57db8088e9fa7d3d6f253a449613))
+
+
+### Documentation
+
+* English examples throughout and an English-only rule for agents ([#59](https://github.com/ContentFries/visualfries/issues/59)) ([1206c12](https://github.com/ContentFries/visualfries/commit/1206c1294c1a813678b7655b69be230f50c6b75b))
+
 ## [0.4.1](https://github.com/ContentFries/visualfries/compare/visualfries-v0.4.0...visualfries-v0.4.1) (2026-10-02)
 
 

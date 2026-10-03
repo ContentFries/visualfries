@@ -102,6 +102,12 @@
 	const chunk = $derived(chunks.find((c) => clip.t >= c.start && clip.t < c.end));
 	const age = $derived(chunk ? clip.t - chunk.start : 0);
 	const pop = $derived(Math.min(1, age / 0.14));
+	// A word longer than the line shrinks the caption so it never runs off the frame.
+	const fit = $derived.by(() => {
+		if (!chunk) return px;
+		const longest = Math.max(...chunk.words.map((w) => w.text.length));
+		return Math.min(px, Math.floor((clip.width * width) / (longest * 0.62)));
+	});
 
 	function easeOutBack(x: number) {
 		const c = 1.9;
@@ -162,14 +168,14 @@
 		style:width="{width * 100}%"
 		style:font-family={font}
 		style:font-weight={fontWeight}
-		style:font-size="{px}px"
+		style:font-size="{fit}px"
 		style:text-transform={upper ? 'uppercase' : 'none'}
 		style:--accent={accent}
 		style:opacity={preset === 'punch' ? 1 : pop}
-		style:transform="translateY(-50%) translateY({preset === 'punch' ? 0 : (1 - pop) * 0.3 * px}px)
+		style:transform="translateY(-50%) translateY({preset === 'punch' ? 0 : (1 - pop) * 0.3 * fit}px)
 		scale({preset === 'punch' ? 1 : 0.9 + 0.1 * pop})"
 	>
-		{#each chunk.words as w (w.localStart)}
+		{#each chunk.words as w, i (i)}
 			<span class="w" style={wordStyle(w)}>{w.text}</span>
 		{/each}
 	</div>

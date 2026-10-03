@@ -69,7 +69,7 @@
 		const end = Math.min(clip.duration, Math.max(until, start + 0.7));
 		const text = String(w.text);
 		const px =
-			w.size ?? Math.round(Math.min(W * 0.9, (W * 0.94) / (0.46 * Math.max(2, text.length))));
+			w.size ?? Math.round(Math.min(W * 0.9, (W * 0.92) / (0.53 * Math.max(2, text.length))));
 		const head = toStage(clip.subject(name, Math.round(start * clip.fps), 0.3));
 		const centre = w.y !== undefined ? w.y * H : head.y + px * 0.18;
 		const top = Math.max(H * 0.03, Math.min(H * 0.62, centre - px * 0.43));
@@ -105,7 +105,7 @@
 	};
 
 	let camera: HTMLDivElement, typeLayer: HTMLDivElement, plateBox: HTMLDivElement;
-	let ghostBox: HTMLDivElement,
+	let ghostBox: HTMLDivElement | undefined,
 		subjectEl: HTMLDivElement,
 		tint: HTMLDivElement,
 		flash: HTMLDivElement;
@@ -261,9 +261,11 @@
 			st.glow > 0.01
 				? `drop-shadow(0 0 ${6 + 10 * st.glow}px ${rgba(light, 0.55 * st.glow)}) drop-shadow(0 0 ${40 + 40 * st.glow}px ${rgba(light, 0.35 * st.glow)})`
 				: 'none';
-		ghostBox.style.opacity = String(st.ghost);
-		ghostBox.style.transform = `translateX(${st.ghostX}px) scale(0.84)`;
-		ghostBox.style.filter = `grayscale(1) brightness(0.55) contrast(1.1) blur(${st.ghostBlur}px)`;
+		if (ghostBox) {
+			ghostBox.style.opacity = String(st.ghost);
+			ghostBox.style.transform = `translateX(${st.ghostX}px) scale(0.84)`;
+			ghostBox.style.filter = `grayscale(1) brightness(0.55) contrast(1.1) blur(${st.ghostBlur}px)`;
+		}
 		tint.style.opacity = String(st.tint);
 		flash.style.opacity = String(st.flash);
 		for (const [el, v] of [
@@ -341,9 +343,11 @@
 		<div class="foot plate" bind:this={plateBox} style:top="{FOOT_TOP}px" style:height="{FOOT_H}px">
 			<Footage {name} layer="plate" class="vf-sd-fill" />
 		</div>
-		<div class="foot ghost" bind:this={ghostBox} style:top="{FOOT_TOP}px" style:height="{FOOT_H}px">
-			<Footage {name} layer="subject" offset={-0.4} class="vf-sd-fill" />
-		</div>
+		{#if props.ghost}
+			<div class="foot ghost" bind:this={ghostBox} style:top="{FOOT_TOP}px" style:height="{FOOT_H}px">
+				<Footage {name} layer="subject" offset={-0.4} class="vf-sd-fill" />
+			</div>
+		{/if}
 		<div class="foot" bind:this={subjectEl} style:top="{FOOT_TOP}px" style:height="{FOOT_H}px">
 			<Footage {name} layer="subject" class="vf-sd-fill" />
 		</div>

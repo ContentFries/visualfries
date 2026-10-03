@@ -1,0 +1,105 @@
+{
+	"size": [
+		1080,
+		1920
+	],
+	"fps": 30,
+	"background": "#08090c",
+	"transcript": "reel.transcript.json",
+	"fonts": [
+		{
+			"family": "Anton",
+			"src": "fonts/Anton-Regular.ttf"
+		},
+		{
+			"family": "Inter",
+			"src": "fonts/Inter.ttf",
+			"weight": "100 900"
+		}
+	],
+	"footage": {
+		"talk": {
+			"src": "talk.mp4",
+			"matte": "talk.matte.mp4"
+		}
+	},
+	"clips": [
+		{
+			"id": "bold",
+			"block": "@visualfries/captions",
+			"from": 0,
+			"until": 17,
+			"audio": "talk",
+			"words": {
+				"captions": "clip"
+			},
+			"props": {
+				"footage": "talk",
+				"preset": "bold",
+				"emphasis": [
+					"AI",
+					"huge",
+					"edge"
+				]
+			}
+		},
+		{
+			"id": "karaoke",
+			"block": "@visualfries/captions",
+			"from": 0,
+			"until": 17,
+			"audio": "talk",
+			"words": {
+				"captions": "clip"
+			},
+			"props": {
+				"footage": "talk",
+				"preset": "karaoke",
+				"emphasis": [
+					"AI",
+					"huge",
+					"edge"
+				]
+			}
+		},
+		{
+			"id": "pill",
+			"block": "@visualfries/captions",
+			"from": 0,
+			"until": 17,
+			"audio": "talk",
+			"words": {
+				"captions": "clip"
+			},
+			"props": {
+				"footage": "talk",
+				"preset": "pill",
+				"emphasis": [
+					"AI",
+					"huge",
+					"edge"
+				]
+			}
+		},
+		{
+			"id": "punch",
+			"block": "@visualfries/captions",
+			"from": 0,
+			"until": 17,
+			"audio": "talk",
+			"words": {
+				"captions": "clip"
+			},
+			"props": {
+				"footage": "talk",
+				"preset": "punch",
+				"emphasis": [
+					"AI",
+					"huge",
+					"edge"
+				],
+				"font": "Anton, sans-serif"
+			}
+		}
+	]
+}

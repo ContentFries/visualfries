@@ -1,210 +1,646 @@
-<!-- ============ THE ENGINE: pinned document → stage ============ -->
-<section class="engine" id="engine" aria-labelledby="h1">
-  <div class="wrap">
-    <div class="eng-head">
-      <div>
-        <span class="eyebrow">Open-source · Svelte 5 · MIT · the engine behind ContentFries</span>
-        <h1 id="h1">One document. <em>Every</em> surface.</h1>
-        <div class="cta"><a class="btn" href="/docs/quickstart">Quickstart</a><a class="btn ghost" href="https://github.com/ContentFries/visualfries">GitHub</a></div>
-      </div>
-      <div class="eng-right">
-        <p class="lead">A <code>.vf.json</code> file describes what is on screen, when, and for which format. Blocks are Svelte, cues are spoken words, and one CLI checks, previews and renders them. Scroll: one document becomes a post, a reel and a render.</p>
-        <div class="chapters" id="chapters" aria-label="Chapters">
-          <span class="on">01 Document</span><span>02 Blocks</span><span>03 Time</span><span>04 Surfaces</span><span>05 Render</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="eng-body">
-      <div class="docp" aria-label="quote.vf.json, typed as you scroll">
-        <header><b>quote.vf.json</b><span id="doc-state">draft</span></header>
-        <div class="code" id="code">
-          <div class="ln" data-n="1"><span>{</span></div>
-          <div class="ln" data-n="2"><span>  <span class="k">"size"</span>: <span class="sw" id="sw-size"><i>[<span class="n">1080</span>, <span class="n">1350</span>]</i><i>[<span class="n">1080</span>, <span class="n">1920</span>]</i><i>[<span class="n">1080</span>, <span class="n">1080</span>]</i><i>[<span class="n">1920</span>, <span class="n">1080</span>]</i></span>,</span></div>
-          <div class="ln" data-n="3"><span>  <span class="k">"fps"</span>: <span class="n">30</span>,</span></div>
-          <div class="ln" data-n="4"><span>  <span class="k">"background"</span>: <span class="s">"#f4efe6"</span>,</span></div>
-          <div class="ln" data-n="5"><span>  <span class="k">"fonts"</span>: [{ <span class="k">"family"</span>: <span class="s">"Newsreader"</span>, <span class="k">"src"</span>: <span class="s">"fonts/Newsreader.ttf"</span>, <span class="k">"weight"</span>: <span class="s">"200 800"</span> }],</span></div>
-          <div class="ln" data-n="6"><span>  <span class="k">"clips"</span>: [{</span></div>
-          <div class="ln" data-n="7"><span>    <span class="k">"id"</span>: <span class="s">"quote"</span>, <span class="k">"block"</span>: <span class="s">"blocks/Quote.svelte"</span>,</span></div>
-          <div class="ln" data-n="8"><span>    <span class="k">"props"</span>: { <span class="k">"quote"</span>: <span class="s">"Nothing is matched silently."</span>, <span class="k">"by"</span>: <span class="s">"docs/MOTION.md"</span> },</span></div>
-          <div class="ln" data-n="9"><span>    <span class="k">"from"</span>: <span class="s">"nothing is ever"</span>, <span class="k">"until"</span>: <span class="s">"spoken ones"</span>,</span></div>
-          <div class="ln" data-n="10"><span>    <span class="k">"cues"</span>: { <span class="k">"reveal"</span>: <span class="s">"nothing"</span>, <span class="k">"hit"</span>: <span class="s">"silently"</span>, <span class="k">"by"</span>: <span class="s">"suggests"</span> }</span></div>
-          <div class="ln" data-n="11"><span>  }],</span></div>
-          <div class="ln" data-n="12"><span>  <span class="k">"transcript"</span>: <span class="s">"voice.transcript.json"</span>,</span></div>
-          <div class="ln" data-n="13"><span>  <span class="k">"styles"</span>: [<span class="s">"styles.css"</span>]</span></div>
-          <div class="ln" data-n="14"><span>}</span></div>
-        </div>
-        <div class="term" id="term">
-          <div>$ visualfries check quote.vf.json --determinism</div>
-          <div class="g">ok   quote  (html-in-canvas) · All 1 clips pass.</div>
-          <div>$ visualfries render quote.vf.json --output out/</div>
-          <div class="bar"><i id="bar"></i></div>
-          <div class="g">quote: 189 frames in 2.9 s · out/quote.mp4 · out/manifest.json</div>
-        </div>
-      </div>
-
-      <div class="stage" aria-label="Stage">
-        <div class="grid" aria-hidden="true"></div>
-        <div class="canvas" id="canvas">
-          <span class="tag plan plan-flag" id="plan-flag">carousel · planned</span>
-          <div class="frame ghost" id="g1" aria-hidden="true"><span class="mark"></span><p class="quote">Nothing is <em>matched</em> silently.</p><p class="by">1 / 3</p></div>
-          <div class="frame ghost" id="g2" aria-hidden="true"><span class="mark"></span><p class="quote">A missing phrase <em>suggests</em> the closest.</p><p class="by">3 / 3</p></div>
-          <div class="frame" id="frame">
-            <span class="mark" aria-hidden="true"></span>
-            <span class="size" id="size-lab">1080 × 1350</span>
-            <p class="quote" id="quote"><span class="w">Nothing</span> <span class="w">is</span> <span class="w">matched</span> <span class="w"><em>silently.</em></span></p>
-            <p class="by" id="by">— docs/MOTION.md</p>
-          </div>
-          <figure class="sheet" id="sheet" aria-label="Twelve rendered frames of quote.vf.json">
-            <img src="/media/quote-0.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-1.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-2.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-3.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-4.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-5.jpg" alt="" loading="lazy" width="360" height="450">
-            <img src="/media/quote-6.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-7.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-8.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-9.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-10.jpg" alt="" loading="lazy" width="360" height="450">            <img src="/media/quote-11.jpg" alt="" loading="lazy" width="360" height="450">
-            <figcaption>real frames of this document · 189 frames rendered by <code>visualfries render</code></figcaption>
-          </figure>
-        </div>
-        <div class="ribbon" aria-hidden="true">
-          <div class="head" id="rhead"></div>
-          <span class="clock" id="rclock"></span>
-          <div class="words" id="rwords"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="caps" id="caps" aria-live="polite">
-      <p><b>01 Document.</b> Size, fps, background, fonts. A document is data — an agent can write it, a diff can review it.</p>
-      <p><b>02 Blocks.</b> Any visual is a Svelte component with props. Text is real DOM: it wraps, kerns and reflows like on the web.</p>
-      <p><b>03 Time.</b> Cues are spoken words from a transcript, not typed seconds. The static post just became a reel — same file.</p>
-      <p><b>04 Surfaces.</b> Change <code>size</code> and the block reflows. 9:16, 1:1, 16:9 from one document; carousels are planned.</p>
-      <p><b>05 Render.</b> <code>check</code> runs every block in seconds; <code>render</code> writes MP4 or ProRes 4444 alpha and a manifest for your NLE.</p>
-    </div>
-  </div>
+<!-- ================= HERO ================= -->
+<section class="hero" aria-labelledby="h1">
+	<div class="wrap">
+		<div>
+			<div class="eyebrow">Open source · MIT · the engine behind ContentFries</div>
+			<h1 id="h1">Your AI video editor, motion designer and graphic designer. <em>One engine.</em></h1>
+			<p class="lead">
+				Describe the reel, the post, the carousel. Your coding agent writes a few Svelte blocks and a JSON project;
+				VisualFries renders it frame-exact, timed to the words you actually said. Captions, a cut-out speaker, type
+				that slams in behind your head: all layers, all yours.
+			</p>
+			<div class="cta">
+				<a class="btn" href="/docs/quickstart"
+					>Quickstart<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"
+						><path d="M3 8h10M9 4l4 4-4 4" /></svg
+					></a
+				>
+				<a class="btn ghost" href="https://github.com/ContentFries/visualfries"
+					><svg viewBox="0 0 16 16" fill="currentColor"
+						><path
+							d="M8 .5a7.5 7.5 0 0 0-2.4 14.6c.4.1.5-.2.5-.4v-1.4c-2.1.5-2.5-.9-2.5-.9-.3-.9-.8-1.1-.8-1.1-.7-.5.1-.5.1-.5.8.1 1.2.8 1.2.8.7 1.2 1.8.8 2.2.6.1-.5.3-.8.5-1-1.7-.2-3.4-.8-3.4-3.7 0-.8.3-1.5.8-2-.1-.2-.3-1 .1-2 0 0 .6-.2 2.1.8a7.3 7.3 0 0 1 3.8 0c1.4-1 2.1-.8 2.1-.8.4 1 .2 1.8.1 2 .5.5.8 1.2.8 2 0 2.9-1.8 3.5-3.4 3.7.3.2.5.7.5 1.4v2.1c0 .2.1.5.5.4A7.5 7.5 0 0 0 8 .5Z"
+						/></svg
+					>GitHub</a
+				>
+				<button class="btn ghost" type="button" data-copy="agent-prompt"
+					>Copy the agent prompt<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+						><rect x="5" y="5" width="9" height="9" rx="1.5" /><path
+							d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"
+						/></svg
+					></button
+				>
+			</div>
+			<div class="facts">
+				<span>Reels, posts, carousels, explainers</span><span>Timed by transcript words</span><span
+					>Deterministic frames</span
+				><span>Best with Claude Opus 5.5</span>
+			</div>
+		</div>
+		<div class="phone">
+			<span class="chip c1">layer 02 · <b>type behind the head</b></span>
+			<span class="chip c2">layer 03 · <b>cut-out speaker</b></span>
+			<span class="chip c3">layer 04 · <b>captions, word-timed</b></span>
+			<div class="media" data-name="hero.mp4">
+				<video
+					src="/media/v2/hero.mp4"
+					poster="/media/v2/hero.jpg"
+					muted
+					loop
+					playsinline
+					preload="metadata"
+					aria-label="A talking-head reel: the room falls away, huge words slam in behind the speaker, a grey clone appears, captions follow the spoken word."
+				></video>
+				<span class="lab">rendered by visualfries · 17 s</span>
+			</div>
+		</div>
+	</div>
 </section>
 
-<!-- ============ LIVE EDIT (planned) ============ -->
-<section class="sec" id="live" aria-labelledby="h-live">
-  <div class="wrap">
-    <div class="sec-head">
-      <div>
-        <div class="eyebrow">Stills <span class="tag plan">planned</span></div>
-        <h2 id="h-live">Move the text. <em>Nothing</em> re-renders.</h2>
-      </div>
-      <p class="lead">Text lives as DOM over the image, so dragging, resizing or restyling only changes the JSON document. The background — later an AI-generated one with a text safe zone — is never regenerated. Try it.</p>
-    </div>
-    <div class="live">
-      <div class="post" id="post" aria-label="Interactive still: drag the text">
-        <div class="safe"></div>
-        <div class="txt" id="txt" role="button" tabindex="0" aria-label="Draggable text. Use arrow keys to move.">Time from words, not seconds.<span class="h" id="handle" aria-hidden="true"></span></div>
-        <span class="meta">background: generated (mock) · 1080 × 1350</span>
-      </div>
-      <div class="live-doc">
-<pre><code>{
-  <span class="k">"block"</span>: <span class="s">"blocks/Headline.svelte"</span>,
-  <span class="k">"layout"</span>: { <span class="k">"x"</span>: <span class="n" id="lx">130</span>, <span class="k">"y"</span>: <span class="n" id="ly">540</span>, <span class="k">"width"</span>: <span class="n" id="lw">690</span> },
-  <span class="k">"props"</span>: { <span class="k">"text"</span>: <span class="s">"Time from words, not seconds."</span> }
+<div class="ticker" aria-hidden="true">
+	<div class="row" id="ticker">
+		<span>Talking-head reels</span><span>Word-timed captions</span><span>Static posts</span><span>Carousels</span><span
+			>Explainers</span
+		><span>Kinetic type</span><span>Alpha inserts for your NLE</span><span>9:16 · 4:5 · 1:1 · 16:9</span>
+	</div>
+</div>
+
+<!-- ================= FORMATS ================= -->
+<section id="formats" aria-labelledby="h-formats">
+	<div class="wrap">
+		<div class="sec-head rv">
+			<div>
+				<div class="eyebrow">One engine, every format</div>
+				<h2 id="h-formats">Not just talking heads. <em>Everything</em> your feed needs.</h2>
+			</div>
+			<p class="lead">
+				A frame is a Svelte component on a canvas of any size. One frame is a post. Five clips are a carousel. Five
+				hundred frames timed to a voice are a reel. Same blocks, same CLI, same brand. Everything here was written by
+				Claude Opus 5.5 and rendered by VisualFries, from one 17-second take.
+			</p>
+		</div>
+		<div class="strip rv">
+			<figure>
+				<div class="media" data-name="captions-4.mp4">
+					<video
+						src="/media/v2/captions-4.mp4"
+						poster="/media/v2/captions-4.jpg"
+						muted
+						loop
+						playsinline
+						preload="none"
+						aria-label="Captioned talking-head reel"
+					></video><span class="lab">reel · 9:16</span>
+				</div>
+				<figcaption>Talking-head reel<small>video + transcript</small></figcaption>
+			</figure>
+			<figure>
+				<div class="media" data-name="post-cover.jpg" style="--ar:4/5">
+					<img
+						src="/media/v2/post-cover.jpg"
+						alt="Magazine-cover post: the speaker cut out in front of a giant SIGNAL headline"
+						loading="lazy"
+					/><span class="lab">post · 4:5</span>
+				</div>
+				<figcaption>Cover post<small>one frame, cut-out speaker</small></figcaption>
+			</figure>
+			<figure class="grow">
+				<div class="media carousel" data-name="carousel">
+					<div class="track">
+						<div class="media" data-name="carousel-1.jpg">
+							<img
+								src="/media/v2/carousel-1.jpg"
+								alt="Carousel slide 1: ONE TAKE, with the speaker in front of the words"
+								loading="lazy"
+							/>
+						</div>
+						<div class="media" data-name="carousel-2.jpg">
+							<img src="/media/v2/carousel-2.jpg" alt="Carousel slide 2: Record once" loading="lazy" />
+						</div>
+						<div class="media" data-name="carousel-3.jpg">
+							<img src="/media/v2/carousel-3.jpg" alt="Carousel slide 3: Your agent reads the words" loading="lazy" />
+						</div>
+						<div class="media" data-name="carousel-4.jpg">
+							<img src="/media/v2/carousel-4.jpg" alt="Carousel slide 4: VisualFries renders the week" loading="lazy" />
+						</div>
+						<div class="media" data-name="carousel-5.jpg">
+							<img src="/media/v2/carousel-5.jpg" alt="Carousel slide 5: npm i visualfries" loading="lazy" />
+						</div>
+					</div>
+					<span class="lab">carousel · 5 slides · swipe</span>
+				</div>
+				<figcaption>Carousel<small>one clip per slide</small></figcaption>
+			</figure>
+		</div>
+		<div class="strip rv">
+			<figure>
+				<div class="media" data-name="explainer.mp4" style="--ar:16/9">
+					<video
+						src="/media/v2/explainer.mp4"
+						poster="/media/v2/explainer.jpg"
+						muted
+						loop
+						playsinline
+						preload="none"
+						aria-label="Animated explainer: a prompt becomes a project, blocks and a render, then fans out into a reel, a post and a carousel"
+					></video><span class="lab">explainer · 16:9</span>
+				</div>
+				<figcaption>Animated explainer<small>pure motion graphics</small></figcaption>
+			</figure>
+			<figure>
+				<div class="media" data-name="kinetic.mp4" style="--ar:1/1">
+					<video
+						src="/media/v2/kinetic.mp4"
+						poster="/media/v2/kinetic.jpg"
+						muted
+						loop
+						playsinline
+						preload="none"
+						aria-label="Kinetic typography: video editor, motion designer, graphic designer resolve into one prompt"
+					></video><span class="lab">animation · 1:1</span>
+				</div>
+				<figcaption>Kinetic type<small>no footage at all</small></figcaption>
+			</figure>
+			<figure>
+				<div class="media" data-name="post-stat.jpg" style="--ar:4/5">
+					<img src="/media/v2/post-stat.jpg" alt="Stat post: 13 finished assets from one take" loading="lazy" /><span
+						class="lab">post · 4:5</span
+					>
+				</div>
+				<figcaption>Stat post<small>one frame</small></figcaption>
+			</figure>
+			<figure>
+				<div class="media" data-name="post-quote.jpg" style="--ar:4/5">
+					<img
+						src="/media/v2/post-quote.jpg"
+						alt="Quote card with a line from the take and the cut-out speaker"
+						loading="lazy"
+					/><span class="lab">post · 4:5</span>
+				</div>
+				<figcaption>Quote card<small>text is real DOM</small></figcaption>
+			</figure>
+		</div>
+	</div>
+</section>
+
+<!-- ================= LAYERS ================= -->
+<section class="layers" id="layers" aria-labelledby="h-layers">
+	<div class="wrap">
+		<div class="rv">
+			<div class="eyebrow">Anatomy of a frame</div>
+			<h2 id="h-layers" style="margin-top:18px">Every frame is <em>layers.</em> You own all of them.</h2>
+			<p class="lead" style="margin-top:22px">
+				A matte cuts the speaker out of the footage. That puts a stage <b>behind</b> your head: type can slam in there,
+				a light can glow around your outline, a delayed grey clone can stand next to you. Captions ride on top, timed to
+				the word. Each layer is a Svelte block you can read, edit and re-render.
+			</p>
+			<div class="ctrl">
+				<button class="btn ghost" type="button" id="explode">Explode</button><button
+					class="btn ghost"
+					type="button"
+					id="collapse">Collapse</button
+				><a class="btn ghost" href="/docs/footage">Footage &amp; mattes →</a>
+			</div>
+			<div class="source">
+				<div class="media" data-name="plate">
+					<img src="/media/v2/layers/plate.jpg" alt="The original footage frame" loading="lazy" />
+				</div>
+				<span>From this frame of plain footage. Scroll, or hover the stack, to pull the layers apart.</span>
+			</div>
+		</div>
+		<div class="stage" id="stage">
+			<div class="stack" id="stack">
+				<div class="layer l1">
+					<img
+						src="/media/v2/layers/backdrop.jpg"
+						alt="Layer 1: the backdrop, a warm light where the room was"
+					/><span class="tag">01 backdrop</span>
+				</div>
+				<div class="layer l2">
+					<img src="/media/v2/layers/type.png" alt="Layer 2: giant type behind the speaker" /><span
+						class="tag">02 type</span
+					>
+				</div>
+				<div class="layer l3">
+					<img src="/media/v2/layers/subject.png" alt="Layer 3: the speaker cut out by a matte" /><span
+						class="tag">03 subject</span
+					>
+				</div>
+				<div class="layer l4">
+					<img src="/media/v2/layers/captions.png" alt="Layer 4: word-timed captions" /><span
+						class="tag">04 captions</span
+					>
+				</div>
+			</div>
+			<div class="rail" role="group" aria-label="Layers: highlight one">
+				<button type="button" data-l="1"><b>01 backdrop</b>The room, regraded. Or a light, an image, or nothing.</button>
+				<button type="button" data-l="2"><b>02 type</b>Huge words, slammed in on cue, placed behind the head it finds in the matte.</button>
+				<button type="button" data-l="3"><b>03 subject</b><span>The speaker, cut out by <code>visualfries matte</code>.</span></button>
+				<button type="button" data-l="4"><b>04 captions</b>Every word, timed to the transcript. Styled in CSS.</button>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- ================= CAPTIONS ================= -->
+<section id="captions" aria-labelledby="h-caps">
+	<div class="wrap">
+		<div class="sec-head rv">
+			<div>
+				<div class="eyebrow">Captions that slap</div>
+				<h2 id="h-caps">The spoken word, <em>lit</em> on the frame it is spoken.</h2>
+				<div class="capword" aria-hidden="true">
+					<span>Time</span><span>comes</span><span class="on">from</span><span>words.</span>
+				</div>
+			</div>
+			<p class="lead">
+				Word timings come from the transcript, so highlights never drift. The built-in
+				<code>@visualfries/captions</code> block ships five presets. A caption style is just a Svelte component with CSS,
+				so your brand can have its own.
+			</p>
+		</div>
+		<div class="caps">
+			<figure class="rv">
+				<div class="media" data-name="captions-1.mp4">
+					<video
+						src="/media/v2/captions-1.mp4"
+						poster="/media/v2/captions-1.jpg"
+						muted
+						loop
+						playsinline
+						preload="none"
+						aria-label="Pill captions"
+					></video><span class="lab">preset · pill</span>
+				</div>
+				<figcaption>Pill<small>the spoken word sits on a pill</small></figcaption>
+			</figure>
+			<figure class="rv">
+				<div class="media" data-name="captions-2.mp4">
+					<video
+						src="/media/v2/captions-2.mp4"
+						poster="/media/v2/captions-2.jpg"
+						muted
+						loop
+						playsinline
+						preload="none"
+						aria-label="Karaoke captions"
+					></video><span class="lab">preset · karaoke</span>
+				</div>
+				<figcaption>Karaoke<small>a fill sweeps through each word</small></figcaption>
+			</figure>
+			<figure class="rv">
+				<div class="media" data-name="captions-3.mp4">
+					<video
+						src="/media/v2/captions-3.mp4"
+						poster="/media/v2/captions-3.jpg"
+						muted
+						loop
+						playsinline
+						preload="none"
+						aria-label="Punch captions"
+					></video><span class="lab">preset · punch</span>
+				</div>
+				<figcaption>Punch<small>one word at a time, slammed in</small></figcaption>
+			</figure>
+			<figure class="rv">
+				<div class="media" data-name="captions-4.mp4">
+					<video
+						src="/media/v2/captions-4.mp4"
+						poster="/media/v2/captions-4.jpg"
+						muted
+						loop
+						playsinline
+						preload="none"
+						aria-label="Bold captions"
+					></video><span class="lab">preset · bold</span>
+				</div>
+				<figcaption>Bold<small>outlined, the spoken word jumps</small></figcaption>
+			</figure>
+		</div>
+	</div>
+</section>
+
+<!-- ================= AGENT FLOW ================= -->
+<section id="agents" aria-labelledby="h-agents">
+	<div class="wrap">
+		<div class="sec-head rv">
+			<div>
+				<div class="eyebrow">Built for coding agents</div>
+				<h2 id="h-agents">Your agent writes it. VisualFries <em>renders</em> it.</h2>
+			</div>
+			<p class="lead">
+				No timeline to learn. You talk to Claude Code, Codex or Cursor; the agent writes a project file and blocks, then
+				runs a CLI that fails loudly and shows stills before it renders. Every output is a diff you can review.
+			</p>
+		</div>
+		<div class="flow">
+			<div class="step rv">
+				<span class="num">01 · YOU SAY</span>
+				<h3>A sentence, not a storyboard</h3>
+				<div class="prompt">
+					Make a 9:16 reel from <b>talk.mp4</b>. Cut me out of the room and slam the words I stress in behind my head.
+					Bold captions with the spoken word highlighted. Show me stills before you render.
+				</div>
+				<p>
+					The agent reads <code>/llms.txt</code>, runs <code>visualfries matte</code> and plans cues on the words in
+					your transcript.
+				</p>
+			</div>
+			<div class="step rv">
+				<span class="num">02 · THE AGENT WRITES</span>
+				<h3>A JSON project, and blocks when it needs them</h3>
+				<pre><code>{
+  <span class="k">"size"</span>: [<span class="n">1080</span>, <span class="n">1920</span>], <span class="k">"fps"</span>: <span class="n">30</span>,
+  <span class="k">"transcript"</span>: <span class="s">"talk.transcript.json"</span>,
+  <span class="k">"footage"</span>: { <span class="k">"talk"</span>: {
+    <span class="k">"src"</span>: <span class="s">"talk.mp4"</span>, <span class="k">"matte"</span>: <span class="s">"talk.matte.mp4"</span> } },
+  <span class="k">"clips"</span>: [{
+    <span class="k">"id"</span>: <span class="s">"depth"</span>,
+    <span class="k">"block"</span>: <span class="s">"@visualfries/speaker-depth"</span>,
+    <span class="k">"from"</span>: <span class="n">0</span>, <span class="k">"until"</span>: <span class="n">17</span>, <span class="k">"audio"</span>: <span class="s">"talk"</span>,
+    <span class="k">"words"</span>: { <span class="k">"captions"</span>: <span class="s">"clip"</span> },
+    <span class="k">"cues"</span>: { <span class="k">"huge"</span>: <span class="s">"huge"</span> },
+    <span class="k">"props"</span>: {
+      <span class="k">"words"</span>: [{ <span class="k">"text"</span>: <span class="s">"HUGE"</span>,
+        <span class="k">"at"</span>: <span class="s">"huge"</span>, <span class="k">"hit"</span>: <span class="n">true</span> }],
+      <span class="k">"captions"</span>: { <span class="k">"preset"</span>: <span class="s">"bold"</span> }
+    }
+  }]
 }</code></pre>
-        <div class="counter">
-          <div><b id="edits">0</b><span>document edits</span></div>
-          <div><b class="ok">0</b><span>re-renders</span></div>
-          <div><b id="frames">1</b><span>frames — click <a href="#" id="reelify" style="color:var(--cool)">make it a reel</a></span></div>
-        </div>
-        <p class="muted" style="font-size:14px">In an editor, only the document changes while you drag; the image behind the text is never regenerated. ContentFries already edits its scene documents live this way. Stills with generated backgrounds and a one-click reel are on the roadmap.</p>
-      </div>
-    </div>
-  </div>
+				<p>Cues are phrases, not seconds. Re-record a sentence and every cue moves with the words.</p>
+			</div>
+			<div class="step rv">
+				<span class="num">03 · VISUALFRIES RENDERS</span>
+				<h3>Checked, previewed, frame-exact</h3>
+				<pre><code><span class="y">$</span> visualfries clips reel.vf.json
+depth  0.000–17.000s  frame 0  510 frames
+  cue huge     9.04s <span class="s">"huge"</span>
+<span class="y">$</span> visualfries check reel.vf.json --determinism
+<span class="g">ok   depth  (html-in-canvas)</span>
+<span class="g">All 1 clips pass.</span>
+<span class="y">$</span> visualfries still reel.vf.json --clip depth --output sheet.png
+<span class="y">$</span> visualfries render reel.vf.json --output out/
+<span class="g">depth: 510 frames in 97.2 s</span></code></pre>
+				<p>Same input, same frames, every time. ProRes 4444 alpha inserts drop onto your NLE timeline with a manifest.</p>
+			</div>
+		</div>
+	</div>
 </section>
 
-<!-- ============ PIPELINE ============ -->
-<section class="sec" id="pipeline" aria-labelledby="h-pipe">
-  <div class="wrap">
-    <div class="sec-head">
-      <div>
-        <div class="eyebrow">The engine</div>
-        <h2 id="h-pipe">Five ideas, in order.</h2>
-      </div>
-      <p class="lead">The docs are organised the same way. If you know these five words you can read any VisualFries file.</p>
-    </div>
-    <div class="pipe">
-      <div class="rv"><span class="n">01</span><h3>Document</h3><p>JSON is the source of truth. Scenes (<code>scene.json</code>) with layers of VIDEO, IMAGE, TEXT, SUBTITLES, SHAPE, GIF, AUDIO — or motion projects (<code>.vf.json</code>).</p><ul><li><span class="tag now">now</span>Scene JSON, composer API</li><li><span class="tag now">now</span><code>.vf.json</code> projects</li></ul><a href="/docs/project-file">Project file →</a></div>
-      <div class="rv"><span class="n">02</span><h3>Blocks</h3><p>Any visual is a Svelte component. Text is HTML/CSS (via SVG foreignObject in scenes, plain DOM in blocks).</p><ul><li><span class="tag now">now</span><code>useClip</code>, <code>useTimeline</code>, <code>useFrame</code></li><li><span class="tag now">now</span>GSAP eases and timelines</li></ul><a href="/docs/blocks">Blocks →</a></div>
-      <div class="rv"><span class="n">03</span><h3>Time</h3><p>Cues from transcript words; seconds and frames when you want them. Re-time with <code>--transcript</code>.</p><ul><li><span class="tag now">now</span>Word-timed cues, "Did you mean"</li><li><span class="tag plan">plan</span>STT adapters, <code>visualfries setup</code></li></ul><a href="/docs/time-and-cues">Time &amp; cues →</a></div>
-      <div class="rv"><span class="n">04</span><h3>Surfaces</h3><p>One document, many formats. Blocks are DOM, so text reflows per size.</p><ul><li><span class="tag now">now</span><code>size</code> per project, alpha renders</li><li><span class="tag plan">plan</span>9:16 / 1:1 / 16:9 variants, carousels, stills</li></ul><a href="/docs/surfaces">Surfaces →</a></div>
-      <div class="rv"><span class="n">05</span><h3>Render</h3><p>A motion frame is a function of time: with the same fonts and Chromium, <code>check --determinism</code> compares frames rendered in different orders. Scenes play live in the editor and render headless.</p><ul><li><span class="tag now">now</span><code>check</code>, <code>still</code>, <code>render</code>, MP4, ProRes 4444</li><li><span class="tag plan">plan</span>Live preview with scrubber</li></ul><a href="/docs/cli">Render →</a></div>
-    </div>
-  </div>
+<!-- ================= COMPARE ================= -->
+<section class="compare" id="compare" aria-labelledby="h-cmp">
+	<div class="wrap">
+		<div class="sec-head rv">
+			<div>
+				<div class="eyebrow">Same brief, two agents</div>
+				<h2 id="h-cmp">We recommend <em>Claude Opus 5.5.</em> Judge for yourself.</h2>
+			</div>
+			<p class="lead">
+				Three briefs, given word for word to Claude Opus 5.5 and to GPT-6.1 Sol. Each started fresh with the same
+				folder, fonts, footage and agent skill, and wrote its own project and blocks. Nobody edited the results.
+			</p>
+		</div>
+		<div class="tabs" role="tablist" aria-label="Briefs">
+			<button role="tab" id="tab-stat" aria-controls="panel-stat" aria-selected="true" tabindex="0" data-brief="stat">Stat post</button>
+			<button role="tab" id="tab-carousel" aria-controls="panel-carousel" aria-selected="false" tabindex="-1" data-brief="carousel">Carousel</button>
+			<button role="tab" id="tab-explainer" aria-controls="panel-explainer" aria-selected="false" tabindex="-1" data-brief="explainer">Explainer</button>
+		</div>
+		<div class="brief on" id="panel-stat" data-brief="stat" role="tabpanel" aria-labelledby="tab-stat">
+			<div class="prompt">
+				<span class="tag">brief</span><span
+					>A 1080×1350 post that also works as a 4-second video: everything animates in, the last frame is the finished
+					post. Message: <b>"One take becomes 13 finished assets."</b> Bold, scroll-stopping, dark with yellow #ffe100.
+					Use the speaker footage, cut out from the room.</span
+				>
+			</div>
+			<div class="duel">
+				<div class="side rec rv">
+					<div class="head"><h3>Claude Opus 5.5</h3><span class="tag y">recommended</span></div>
+					<div class="media" data-ar="post" data-name="compare/stat-opus.mp4">
+						<video
+							src="/media/v2/compare/stat-opus.mp4"
+							poster="/media/v2/compare/stat-opus.jpg"
+							muted
+							loop
+							playsinline
+							preload="none"
+							aria-label="Stat post rendered from blocks written by Claude Opus 5.5"
+						></video>
+					</div>
+					<p class="note">Written in Claude Code from the brief alone. No human edits.</p>
+				</div>
+				<div class="side rv">
+					<div class="head"><h3>GPT-6.1 Sol</h3><span class="tag">same brief</span></div>
+					<div class="media" data-ar="post" data-name="compare/stat-sol.mp4">
+						<video
+							src="/media/v2/compare/stat-sol.mp4"
+							poster="/media/v2/compare/stat-sol.jpg"
+							muted
+							loop
+							playsinline
+							preload="none"
+							aria-label="Stat post rendered from blocks written by GPT-6.1 Sol"
+						></video>
+					</div>
+					<p class="note">Written in Codex from the brief alone. No human edits.</p>
+				</div>
+			</div>
+		</div>
+		<div class="brief" id="panel-carousel" data-brief="carousel" role="tabpanel" aria-labelledby="tab-carousel" hidden>
+			<div class="prompt">
+				<span class="tag">brief</span><span
+					>A 5-slide 1080×1350 carousel: <b>"How to turn one talking-head take into a week of content"</b>. A hook,
+					three steps, a call to action with <code>npm i visualfries</code>. Each slide a 3-second clip with an
+					entrance. Yellow and near-black, editorial, the speaker on at least one slide.</span
+				>
+			</div>
+			<div class="duel">
+				<div class="side rec rv">
+					<div class="head"><h3>Claude Opus 5.5</h3><span class="tag y">recommended</span></div>
+					<div class="media" data-ar="post" data-name="compare/carousel-opus.mp4">
+						<video
+							src="/media/v2/compare/carousel-opus.mp4"
+							poster="/media/v2/compare/carousel-opus.jpg"
+							muted
+							loop
+							playsinline
+							preload="none"
+							aria-label="Carousel rendered from blocks written by Claude Opus 5.5"
+						></video>
+					</div>
+					<p class="note">Five clips played back to back. No human edits.</p>
+				</div>
+				<div class="side rv">
+					<div class="head"><h3>GPT-6.1 Sol</h3><span class="tag">same brief</span></div>
+					<div class="media" data-ar="post" data-name="compare/carousel-sol.mp4">
+						<video
+							src="/media/v2/compare/carousel-sol.mp4"
+							poster="/media/v2/compare/carousel-sol.jpg"
+							muted
+							loop
+							playsinline
+							preload="none"
+							aria-label="Carousel rendered from blocks written by GPT-6.1 Sol"
+						></video>
+					</div>
+					<p class="note">Five clips played back to back. No human edits.</p>
+				</div>
+			</div>
+		</div>
+		<div class="brief" id="panel-explainer" data-brief="explainer" role="tabpanel" aria-labelledby="tab-explainer" hidden>
+			<div class="prompt">
+				<span class="tag">brief</span><span
+					>A 12-second 1920×1080 explainer of how VisualFries turns a project into an MP4:
+					<b>a JSON document → Svelte blocks → frames on a timeline → the encoded MP4</b>. No footage. Dark, yellow
+					accent, a clear diagram, readable labels, confident easing.</span
+				>
+			</div>
+			<div class="duel">
+				<div class="side rec rv">
+					<div class="head"><h3>Claude Opus 5.5</h3><span class="tag y">recommended</span></div>
+					<div class="media" data-ar="wide" data-name="compare/explainer-opus.mp4">
+						<video
+							src="/media/v2/compare/explainer-opus.mp4"
+							poster="/media/v2/compare/explainer-opus.jpg"
+							muted
+							loop
+							playsinline
+							preload="none"
+							aria-label="Explainer rendered from blocks written by Claude Opus 5.5"
+						></video>
+					</div>
+					<p class="note">Diagram, timing and easing chosen by the agent.</p>
+				</div>
+				<div class="side rv">
+					<div class="head"><h3>GPT-6.1 Sol</h3><span class="tag">same brief</span></div>
+					<div class="media" data-ar="wide" data-name="compare/explainer-sol.mp4">
+						<video
+							src="/media/v2/compare/explainer-sol.mp4"
+							poster="/media/v2/compare/explainer-sol.jpg"
+							muted
+							loop
+							playsinline
+							preload="none"
+							aria-label="Explainer rendered from blocks written by GPT-6.1 Sol"
+						></video>
+					</div>
+					<p class="note">Diagram, timing and easing chosen by the agent.</p>
+				</div>
+			</div>
+		</div>
+		<p class="fine rv">
+			Any agent that can write Svelte and run a CLI works with VisualFries. We recommend Opus 5.5 because it is what we
+			build with: every other example on this page was made with it. Opus ran in Claude Code and checked its own
+			stills. Sol ran in Codex, whose sandbox cannot start Chromium, so we ran <code>check</code> and
+			<code>still</code> for it and passed the results back without comment, at most twice. The briefs, projects and
+			blocks for all six are in the
+			<a href="https://github.com/ContentFries/visualfries/tree/main/examples/agent-compare">repository</a>.
+		</p>
+	</div>
 </section>
 
-<!-- ============ PROOF ============ -->
-<section class="sec" id="proof" aria-labelledby="h-proof">
-  <div class="wrap">
-    <div class="sec-head">
-      <div>
-        <div class="eyebrow">Proof</div>
-        <h2 id="h-proof">Sixteen inserts of a real video, rebuilt.</h2>
-      </div>
-      <p class="lead">Every explainer insert of a published YouTube video was rewritten as blocks timed by its transcript, checked for determinism and rendered on a plain CPU.</p>
-    </div>
-    <div class="proof">
-      <div class="nums rv">
-        <div><b>16</b><span>inserts, one <code>.vf.json</code>, one transcript</span></div>
-        <div><b>0</b><span>mismatches in 2 187 frames rendered in four seek orders</span></div>
-        <div><b>5.5</b><span>minutes for 6 593 frames at 1080p on 12 vCPU, no GPU</span></div>
-        <div><b>1</b><span>command to re-time all of them after a re-take</span></div>
-      </div>
-      <div class="vids">
-        <figure class="vid rv"><video src="/media/editable.mp4" poster="/media/editable-poster.jpg" width="1280" height="720" muted loop playsinline controls preload="metadata" aria-label="Rendered insert: the text file stays editable"></video><figcaption>D-editable · 1080p render, real</figcaption></figure>
-        <figure class="vid rv"><video src="/media/workflow.mp4" width="1280" height="720" muted loop playsinline controls preload="metadata" aria-label="Rendered insert: workflow"></video><figcaption>Workflow · 1080p render, real</figcaption></figure>
-      </div>
-    </div>
-  </div>
+<!-- ================= HOW IT WORKS ================= -->
+<section id="how" aria-labelledby="h-how">
+	<div class="wrap">
+		<div class="sec-head rv">
+			<div>
+				<div class="eyebrow">How it works</div>
+				<h2 id="h-how">Four ideas. <em>Zero</em> surprises.</h2>
+			</div>
+			<p class="lead">
+				A frame is a function of time. VisualFries sets the time, Chromium draws the DOM, ffmpeg writes the file. That
+				is the whole trick, and it is why renders never drift.
+			</p>
+		</div>
+		<div class="how">
+			<div class="card rv">
+				<div class="ic">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+						><path d="M4 7h16M4 12h10M4 17h7" /></svg
+					>
+				</div>
+				<h3>Blocks are Svelte</h3>
+				<p>
+					Any visual is a component with props. Text is real DOM: it wraps, kerns and reflows per size. Change
+					<code>size</code> and the same block becomes a 9:16, 4:5 or 16:9.
+				</p>
+			</div>
+			<div class="card rv">
+				<div class="ic">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+						><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg
+					>
+				</div>
+				<h3>Time comes from words</h3>
+				<p>
+					A cue lands on <code>"huge"</code>, a clip ends on <code>"replace it"</code>. A new transcript re-times
+					everything; a phrase that vanished fails with "Did you mean".
+				</p>
+			</div>
+			<div class="card rv">
+				<div class="ic">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 6" /></svg>
+				</div>
+				<h3>Deterministic frames</h3>
+				<p>
+					No timers, no CSS transitions, randomness from seeded noise. <code>check --determinism</code> renders sampled
+					frames in different orders and compares them before you spend a minute on a render.
+				</p>
+			</div>
+			<div class="card rv">
+				<div class="ic">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+						><path d="M4 17l6-5-6-5M12 19h8" /></svg
+					>
+				</div>
+				<h3>One CLI, loud failures</h3>
+				<p>
+					Built to be driven by agents: every error says what to fix. MP4, PNG stills, ProRes 4444 alpha and a
+					<code>manifest.json</code> for your NLE.
+				</p>
+			</div>
+		</div>
+		<div class="cli">
+			<div class="list rv">
+				<div><code>doctor</code><span>Checks ffmpeg, Playwright, Chromium and the toolchain.</span></div>
+				<div><code>clips</code><span>Resolves transcript phrases to times and frames.</span></div>
+				<div><code>check</code><span>Runs every block in seconds; verifies determinism.</span></div>
+				<div><code>still</code><span>A contact sheet of every cue. Look before you render.</span></div>
+				<div><code>render</code><span>MP4 or ProRes 4444 alpha, plus a manifest.</span></div>
+				<div><code>matte</code><span>Cuts the speaker out of the footage, frame by frame.</span></div>
+			</div>
+			<pre class="rv"><code><span class="c">&lt;!-- blocks/Huge.svelte: a function of clip time --&gt;</span>
+&lt;script&gt;
+  import { useClip, Footage, Captions } from <span class="s">'visualfries/motion'</span>;
+  const clip = useClip();
+  const hit = $derived(clip.p(<span class="s">'huge'</span>, 0.35, <span class="s">'back.out'</span>));
+&lt;/script&gt;
+
+&lt;Footage name=<span class="s">"talk"</span> layer=<span class="s">"plate"</span> /&gt;
+&lt;h1 style:scale={0.6 + hit * 0.4} style:opacity={hit}&gt;HUGE&lt;/h1&gt;
+&lt;Footage name=<span class="s">"talk"</span> layer=<span class="s">"subject"</span> /&gt;
+&lt;Captions words={clip.words.captions} preset=<span class="s">"bold"</span> /&gt;</code></pre>
+		</div>
+	</div>
 </section>
 
-<!-- ============ FIT ============ -->
-<section class="sec" id="fit" aria-labelledby="h-fit">
-  <div class="wrap">
-    <div class="fit">
-      <div>
-        <div class="eyebrow" style="margin-bottom:14px">Where it fits</div>
-        <h2 id="h-fit">When to use VisualFries</h2>
-        <ul>
-          <li>You build in Svelte and want the editor and the renderer to mount the same document.</li>
-          <li>Timing comes from speech: transcripts, re-takes, word-level captions.</li>
-          <li>Agents write or repair content, so JSON plus a CLI that fails loudly beats a GUI.</li>
-          <li>You need alpha inserts (ProRes 4444) placed on an NLE timeline via <code>manifest.json</code>.</li>
-        </ul>
-        <p class="muted" style="margin-top:20px;font-size:15px">In React, Remotion is the natural choice. For framework-free HTML compositions with a GSAP timeline, HyperFrames. All three render a browser frame by frame; they differ in where the document lives and who edits it.</p>
-      </div>
-      <div class="tbl rv">
-        <table>
-          <thead><tr><th scope="col"></th><th scope="col">VisualFries</th><th scope="col">Remotion</th><th scope="col">HyperFrames</th></tr></thead>
-          <tbody>
-            <tr><td>Framework</td><td>Svelte 5</td><td>React</td><td>Plain HTML + GSAP</td></tr>
-            <tr><td>Source of truth</td><td>JSON document</td><td>React code</td><td>HTML composition</td></tr>
-            <tr><td>Primary timing</td><td>Transcript phrases as anchors, plus seconds and frames</td><td>Frames, with caption utilities</td><td>Seconds and data attributes</td></tr>
-            <tr><td>Editing</td><td>Scene documents mounted live in your app</td><td>Studio and input props</td><td>Studio editor and preview</td></tr>
-            <tr><td>Agent surface</td><td>clips · check · still · render · validate · qa</td><td>CLI and skills</td><td>CLI and skills</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+<!-- ================= INSTALL ================= -->
+<section class="install" id="install" aria-labelledby="h-install">
+	<div class="wrap">
+		<div class="eyebrow rv" style="justify-content:center">Install</div>
+		<h2 id="h-install" class="rv">Ship the <em>unskippable</em> post today.</h2>
+		<p class="lead rv">
+			Node 20+, ffmpeg, Chromium. One package. Point your agent at <code>/llms.txt</code> and ask for the first reel.
+		</p>
+		<div class="cmd rv">
+			<span id="install-cmd">npm install visualfries svelte playwright &amp;&amp; npx playwright install chromium</span
+			><button class="btn" type="button" data-copy="install-cmd">Copy</button>
+		</div>
+		<div class="cta rv" style="margin-top:4px;justify-content:center">
+			<a class="btn" href="/docs/quickstart">Read the quickstart</a><a class="btn ghost" href="/docs/agents"
+				>Agent guide</a
+			><a class="btn ghost" href="https://www.npmjs.com/package/visualfries">npm</a>
+		</div>
+	</div>
 </section>
 
-<!-- ============ START ============ -->
-<section class="sec" id="start" aria-labelledby="h-start">
-  <div class="wrap">
-    <div class="start">
-      <div>
-        <div class="eyebrow" style="margin-bottom:14px">Start</div>
-        <h2 id="h-start">Install, check, render.</h2>
-        <p class="lead" style="margin-top:14px">The project above is real: download it, run four commands, get the MP4. <code>doctor</code> tells you what is missing before the first render.</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px"><a class="btn" href="/docs/quickstart">Quickstart →</a><a class="btn ghost" href="/demo/quote.zip">Download quote.zip</a></div>
-      </div>
-<pre class="rv"><code>$ npm install visualfries playwright
-$ npx playwright install chromium             <span class="c"># or use an installed Chromium</span>
-$ npx visualfries doctor                      <span class="c"># ffmpeg, Chromium, Playwright, temp dir</span>
-$ npx visualfries clips quote.vf.json         <span class="c"># words → times</span>
-$ npx visualfries check quote.vf.json --determinism
-$ npx visualfries still quote.vf.json --clip quote --output quote.png
-$ npx visualfries render quote.vf.json --output out/</code></pre>
-    </div>
-  </div>
-</section>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>

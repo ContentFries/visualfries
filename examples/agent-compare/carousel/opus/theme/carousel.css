@@ -1,0 +1,39 @@
+:root {
+	--y: #ffe100;
+	--ink: #0f0f0d;
+	--ink2: #1b1b18;
+	--paper: #f4f1e8;
+	--mute: #8d8a7f;
+}
+.slide {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	font-family: 'Inter', sans-serif;
+	-webkit-font-smoothing: antialiased;
+}
+.slide.light { background: var(--y); color: var(--ink); }
+.slide.dark { background: var(--ink); color: var(--paper); }
+.abs { position: absolute; }
+.kicker {
+	font-family: 'JBMono', monospace;
+	font-weight: 600;
+	font-size: 26px;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+}
+.head {
+	font-family: 'Bricolage', sans-serif;
+	font-weight: 800;
+	letter-spacing: -0.035em;
+	line-height: 0.95;
+	font-variation-settings: 'opsz' 96, 'wdth' 100;
+}
+.serif {
+	font-family: 'Instrument Serif', serif;
+	font-style: italic;
+	font-weight: 400;
+	letter-spacing: -0.01em;
+}
+.mono { font-family: 'JBMono', monospace; }
+.mask { overflow: hidden; display: block; }

@@ -1,0 +1,23 @@
+{
+	"size": [1080, 1350],
+	"fps": 30,
+	"background": "#09090b",
+	"fonts": [
+		{ "family": "Bricolage", "src": "fonts/Bricolage.ttf", "weight": "200 800" },
+		{ "family": "Inter", "src": "fonts/Inter.ttf", "weight": "100 900" },
+		{ "family": "JetBrains Mono", "src": "fonts/JetBrainsMono.ttf", "weight": "100 800" },
+		{ "family": "Instrument Serif", "src": "fonts/InstrumentSerif-Italic.ttf", "style": "italic" }
+	],
+	"styles": ["styles.css"],
+	"footage": { "talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "margin": 0.2 } },
+	"clips": [
+		{ "id": "cover", "block": "blocks/Cover.svelte", "from": 9.5, "until": 10.5 },
+		{ "id": "quote", "block": "blocks/Quote.svelte", "from": 0, "until": 1 },
+		{ "id": "stat", "block": "blocks/Stat.svelte", "from": 0, "until": 1 },
+		{ "id": "carousel-1", "block": "blocks/Slide.svelte", "from": 0, "until": 1, "props": { "n": 1 } },
+		{ "id": "carousel-2", "block": "blocks/Slide.svelte", "from": 0, "until": 1, "props": { "n": 2 } },
+		{ "id": "carousel-3", "block": "blocks/Slide.svelte", "from": 0, "until": 1, "props": { "n": 3 } },
+		{ "id": "carousel-4", "block": "blocks/Slide.svelte", "from": 0, "until": 1, "props": { "n": 4 } },
+		{ "id": "carousel-5", "block": "blocks/Slide.svelte", "from": 0, "until": 1, "props": { "n": 5 } }
+	]
+}

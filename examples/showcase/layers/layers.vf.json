@@ -1,0 +1,80 @@
+{
+	"size": [
+		1080,
+		1920
+	],
+	"fps": 30,
+	"background": "#08090c",
+	"transcript": "talk.transcript.json",
+	"fonts": [
+		{
+			"family": "Anton",
+			"src": "fonts/Anton-Regular.ttf"
+		},
+		{
+			"family": "Inter",
+			"src": "fonts/Inter.ttf",
+			"weight": "100 900"
+		}
+	],
+	"footage": {
+		"talk": {
+			"src": "talk.mp4",
+			"matte": "talk.matte.mp4"
+		}
+	},
+	"clips": [
+		{
+			"id": "backdrop",
+			"block": "blocks/Layer.svelte",
+			"from": 8.6,
+			"until": 10.0,
+			"alpha": false,
+			"words": {
+				"captions": "clip"
+			},
+			"props": {
+				"layer": "backdrop"
+			}
+		},
+		{
+			"id": "type",
+			"block": "blocks/Layer.svelte",
+			"from": 8.6,
+			"until": 10.0,
+			"alpha": true,
+			"words": {
+				"captions": "clip"
+			},
+			"props": {
+				"layer": "type"
+			}
+		},
+		{
+			"id": "subject",
+			"block": "blocks/Layer.svelte",
+			"from": 8.6,
+			"until": 10.0,
+			"alpha": true,
+			"words": {
+				"captions": "clip"
+			},
+			"props": {
+				"layer": "subject"
+			}
+		},
+		{
+			"id": "captions",
+			"block": "blocks/Layer.svelte",
+			"from": 8.6,
+			"until": 10.0,
+			"alpha": true,
+			"words": {
+				"captions": "clip"
+			},
+			"props": {
+				"layer": "captions"
+			}
+		}
+	]
+}

@@ -1,0 +1,3 @@
+:root { --y: #ffe100; --ink: #f4f3ee; --bg: #09090b; --muted: #8b8d96; --red: #ff4d4d; --blue: #3d6cff; }
+.display { font-family: Bricolage, sans-serif; font-variation-settings: 'opsz' 96; }
+.mono { font-family: 'JetBrains Mono', monospace; }

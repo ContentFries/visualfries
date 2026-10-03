@@ -1,0 +1,7 @@
+*.mp4
+*.mov
+*.png
+out/
+fonts/
+.visualfries/
+.tmp/

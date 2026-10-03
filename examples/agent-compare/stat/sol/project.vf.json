@@ -1,0 +1,23 @@
+{
+  "size": [1080, 1350],
+  "fps": 30,
+  "background": "#101110",
+  "fonts": [
+    { "family": "Bricolage", "src": "fonts/Bricolage.ttf", "weight": "200 800" },
+    { "family": "Inter", "src": "fonts/Inter.ttf", "weight": "100 900" },
+    { "family": "Anton", "src": "fonts/Anton-Regular.ttf", "weight": "400" },
+    { "family": "Mono", "src": "fonts/JetBrainsMono.ttf", "weight": "100 800" }
+  ],
+  "footage": {
+    "talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "start": 0, "margin": 2 }
+  },
+  "clips": [
+    {
+      "id": "out",
+      "block": "blocks/AssetMultiplier.svelte",
+      "from": 0,
+      "until": 4,
+      "cues": { "headline": 0.15, "number": 0.55, "speaker": 0.85, "finished": 1.3, "breakdown": 1.8, "settled": 2.85 }
+    }
+  ]
+}

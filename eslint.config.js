@@ -42,6 +42,15 @@ export default ts.config(
 		rules: { '@typescript-eslint/no-require-imports': 'off' }
 	},
 	{
-		ignores: ['build/', '.svelte-kit/', 'dist/', 'static/', 'node_modules/', '**/.visualfries/']
+		ignores: [
+			'build/',
+			'.svelte-kit/',
+			'dist/',
+			'static/',
+			'node_modules/',
+			'**/.visualfries/',
+			// agent-written examples are kept exactly as the agents wrote them
+			'examples/'
+		]
 	}
 );

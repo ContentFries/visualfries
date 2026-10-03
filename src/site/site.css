@@ -1,30 +1,41 @@
 /* VisualFries site: one system for the homepage and the docs.
-   Graphite ground, a paper card for output, tangerine accent, cool blue for time. */
+   A dark stage with one loud colour: signal yellow on near-black, mono for anything a CLI reads. */
 :root {
-	--bg: #0e0f11;
-	--bg-2: #141518;
-	--panel: #1a1b20;
-	--ink: #ecebe6;
-	--ink-2: #c9c8c1;
-	--muted: #8d8f97;
-	--line: #2a2c33;
-	--line-2: #202228;
-	--accent: #ff6b2c;
-	--accent-soft: rgba(255, 107, 44, 0.14);
-	--cool: #7cc4ff;
-	--cool-soft: rgba(124, 196, 255, 0.14);
-	--ok: #58c88a;
+	--bg: #09090b;
+	--bg-2: #0f1013;
+	--panel: #141518;
+	--panel-2: #1a1b20;
+	--ink: #f4f3ee;
+	--ink-2: #c9c9c2;
+	--muted: #8b8d96;
+	--line: #25272e;
+	--line-2: #1c1e24;
+	--yellow: #ffe100;
+	--yellow-ink: #1a1500;
+	--yellow-soft: rgba(255, 225, 0, 0.14);
+	--blue: #3d6cff;
+	--blue-soft: rgba(61, 108, 255, 0.16);
+	--accent: var(--yellow);
+	--accent-soft: var(--yellow-soft);
+	--cool: #8fb0ff;
+	--cool-soft: rgba(143, 176, 255, 0.14);
+	--ok: #4ade80;
+	--red: #ff4d4d;
 	--plan: #e8b85a;
 	--plan-soft: rgba(232, 184, 90, 0.14);
-	--warn: #ffb38a;
+	--warn: #ffd166;
 	--card: #f4efe6;
 	--card-ink: #17130f;
-	--nav: 60px;
+	--nav: 64px;
 	--bar: 44px;
-	--r: 8px;
-	--serif: 'Newsreader', Georgia, serif;
-	--sans: 'Albert Sans', system-ui, sans-serif;
-	--mono: 'DM Mono', ui-monospace, Menlo, monospace;
+	--r-s: 6px;
+	--r: 12px;
+	--r-l: 20px;
+	--ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+	--display: 'Bricolage Grotesque', system-ui, sans-serif;
+	--serif: var(--display);
+	--sans: 'Inter', system-ui, sans-serif;
+	--mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
 	color-scheme: dark;
 }
 * {
@@ -58,16 +69,16 @@ h1,
 h2,
 h3 {
 	margin: 0;
-	font-family: var(--serif);
-	font-weight: 500;
-	letter-spacing: -0.015em;
+	font-family: var(--display);
+	font-weight: 700;
+	letter-spacing: -0.03em;
 	text-wrap: balance;
-	font-variation-settings: 'opsz' 72;
+	font-variation-settings: 'opsz' 96;
 }
 h1 em,
 h2 em {
-	font-style: italic;
-	color: var(--accent);
+	font-style: normal;
+	color: var(--yellow);
 }
 code,
 pre,
@@ -93,11 +104,11 @@ pre code {
 	font-size: inherit;
 }
 :focus-visible {
-	outline: 2px solid var(--cool);
+	outline: 2px solid var(--yellow);
 	outline-offset: 3px;
 }
 .wrap {
-	width: min(1280px, 100% - 40px);
+	width: min(1320px, 100% - 48px);
 	margin-inline: auto;
 }
 @media (max-width: 600px) {
@@ -120,11 +131,17 @@ pre code {
 	font: 500 11px/1 var(--mono);
 	letter-spacing: 0.1em;
 	text-transform: uppercase;
-	padding: 5px 8px;
-	border-radius: 4px;
+	padding: 6px 9px;
+	border-radius: 999px;
+	white-space: nowrap;
 	border: 1px solid var(--line);
 	color: var(--muted);
 	vertical-align: 0.15em;
+}
+.tag.y {
+	border-color: transparent;
+	background: var(--yellow-soft);
+	color: var(--yellow);
 }
 .tag.plan {
 	border-color: transparent;
@@ -140,16 +157,27 @@ pre code {
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
-	height: 44px;
-	padding: 0 18px;
-	border-radius: var(--r);
-	border: 1px solid var(--ink);
-	background: var(--ink);
-	color: var(--bg);
-	font: 500 15px var(--sans);
+	height: 48px;
+	padding: 0 20px;
+	border-radius: 999px;
+	border: 1px solid var(--yellow);
+	background: var(--yellow);
+	color: var(--yellow-ink);
+	font: 600 15px var(--sans);
 	text-decoration: none;
 	cursor: pointer;
 	white-space: nowrap;
+	transition:
+		transform 0.2s var(--ease),
+		background 0.2s;
+}
+.btn:hover {
+	transform: translateY(-1px);
+	background: #fff04d;
+}
+.btn svg {
+	width: 16px;
+	height: 16px;
 }
 .btn.ghost {
 	background: transparent;
@@ -158,17 +186,27 @@ pre code {
 }
 .btn.ghost:hover {
 	border-color: var(--ink);
+	background: var(--panel);
+}
+.btn.sm,
+.btn.small {
+	height: 38px;
+	padding: 0 14px;
+	font-size: 13.5px;
 }
 .btn.small {
-	height: 36px;
-	padding: 0 12px;
-	font-size: 13.5px;
 	background: var(--panel);
 	color: var(--ink);
 	border-color: var(--line);
 }
 .btn.small:hover {
 	border-color: var(--ink);
+	background: var(--panel-2);
+}
+@media (prefers-reduced-motion: reduce) {
+	.btn {
+		transition: none;
+	}
 }
 /* token colors for hand-written code (homepage document panel) */
 .k {
@@ -197,10 +235,10 @@ pre code {
 	left: 12px;
 	top: -60px;
 	z-index: 100;
-	background: var(--ink);
-	color: var(--bg);
+	background: var(--yellow);
+	color: var(--yellow-ink);
 	padding: 8px 12px;
-	border-radius: var(--r);
+	border-radius: 999px;
 	text-decoration: none;
 }
 .skip:focus {

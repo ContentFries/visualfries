@@ -8,11 +8,11 @@
 		<a class="brand" href="/" aria-label="VisualFries home"><i aria-hidden="true"></i>VisualFries</a
 		>
 		<nav aria-label="Primary">
+			<a class="hide-sm" href="/#formats">Formats</a>
+			<a class="hide-sm" href="/#agents">Agents</a>
 			<a href="/docs" aria-current={inDocs ? 'page' : undefined}>Docs</a>
-			<a class="hide-sm" href="/docs/cli">CLI</a>
-			<a class="hide-sm" href="/docs/agents">Agents</a>
 			<a class="hide-sm" href="https://github.com/ContentFries/visualfries">GitHub</a>
-			<a class="hide-sm" href="https://www.npmjs.com/package/visualfries">npm</a>
+			<a class="btn sm" href="/docs/quickstart">Quickstart</a>
 		</nav>
 	</div>
 </header>
@@ -24,12 +24,12 @@
 		padding-top: env(safe-area-inset-top, 0px);
 		height: calc(var(--nav) + env(safe-area-inset-top, 0px));
 		z-index: 50;
-		background: rgba(14, 15, 17, 0.84);
-		backdrop-filter: blur(14px);
-		border-bottom: 1px solid var(--line);
+		background: rgba(9, 9, 11, 0.72);
+		backdrop-filter: blur(16px);
+		border-bottom: 1px solid var(--line-2);
 	}
 	.wrap {
-		width: min(1360px, 100% - 40px);
+		width: min(1320px, 100% - 48px);
 		height: 100%;
 		display: flex;
 		align-items: center;
@@ -45,35 +45,48 @@
 		align-items: center;
 		gap: 10px;
 		text-decoration: none;
-		font-family: var(--serif);
-		font-size: 22px;
-		font-weight: 500;
-		letter-spacing: -0.01em;
+		font: 700 21px var(--display);
+		letter-spacing: -0.02em;
 	}
 	.brand i {
-		width: 12px;
-		height: 12px;
+		width: 14px;
+		height: 14px;
 		border-radius: 3px;
-		background: var(--accent);
+		background: var(--yellow);
 		transform: rotate(45deg);
 	}
 	nav {
 		display: flex;
-		gap: 22px;
+		gap: 24px;
+		align-items: center;
 		margin-left: auto;
-		font-size: 15px;
+		font-size: 14.5px;
 	}
-	nav a {
+	nav a:not(.btn) {
 		text-decoration: none;
 		color: var(--muted);
 	}
-	nav a:hover,
+	nav a:not(.btn):hover,
 	nav a[aria-current] {
 		color: var(--ink);
 	}
-	@media (max-width: 700px) {
+	@media (max-width: 720px) {
 		nav a.hide-sm {
 			display: none;
+		}
+	}
+	@media (max-width: 400px) {
+		.wrap {
+			gap: 12px;
+		}
+		nav {
+			gap: 14px;
+		}
+		.brand {
+			font-size: 19px;
+		}
+		nav .btn {
+			padding: 0 12px;
 		}
 	}
 </style>

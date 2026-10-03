@@ -465,7 +465,8 @@ export async function prepareFootage(loaded, clips) {
             matte,
             sizes: stats.map((st) => st && [st.size, st.mtimeMs]),
             fps,
-            range
+            range,
+            boxes: 1
         }))
             .digest('hex')
             .slice(0, 12);
@@ -517,10 +518,12 @@ export async function prepareFootage(loaded, clips) {
                     ]);
                 }
                 const written = (await fs.readdir(path.join(tmp, 'plate'))).length;
+                let boxes;
                 if (matte) {
                     const cutOuts = (await fs.readdir(path.join(tmp, 'subject'))).length;
                     if (cutOuts !== written)
                         throw new Error(`Footage "${name}": ${cutOuts} subject frames for ${written} picture frames; the matte does not cover the clips.`);
+                    boxes = await matteBoxes(matte, info, fps, range, written);
                 }
                 await fs.writeFile(path.join(tmp, 'done.json'), JSON.stringify({
                     name,
@@ -530,7 +533,8 @@ export async function prepareFootage(loaded, clips) {
                     last: range.first + written - 1,
                     total,
                     width: info.width,
-                    height: info.height
+                    height: info.height,
+                    boxes
                 }));
                 // Publish atomically. If another run published the same frames first, keep theirs:
                 // never delete a published folder another page may be reading.
@@ -552,7 +556,8 @@ export async function prepareFootage(loaded, clips) {
             width: done.width,
             height: done.height,
             startFrame,
-            subject: !!matte
+            subject: !!matte,
+            boxes: done.boxes
         };
         roots.push(dir);
     }

@@ -24,21 +24,16 @@ describe('resolveTextFontSource', () => {
 	});
 });
 
-describe('resolveTextFontSource precedence', () => {
-	it('prefers a custom entry when Google and custom both configure the family, like loading does', () => {
-		const both: FontType[] = [
-			{ alias: 'Brand', source: 'google', data: { family: 'Brand' } } as FontType,
-			{ alias: 'Brand', source: 'custom', url: 'https://example.com/brand.woff2' } as FontType
+describe('resolveTextFontSource follows the loader lookup', () => {
+	it('uses the entry the family looks up to, like collectComponentTextVariants (last one wins)', () => {
+		const googleThenCustom: FontType[] = [
+			{ alias: 'Roboto', source: 'google', data: { family: 'Roboto:400' } } as FontType,
+			{ alias: 'Roboto', source: 'custom', url: 'https://x/r.woff2', data: { family: 'Roboto:700' } } as FontType
 		];
-		expect(resolveTextFontSource({ fontFamily: 'Brand' }, both)).toBe('custom');
-	});
-
-	it('only lets a custom entry win when it has the requested weight', () => {
-		const mixed: FontType[] = [
-			{ alias: 'Roboto', source: 'custom', url: 'https://x/r700.woff2', data: { family: 'Roboto:700' } } as FontType,
-			{ alias: 'Roboto', source: 'google', data: { family: 'Roboto:400' } } as FontType
-		];
-		expect(resolveTextFontSource({ fontFamily: 'Roboto', fontWeight: '400' }, mixed)).toBe('google');
-		expect(resolveTextFontSource({ fontFamily: 'Roboto', fontWeight: 700 }, mixed)).toBe('custom');
+		const customThenGoogle = [...googleThenCustom].reverse();
+		for (const weight of ['400', 'bold', 700]) {
+			expect(resolveTextFontSource({ fontFamily: 'Roboto', fontWeight: weight } as never, googleThenCustom)).toBe('custom');
+			expect(resolveTextFontSource({ fontFamily: 'Roboto', fontWeight: weight } as never, customThenGoogle)).toBe('google');
+		}
 	});
 });

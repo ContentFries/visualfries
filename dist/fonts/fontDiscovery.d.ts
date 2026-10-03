@@ -6,13 +6,13 @@ export type FontVariantDescriptor = {
     fileUrl?: string;
 };
 /**
- * Where a text component's font comes from: its own `fontSource`, else a font configured on the
- * builder under the same family or alias, else nowhere (a system font). Font loading and SVG
- * inlining share this rule, so a font that loads is also the font that gets drawn.
+ * Where a text component's font comes from, decided exactly as loading decides it for that
+ * component (collectComponentTextVariants): its own `fontSource`, else the configured font that
+ * the family or alias looks up to, else nowhere (a system font). SVG inlining uses this, so a font
+ * that loads is also the font that gets drawn.
  */
 export declare const resolveTextFontSource: (text: {
     fontFamily?: string | null;
-    fontWeight?: string | number | null;
     fontSource?: {
         source?: "google" | "custom" | null;
     } | null;

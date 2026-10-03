@@ -238,33 +238,22 @@ const collectComponentTextVariants = (
 };
 
 /**
- * Where a text component's font comes from: its own `fontSource`, else a font configured on the
- * builder under the same family or alias, else nowhere (a system font). Font loading and SVG
- * inlining share this rule, so a font that loads is also the font that gets drawn.
+ * Where a text component's font comes from, decided exactly as loading decides it for that
+ * component (collectComponentTextVariants): its own `fontSource`, else the configured font that
+ * the family or alias looks up to, else nowhere (a system font). SVG inlining uses this, so a font
+ * that loads is also the font that gets drawn.
  */
 export const resolveTextFontSource = (
-	text: {
-		fontFamily?: string | null;
-		fontWeight?: string | number | null;
-		fontSource?: { source?: 'google' | 'custom' | null } | null;
-	},
+	text: { fontFamily?: string | null; fontSource?: { source?: 'google' | 'custom' | null } | null },
 	configuredFonts: FontType[]
 ): 'google' | 'custom' | null => {
 	if (text.fontSource?.source) return text.fontSource.source;
-	const family = normalizeFamily(text.fontFamily ?? undefined)?.toLowerCase();
+	const family = normalizeFamily(text.fontFamily ?? undefined);
 	if (!family) return null;
-	const matches = parseConfiguredFonts(configuredFonts).filter(
-		(font) =>
-			font.family.toLowerCase() === family ||
-			font.aliases.some((alias) => alias.toLowerCase() === family)
+	const configMatch = createConfiguredLookup(parseConfiguredFonts(configuredFonts)).get(
+		family.toLowerCase()
 	);
-	if (!matches.length) return null;
-	// Same precedence as loading: entries that have the requested weight first, and among those a
-	// custom entry wins over a Google one.
-	const weight = Number.parseInt(String(text.fontWeight ?? ''), 10) || DEFAULT_WEIGHT;
-	const withWeight = matches.filter((font) => font.weights.includes(weight));
-	const pool = withWeight.length ? withWeight : matches;
-	return pool.some((font) => font.source === 'custom') ? 'custom' : 'google';
+	return configMatch?.source ?? null;
 };
 
 export const extractConfiguredFontVariants = (

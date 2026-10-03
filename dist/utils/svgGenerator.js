@@ -4,8 +4,6 @@ import { loadEmoji, getIconCode } from './emoji.js';
 import { sanitizeHtml } from './html.js';
 export class SVGGenerator {
     fontCache = new Map();
-    /** Fonts the scene builder was given; text without its own fontSource inlines these. */
-    configuredFonts = [];
     emojiCache = new Map();
     fontDataBase64Cache = {};
     fontDataBase64Inflight = new Map();
@@ -16,10 +14,9 @@ export class SVGGenerator {
         }
         return SVGGenerator.instance;
     }
-    setConfiguredFonts(fonts) {
-        this.configuredFonts = fonts;
-    }
-    async generateSVG(el, config, width, height, svgParentId, fontText) {
+    async generateSVG(el, config, width, height, svgParentId, fontText, 
+    /** The scene's configured fonts: text without its own fontSource inlines these. */
+    configuredFonts = []) {
         const fontFamily = config.fontFamily
             ? config.fontFamily.replace(/\s+/g, '+').replace(/^(.)/, (match) => match.toUpperCase())
             : null;
@@ -34,7 +31,7 @@ export class SVGGenerator {
         let fontData = null;
         if (fontFamily &&
             !isEmoji &&
-            resolveTextFontSource(config, this.configuredFonts) === 'google') {
+            resolveTextFontSource(config, configuredFonts) === 'google') {
             const cacheKey = `${fontFamily + weightAppend}_${getFontText}`;
             if (cacheKey in this.fontDataBase64Cache) {
                 fontData = this.fontDataBase64Cache[cacheKey];

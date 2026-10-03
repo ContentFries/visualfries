@@ -249,12 +249,14 @@ export const resolveTextFontSource = (
 	if (text.fontSource?.source) return text.fontSource.source;
 	const family = normalizeFamily(text.fontFamily ?? undefined)?.toLowerCase();
 	if (!family) return null;
-	const match = parseConfiguredFonts(configuredFonts).find(
+	const matches = parseConfiguredFonts(configuredFonts).filter(
 		(font) =>
 			font.family.toLowerCase() === family ||
 			font.aliases.some((alias) => alias.toLowerCase() === family)
 	);
-	return match?.source ?? null;
+	if (!matches.length) return null;
+	// Same precedence as loading (mergeVariant): a custom entry wins over a Google one.
+	return matches.some((font) => font.source === 'custom') ? 'custom' : 'google';
 };
 
 export const extractConfiguredFontVariants = (

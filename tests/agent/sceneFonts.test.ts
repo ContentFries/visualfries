@@ -52,4 +52,16 @@ describe('discoverSceneFonts', () => {
 			{ alias: 'Brand', source: 'custom', url: 'https://cdn.example/brand.woff2' }
 		]);
 	});
+
+	it('skips system and generic families unless a fontSource asks for them', () => {
+		const fonts = discoverSceneFonts(
+			scene([
+				{ type: 'TEXT', appearance: { text: { fontFamily: 'Georgia' } } },
+				{ type: 'TEXT', appearance: { text: { fontFamily: 'sans-serif' } } },
+				{ type: 'TEXT', appearance: { text: { fontFamily: 'Georgia', fontSource: { source: 'google' } } } }
+			])
+		);
+		// an explicit Google request still loads
+		expect(fonts).toEqual([{ alias: 'Georgia', source: 'google', data: { family: 'Georgia' } }]);
+	});
 });

@@ -23,3 +23,13 @@ describe('resolveTextFontSource', () => {
 		expect(resolveTextFontSource({}, configured)).toBeNull();
 	});
 });
+
+describe('resolveTextFontSource precedence', () => {
+	it('prefers a custom entry when Google and custom both configure the family, like loading does', () => {
+		const both: FontType[] = [
+			{ alias: 'Brand', source: 'google', data: { family: 'Brand' } } as FontType,
+			{ alias: 'Brand', source: 'custom', url: 'https://example.com/brand.woff2' } as FontType
+		];
+		expect(resolveTextFontSource({ fontFamily: 'Brand' }, both)).toBe('custom');
+	});
+});

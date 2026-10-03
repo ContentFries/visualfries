@@ -16,7 +16,6 @@ import { ComponentShape } from '$lib/index.js';
 import { buildCharactersListFromComponentsAndSubtitles, changeIdDeep } from './utils/utils.js';
 import { loadFonts } from './utils/document.js';
 import { discoverRequiredFontVariants } from './fonts/fontDiscovery.js';
-import { SVGGenerator } from './utils/svgGenerator.js';
 
 import { CommandType } from './commands/CommandTypes.js';
 import { CommandRunner } from './commands/CommandRunner.js';
@@ -315,8 +314,6 @@ export class SceneBuilder implements ISceneBuilder {
 	}
 
 	private async loadFonts(fonts: FontType[]) {
-		// Text is drawn through SVG, which only sees fonts it inlines; give it the same list.
-		SVGGenerator.getInstance().setConfiguredFonts(fonts);
 		const variants = discoverRequiredFontVariants(this.sceneData, fonts);
 		return await loadFonts(fonts, variants);
 	}

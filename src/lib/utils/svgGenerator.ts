@@ -7,8 +7,6 @@ import { sanitizeHtml } from './html.js';
 
 export class SVGGenerator {
 	private fontCache: Map<string, ArrayBuffer | null> = new Map();
-	/** Fonts the scene builder was given; text without its own fontSource inlines these. */
-	private configuredFonts: FontType[] = [];
 	private emojiCache: Map<string, string> = new Map();
 	private fontDataBase64Cache: { [key: string]: string | null } = {};
 	private fontDataBase64Inflight: Map<string, Promise<string | null>> = new Map();
@@ -21,17 +19,15 @@ export class SVGGenerator {
 		return SVGGenerator.instance;
 	}
 
-	setConfiguredFonts(fonts: FontType[]) {
-		this.configuredFonts = fonts;
-	}
-
 	async generateSVG(
 		el: HTMLElement,
 		config: TextAppearance,
 		width: number,
 		height: number,
 		svgParentId?: string,
-		fontText?: string
+		fontText?: string,
+		/** The scene's configured fonts: text without its own fontSource inlines these. */
+		configuredFonts: FontType[] = []
 	): Promise<{ base: string; content: string; end: string }> {
 		const fontFamily = config.fontFamily
 			? config.fontFamily.replace(/\s+/g, '+').replace(/^(.)/, (match) => match.toUpperCase())
@@ -56,7 +52,7 @@ export class SVGGenerator {
 		if (
 			fontFamily &&
 			!isEmoji &&
-			resolveTextFontSource(config, this.configuredFonts) === 'google'
+			resolveTextFontSource(config, configuredFonts) === 'google'
 		) {
 			const cacheKey = `${fontFamily + weightAppend}_${getFontText}`;
 			if (cacheKey in this.fontDataBase64Cache) {

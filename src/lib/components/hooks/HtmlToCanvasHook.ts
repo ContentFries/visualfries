@@ -2,7 +2,16 @@ import type { IComponentContext, IComponentHook, HookType, HookHandlers } from '
 import { Texture, BaseTexture, Sprite, Container } from 'pixi.js-legacy';
 import { StateManager } from '$lib/managers/StateManager.svelte.js';
 import { svgGenerator } from '$lib/utils/svgGenerator.js';
-import type { TextAppearance } from '$lib/index.js';
+import type { FontType, TextAppearance } from '$lib/index.js';
+
+/** The container's `fonts` registration; containers built without one (tests, legacy) have none. */
+function readFonts(cradle: { fonts?: FontType[] }): FontType[] {
+	try {
+		return cradle.fonts ?? [];
+	} catch {
+		return [];
+	}
+}
 
 export class HtmlToCanvasHook implements IComponentHook {
 	#handlers: HookHandlers = {
@@ -26,9 +35,12 @@ export class HtmlToCanvasHook implements IComponentHook {
 	types: HookType[] = Object.keys(this.#handlers) as HookType[];
 	priority: number = 1;
 	private state: StateManager;
+	/** This scene's configured fonts, so SVG inlining matches what the scene loaded. */
+	private fonts: FontType[];
 
-	constructor(cradle: { stateManager: StateManager }) {
+	constructor(cradle: { stateManager: StateManager; fonts?: FontType[] }) {
 		this.state = cradle.stateManager;
+		this.fonts = readFonts(cradle);
 		this.shouldCreateObjectURL = navigator.userAgent.includes('Firefox');
 	}
 
@@ -83,7 +95,8 @@ export class HtmlToCanvasHook implements IComponentHook {
 				width,
 				height,
 				'svg-' + this.#context.contextData.id,
-				encodeURIComponent(this.state.getCharactersList().join('')) // current component text encoded
+				encodeURIComponent(this.state.getCharactersList().join('')), // current component text encoded
+				this.fonts
 			);
 
 			this.svgBase = base;

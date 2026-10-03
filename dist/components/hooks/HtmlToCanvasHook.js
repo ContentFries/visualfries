@@ -1,6 +1,15 @@
 import { Texture, BaseTexture, Sprite, Container } from 'pixi.js-legacy';
 import { StateManager } from '../../managers/StateManager.svelte.js';
 import { svgGenerator } from '../../utils/svgGenerator.js';
+/** The container's `fonts` registration; containers built without one (tests, legacy) have none. */
+function readFonts(cradle) {
+    try {
+        return cradle.fonts ?? [];
+    }
+    catch {
+        return [];
+    }
+}
 export class HtmlToCanvasHook {
     #handlers = {
         setup: this.#handleSetup.bind(this),
@@ -21,8 +30,11 @@ export class HtmlToCanvasHook {
     types = Object.keys(this.#handlers);
     priority = 1;
     state;
+    /** This scene's configured fonts, so SVG inlining matches what the scene loaded. */
+    fonts;
     constructor(cradle) {
         this.state = cradle.stateManager;
+        this.fonts = readFonts(cradle);
         this.shouldCreateObjectURL = navigator.userAgent.includes('Firefox');
     }
     async #svgToTexture(svgString) {
@@ -67,8 +79,8 @@ export class HtmlToCanvasHook {
         }
         const { width, height } = this.state;
         if (!this.svgBase) {
-            const { base, content, end } = await svgGenerator.generateSVG(this.#htmlEl, this.#context.data.appearance.text, width, height, 'svg-' + this.#context.contextData.id, encodeURIComponent(this.state.getCharactersList().join('')) // current component text encoded
-            );
+            const { base, content, end } = await svgGenerator.generateSVG(this.#htmlEl, this.#context.data.appearance.text, width, height, 'svg-' + this.#context.contextData.id, encodeURIComponent(this.state.getCharactersList().join('')), // current component text encoded
+            this.fonts);
             this.svgBase = base;
             this.svgEnd = end;
             this.svg = base + content + end;

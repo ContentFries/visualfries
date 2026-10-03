@@ -12,29 +12,35 @@ const SYSTEM_FAMILIES = new Set([
  * except system and generic families, which the browser already has.
  */
 export function discoverSceneFonts(scene) {
-    const fonts = [];
-    const seen = new Set();
+    // One entry per family; an explicit custom font replaces an implicit Google one, as loading does.
+    const byFamily = new Map();
     for (const layer of scene.layers ?? []) {
         for (const component of layer.components ?? []) {
             if (component.type !== 'TEXT' && component.type !== 'SUBTITLES')
                 continue;
             const text = component.appearance?.text;
             const fontFamily = text?.fontFamily;
-            if (!fontFamily || seen.has(fontFamily))
+            if (!fontFamily)
                 continue;
             if (!text?.fontSource?.source && SYSTEM_FAMILIES.has(fontFamily.trim().toLowerCase()))
                 continue;
-            seen.add(fontFamily);
+            const existing = byFamily.get(fontFamily);
             const fontSource = text?.fontSource;
             if (fontSource?.source === 'custom') {
-                if (!fontSource.fileUrl)
+                if (!fontSource.fileUrl || existing?.source === 'custom')
                     continue;
-                fonts.push({ alias: fontFamily, source: 'custom', url: fontSource.fileUrl });
+                byFamily.set(fontFamily, { alias: fontFamily, source: 'custom', url: fontSource.fileUrl });
                 continue;
             }
+            if (existing)
+                continue;
             const variants = fontSource?.variants?.length ? `:${fontSource.variants.join(',')}` : '';
-            fonts.push({ alias: fontFamily, source: 'google', data: { family: `${fontFamily}${variants}` } });
+            byFamily.set(fontFamily, {
+                alias: fontFamily,
+                source: 'google',
+                data: { family: `${fontFamily}${variants}` }
+            });
         }
     }
-    return fonts;
+    return [...byFamily.values()];
 }

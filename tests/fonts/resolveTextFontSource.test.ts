@@ -32,4 +32,13 @@ describe('resolveTextFontSource precedence', () => {
 		];
 		expect(resolveTextFontSource({ fontFamily: 'Brand' }, both)).toBe('custom');
 	});
+
+	it('only lets a custom entry win when it has the requested weight', () => {
+		const mixed: FontType[] = [
+			{ alias: 'Roboto', source: 'custom', url: 'https://x/r700.woff2', data: { family: 'Roboto:700' } } as FontType,
+			{ alias: 'Roboto', source: 'google', data: { family: 'Roboto:400' } } as FontType
+		];
+		expect(resolveTextFontSource({ fontFamily: 'Roboto', fontWeight: '400' }, mixed)).toBe('google');
+		expect(resolveTextFontSource({ fontFamily: 'Roboto', fontWeight: 700 }, mixed)).toBe('custom');
+	});
 });

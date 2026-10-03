@@ -64,4 +64,19 @@ describe('discoverSceneFonts', () => {
 		// an explicit Google request still loads
 		expect(fonts).toEqual([{ alias: 'Georgia', source: 'google', data: { family: 'Georgia' } }]);
 	});
+
+	it('lets an explicit custom font replace an earlier implicit Google one for the same family', () => {
+		const fonts = discoverSceneFonts(
+			scene([
+				{ type: 'TEXT', appearance: { text: { fontFamily: 'Roboto' } } },
+				{
+					type: 'TEXT',
+					appearance: {
+						text: { fontFamily: 'Roboto', fontSource: { source: 'custom', fileUrl: 'https://x/r.woff2' } }
+					}
+				}
+			])
+		);
+		expect(fonts).toEqual([{ alias: 'Roboto', source: 'custom', url: 'https://x/r.woff2' }]);
+	});
 });

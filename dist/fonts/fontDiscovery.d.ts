@@ -12,6 +12,7 @@ export type FontVariantDescriptor = {
  */
 export declare const resolveTextFontSource: (text: {
     fontFamily?: string | null;
+    fontWeight?: string | number | null;
     fontSource?: {
         source?: "google" | "custom" | null;
     } | null;

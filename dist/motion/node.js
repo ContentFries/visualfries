@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -842,6 +843,45 @@ function ffmpeg(args, input) {
             p.stdin.end();
     });
 }
+/** The encoder went away while frames were being piped; the frames themselves were fine. */
+export class FramePipeError extends Error {
+}
+/**
+ * ffmpeg reading PNG frames from stdin, in order. `write` resolves once ffmpeg has taken the
+ * frame (back-pressure), so at most a few frames are held in memory whatever the clip length.
+ */
+function ffmpegFramePipe(args) {
+    const p = spawn(process.env.FFMPEG_PATH || 'ffmpeg', args, { stdio: ['pipe', 'ignore', 'pipe'] });
+    let err = '';
+    p.stderr.on('data', (d) => (err = (err + d).slice(-4000)));
+    const done = new Promise((resolve, reject) => {
+        p.on('error', (e) => reject(new FramePipeError(`ffmpeg failed to start: ${e.message}`)));
+        p.on('close', (code) => code === 0
+            ? resolve()
+            : reject(new FramePipeError(`ffmpeg failed (${code}): ${err.slice(-800)}`)));
+    });
+    done.catch(() => { }); // surfaced by write() / end()
+    p.stdin.on('error', () => { }); // EPIPE: the exit code and stderr in `done` say why
+    const gone = () => done.then(() => {
+        throw new FramePipeError('ffmpeg exited before all frames were written.');
+    });
+    return {
+        async write(png) {
+            if (p.exitCode !== null || p.stdin.destroyed)
+                return gone();
+            if (!p.stdin.write(png))
+                await Promise.race([once(p.stdin, 'drain'), gone()]);
+        },
+        async end() {
+            p.stdin.end();
+            await done;
+        },
+        kill() {
+            if (p.exitCode === null)
+                p.kill('SIGKILL');
+        }
+    };
+}
 /**
  * ffmpeg input and mapping that mux the sound of the clip's `audio` footage, cut to the clip's
  * program range. Silence fills anything the footage does not cover.
@@ -871,6 +911,107 @@ function audioInput(loaded, clip) {
         clip.duration.toFixed(6),
         ...(clip.alpha ? ['-c:a', 'pcm_s16le'] : ['-c:a', 'aac', '-b:a', '192k'])
     ];
+}
+/**
+ * Pages take frames in turn (page j renders j, j + jobs, …) and a reorder buffer hands them to
+ * ffmpeg in order. A page waits while it is more than a few frames ahead of the encoder, so
+ * memory stays flat; frames are deterministic in any order, which `check --determinism` proves.
+ */
+export async function pipeFrames(frames, jobs, open, sink) {
+    const ahead = jobs * 2;
+    const ready = new Map();
+    let next = 0;
+    let failed = null;
+    let wake = [];
+    const notify = () => {
+        const w = wake;
+        wake = [];
+        w.forEach((f) => f());
+    };
+    const writer = (async () => {
+        while (next < frames) {
+            const png = ready.get(next);
+            if (!png) {
+                if (failed)
+                    return;
+                await new Promise((r) => wake.push(r));
+                continue;
+            }
+            ready.delete(next);
+            await sink.write(png);
+            next++;
+            notify();
+        }
+    })();
+    const worker = async (j) => {
+        const page = await open();
+        try {
+            for (let f = j; f < frames; f += jobs) {
+                while (f - next >= ahead && !failed)
+                    await new Promise((r) => wake.push(r));
+                if (failed)
+                    return;
+                ready.set(f, await page.capture(f));
+                notify();
+            }
+        }
+        finally {
+            await page.close();
+        }
+    };
+    const fail = (e) => {
+        failed ??= e;
+        notify();
+        throw e;
+    };
+    // Settle everything before reporting, so no page is still capturing when the browser closes.
+    const settled = await Promise.allSettled([
+        ...Array.from({ length: jobs }, (_, j) => worker(j).catch(fail)),
+        writer.catch(fail)
+    ]);
+    if (failed) {
+        sink.kill();
+        throw failed;
+    }
+    const rejected = settled.find((r) => r.status === 'rejected');
+    if (rejected) {
+        sink.kill();
+        throw rejected.reason;
+    }
+    await sink.end();
+}
+/** The original path, kept as the fallback and for --keep-frames: PNG files, then one encode. */
+async function framesThenEncode(clip, jobs, open, encode, keep) {
+    const framesDir = await fs.mkdtemp(path.join(os.tmpdir(), `vf-frames-${clip.id}-`));
+    const per = Math.ceil(clip.frames / jobs);
+    try {
+        await Promise.all(Array.from({ length: Math.min(jobs, clip.frames) }, async (_, j) => {
+            const from = j * per;
+            const to = Math.min(clip.frames, from + per);
+            if (from >= to)
+                return;
+            const page = await open();
+            for (let f = from; f < to; f++) {
+                await fs.writeFile(path.join(framesDir, `${String(f).padStart(6, '0')}.png`), await page.capture(f));
+            }
+            await page.close();
+        }));
+        const written = (await fs.readdir(framesDir)).filter((f) => f.endsWith('.png')).length;
+        if (written !== clip.frames)
+            throw new Error(`Clip "${clip.id}": rendered ${written} of ${clip.frames} frames.`);
+        await ffmpeg([
+            '-y',
+            '-framerate',
+            String(clip.fps),
+            '-i',
+            path.join(framesDir, '%06d.png'),
+            ...encode
+        ]);
+    }
+    finally {
+        if (!keep)
+            await fs.rm(framesDir, { recursive: true, force: true });
+    }
 }
 export async function renderMotionClips(loaded, opts) {
     if (opts.jobs !== undefined && !(Number.isInteger(opts.jobs) && opts.jobs > 0)) {
@@ -902,64 +1043,64 @@ export async function renderMotionClips(loaded, opts) {
     try {
         for (const clip of clips) {
             const t0 = Date.now();
-            const framesDir = await fs.mkdtemp(path.join(os.tmpdir(), `vf-frames-${clip.id}-`));
-            const per = Math.ceil(clip.frames / jobs);
-            let mode = '';
             const file = single ?? path.resolve(opts.output, `${clip.id}.${clip.alpha ? 'mov' : 'mp4'}`);
-            try {
-                await Promise.all(Array.from({ length: Math.min(jobs, clip.frames) }, async (_, j) => {
-                    const from = j * per;
-                    const to = Math.min(clip.frames, from + per);
-                    if (from >= to)
-                        return;
-                    const page = await openClip(browser, bundle, clip, opts.invalidate);
-                    mode = page.mode;
-                    for (let f = from; f < to; f++) {
-                        await fs.writeFile(path.join(framesDir, `${String(f).padStart(6, '0')}.png`), await page.capture(f));
-                    }
-                    await page.close();
-                }));
-                const written = (await fs.readdir(framesDir)).filter((f) => f.endsWith('.png')).length;
-                if (written !== clip.frames)
-                    throw new Error(`Clip "${clip.id}": rendered ${written} of ${clip.frames} frames.`);
-                const codec = clip.alpha
-                    ? [
+            const codec = clip.alpha
+                ? [
+                    '-c:v',
+                    'prores_ks',
+                    '-profile:v',
+                    '4444',
+                    '-pix_fmt',
+                    'yuva444p10le',
+                    '-alpha_bits',
+                    '16'
+                ]
+                : [
+                    '-c:v',
+                    'libx264',
+                    '-crf',
+                    '14',
+                    '-preset',
+                    'medium',
+                    '-pix_fmt',
+                    'yuv420p',
+                    '-movflags',
+                    '+faststart'
+                ];
+            const encode = [...audioInput(loaded, clip), ...codec, file];
+            let mode = '';
+            const open = async () => {
+                const page = await openClip(browser, bundle, clip, opts.invalidate);
+                mode = page.mode;
+                return page;
+            };
+            let piped = !opts.keepFrames;
+            if (piped) {
+                try {
+                    const sink = ffmpegFramePipe([
+                        '-y',
+                        '-f',
+                        'image2pipe',
+                        '-framerate',
+                        String(clip.fps),
                         '-c:v',
-                        'prores_ks',
-                        '-profile:v',
-                        '4444',
-                        '-pix_fmt',
-                        'yuva444p10le',
-                        '-alpha_bits',
-                        '16'
-                    ]
-                    : [
-                        '-c:v',
-                        'libx264',
-                        '-crf',
-                        '14',
-                        '-preset',
-                        'medium',
-                        '-pix_fmt',
-                        'yuv420p',
-                        '-movflags',
-                        '+faststart'
-                    ];
-                await ffmpeg([
-                    '-y',
-                    '-framerate',
-                    String(clip.fps),
-                    '-i',
-                    path.join(framesDir, '%06d.png'),
-                    ...audioInput(loaded, clip),
-                    ...codec,
-                    file
-                ]);
+                        'png',
+                        '-i',
+                        'pipe:0',
+                        ...encode
+                    ]);
+                    await pipeFrames(clip.frames, Math.min(jobs, clip.frames), open, sink);
+                }
+                catch (error) {
+                    if (!(error instanceof FramePipeError))
+                        throw error;
+                    // Fallback: the slower path that writes every frame as a file first.
+                    opts.onProgress?.(`${clip.id}: piping frames to ffmpeg failed (${error.message.split('\n')[0]}); rendering again through frame files`);
+                    piped = false;
+                }
             }
-            finally {
-                if (!opts.keepFrames)
-                    await fs.rm(framesDir, { recursive: true, force: true });
-            }
+            if (!piped)
+                await framesThenEncode(clip, jobs, open, encode, opts.keepFrames);
             const r = {
                 id: clip.id,
                 file,

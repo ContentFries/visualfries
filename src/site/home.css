@@ -1,7 +1,7 @@
 /* Homepage ("Signal"): every rule is scoped to .home so nothing leaks into the docs. */
 .home{display:block}
 .home h1,.home h2,.home h3{margin:0;font-family:var(--display);font-weight:700;letter-spacing:-.03em;line-height:.98;text-wrap:balance;font-variation-settings:'opsz' 96}
-.home h1{font-size:clamp(42px,6vw,88px);font-weight:800}
+.home h1{font-size:clamp(38px,4.4vw,64px);font-weight:800}
 .home h2{font-size:clamp(36px,5vw,72px)}
 .home h3{font-size:clamp(20px,2vw,26px);letter-spacing:-.02em;line-height:1.15}
 .home h1 em,.home h2 em{font-style:normal;color:var(--yellow)}
@@ -10,8 +10,8 @@
 .home pre{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;font-size:13.5px;line-height:1.65;overflow-x:auto;color:var(--ink-2);tab-size:2}
 .home pre code{background:none;padding:0;font-size:inherit;color:inherit}
 .home .k{color:#8fb0ff}.home .s{color:#ffd166}.home .n{color:#c6a4ff}.home .c{color:var(--muted)}.home .g{color:var(--ok)}.home .y{color:var(--yellow)}
-.home .eyebrow{font:500 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px}
-.home .eyebrow::before{content:"";width:22px;height:2px;background:var(--yellow)}
+
+
 .home .lead{font-size:clamp(17px,1.35vw,21px);line-height:1.5;color:var(--ink-2);max-width:58ch}
 .home .muted{color:var(--muted)}
 .home .tag{display:inline-flex;align-items:center;gap:6px;font:500 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:6px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
@@ -20,7 +20,7 @@
 .home section{padding:clamp(88px,10vw,150px) 0;position:relative}
 .home section + section{border-top:1px solid var(--line-2)}
 .home .sec-head{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:20px 64px;align-items:end;margin-bottom:clamp(40px,5vw,72px)}
-.home .sec-head .eyebrow{margin-bottom:18px}
+
 @media (max-width:900px){.home .sec-head{grid-template-columns:1fr;align-items:start}}
 /* media boxes: robust when an asset is missing */
 .home .media{position:relative;background:linear-gradient(160deg,#1c1d23,#0d0e11);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;aspect-ratio:var(--ar,9/16)}
@@ -43,7 +43,7 @@
 .home .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(55% 45% at 80% 30%,rgba(255,225,0,.14),transparent 60%),radial-gradient(45% 45% at 15% 85%,rgba(61,108,255,.18),transparent 60%);pointer-events:none}
 .home .hero::after{content:"";position:absolute;inset:0;background-image:linear-gradient(var(--line-2) 1px,transparent 1px),linear-gradient(90deg,var(--line-2) 1px,transparent 1px);background-size:56px 56px;mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);opacity:.5;pointer-events:none}
 .home .hero .wrap{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:40px 56px;align-items:center}
-.home .hero h1{margin-top:22px}
+.home .hero h1{margin-top:0}
 .home .hero h1 .strike{position:relative;color:var(--muted);font-weight:600}
 .home .hero h1 .strike::after{content:"";position:absolute;left:-2%;right:-2%;top:52%;height:.09em;background:var(--red);transform:rotate(-3deg)}
 .home .hero .lead{margin-top:28px}

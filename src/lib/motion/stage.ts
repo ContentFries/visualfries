@@ -1,6 +1,7 @@
 import { flushSync, mount, unmount, type Component } from 'svelte';
 import { Clip, MOTION_CONTEXT_KEY, type ClipController } from './runtime.svelte.js';
 import type { ResolvedClip } from './resolve.js';
+import { seekTimeline } from './seek.js';
 
 export type StageFont = { family: string; url: string; weight?: string | number; style?: string };
 export type StageOptions = {
@@ -134,7 +135,7 @@ export function createMotionStage(options: StageOptions) {
 		controller.clip.t = t;
 		controller.clip.frame = frame;
 		flushSync();
-		for (const tl of controller.timelines) tl.seek(t, true);
+		for (const tl of controller.timelines) seekTimeline(tl, t);
 		const pending: Promise<unknown>[] = [];
 		for (const fn of controller.frameFns) {
 			const result = fn({ t, frame, clip: controller.clip });

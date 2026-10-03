@@ -135,25 +135,6 @@
 		words.forEach((w, i) => {
 			const els = q(`[data-w="${i}"]`);
 			const enter = w.enter ?? (w.style === 'echo' ? 'rise' : 'slam');
-			// Tweens on the same property must not overlap: a .to() records its start value when it
-			// first renders, and that differs between playing forward and seeking. So every phase ends
-			// before the exit starts, and the exit states its start values explicitly.
-			const exitAt = w.end - 0.3;
-			const exits = w.end < clip.duration - 0.05;
-			const exit = (el: Element | Element[], from: Record<string, number | string>) =>
-				tl.fromTo(
-					el,
-					from,
-					{
-						opacity: 0,
-						scale: 1.25,
-						filter: 'blur(28px)',
-						duration: 0.38,
-						ease: 'power2.in',
-						immediateRender: false
-					},
-					exitAt
-				);
 			if (w.style === 'echo') {
 				els.forEach((el, k) => {
 					tl.fromTo(
@@ -162,23 +143,18 @@
 						{ opacity: 0.9 - k * 0.25, scale: 1, y: 0, duration: 0.3, ease: 'power2.out' },
 						w.start - 0.06 + k * 0.12
 					);
-					const driftAt = w.start + 0.27 + k * 0.12;
-					// A shortened drift still lands on `rest`, just sooner, so the exit starts from there.
-					const drift = exits ? Math.min(1.4, exitAt - driftAt) : 1.4;
-					const rest = {
-						scale: 0.36 - k * 0.05,
-						y: -w.px * 0.65 - k * 38,
-						opacity: 0.35 - k * 0.1,
-						filter: `blur(${2 + k * 2}px)`
-					};
-					if (drift > 0.02) tl.to(el, { ...rest, duration: drift, ease: 'power2.out' }, driftAt);
-					if (exits)
-						exit(
-							el,
-							drift > 0.02
-								? rest
-								: { opacity: 0.9 - k * 0.25, scale: 1, y: 0, filter: 'blur(0px)' }
-						);
+					tl.to(
+						el,
+						{
+							scale: 0.36 - k * 0.05,
+							y: -w.px * 0.65 - k * 38,
+							opacity: 0.35 - k * 0.1,
+							filter: `blur(${2 + k * 2}px)`,
+							duration: 1.4,
+							ease: 'power2.out'
+						},
+						w.start + 0.27 + k * 0.12
+					);
 				});
 			} else {
 				const from =
@@ -204,10 +180,11 @@
 					},
 					w.start - 0.04
 				);
-				const holdAt = w.start + 0.42;
-				const hold = exits ? exitAt - holdAt : clip.duration - holdAt;
-				if (hold > 0.02) tl.to(els, { scale: 1.05, duration: hold, ease: 'none' }, holdAt);
-				if (exits) exit(els, { opacity, scale: hold > 0.02 ? 1.05 : 1, filter: 'blur(0px)' });
+				tl.to(
+					els,
+					{ scale: 1.05, duration: Math.max(0.1, w.end - w.start - 0.72), ease: 'none' },
+					w.start + 0.42
+				);
 				if (w.style === 'strike') {
 					tl.fromTo(
 						q(`[data-strike="${i}"]`),
@@ -223,6 +200,12 @@
 					);
 				}
 			}
+			if (w.end < clip.duration - 0.05)
+				tl.to(
+					els,
+					{ opacity: 0, scale: 1.25, filter: 'blur(28px)', duration: 0.38, ease: 'power2.in' },
+					w.end - 0.3
+				);
 			if (w.hit) {
 				hit(w.start, 1.1);
 				tl.to(st, { ...punch(1.12), duration: 0.5, ease: 'expo.out' }, w.start);

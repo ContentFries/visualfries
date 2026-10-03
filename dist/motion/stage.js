@@ -1,5 +1,6 @@
 import { flushSync, mount, unmount } from 'svelte';
 import { Clip, MOTION_CONTEXT_KEY } from './runtime.svelte.js';
+import { seekTimeline } from './seek.js';
 /**
  * Browser side of motion rendering. Everything that decides pixels lives here so
  * preview, local export and server export run the same code.
@@ -95,7 +96,7 @@ export function createMotionStage(options) {
         controller.clip.frame = frame;
         flushSync();
         for (const tl of controller.timelines)
-            tl.seek(t, true);
+            seekTimeline(tl, t);
         const pending = [];
         for (const fn of controller.frameFns) {
             const result = fn({ t, frame, clip: controller.clip });

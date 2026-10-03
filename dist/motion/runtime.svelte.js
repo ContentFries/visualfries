@@ -1,6 +1,7 @@
 import { getContext, onMount } from 'svelte';
 import { gsap } from 'gsap';
 import { resolveMoment } from './moment.js';
+import { subjectBox } from './footage.js';
 const CONTEXT_KEY = Symbol.for('visualfries.motion.clip');
 export class Clip {
     /** Clip-local time in seconds. Reactive: use it directly in markup. */
@@ -34,6 +35,17 @@ export class Clip {
         this.programStart = data.start;
         this.programStartFrame = data.startFrame;
         this.footage = data.footage ?? {};
+    }
+    /**
+     * Where the subject of footage `name` is at clip frame `frame` (default: the current frame),
+     * from its matte, in 0–1 fractions of the footage frame. Smoothed over `smooth` seconds on
+     * each side. Null without a matte or with the subject out of frame.
+     */
+    subject(name, frame = this.frame, smooth = 0.15) {
+        const footage = this.footage[name];
+        if (!footage)
+            throw new Error(`Unknown footage "${name}".`);
+        return subjectBox(footage, this.programStartFrame + frame, Math.round(smooth * this.fps));
     }
     /**
      * Resolve an `At` to clip-local seconds. Besides project cues, `start` (0) and `end`

@@ -22,7 +22,7 @@ export class GsapEngineAdaptor {
             console.warn('GSAP addTween: No targets provided.');
             return 0;
         }
-        let populatedVars = { ...vars }; // Clone vars to avoid mutating original from preset
+        const populatedVars = { ...vars }; // Clone vars to avoid mutating original from preset
         // GSAP's .fromTo() expects 'from' vars as the second argument,
         // and 'to' vars as the third.
         // Our 'vars' for 'fromTo' contains 'vars.from' and the 'to' vars directly in 'vars'.

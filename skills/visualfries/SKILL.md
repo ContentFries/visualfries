@@ -314,6 +314,8 @@ Use a **motion project** (`docs/MOTION.md`), not scene JSON, when the user wants
 recording -> crop -> visualfries matte -> transcript -> project.vf.json (footage + cues) -> block -> still sheet -> render
 ```
 
+Start with the built-in block `"block": "@visualfries/speaker-depth"`: the words behind the head, the echo, the mood change and the captions are all props (see the Footage docs page and `static/demo/speaker-depth/template.vf.json`). Write your own block only for a look the props cannot express; then use `clip.subject('talk')` to place things relative to the speaker and `<Captions>` for captions.
+
 1. Find a stretch with only the talking head (no screen recordings or cutaways); scene detection with ffmpeg helps (`select='gt(scene,0.25)'`).
 2. Crop wider than 9:16 so the shoulders touch the left and right edges (e.g. `crop=1000:1080:x:0` from 1920×1080, face centred). Keep the sound.
 3. `FAL_KEY=… visualfries matte talk.mp4 --output talk.matte.mp4` (BiRefNet v2, model `Matting`), or a local segmentation tool with `--command "tool --in {input} --out {output}"` (`--command-output alpha` if it writes transparency). Look at one frame of the matte over a solid colour before going on.
@@ -322,7 +324,7 @@ recording -> crop -> visualfries matte -> transcript -> project.vf.json (footage
 6. Block layers, back to front: backdrop → type layer → camera wrapper with `<Footage layer="plate">` (fade it out or keep it), optional `<Footage layer="subject" offset={-0.4}>` ghost, `<Footage layer="subject">` → captions on top.
 7. Put behind-the-head words low enough that the head covers part of them; words fully above the head look like plain titles. Fit the frame width (scale font-size to the word length).
 8. `visualfries check --determinism`, then `visualfries still … --output sheet.png` (start, every cue, end) and look at it: words clipped by the frame edge, unreadable words, matte errors around hands and microphone.
-9. `visualfries render project.vf.json --output out/` → `out/<clip>.mp4` with sound.
+9. `visualfries render project.vf.json --output out/` → `out/<clip>.mp4` with sound (or `--clip <id> --output reel.mp4` for one file).
 
 Never use a `<video>` element in a block: it plays on wall-clock time. Animate on cues (`useTimeline` + `at('cue')`), keep randomness frame-keyed (`noise(frame, n)`).
 

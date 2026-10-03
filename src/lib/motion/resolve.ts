@@ -53,6 +53,21 @@ export type FootageFrames = {
 	startFrame: number;
 	/** Whether a matte was given, so `subject` frames exist. */
 	subject: boolean;
+	/** Subject box of every extracted frame (`first`…`last`), measured on the matte. */
+	boxes?: (SubjectBox | null)[];
+};
+
+/**
+ * Where the subject is in a footage frame, from its matte. Coordinates are fractions of the
+ * footage frame (0–1, origin top left). `headX`/`headY` is the top of the subject's head.
+ */
+export type SubjectBox = {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	headX: number;
+	headY: number;
 };
 
 export type MotionDiagnostic = {

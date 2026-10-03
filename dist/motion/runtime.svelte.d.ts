@@ -1,4 +1,4 @@
-import type { FootageFrames, MotionWordRef, ResolvedClip, ResolvedCue } from './resolve.js';
+import type { FootageFrames, MotionWordRef, ResolvedClip, ResolvedCue, SubjectBox } from './resolve.js';
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
  * a cue with an offset ("extra+0.4", "extra.end-0.2"), the built-in "start"/"end",
@@ -28,6 +28,12 @@ export declare class Clip {
     /** Frames of the project's footage (see `<Footage>`). */
     readonly footage: Record<string, FootageFrames>;
     constructor(data: ResolvedClip);
+    /**
+     * Where the subject of footage `name` is at clip frame `frame` (default: the current frame),
+     * from its matte, in 0–1 fractions of the footage frame. Smoothed over `smooth` seconds on
+     * each side. Null without a matte or with the subject out of frame.
+     */
+    subject(name: string, frame?: number, smooth?: number): SubjectBox | null;
     /**
      * Resolve an `At` to clip-local seconds. Besides project cues, `start` (0) and `end`
      * (clip length) always exist, so exits follow the clip when a new voiceover stretches it.

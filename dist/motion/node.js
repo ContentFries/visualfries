@@ -75,6 +75,18 @@ export function assertNoErrors(loaded, clipIds) {
             errors.map((e) => `  ${e.clip ?? '-'} ${e.field}: ${e.message}`).join('\n'));
     }
 }
+const BUILTIN_PREFIX = '@visualfries/';
+/** Blocks that ship with VisualFries; a clip names them as `"block": "@visualfries/captions"`. */
+const BUILTIN_BLOCKS = {
+    captions: 'Captions.svelte',
+    'speaker-depth': 'SpeakerDepth.svelte'
+};
+function blockFile(dir, block) {
+    if (!block.startsWith(BUILTIN_PREFIX))
+        return path.resolve(dir, block);
+    const file = BUILTIN_BLOCKS[block.slice(BUILTIN_PREFIX.length)];
+    return file ? path.join(HERE, 'blocks', file) : path.join(HERE, 'blocks', '__missing__');
+}
 /** Compile the project's blocks together with the stage runtime into one page. */
 export async function bundleMotionProject(loaded, clips) {
     const esbuild = await import('esbuild');
@@ -91,12 +103,16 @@ export async function bundleMotionProject(loaded, clips) {
     ];
     const blocks = [...new Set(clips.map((c) => c.block))];
     for (const block of blocks) {
-        if (!existsSync(path.resolve(loaded.dir, block)))
-            throw new Error(`Block file not found: ${block}`);
+        if (!existsSync(blockFile(loaded.dir, block)))
+            throw new Error(block.startsWith(BUILTIN_PREFIX)
+                ? `Unknown built-in block "${block}". Built-in blocks: ${Object.keys(BUILTIN_BLOCKS)
+                    .map((b) => BUILTIN_PREFIX + b)
+                    .join(', ')}.`
+                : `Block file not found: ${block}`);
     }
     const entry = [
         `import { createMotionStage } from ${JSON.stringify(stageModule)};`,
-        ...blocks.map((b, i) => `import B${i} from ${JSON.stringify(path.resolve(loaded.dir, b))};`),
+        ...blocks.map((b, i) => `import B${i} from ${JSON.stringify(blockFile(loaded.dir, b))};`),
         `window.__vfMotionStage = createMotionStage({ blocks: { ${blocks
             .map((b, i) => `${JSON.stringify(b)}: B${i}`)
             .join(', ')} }, fonts: window.__vfFonts, css: window.__vfCss, invalidate: window.__vfInvalidate });`
@@ -449,7 +465,8 @@ export async function prepareFootage(loaded, clips) {
             matte,
             sizes: stats.map((st) => st && [st.size, st.mtimeMs]),
             fps,
-            range
+            range,
+            boxes: 1
         }))
             .digest('hex')
             .slice(0, 12);
@@ -501,10 +518,12 @@ export async function prepareFootage(loaded, clips) {
                     ]);
                 }
                 const written = (await fs.readdir(path.join(tmp, 'plate'))).length;
+                let boxes;
                 if (matte) {
                     const cutOuts = (await fs.readdir(path.join(tmp, 'subject'))).length;
                     if (cutOuts !== written)
                         throw new Error(`Footage "${name}": ${cutOuts} subject frames for ${written} picture frames; the matte does not cover the clips.`);
+                    boxes = await matteBoxes(matte, info, fps, range, written);
                 }
                 await fs.writeFile(path.join(tmp, 'done.json'), JSON.stringify({
                     name,
@@ -514,7 +533,8 @@ export async function prepareFootage(loaded, clips) {
                     last: range.first + written - 1,
                     total,
                     width: info.width,
-                    height: info.height
+                    height: info.height,
+                    boxes
                 }));
                 // Publish atomically. If another run published the same frames first, keep theirs:
                 // never delete a published folder another page may be reading.
@@ -536,13 +556,79 @@ export async function prepareFootage(loaded, clips) {
             width: done.width,
             height: done.height,
             startFrame,
-            subject: !!matte
+            subject: !!matte,
+            boxes: done.boxes
         };
         roots.push(dir);
     }
     for (const clip of clips)
         clip.footage = frames;
     return roots;
+}
+/** Width of the downscaled matte the subject boxes are measured on. */
+const BOX_SAMPLE_WIDTH = 160;
+/**
+ * Bounding box of the subject in every extracted frame, measured on a downscaled matte
+ * (white above half = subject). Frames without a subject get null.
+ */
+async function matteBoxes(matte, info, fps, range, count) {
+    const w = BOX_SAMPLE_WIDTH;
+    const h = Math.max(2, Math.round((info.height / info.width) * w));
+    const raw = await ffmpegOutput([
+        '-i',
+        matte,
+        '-vf',
+        `fps=${fps},scale=${w}:${h}:flags=area,format=gray,tpad=stop_mode=clone:stop_duration=2,trim=start_frame=${range.first}:end_frame=${range.last + 1}`,
+        '-frames:v',
+        String(count),
+        '-f',
+        'rawvideo',
+        '-pix_fmt',
+        'gray',
+        'pipe:1'
+    ]);
+    const boxes = [];
+    for (let i = 0; i < count; i++) {
+        const frame = raw.subarray(i * w * h, (i + 1) * w * h);
+        boxes.push(frame.length === w * h ? measureSubject(frame, w, h) : null);
+    }
+    return boxes;
+}
+/** Subject box of one greyscale matte frame, in 0–1 coordinates. Exported for tests. */
+export function measureSubject(gray, w, h) {
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++)
+            if (gray[y * w + x] >= 128) {
+                if (x < x0)
+                    x0 = x;
+                if (x > x1)
+                    x1 = x;
+                if (y < y0)
+                    y0 = y;
+                if (y > y1)
+                    y1 = y;
+            }
+    if (x1 < 0)
+        return null;
+    // The head: the subject's top rows (about a twelfth of the frame height), centred.
+    const band = Math.max(1, Math.round(h / 12));
+    let sum = 0, n = 0;
+    for (let y = y0; y < Math.min(h, y0 + band); y++)
+        for (let x = x0; x <= x1; x++)
+            if (gray[y * w + x] >= 128) {
+                sum += x;
+                n++;
+            }
+    const r = (v) => Math.round(v * 10000) / 10000;
+    return {
+        x: r(x0 / w),
+        y: r(y0 / h),
+        width: r((x1 + 1 - x0) / w),
+        height: r((y1 + 1 - y0) / h),
+        headX: r((sum / n + 0.5) / w),
+        headY: r(y0 / h)
+    };
 }
 /** Frame for "extra", "extra.end+0.3", "2.5s", "f120", "end", "mid". */
 export function frameForAt(clip, at) {
@@ -726,6 +812,21 @@ export async function composeSheet(images, opts = {}) {
         await browser.close();
     }
 }
+function ffmpegOutput(args) {
+    return new Promise((resolve, reject) => {
+        const p = spawn(process.env.FFMPEG_PATH || 'ffmpeg', args, {
+            stdio: ['ignore', 'pipe', 'pipe']
+        });
+        const out = [];
+        let err = '';
+        p.stdout.on('data', (d) => out.push(d));
+        p.stderr.on('data', (d) => (err += d));
+        p.on('error', reject);
+        p.on('close', (code) => code === 0
+            ? resolve(Buffer.concat(out))
+            : reject(new Error(`ffmpeg failed (${code}): ${err.slice(-800)}`)));
+    });
+}
 function ffmpeg(args, input) {
     return new Promise((resolve, reject) => {
         const p = spawn(process.env.FFMPEG_PATH || 'ffmpeg', args, {
@@ -779,7 +880,16 @@ export async function renderMotionClips(loaded, opts) {
     const clips = opts.clips?.length
         ? opts.clips.map((id) => loaded.resolved.clips.find((x) => x.id === id))
         : loaded.resolved.clips;
-    await fs.mkdir(opts.output, { recursive: true });
+    // `--output out.mp4` (or `.mov`) names the file itself when one clip is rendered.
+    const single = /\.(mp4|mov)$/i.test(opts.output) ? path.resolve(opts.output) : undefined;
+    if (single) {
+        if (clips.length !== 1)
+            throw new Error(`--output ${opts.output} names one file, but ${clips.length} clips would render. Pick one with --clip <id>, or pass a directory.`);
+        const ext = clips[0].alpha ? '.mov' : '.mp4';
+        if (path.extname(single).toLowerCase() !== ext)
+            throw new Error(`Clip "${clips[0].id}" renders ${ext === '.mov' ? 'a transparent .mov' : 'an .mp4'}; use --output <name>${ext}.`);
+    }
+    await fs.mkdir(single ? path.dirname(single) : opts.output, { recursive: true });
     const bundle = await bundleMotionProject(loaded, clips);
     // libx264 with yuv420p needs even dimensions; fail before capturing, not after.
     for (const clip of clips) {
@@ -795,7 +905,7 @@ export async function renderMotionClips(loaded, opts) {
             const framesDir = await fs.mkdtemp(path.join(os.tmpdir(), `vf-frames-${clip.id}-`));
             const per = Math.ceil(clip.frames / jobs);
             let mode = '';
-            const file = path.resolve(opts.output, `${clip.id}.${clip.alpha ? 'mov' : 'mp4'}`);
+            const file = single ?? path.resolve(opts.output, `${clip.id}.${clip.alpha ? 'mov' : 'mp4'}`);
             try {
                 await Promise.all(Array.from({ length: Math.min(jobs, clip.frames) }, async (_, j) => {
                     const from = j * per;
@@ -870,6 +980,8 @@ export async function renderMotionClips(loaded, opts) {
         await browser.close();
         await fs.rm(bundle.dir, { recursive: true, force: true });
     }
+    if (single)
+        return results;
     // Re-rendering some clips updates their entries and keeps the rest of the manifest.
     const manifestPath = path.resolve(opts.output, 'manifest.json');
     let previous = [];

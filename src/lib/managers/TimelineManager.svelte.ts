@@ -102,7 +102,8 @@ export class TimelineManager {
 
 	#handleChangeState() {
 		if (this.state.isPlaying) {
-			this.state.state === 'playing' ? this.play() : this.pause();
+			if (this.state.state === 'playing') this.play();
+			else this.pause();
 		} else {
 			this.pause();
 		}

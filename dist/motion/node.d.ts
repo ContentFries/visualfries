@@ -1,6 +1,7 @@
 import { type MotionProject } from './project.js';
 import { type MotionWord } from './transcript.js';
 import { type ResolvedClip, type ResolvedProject } from './resolve.js';
+import type { SubjectBox } from './resolve.js';
 export type LoadedMotionProject = {
     file: string;
     dir: string;
@@ -63,6 +64,8 @@ export declare function probeVideo(file: string): Promise<VideoInfo>;
  * Frames are cached by source, matte, frame rate and range.
  */
 export declare function prepareFootage(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<string[]>;
+/** Subject box of one greyscale matte frame, in 0–1 coordinates. Exported for tests. */
+export declare function measureSubject(gray: Uint8Array, w: number, h: number): SubjectBox | null;
 export type StillRequest = {
     clip: string;
     at: string;

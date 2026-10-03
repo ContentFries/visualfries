@@ -41,7 +41,7 @@ export class GsapEngineAdaptor implements AnimationEngineAdaptor {
 			return 0;
 		}
 
-		let populatedVars = { ...vars }; // Clone vars to avoid mutating original from preset
+		const populatedVars = { ...vars }; // Clone vars to avoid mutating original from preset
 
 		// GSAP's .fromTo() expects 'from' vars as the second argument,
 		// and 'to' vars as the third.

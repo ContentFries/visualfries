@@ -64,7 +64,7 @@
 	<meta property="og:description" content={description} />
 	<meta property="og:url" content={url} />
 	<meta name="twitter:card" content="summary" />
-	{@html `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`}
+	{@html '<script type="application/ld+json">' + JSON.stringify(jsonLd) + '</' + 'script>'}
 </svelte:head>
 
 <article class="doc">

@@ -1,7 +1,14 @@
 import { getContext, onMount } from 'svelte';
 import { gsap } from 'gsap';
-import type { FootageFrames, MotionWordRef, ResolvedClip, ResolvedCue } from './resolve.js';
+import type {
+	FootageFrames,
+	MotionWordRef,
+	ResolvedClip,
+	ResolvedCue,
+	SubjectBox
+} from './resolve.js';
 import { resolveMoment } from './moment.js';
+import { subjectBox } from './footage.js';
 
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
@@ -46,6 +53,17 @@ export class Clip {
 		this.programStart = data.start;
 		this.programStartFrame = data.startFrame;
 		this.footage = data.footage ?? {};
+	}
+
+	/**
+	 * Where the subject of footage `name` is at clip frame `frame` (default: the current frame),
+	 * from its matte, in 0–1 fractions of the footage frame. Smoothed over `smooth` seconds on
+	 * each side. Null without a matte or with the subject out of frame.
+	 */
+	subject(name: string, frame = this.frame, smooth = 0.15): SubjectBox | null {
+		const footage = this.footage[name];
+		if (!footage) throw new Error(`Unknown footage "${name}".`);
+		return subjectBox(footage, this.programStartFrame + frame, Math.round(smooth * this.fps));
 	}
 
 	/**

@@ -69,7 +69,7 @@
 	<meta name="twitter:card" content="summary_large_image" />
 	<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt" />
 	<link rel="describedby" type="text/plain" href="/llms.txt" />
-	{@html `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`}
+	{@html '<script type="application/ld+json">' + JSON.stringify(jsonLd) + '</' + 'script>'}
 </svelte:head>
 
 <main class="home" id="content" bind:this={root}>

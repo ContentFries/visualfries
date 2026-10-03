@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { footageFrameRange, footageFrameUrl } from '../../src/lib/motion/footage.js';
+import { footageFrameRange, footageFrameUrl, subjectBox } from '../../src/lib/motion/footage.js';
+import { loadMotionProject, measureSubject, prepareFootage } from '../../src/lib/motion/node.js';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { planMatteChunks } from '../../src/lib/motion/matte.js';
 import { MotionProjectShape } from '../../src/lib/motion/project.js';
 import { resolveMotionProject } from '../../src/lib/motion/resolve.js';
@@ -96,5 +101,99 @@ describe('footage in the project file', () => {
 				clips: [{ id: 'a', block: 'b.svelte', from: 0, until: 1 }]
 			})
 		).toThrow();
+	});
+});
+
+describe('subject boxes', () => {
+	it('measures the box and the top of the head on a matte frame', () => {
+		const w = 10,
+			h = 10;
+		const gray = new Uint8Array(w * h);
+		// Shoulders across rows 6–9, head at columns 4–5 from row 2.
+		for (let y = 2; y < 10; y++)
+			for (let x = 0; x < w; x++) if (y >= 6 || x === 4 || x === 5) gray[y * w + x] = 255;
+		expect(measureSubject(gray, w, h)).toEqual({
+			x: 0,
+			y: 0.2,
+			width: 1,
+			height: 0.8,
+			headX: 0.5,
+			headY: 0.2
+		});
+		expect(measureSubject(new Uint8Array(w * h), w, h)).toBeNull();
+	});
+
+	it('looks up and smooths the box for a program frame', () => {
+		const box = (x: number) => ({
+			x,
+			y: 0.2,
+			width: 0.5,
+			height: 0.8,
+			headX: x + 0.25,
+			headY: 0.2
+		});
+		const withBoxes = {
+			...frames,
+			first: 30,
+			last: 33,
+			boxes: [box(0.1), box(0.2), null, box(0.3)]
+		};
+		expect(subjectBox(withBoxes, 15 + 31)?.x).toBe(0.2);
+		expect(subjectBox(withBoxes, 15 + 31, 1)?.x).toBeCloseTo(0.15);
+		// Missing frames are skipped; frames outside the extracted range hold the edge.
+		expect(subjectBox(withBoxes, 15 + 32)).toBeNull();
+		expect(subjectBox(withBoxes, 15 + 32, 1)?.x).toBeCloseTo(0.25);
+		expect(subjectBox(withBoxes, 15 + 200)?.x).toBe(0.3);
+		expect(subjectBox(frames, 60)).toBeNull();
+	});
+});
+
+describe('prepareFootage subject boxes', () => {
+	const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
+	it.skipIf(!hasFfmpeg)('measures the subject in every extracted frame', async () => {
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-boxes-'));
+		const run = (args: string[]) => {
+			const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...args]);
+			if (r.status !== 0) throw new Error(String(r.stderr));
+		};
+		run([
+			'-f',
+			'lavfi',
+			'-i',
+			'testsrc2=size=160x160:rate=30:duration=1',
+			'-pix_fmt',
+			'yuv420p',
+			path.join(dir, 'talk.mp4')
+		]);
+		// White square from x 40–119, y 60–159: the "subject".
+		run([
+			'-f',
+			'lavfi',
+			'-i',
+			'color=black:s=160x160:r=30:d=1',
+			'-vf',
+			"geq=lum='if(between(X,40,119)*gte(Y,60),255,0)':cb=128:cr=128",
+			'-pix_fmt',
+			'yuv420p',
+			path.join(dir, 'talk.matte.mp4')
+		]);
+		await fs.writeFile(
+			path.join(dir, 'p.vf.json'),
+			JSON.stringify({
+				size: [160, 160],
+				fps: 30,
+				footage: { talk: { src: 'talk.mp4', matte: 'talk.matte.mp4' } },
+				clips: [{ id: 'a', block: 'b.svelte', from: 0, until: 0.5 }]
+			})
+		);
+		const loaded = await loadMotionProject(path.join(dir, 'p.vf.json'));
+		await prepareFootage(loaded, loaded.resolved.clips);
+		const frames = loaded.resolved.clips[0].footage!.talk;
+		expect(frames.boxes).toHaveLength(frames.last - frames.first + 1);
+		const box = subjectBox(frames, 5)!;
+		expect(box.x).toBeCloseTo(0.25, 1);
+		expect(box.width).toBeCloseTo(0.5, 1);
+		expect(box.headY).toBeCloseTo(0.375, 1);
+		await fs.rm(dir, { recursive: true, force: true });
 	});
 });

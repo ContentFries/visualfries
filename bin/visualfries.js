@@ -52,7 +52,7 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries clips <project.vf.json> [--clip <id>] [--json]
   visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]
   visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
-  visualfries render <project.vf.json> --output <dir> [--clip <id>]... [--jobs <n>]
+  visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
   visualfries matte <video> --output <matte.mp4> [--provider fal|command] [options]
                     subject matte (white = subject) for "footage". Default provider: BiRefNet v2
                     on fal.ai (FAL_KEY; --model Matting, --resolution 1024x1024). Any local tool:
@@ -1736,7 +1736,7 @@ async function motionRenderCommand(args) {
 	const output = readFlag(args, '--output');
 	if (!output)
 		throw new Error(
-			'Usage: visualfries render <project.vf.json> --output <dir> [--clip <id>]... [--jobs <n>]'
+			'Usage: visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]'
 		);
 	const { loadMotionProject, renderMotionClips } = await motionModule();
 	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });

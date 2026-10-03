@@ -105,8 +105,11 @@
 	// A word longer than the line shrinks the caption so it never runs off the frame.
 	const fit = $derived.by(() => {
 		if (!chunk) return px;
+		// Heavy uppercase runs about 0.74em a character; punch enters at 1.5× and bold pops to ~1.3×.
 		const longest = Math.max(...chunk.words.map((w) => w.text.length));
-		return Math.min(px, Math.floor((clip.width * width) / (longest * 0.62)));
+		const em = upper ? 0.74 : 0.62;
+		const grow = preset === 'punch' ? 1.5 : preset === 'bold' ? 1.3 : 1.15;
+		return Math.min(px, Math.floor((clip.width * width) / (longest * em * grow)));
 	});
 
 	function easeOutBack(x: number) {
@@ -192,10 +195,11 @@
 	}
 	.w {
 		display: inline-block;
-		margin: 0 0.2em;
+		margin: 0 0.26em;
 		transform-origin: 50% 60%;
 	}
 	.vf-captions--bold .w {
+		margin: 0 0.34em;
 		-webkit-text-stroke: 0.09em #000;
 		paint-order: stroke fill;
 		text-shadow: 0 0.08em 0.25em rgba(0, 0, 0, 0.55);

@@ -880,7 +880,16 @@ export async function renderMotionClips(loaded, opts) {
     const clips = opts.clips?.length
         ? opts.clips.map((id) => loaded.resolved.clips.find((x) => x.id === id))
         : loaded.resolved.clips;
-    await fs.mkdir(opts.output, { recursive: true });
+    // `--output out.mp4` (or `.mov`) names the file itself when one clip is rendered.
+    const single = /\.(mp4|mov)$/i.test(opts.output) ? path.resolve(opts.output) : undefined;
+    if (single) {
+        if (clips.length !== 1)
+            throw new Error(`--output ${opts.output} names one file, but ${clips.length} clips would render. Pick one with --clip <id>, or pass a directory.`);
+        const ext = clips[0].alpha ? '.mov' : '.mp4';
+        if (path.extname(single).toLowerCase() !== ext)
+            throw new Error(`Clip "${clips[0].id}" renders ${ext === '.mov' ? 'a transparent .mov' : 'an .mp4'}; use --output <name>${ext}.`);
+    }
+    await fs.mkdir(single ? path.dirname(single) : opts.output, { recursive: true });
     const bundle = await bundleMotionProject(loaded, clips);
     // libx264 with yuv420p needs even dimensions; fail before capturing, not after.
     for (const clip of clips) {
@@ -896,7 +905,7 @@ export async function renderMotionClips(loaded, opts) {
             const framesDir = await fs.mkdtemp(path.join(os.tmpdir(), `vf-frames-${clip.id}-`));
             const per = Math.ceil(clip.frames / jobs);
             let mode = '';
-            const file = path.resolve(opts.output, `${clip.id}.${clip.alpha ? 'mov' : 'mp4'}`);
+            const file = single ?? path.resolve(opts.output, `${clip.id}.${clip.alpha ? 'mov' : 'mp4'}`);
             try {
                 await Promise.all(Array.from({ length: Math.min(jobs, clip.frames) }, async (_, j) => {
                     const from = j * per;
@@ -971,6 +980,8 @@ export async function renderMotionClips(loaded, opts) {
         await browser.close();
         await fs.rm(bundle.dir, { recursive: true, force: true });
     }
+    if (single)
+        return results;
     // Re-rendering some clips updates their entries and keeps the rest of the manifest.
     const manifestPath = path.resolve(opts.output, 'manifest.json');
     let previous = [];

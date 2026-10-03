@@ -324,7 +324,7 @@ Start with the built-in block `"block": "@visualfries/speaker-depth"`: the words
 6. Block layers, back to front: backdrop → type layer → camera wrapper with `<Footage layer="plate">` (fade it out or keep it), optional `<Footage layer="subject" offset={-0.4}>` ghost, `<Footage layer="subject">` → captions on top.
 7. Put behind-the-head words low enough that the head covers part of them; words fully above the head look like plain titles. Fit the frame width (scale font-size to the word length).
 8. `visualfries check --determinism`, then `visualfries still … --output sheet.png` (start, every cue, end) and look at it: words clipped by the frame edge, unreadable words, matte errors around hands and microphone.
-9. `visualfries render project.vf.json --output out/` → `out/<clip>.mp4` with sound.
+9. `visualfries render project.vf.json --output out/` → `out/<clip>.mp4` with sound (or `--clip <id> --output reel.mp4` for one file).
 
 Never use a `<video>` element in a block: it plays on wall-clock time. Animate on cues (`useTimeline` + `at('cue')`), keep randomness frame-keyed (`noise(frame, n)`).
 

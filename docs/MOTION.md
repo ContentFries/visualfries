@@ -170,6 +170,7 @@ visualfries check video.vf.json [--determinism]    # run every block without ren
 visualfries still video.vf.json --clip B --output b.png            # sheet: start, every cue, end
 visualfries still video.vf.json --clip B --at extra --at extra.end+0.5 --output b.png
 visualfries render video.vf.json --output out/ [--clip B] [--jobs 6]   # MP4 / MOV + manifest.json
+visualfries render video.vf.json --clip B --output b.mp4               # one clip straight to a file
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover
 visualfries matte talk.mp4 --output talk.matte.mp4               # subject matte (fal.ai or --command)
 ```

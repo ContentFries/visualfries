@@ -1,0 +1,146 @@
+{
+	"size": [
+		1080,
+		1920
+	],
+	"fps": 30,
+	"background": "#08090c",
+	"transcript": "reel.transcript.json",
+	"fonts": [
+		{
+			"family": "Anton",
+			"src": "fonts/Anton-Regular.ttf"
+		},
+		{
+			"family": "Inter",
+			"src": "fonts/Inter.ttf",
+			"weight": "100 900"
+		},
+		{
+			"family": "Bricolage",
+			"src": "fonts/Bricolage.ttf",
+			"weight": "200 800"
+		}
+	],
+	"footage": {
+		"talk": {
+			"src": "talk.mp4",
+			"matte": "talk.matte.mp4"
+		}
+	},
+	"clips": [
+		{
+			"id": "depth",
+			"block": "@visualfries/speaker-depth",
+			"from": 0,
+			"until": 17,
+			"audio": "talk",
+			"cues": {
+				"fall": "Anyway",
+				"video": {
+					"say": "video",
+					"occurrence": 1
+				},
+				"editor": {
+					"say": "video editor",
+					"edge": "last",
+					"occurrence": 1
+				},
+				"ai": {
+					"say": "AI",
+					"occurrence": 1
+				},
+				"other": "compared to",
+				"without": "doesn't use them",
+				"so": "so clearly",
+				"huge": "huge",
+				"lead": "edge",
+				"but": "We're getting",
+				"far": "closer to",
+				"ai2": {
+					"say": "AI",
+					"occurrence": 2
+				},
+				"fully": "fully",
+				"replace": "replace it"
+			},
+			"words": {
+				"captions": "clip"
+			},
+			"props": {
+				"words": [
+					{
+						"text": "VIDEO",
+						"at": "video",
+						"enter": "left",
+						"y": 0.2,
+						"until": "ai-0.1"
+					},
+					{
+						"text": "EDITOR",
+						"at": "editor",
+						"until": "ai-0.1",
+						"enter": "right",
+						"y": 0.35
+					},
+					{
+						"text": "AI",
+						"at": "ai",
+						"until": "other",
+						"style": "accent",
+						"hit": true
+					},
+					{
+						"text": "HUGE",
+						"at": "huge",
+						"style": "accent",
+						"hit": true
+					},
+					{
+						"text": "EDGE",
+						"at": "lead",
+						"until": "but",
+						"style": "accent"
+					},
+					{
+						"text": "CLOSER",
+						"at": "far",
+						"until": "ai2",
+						"style": "echo"
+					},
+					{
+						"text": "AI",
+						"at": "ai2",
+						"until": "replace-0.2",
+						"style": "outline"
+					},
+					{
+						"text": "REPLACE",
+						"at": "replace",
+						"style": "accent",
+						"hit": true
+					}
+				],
+				"ghost": {
+					"at": "other+0.4",
+					"until": "so+0.6",
+					"label": "no AI",
+					"labelOwn": "with AI"
+				},
+				"cold": {
+					"at": "but",
+					"until": "fully-0.2"
+				},
+				"captions": {
+					"preset": "bold"
+				}
+			}
+		},
+		{
+			"id": "outro",
+			"block": "blocks/Outro.svelte",
+			"from": 17,
+			"until": 21
+		}
+	]
+}

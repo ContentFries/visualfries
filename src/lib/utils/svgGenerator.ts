@@ -1,4 +1,6 @@
 import { fetchFont } from '../fonts/fontLoader.js';
+import { resolveTextFontSource } from '../fonts/fontDiscovery.js';
+import type { FontType } from '../schemas/scene/index.js';
 import { loadEmoji, getIconCode } from './emoji.js';
 import type { TextAppearance } from '$lib/index.js';
 import { sanitizeHtml } from './html.js';
@@ -23,7 +25,9 @@ export class SVGGenerator {
 		width: number,
 		height: number,
 		svgParentId?: string,
-		fontText?: string
+		fontText?: string,
+		/** The scene's configured fonts: text without its own fontSource inlines these. */
+		configuredFonts: FontType[] = []
 	): Promise<{ base: string; content: string; end: string }> {
 		const fontFamily = config.fontFamily
 			? config.fontFamily.replace(/\s+/g, '+').replace(/^(.)/, (match) => match.toUpperCase())
@@ -45,7 +49,11 @@ export class SVGGenerator {
 
 		let fontData: string | null = null;
 
-		if (fontFamily && !isEmoji && config.fontSource?.source === 'google') {
+		if (
+			fontFamily &&
+			!isEmoji &&
+			resolveTextFontSource(config, configuredFonts) === 'google'
+		) {
 			const cacheKey = `${fontFamily + weightAppend}_${getFontText}`;
 			if (cacheKey in this.fontDataBase64Cache) {
 				fontData = this.fontDataBase64Cache[cacheKey];

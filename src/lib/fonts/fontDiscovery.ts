@@ -237,6 +237,25 @@ const collectComponentTextVariants = (
 	}
 };
 
+/**
+ * Where a text component's font comes from, decided exactly as loading decides it for that
+ * component (collectComponentTextVariants): its own `fontSource`, else the configured font that
+ * the family or alias looks up to, else nowhere (a system font). SVG inlining uses this, so a font
+ * that loads is also the font that gets drawn.
+ */
+export const resolveTextFontSource = (
+	text: { fontFamily?: string | null; fontSource?: { source?: 'google' | 'custom' | null } | null },
+	configuredFonts: FontType[]
+): 'google' | 'custom' | null => {
+	if (text.fontSource?.source) return text.fontSource.source;
+	const family = normalizeFamily(text.fontFamily ?? undefined);
+	if (!family) return null;
+	const configMatch = createConfiguredLookup(parseConfiguredFonts(configuredFonts)).get(
+		family.toLowerCase()
+	);
+	return configMatch?.source ?? null;
+};
+
 export const extractConfiguredFontVariants = (
 	configuredFonts: FontType[] = []
 ): FontVariantDescriptor[] => {

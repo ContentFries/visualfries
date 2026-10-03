@@ -11,6 +11,7 @@ import { buildLocalMixedAudioTrack, resolveAudioMixRanges } from './audioMixer.j
 import { prepareLocalDeterministicMedia } from './deterministicMedia.js';
 import { resolveEffectiveRenderRanges } from './renderRanges.js';
 import { resolveAgentRenderPlan, type AgentRenderPlan } from './renderPlan.js';
+import { discoverSceneFonts } from './sceneFonts.js';
 import { muxAudioWithVideo, PipeFrameEncoder } from './streamingEncoder.js';
 
 export type LocalRenderModulePaths = {
@@ -359,13 +360,14 @@ window.__VISUALFRIES_RENDER__={
 	async init(){
 		const rawScene=await fetch('/scene.json').then((response)=>response.json());
 		const rendererOptions=await fetch('/renderer-options.json').then((response)=>response.json()).catch(()=>({}));
+		const fonts=await fetch('/fonts.json').then((response)=>response.ok?response.json():[]).catch(()=>[]);
 		try{deterministicMediaPayload=await fetch('/deterministic-media.json').then((response)=>response.ok?response.json():null);}catch{deterministicMediaPayload=null;}
 		scene=rawScene;
 		root.style.width=scene.settings.width+'px';
 		root.style.height=scene.settings.height+'px';
 		const deterministicProvider=deterministicMediaPayload?.frameManifest?{async getFrame(request){const url=deterministicMediaPayload.frameManifest?.[request.componentId]?.[String(request.frameIndex)];if(!url)return null;return{kind:'url',cacheKey:request.componentId+':'+request.frameIndex+':'+url,url};}}:undefined;
 		const serverRendererMode=rendererOptions.serverRendererMode==='webgl'?'webgl':'canvas';
-		builder=await createSceneBuilder(scene,root,{environment:rendererOptions.environment==='client'?'client':'server',autoPlay:false,loop:false,scale:1,forceCanvas:rendererOptions.environment==='client'?false:serverRendererMode!=='webgl',serverRendererMode,preferWebGL2:rendererOptions.preferWebGL2!==false,powerPreference:rendererOptions.powerPreference||'high-performance',deterministicMedia:{enabled:Boolean(deterministicProvider),strict:Boolean(deterministicProvider&&deterministicMediaPayload?.mediaDeterministicStrict),diagnostics:Boolean(deterministicProvider&&deterministicMediaPayload?.diagnosticsEnabled),provider:deterministicProvider}});
+		builder=await createSceneBuilder(scene,root,{fonts,environment:rendererOptions.environment==='client'?'client':'server',autoPlay:false,loop:false,scale:1,forceCanvas:rendererOptions.environment==='client'?false:serverRendererMode!=='webgl',serverRendererMode,preferWebGL2:rendererOptions.preferWebGL2!==false,powerPreference:rendererOptions.powerPreference||'high-performance',deterministicMedia:{enabled:Boolean(deterministicProvider),strict:Boolean(deterministicProvider&&deterministicMediaPayload?.mediaDeterministicStrict),diagnostics:Boolean(deterministicProvider&&deterministicMediaPayload?.diagnosticsEnabled),provider:deterministicProvider}});
 		await builder.seek(0);
 		return{id:scene.id,width:scene.settings.width,height:scene.settings.height,duration:scene.settings.duration,fps:scene.settings.fps??30};
 	},
@@ -398,6 +400,9 @@ const findBrowserExecutable = (explicit?: string): string | undefined => {
 		process.env.VISUALFRIES_CHROMIUM_PATH,
 		process.env.VISUALFRIES_CHROMIUM, // legacy name
 		process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+		'/usr/bin/chromium',
+		'/usr/bin/chromium-browser',
+		'/usr/bin/google-chrome',
 		'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 		path.join(
 			os.homedir(),
@@ -657,6 +662,10 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 		await fs.writeFile(
 			path.join(tempRoot, 'scene.json'),
 			`${JSON.stringify(renderScene, null, 2)}\n`
+		);
+		await fs.writeFile(
+			path.join(tempRoot, 'fonts.json'),
+			`${JSON.stringify(discoverSceneFonts(renderScene))}\n`
 		);
 
 		const playwright = await importFromOptionalPaths(

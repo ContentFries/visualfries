@@ -19,8 +19,9 @@ Claude Opus 5.5 and to GPT-6.1 Sol. Every folder holds exactly what the agent wr
   sandbox cannot start Chromium, so Sol could compile its blocks but not see them. To make up for that we ran
   `check --determinism` and `still` for it and sent the output back into the same session, without comment, at most
   twice per brief (`qa/feedback*.md` are those messages; `answer*.md` are Sol's replies). Then we rendered.
-- Footage, fonts and renders are not in the repository (see `.gitignore`). To re-render, put `talk.mp4`,
-  `talk.matte.mp4` and `talk.transcript.json` from [the speaker-depth demo](../../static/demo/speaker-depth) and the
-  fonts named in each project into the folder, then run `npx visualfries render project.vf.json --output out/`.
+- Footage, fonts and renders are not in the repository (see `.gitignore`). To re-render, bring your own
+  talking-head take as `talk.mp4`, make `talk.matte.mp4` and use `talk.transcript.json` as described in
+  [the speaker-depth demo](../../static/demo/speaker-depth/README.md), add the fonts named in each project under
+  `fonts/`, then run `npx visualfries render project.vf.json --output out/`.
 
 We recommend Opus 5.5 because it is what we build with, but judge the renders yourself.

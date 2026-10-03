@@ -231,11 +231,11 @@
 					>
 				</div>
 			</div>
-			<div class="rail" aria-label="Layer descriptions">
-				<div data-l="1"><b>01 backdrop</b>The room, regraded. Or a light, an image, or nothing.</div>
-				<div data-l="2"><b>02 type</b>Huge words, slammed in on cue, placed behind the head it finds in the matte.</div>
-				<div data-l="3"><b>03 subject</b><span>The speaker, cut out by <code>visualfries matte</code>.</span></div>
-				<div data-l="4"><b>04 captions</b>Every word, timed to the transcript. Styled in CSS.</div>
+			<div class="rail" role="group" aria-label="Layers: highlight one">
+				<button type="button" data-l="1"><b>01 backdrop</b>The room, regraded. Or a light, an image, or nothing.</button>
+				<button type="button" data-l="2"><b>02 type</b>Huge words, slammed in on cue, placed behind the head it finds in the matte.</button>
+				<button type="button" data-l="3"><b>03 subject</b><span>The speaker, cut out by <code>visualfries matte</code>.</span></button>
+				<button type="button" data-l="4"><b>04 captions</b>Every word, timed to the transcript. Styled in CSS.</button>
 			</div>
 		</div>
 	</div>
@@ -349,15 +349,15 @@
 				<span class="num">02 · THE AGENT WRITES</span>
 				<h3>A JSON project, and blocks when it needs them</h3>
 				<pre><code>{
-  <span class="k">"size"</span>: [<span class="n">1080</span>, <span class="n">1920</span>],
+  <span class="k">"size"</span>: [<span class="n">1080</span>, <span class="n">1920</span>], <span class="k">"fps"</span>: <span class="n">30</span>,
   <span class="k">"transcript"</span>: <span class="s">"talk.transcript.json"</span>,
   <span class="k">"footage"</span>: { <span class="k">"talk"</span>: {
-    <span class="k">"src"</span>: <span class="s">"talk.mp4"</span>,
-    <span class="k">"matte"</span>: <span class="s">"talk.matte.mp4"</span> } },
+    <span class="k">"src"</span>: <span class="s">"talk.mp4"</span>, <span class="k">"matte"</span>: <span class="s">"talk.matte.mp4"</span> } },
   <span class="k">"clips"</span>: [{
     <span class="k">"id"</span>: <span class="s">"depth"</span>,
     <span class="k">"block"</span>: <span class="s">"@visualfries/speaker-depth"</span>,
-    <span class="k">"from"</span>: <span class="n">0</span>, <span class="k">"until"</span>: <span class="n">17</span>,
+    <span class="k">"from"</span>: <span class="n">0</span>, <span class="k">"until"</span>: <span class="n">17</span>, <span class="k">"audio"</span>: <span class="s">"talk"</span>,
+    <span class="k">"words"</span>: { <span class="k">"captions"</span>: <span class="s">"clip"</span> },
     <span class="k">"cues"</span>: { <span class="k">"huge"</span>: <span class="s">"huge"</span> },
     <span class="k">"props"</span>: {
       <span class="k">"words"</span>: [{ <span class="k">"text"</span>: <span class="s">"HUGE"</span>,
@@ -366,18 +366,18 @@
     }
   }]
 }</code></pre>
-				<p>Cues are phrases, not seconds. Re-record a sentence and every clip re-times itself.</p>
+				<p>Cues are phrases, not seconds. Re-record a sentence and every cue moves with the words.</p>
 			</div>
 			<div class="step rv">
 				<span class="num">03 · VISUALFRIES RENDERS</span>
 				<h3>Checked, previewed, frame-exact</h3>
 				<pre><code><span class="y">$</span> visualfries clips reel.vf.json
-depth  0.000–17.000s  510 frames
-  cue huge   9.04s <span class="s">"huge"</span>
+depth  0.000–17.000s  frame 0  510 frames
+  cue huge     9.04s <span class="s">"huge"</span>
 <span class="y">$</span> visualfries check reel.vf.json --determinism
 <span class="g">ok   depth  (html-in-canvas)</span>
 <span class="g">All 1 clips pass.</span>
-<span class="y">$</span> visualfries still reel.vf.json --clip depth
+<span class="y">$</span> visualfries still reel.vf.json --clip depth --output sheet.png
 <span class="y">$</span> visualfries render reel.vf.json --output out/
 <span class="g">depth: 510 frames in 97.2 s</span></code></pre>
 				<p>Same input, same frames, every time. ProRes 4444 alpha inserts drop onto your NLE timeline with a manifest.</p>
@@ -400,11 +400,11 @@ depth  0.000–17.000s  510 frames
 			</p>
 		</div>
 		<div class="tabs" role="tablist" aria-label="Briefs">
-			<button role="tab" aria-selected="true" data-brief="stat">Stat post</button>
-			<button role="tab" aria-selected="false" data-brief="carousel">Carousel</button>
-			<button role="tab" aria-selected="false" data-brief="explainer">Explainer</button>
+			<button role="tab" id="tab-stat" aria-controls="panel-stat" aria-selected="true" tabindex="0" data-brief="stat">Stat post</button>
+			<button role="tab" id="tab-carousel" aria-controls="panel-carousel" aria-selected="false" tabindex="-1" data-brief="carousel">Carousel</button>
+			<button role="tab" id="tab-explainer" aria-controls="panel-explainer" aria-selected="false" tabindex="-1" data-brief="explainer">Explainer</button>
 		</div>
-		<div class="brief on" data-brief="stat" role="tabpanel">
+		<div class="brief on" id="panel-stat" data-brief="stat" role="tabpanel" aria-labelledby="tab-stat">
 			<div class="prompt">
 				<span class="tag">brief</span><span
 					>A 1080×1350 post that also works as a 4-second video: everything animates in, the last frame is the finished
@@ -445,7 +445,7 @@ depth  0.000–17.000s  510 frames
 				</div>
 			</div>
 		</div>
-		<div class="brief" data-brief="carousel" role="tabpanel" hidden>
+		<div class="brief" id="panel-carousel" data-brief="carousel" role="tabpanel" aria-labelledby="tab-carousel" hidden>
 			<div class="prompt">
 				<span class="tag">brief</span><span
 					>A 5-slide 1080×1350 carousel: <b>"How to turn one talking-head take into a week of content"</b>. A hook,
@@ -486,7 +486,7 @@ depth  0.000–17.000s  510 frames
 				</div>
 			</div>
 		</div>
-		<div class="brief" data-brief="explainer" role="tabpanel" hidden>
+		<div class="brief" id="panel-explainer" data-brief="explainer" role="tabpanel" aria-labelledby="tab-explainer" hidden>
 			<div class="prompt">
 				<span class="tag">brief</span><span
 					>A 12-second 1920×1080 explainer of how VisualFries turns a project into an MP4:

@@ -52,8 +52,10 @@ export function initHome(root: HTMLElement): () => void {
 	const tick = $('#ticker');
 	if (tick && !reduce) tick.innerHTML += tick.innerHTML;
 
-	// ---- reveal on scroll ----
+	// ---- reveal on scroll (content stays visible without JS: hiding starts here) ----
 	if (!reduce && 'IntersectionObserver' in window) {
+		root.classList.add('rv-on');
+		cleanups.push(() => root.classList.remove('rv-on'));
 		const io = new IntersectionObserver(
 			(es) =>
 				es.forEach((e) => {
@@ -68,17 +70,47 @@ export function initHome(root: HTMLElement): () => void {
 		cleanups.push(() => io.disconnect());
 	} else $$('.rv').forEach((el) => el.classList.add('in'));
 
-	// ---- videos: play only when visible; never autoplay with reduced motion ----
+	// ---- videos: play only when visible, each with a pause button; never autoplay with reduced motion ----
 	const vids = $$<HTMLVideoElement>('video');
+	const paused = new Set<HTMLVideoElement>();
+	const PAUSE = '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg>';
+	const PLAY = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>';
+	const play = (v: HTMLVideoElement) => {
+		if (!reduce && !paused.has(v)) v.play().catch(() => {});
+	};
 	vids.forEach((v) => {
-		if (reduce) v.controls = true;
+		if (reduce) {
+			v.controls = true;
+			return;
+		}
+		const b = document.createElement('button');
+		b.type = 'button';
+		b.className = 'vpause';
+		const sync = () => {
+			const off = paused.has(v);
+			b.innerHTML = off ? PLAY : PAUSE;
+			b.setAttribute('aria-label', off ? 'Play video' : 'Pause video');
+		};
+		sync();
+		on(b, 'click', () => {
+			if (paused.has(v)) {
+				paused.delete(v);
+				play(v);
+			} else {
+				paused.add(v);
+				v.pause();
+			}
+			sync();
+		});
+		v.after(b);
+		cleanups.push(() => b.remove());
 	});
 	if (!reduce && 'IntersectionObserver' in window) {
 		const vo = new IntersectionObserver(
 			(es) =>
 				es.forEach((e) => {
 					const v = e.target as HTMLVideoElement;
-					if (e.isIntersecting) v.play().catch(() => {});
+					if (e.isIntersecting) play(v);
 					else v.pause();
 				}),
 			{ threshold: 0.25 }
@@ -102,22 +134,36 @@ export function initHome(root: HTMLElement): () => void {
 		cleanups.push(() => clearInterval(id));
 	}
 
-	// ---- brief tabs ----
+	// ---- brief tabs: click, or arrow keys / Home / End with a roving tabindex ----
 	const tabs = $$('.tabs [role=tab]');
-	tabs.forEach((t) =>
-		on(t, 'click', () => {
-			tabs.forEach((x) => x.setAttribute('aria-selected', String(x === t)));
-			$$('.brief').forEach((p) => {
-				const active = p.dataset.brief === t.dataset.brief;
-				p.classList.toggle('on', active);
-				p.hidden = !active;
-				$$<HTMLVideoElement>('video', p).forEach((v) => {
-					if (!active) v.pause();
-					else if (!reduce) v.play().catch(() => {});
-				});
-			});
-		})
-	);
+	const select = (t: HTMLElement, focus = false) => {
+		tabs.forEach((x) => {
+			x.setAttribute('aria-selected', String(x === t));
+			x.tabIndex = x === t ? 0 : -1;
+		});
+		if (focus) t.focus();
+		$$('.brief').forEach((p) => {
+			const active = p.dataset.brief === t.dataset.brief;
+			p.classList.toggle('on', active);
+			p.hidden = !active;
+			$$<HTMLVideoElement>('video', p).forEach((v) => (active ? play(v) : v.pause()));
+		});
+	};
+	tabs.forEach((t, i) => {
+		on(t, 'click', () => select(t));
+		on(t, 'keydown', (ev) => {
+			const k = (ev as KeyboardEvent).key;
+			const to =
+				k === 'ArrowRight' ? (i + 1) % tabs.length
+				: k === 'ArrowLeft' ? (i - 1 + tabs.length) % tabs.length
+				: k === 'Home' ? 0
+				: k === 'End' ? tabs.length - 1
+				: -1;
+			if (to < 0) return;
+			ev.preventDefault();
+			select(tabs[to], true);
+		});
+	});
 
 	// ---- exploded layers: scroll-driven, hover-tilted, click-focusable ----
 	const stage = $('#stage');
@@ -158,16 +204,13 @@ export function initHome(root: HTMLElement): () => void {
 		}
 		const ex = $('#explode');
 		const co = $('#collapse');
-		if (ex)
-			on(ex, 'click', () => {
-				manual = 1;
-				kick();
-			});
-		if (co)
-			on(co, 'click', () => {
-				manual = 0;
-				kick();
-			});
+		const force = (e: number) => {
+			manual = e;
+			if (reduce) setE(e);
+			else kick();
+		};
+		if (ex) on(ex, 'click', () => force(1));
+		if (co) on(co, 'click', () => force(0));
 		if (!reduce && matchMedia('(hover: hover)').matches) {
 			on(stage, 'pointermove', (ev) => {
 				const e = ev as PointerEvent;
@@ -183,7 +226,7 @@ export function initHome(root: HTMLElement): () => void {
 			});
 		}
 		// rail: hover or click a description to lift that layer
-		const rails = $$('.rail div');
+		const rails = $$('.rail button');
 		const layers = $$('.layer');
 		rails.forEach((d) => {
 			const lift = () => {
@@ -196,6 +239,8 @@ export function initHome(root: HTMLElement): () => void {
 			};
 			on(d, 'pointerenter', lift);
 			on(d, 'pointerleave', drop);
+			on(d, 'focus', lift);
+			on(d, 'blur', drop);
 			on(d, 'click', lift);
 		});
 	}

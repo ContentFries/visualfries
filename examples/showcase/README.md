@@ -12,8 +12,8 @@ Written by Claude Opus 5.5 and rendered by VisualFries.
 The reel itself is the built-in [`@visualfries/speaker-depth`](../../static/demo/speaker-depth/template.vf.json) block,
 and the caption reels are [`@visualfries/captions`](../../static/demo/speaker-depth/captions.vf.json).
 
-Footage and fonts are not in the repository. Copy `talk.mp4`, `talk.matte.mp4` and `talk.transcript.json` into a
-folder, add a `fonts/` folder with Bricolage Grotesque (`Bricolage.ttf`), Inter, JetBrains Mono, Anton and Instrument
+Footage and fonts are not in the repository. Bring your own take as `talk.mp4` with `talk.matte.mp4` and a
+`talk.transcript.json` ([how](../../static/demo/speaker-depth/README.md)), add a `fonts/` folder with Bricolage Grotesque (`Bricolage.ttf`), Inter, JetBrains Mono, Anton and Instrument
 Serif (all on Google Fonts, OFL), then for example:
 
 ```bash

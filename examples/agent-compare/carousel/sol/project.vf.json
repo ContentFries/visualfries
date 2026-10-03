@@ -1,0 +1,21 @@
+{
+  "size": [1080, 1350],
+  "fps": 30,
+  "background": "#ffe100",
+  "transcript": "talk.transcript.json",
+  "fonts": [
+    {"family": "Bricolage", "src": "fonts/Bricolage.ttf", "weight": "200 800"},
+    {"family": "Inter", "src": "fonts/Inter.ttf", "weight": "100 900"},
+    {"family": "Mono", "src": "fonts/JetBrainsMono.ttf", "weight": "100 800"},
+    {"family": "Anton", "src": "fonts/Anton-Regular.ttf", "weight": "400"}
+  ],
+  "styles": ["theme/editorial.css"],
+  "footage": {"talk": {"src": "talk.mp4", "matte": "talk.matte.mp4", "start": 0, "margin": 2}},
+  "clips": [
+    {"id": "01-hook", "block": "blocks/Hook.svelte", "from": 0, "until": 3, "props": {"title": "How to turn one talking-head take into a week of content"}},
+    {"id": "02-record", "block": "blocks/Record.svelte", "from": 3, "until": 6, "background": "#141413"},
+    {"id": "03-agent", "block": "blocks/Agent.svelte", "from": 6, "until": 9},
+    {"id": "04-formats", "block": "blocks/Formats.svelte", "from": 9, "until": 12, "background": "#141413"},
+    {"id": "05-install", "block": "blocks/Install.svelte", "from": 12, "until": 15}
+  ]
+}

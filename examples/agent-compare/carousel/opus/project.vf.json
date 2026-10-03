@@ -1,0 +1,32 @@
+{
+	"size": [1080, 1350],
+	"fps": 30,
+	"background": "#0f0f0d",
+	"transcript": "talk.transcript.json",
+	"fonts": [
+		{ "family": "Bricolage", "src": "fonts/Bricolage.ttf", "weight": "200 800" },
+		{ "family": "Inter", "src": "fonts/Inter.ttf", "weight": "100 900" },
+		{ "family": "JBMono", "src": "fonts/JetBrainsMono.ttf", "weight": "100 800" },
+		{ "family": "Anton", "src": "fonts/Anton-Regular.ttf" },
+		{ "family": "Instrument Serif", "src": "fonts/InstrumentSerif-Italic.ttf", "style": "italic" },
+		{ "family": "Instrument Serif", "src": "fonts/InstrumentSerif-Regular.ttf", "style": "normal" }
+	],
+	"styles": ["theme/carousel.css"],
+	"footage": {
+		"talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "start": 0, "margin": 3 }
+	},
+	"clips": [
+		{ "id": "s1-hook", "block": "blocks/Hook.svelte", "from": 0, "until": 3, "props": { "n": 1 } },
+		{ "id": "s2-record", "block": "blocks/Record.svelte", "from": 3, "until": 6, "props": { "n": 2 } },
+		{
+			"id": "s3-agent",
+			"block": "blocks/Agent.svelte",
+			"from": 6,
+			"until": 9,
+			"words": { "line": "so clearly will have a huge edge" },
+			"props": { "n": 3 }
+		},
+		{ "id": "s4-render", "block": "blocks/Formats.svelte", "from": 9, "until": 12, "props": { "n": 4 } },
+		{ "id": "s5-cta", "block": "blocks/Cta.svelte", "from": 12, "until": 15, "props": { "n": 5 } }
+	]
+}

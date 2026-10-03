@@ -1,0 +1,13 @@
+{
+	"size": [1920, 1080],
+	"fps": 30,
+	"background": "#09090b",
+	"fonts": [
+		{ "family": "Bricolage", "src": "fonts/Bricolage.ttf", "weight": "200 800" },
+		{ "family": "Inter", "src": "fonts/Inter.ttf", "weight": "100 900" },
+		{ "family": "JetBrains Mono", "src": "fonts/JetBrainsMono.ttf", "weight": "100 800" }
+	],
+	"clips": [
+		{ "id": "explainer", "block": "blocks/Explainer.svelte", "from": 0, "until": 12 }
+	]
+}

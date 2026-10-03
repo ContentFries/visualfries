@@ -12,13 +12,13 @@
 
 <style>
 	footer {
-		border-top: 1px solid var(--line);
+		border-top: 1px solid var(--line-2);
 		padding: 40px 0 calc(56px + env(safe-area-inset-bottom, 0px));
 		font-size: 14px;
 		color: var(--muted);
 	}
 	.wrap {
-		width: min(1360px, 100% - 40px);
+		width: min(1320px, 100% - 48px);
 		display: flex;
 		flex-wrap: wrap;
 		gap: 12px 28px;
@@ -31,6 +31,7 @@
 	}
 	a {
 		color: var(--muted);
+		text-decoration: none;
 	}
 	a:hover {
 		color: var(--ink);

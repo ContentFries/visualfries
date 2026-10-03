@@ -1,0 +1,15 @@
+:root { --yellow: #ffe100; --ink: #141413; --paper: #f5f3e8; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+h1,h2,h3,p { margin: 0; }
+.slide { position: relative; width: 1080px; height: 1350px; overflow: hidden; background: var(--yellow); color: var(--ink); font-family: 'Bricolage', sans-serif; }
+.slide.dark { background: var(--ink); color: var(--paper); }
+.mono { font-family: 'Mono', monospace; font-weight: 500; }
+.kicker { position: absolute; top: 164px; left: 72px; font-family: 'Mono',monospace; font-size: 24px; letter-spacing: -.4px; text-transform: uppercase; }
+.dark .kicker { color: var(--yellow); }
+.step-tag { display: inline-block; border: 1.5px solid currentColor; padding: 7px 13px; margin-right: 13px; font-size: 21px; }
+.headline { font-weight: 800; letter-spacing: -7px; line-height: .97; }
+.body { font-family: 'Inter',sans-serif; font-size: 34px; line-height: 1.4; letter-spacing: -.8px; }
+.hairline { height: 2px; background: currentColor; }
+.yellow { color: var(--yellow); }
+.reveal-line { overflow: hidden; padding-bottom: 12px; }

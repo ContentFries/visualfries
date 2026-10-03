@@ -1,0 +1,26 @@
+{
+	"size": [1920, 1080],
+	"fps": 30,
+	"background": "#0b0b0d",
+	"fonts": [
+		{ "family": "Bricolage", "src": "fonts/Bricolage.ttf", "weight": "200 800" },
+		{ "family": "Inter", "src": "fonts/Inter.ttf", "weight": "100 900" },
+		{ "family": "JetBrains Mono", "src": "fonts/JetBrainsMono.ttf", "weight": "100 800" }
+	],
+	"clips": [
+		{
+			"id": "pipeline",
+			"block": "blocks/Pipeline.svelte",
+			"from": 0,
+			"until": 12,
+			"cues": {
+				"json": 0.5,
+				"blocks": 3.0,
+				"frames": 5.6,
+				"mp4": 8.3,
+				"done": 10.2,
+				"outro": 10.6
+			}
+		}
+	]
+}

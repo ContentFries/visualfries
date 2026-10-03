@@ -1,0 +1,40 @@
+{
+	"size": [1080, 1350],
+	"fps": 30,
+	"background": "#0a0a0b",
+	"transcript": "talk.transcript.json",
+	"fonts": [
+		{ "family": "Anton", "src": "fonts/Anton-Regular.ttf" },
+		{ "family": "Inter", "src": "fonts/Inter.ttf", "weight": "100 900" },
+		{ "family": "JetBrains Mono", "src": "fonts/JetBrainsMono.ttf", "weight": "100 800" }
+	],
+	"footage": {
+		"talk": { "src": "talk.mp4", "matte": "talk.matte.mp4" }
+	},
+	"clips": [
+		{
+			"id": "stat",
+			"block": "blocks/StatPost.svelte",
+			"from": 0,
+			"until": 4,
+			"cues": {
+				"speaker": 0.05,
+				"head": 0.25,
+				"count": 0.7,
+				"slam": 1.45,
+				"tail": 1.75,
+				"grid": 2.1,
+				"brand": 2.75
+			},
+			"props": {
+				"items": [
+					{ "n": "1", "label": "Reel" },
+					{ "n": "5", "label": "Caption styles" },
+					{ "n": "1", "label": "Cover" },
+					{ "n": "1", "label": "Quote card" },
+					{ "n": "5", "label": "Carousel slides" }
+				]
+			}
+		}
+	]
+}

@@ -1,0 +1,10 @@
+{
+	"size": [1080, 1080],
+	"fps": 30,
+	"background": "#ffe100",
+	"fonts": [
+		{ "family": "Bricolage", "src": "fonts/Bricolage.ttf", "weight": "200 800" },
+		{ "family": "JetBrains Mono", "src": "fonts/JetBrainsMono.ttf", "weight": "100 800" }
+	],
+	"clips": [{ "id": "kinetic", "block": "blocks/Kinetic.svelte", "from": 0, "until": 8 }]
+}

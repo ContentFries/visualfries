@@ -7,9 +7,9 @@
 	let root: HTMLElement;
 	onMount(() => initHome(root));
 
-	const title = 'VisualFries — one document, every surface';
+	const title = 'VisualFries: your AI video editor, motion designer and graphic designer';
 	const description =
-		'VisualFries is an open-source Svelte 5 engine for social video. A JSON document describes blocks, time and surfaces; motion clips are timed by the words of a transcript, scene documents mount live in an editor and render headless.';
+		'VisualFries is an MIT-licensed engine for social visuals. Your coding agent writes Svelte blocks and a JSON project; VisualFries renders reels, posts, carousels, explainers and animations frame-exact, timed to the words of a transcript.';
 	const jsonLd = {
 		'@context': 'https://schema.org',
 		'@graph': [
@@ -17,7 +17,7 @@
 				'@type': 'SoftwareSourceCode',
 				name: 'VisualFries',
 				description:
-					'Open-source Svelte 5 library and headless engine for visual social-media content. A JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces. Scene documents mount live in an editor and render headless; motion blocks are functions of time, and the CLI can compare frames rendered forward and in reverse.',
+					'Open-source Svelte 5 engine for social visuals: talking-head reels, static posts, carousels, explainers and kinetic type. A JSON project describes clips, timed by transcript words; blocks are Svelte components; a matte cuts the speaker out so layers can sit behind them. Built-in blocks include word-timed captions and a speaker-depth reel. The CLI checks determinism, writes stills and renders MP4 or ProRes 4444 alpha.',
 				codeRepository: 'https://github.com/ContentFries/visualfries',
 				programmingLanguage: ['TypeScript', 'Svelte'],
 				license: 'https://opensource.org/licenses/MIT',
@@ -45,6 +45,14 @@
 					},
 					{
 						'@type': 'Question',
+						name: 'Which AI agent works best with VisualFries?',
+						acceptedAnswer: {
+							'@type': 'Answer',
+							text: 'Any coding agent that can write Svelte and run a CLI works. The VisualFries team recommends Claude Opus 5.5; the examples on visualfries.com were made with it, and the homepage shows Opus 5.5 and GPT-6.1 Sol on the same three briefs.'
+						}
+					},
+					{
+						'@type': 'Question',
 						name: 'What does the CLI do?',
 						acceptedAnswer: {
 							'@type': 'Answer',
@@ -65,7 +73,7 @@
 	<meta property="og:title" content={title} />
 	<meta property="og:description" content={description} />
 	<meta property="og:url" content="https://visualfries.com/" />
-	<meta property="og:image" content="https://visualfries.com/media/editable-poster.jpg" />
+	<meta property="og:image" content="https://visualfries.com/media/v2/explainer.jpg" />
 	<meta name="twitter:card" content="summary_large_image" />
 	<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt" />
 	<link rel="describedby" type="text/plain" href="/llms.txt" />

@@ -1,7 +1,7 @@
 ---
 title: 'CLI: clips, check, still, render'
 description: Reference for the VisualFries motion CLI. Resolve transcript cues with clips, test every block in seconds with check, review moments as a contact sheet with still, and render MP4 or ProRes 4444 with render.
-updated: 2026-09-27
+updated: 2026-10-10
 ---
 
 Four commands cover the life of a motion project: see where things land, check that blocks behave, look at moments, render. All of them accept `--transcript <file>` to work against a new voiceover.
@@ -74,20 +74,24 @@ A render refuses to start when any requested clip has errors, and verifies that 
 ## matte
 
 ```bash
-# BiRefNet v2 on fal.ai (default provider)
+# BiRefNet v2 on fal.ai (the default when FAL_KEY is set)
 FAL_KEY=… npx visualfries matte talk.mp4 --output talk.matte.mp4 [--model Matting] [--resolution 1024x1024]
+
+# MediaPipe, free and local (the default without FAL_KEY)
+npx visualfries matte talk.mp4 --output talk.matte.mp4 [--provider mediapipe] [--model selfie] [--smoothing 0.5]
 
 # any local tool: one run per piece, with placeholders
 npx visualfries matte talk.mp4 --output talk.matte.mp4 \
   --command "python rvm.py --in {input} --out {output}" [--command-output luma|alpha] [--max-frames 900]
 ```
 
-Makes a greyscale matte (white = subject) for a [footage](/docs/footage). VisualFries splits the video into pieces of `--chunk-frames` (default 480, at most the provider's limit; `--jobs` at once), hands each piece to the provider, checks that every mask has the piece's frame count (two missing frames are padded), scales it to the video and joins the pieces; the command fails unless the matte has exactly as many frames as the input.
+Makes a greyscale matte (white = subject) for a [footage](/docs/footage). Without `--provider`, `--command` picks `command`, a MediaPipe `--model` picks `mediapipe`, `FAL_KEY` picks `fal`, and otherwise `mediapipe` runs with a note on stderr (BiRefNet options such as `--resolution` without `FAL_KEY` fail instead). The provider in use is printed to stderr. VisualFries splits the video into pieces of `--chunk-frames` (default 480, at most the provider's limit; `--jobs` at once), hands each piece to the provider, checks that every mask has the piece's frame count (two missing frames are padded), scales it to the video and joins the pieces; the command fails unless the matte has exactly as many frames as the input.
 
-| Provider        |                                                                                                                                                                                                                                                                                                                                                                                                       |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fal` (default) | BiRefNet v2 on fal.ai, `FAL_KEY`, ≤512 frames per request. Models: `Matting` (keeps hair), `Portrait`, `General Use (Light)`, `General Use (Light 2K)`, `General Use (Heavy)`, `General Use (Dynamic)`.                                                                                                                                                                                               |
-| `command`       | Your tool. Placeholders: `{input}`, `{output}` (paths, passed through environment variables so any character is safe), `{fps}`, `{width}`, `{height}`, `{frames}`. The tool writes greyscale with white = subject, or with `--command-output alpha` a video with transparency (ProRes 4444 `.mov` by default; `--command-ext .webm` for VP9 with alpha). A mask without an alpha channel is rejected. |
+| Provider    |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `fal`       | BiRefNet v2 on fal.ai: the best hair and edges, a paid API (`FAL_KEY`), one to three minutes for 17 s of 1000×1080 video. ≤512 frames per request. Models: `Matting` (keeps hair), `Portrait`, `General Use (Light)`, `General Use (Light 2K)`, `General Use (Heavy)`, `General Use (Dynamic)`.                                                                                                                                                                                                                                |
+| `mediapipe` | MediaPipe selfie segmentation in headless Chromium: free, local, no key, about 15 s for the same clip on a 12-core CPU. Softer edges and rougher hair than BiRefNet; best for small cut-outs and picture-in-picture. Needs `@mediapipe/tasks-vision` and `playwright` (optional peer dependencies); the model is downloaded once to `~/.cache/visualfries` (`VISUALFRIES_CACHE_DIR`). `--model selfie` or `selfie-landscape` (default: by the video's shape), `--smoothing` (0 = off, default 0.5), `--jobs` browsers at once. |
+| `command`   | Your tool. Placeholders: `{input}`, `{output}` (paths, passed through environment variables so any character is safe), `{fps}`, `{width}`, `{height}`, `{frames}`. The tool writes greyscale with white = subject, or with `--command-output alpha` a video with transparency (ProRes 4444 `.mov` by default; `--command-ext .webm` for VP9 with alpha). A mask without an alpha channel is rejected.                                                                                                                          |
 
 In Node, pass any object with `name`, `maxFrames` and `segment(piece)` as `provider` to `createSubjectMatte` from `visualfries/motion/matte` ([example](/docs/footage#make-a-matte)).
 

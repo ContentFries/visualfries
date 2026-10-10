@@ -1,7 +1,7 @@
 ---
 title: Footage, mattes and speaker depth
 description: Draw the source video inside a motion block, cut the speaker out with a matte, and put type, light or a copy of the speaker between the room and the speaker. Frame-accurate, cached, with the clip's sound.
-updated: 2026-10-02
+updated: 2026-10-10
 ---
 
 A motion project can declare **footage**: a video the blocks draw frame by frame, usually the talking head the transcript belongs to. With a **matte** (a greyscale video of the same footage, white = subject) a block can also draw the subject alone, so anything placed between the two layers ends up **behind the speaker**.
@@ -82,11 +82,33 @@ The matte also says where the speaker is. VisualFries measures the subject's box
 ## Make a matte
 
 ```bash
-FAL_KEY=… npx visualfries matte talk.mp4 --output talk.matte.mp4
+FAL_KEY=… npx visualfries matte talk.mp4 --output talk.matte.mp4      # BiRefNet v2 on fal.ai
+npx visualfries matte talk.mp4 --output talk.matte.mp4 --provider mediapipe   # free, local
 npx visualfries matte talk.mp4 --output talk.matte.mp4 --command "rvm --in {input} --out {output}"
 ```
 
-[`visualfries matte`](/docs/cli#matte) does the bookkeeping every segmentation model needs: it splits the video into pieces the model accepts, checks each mask's frame count, scales and joins the masks, and verifies the result is frame-exact. Who segments is a **provider**: BiRefNet v2 on fal.ai by default (model `Matting` keeps hair and microphones; a 17-second 1000×1080 clip takes one to three minutes), or any local tool through `--command`. The input must have a constant frame rate; convert a variable-frame-rate recording first.
+[`visualfries matte`](/docs/cli#matte) does the bookkeeping every segmentation model needs: it splits the video into pieces the model accepts, checks each mask's frame count, scales and joins the masks, and verifies the result is frame-exact. The input must have a constant frame rate; convert a variable-frame-rate recording first.
+
+Who segments is a **provider**. With `FAL_KEY` set the default is BiRefNet; without it (and without `--command`) the free MediaPipe matte runs, and the command says so.
+
+| Provider                     | Cost and setup                                                                                                                 | 17 s of 1000×1080 video                    | Result                                                                     | Best for                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ | -------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `fal`: BiRefNet v2 on fal.ai | Paid API, `FAL_KEY`. The video is uploaded to fal.ai.                                                                          | One to three minutes                       | The best edges; model `Matting` keeps hair and microphones.                | A full-size speaker, type behind the head, close-ups     |
+| `mediapipe`: MediaPipe       | Free, local, no key, no Python. Needs `npm install @mediapipe/tasks-vision playwright`; the model (250 KB) is downloaded once. | About 15 s on a 12-core CPU, no GPU needed | Softer, slightly stepped edges and rough hair; a faint halo on fast moves. | Small cut-outs, picture-in-picture, drafts, offline work |
+| `command`: your tool         | Whatever the tool needs.                                                                                                       | Depends on the tool                        | Depends on the tool.                                                       | A model you already run                                  |
+
+MediaPipe runs Google's selfie segmentation network (WebAssembly build) in the headless Chromium VisualFries renders with. It picks the square `selfie` network for portrait and square video and `selfie-landscape` for wide video (`--model` overrides). Each mask is blended with the previous one to calm flickering edges (`--smoothing 0.5`, `0` turns it off, above 0.7 fast moves leave a trail); smoothing starts over at a jump cut. Look at a frame of the matte over a solid colour before you build on it, as with any model.
+
+In Node, pass a provider to `createSubjectMatte`:
+
+```ts
+import { createSubjectMatte, mediapipeMatte } from 'visualfries/motion/matte';
+
+await createSubjectMatte('talk.mp4', {
+	output: 'talk.matte.mp4',
+	provider: mediapipeMatte({ smoothing: 0.5 }) // or falBiRefNet(), commandMatte('…')
+});
+```
 
 A provider is a small object, so another API or model plugs in without touching the rest:
 

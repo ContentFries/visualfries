@@ -207,6 +207,13 @@ export function commandMatte(
 	};
 }
 
+export {
+	mediapipeMatte,
+	pickMediaPipeModel,
+	visualfriesCacheDir,
+	type MediaPipeModel
+} from './matte-mediapipe.js';
+
 // ---------------------------------------------------------------- pipeline
 
 export type MatteOptions = {

@@ -32,7 +32,10 @@ npx visualfries matte talk.mp4 --output talk.matte.mp4
 
 `matte` runs BiRefNet v2 on fal.ai by default (model `Matting`, good on hair and microphones),
 splits long videos into pieces and checks that the matte has exactly as many frames as the
-clip. A 17-second clip takes one to three minutes. To use your own model instead:
+clip. A 17-second clip takes one to three minutes. Without `FAL_KEY` it runs MediaPipe locally
+instead: free and done in seconds, with softer edges than BiRefNet (it needs
+`npm install @mediapipe/tasks-vision playwright`). The speaker-depth look cuts the speaker out at
+full size, so BiRefNet is the better choice here. To use your own model instead:
 
 ```bash
 npx visualfries matte talk.mp4 --output talk.matte.mp4 --command "python rvm.py --in {input} --out {output}"

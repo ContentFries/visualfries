@@ -53,12 +53,14 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]
   visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
-  visualfries matte <video> --output <matte.mp4> [--provider fal|command] [options]
+  visualfries matte <video> --output <matte.mp4> [--provider fal|mediapipe|command] [options]
                     subject matte (white = subject) for "footage". Default provider: BiRefNet v2
-                    on fal.ai (FAL_KEY; --model Matting, --resolution 1024x1024). Any local tool:
-                    --command "tool --in {input} --out {output}" [--command-output luma|alpha]
-                    [--command-ext .webm] [--max-frames n]. Long videos are split, checked
-                    and joined frame-exact.
+                    on fal.ai (FAL_KEY; --model Matting, --resolution 1024x1024). Without
+                    FAL_KEY: MediaPipe selfie segmentation, free and local (--model selfie |
+                    selfie-landscape, --smoothing 0.5; needs @mediapipe/tasks-vision and
+                    playwright). Any local tool: --command "tool --in {input} --out {output}"
+                    [--command-output luma|alpha] [--command-ext .webm] [--max-frames n].
+                    Long videos are split, checked and joined frame-exact.
 
   --transcript <file>  resolve cues against another transcript (new voiceover)
 
@@ -143,7 +145,8 @@ inspect screenshot options:
   --image-format <fmt>  png | jpg. Default: png
 
 doctor checks:
-  ffmpeg, Vite, Svelte Vite plugin, Playwright, Chromium executable, temp dir
+  ffmpeg, Vite, Svelte Vite plugin, Playwright, MediaPipe (local matte), Chromium executable,
+  temp dir
 
 Notes:
   This CLI is the agent-facing scene contract. It creates and validates VisualFries
@@ -1190,6 +1193,23 @@ async function doctorCommand(args) {
 			scope: 'scenes'
 		},
 		playwright: await checkOptionalModule('playwright', 'VISUALFRIES_PLAYWRIGHT_MODULES'),
+		// Only `visualfries matte` without FAL_KEY (or --provider mediapipe) needs it.
+		mediapipe: (() => {
+			try {
+				return {
+					ok: true,
+					path: path.dirname(packageRequire.resolve('@mediapipe/tasks-vision')),
+					scope: 'matte'
+				};
+			} catch {
+				return {
+					ok: false,
+					scope: 'matte',
+					error:
+						'Not installed. Run `npm install @mediapipe/tasks-vision` for the free local matte.'
+				};
+			}
+		})(),
 		chromiumExecutable: (() => {
 			const executablePath = findBrowserExecutable();
 			return executablePath
@@ -1212,8 +1232,9 @@ async function doctorCommand(args) {
 		})()
 	};
 	// Scene-only checks warn instead of failing: motion projects render without them.
-	const ok = Object.values(checks).every((check) => check.ok || check.scope === 'scenes');
-	const sceneRenders = Object.values(checks).every((check) => check.ok);
+	const optional = (check) => check.scope === 'scenes' || check.scope === 'matte';
+	const ok = Object.values(checks).every((check) => check.ok || optional(check));
+	const sceneRenders = Object.values(checks).every((check) => check.ok || check.scope === 'matte');
 	const report = {
 		ok,
 		sceneRenders,
@@ -1234,9 +1255,14 @@ async function doctorCommand(args) {
 		console.log(`${ok ? 'OK' : 'FAIL'} visualfries doctor`);
 		for (const [name, check] of Object.entries(checks)) {
 			const detail = check.path ?? check.version ?? check.error ?? '';
-			const status = check.ok ? 'OK' : check.scope === 'scenes' ? 'WARN' : 'FAIL';
-			const note =
-				!check.ok && check.scope === 'scenes' ? ' (needed only to render scene JSON)' : '';
+			const status = check.ok ? 'OK' : optional(check) ? 'WARN' : 'FAIL';
+			const note = check.ok
+				? ''
+				: check.scope === 'scenes'
+					? ' (needed only to render scene JSON)'
+					: check.scope === 'matte'
+						? ' (needed only for the local MediaPipe matte)'
+						: '';
 			console.log(`${status} ${name}${note}${detail ? ` - ${detail.split('\n')[0]}` : ''}`);
 		}
 	}
@@ -1699,16 +1725,36 @@ async function matteCommand(args) {
 	const output = readFlag(args, '--output');
 	if (!input || !output)
 		throw new Error(
-			'Usage: visualfries matte <video> --output <matte.mp4> [--provider fal|command] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs 3]'
+			'Usage: visualfries matte <video> --output <matte.mp4> [--provider fal|mediapipe|command] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model <name>] [--resolution 1024x1024] [--smoothing 0.5] [--chunk-frames 480] [--jobs 3]'
 		);
-	const { createSubjectMatte, falBiRefNet, commandMatte } = await import('../dist/motion/matte.js');
+	const { createSubjectMatte, falBiRefNet, commandMatte, mediapipeMatte } = await import(
+		'../dist/motion/matte.js'
+	);
 	const command = readFlag(args, '--command');
-	const providerName = readFlag(args, '--provider', command ? 'command' : 'fal');
+	const model = readFlag(args, '--model');
+	const mediapipeModels = ['selfie', 'selfie-landscape', 'auto'];
+	let providerName = readFlag(args, '--provider');
+	if (!providerName) {
+		if (command) providerName = 'command';
+		else if (model && mediapipeModels.includes(model)) providerName = 'mediapipe';
+		else if (process.env.FAL_KEY) providerName = 'fal';
+		// BiRefNet options without a key: say FAL_KEY is missing instead of switching models.
+		else if (model || readFlag(args, '--resolution')) providerName = 'fal';
+		else {
+			providerName = 'mediapipe';
+			console.error(
+				'matte: FAL_KEY is not set, so the free local MediaPipe matte runs (softer edges than BiRefNet; set FAL_KEY or pass --provider fal for BiRefNet on fal.ai).'
+			);
+		}
+	}
 	let provider;
 	if (providerName === 'fal') {
-		provider = falBiRefNet({
-			model: readFlag(args, '--model'),
-			resolution: readFlag(args, '--resolution')
+		provider = falBiRefNet({ model, resolution: readFlag(args, '--resolution') });
+	} else if (providerName === 'mediapipe') {
+		provider = mediapipeMatte({
+			model,
+			smoothing: numberFlag(args, '--smoothing'),
+			parallel: numberFlag(args, '--jobs')
 		});
 	} else if (providerName === 'command') {
 		if (!command) throw new Error('--provider command needs --command "tool {input} {output}".');
@@ -1719,8 +1765,9 @@ async function matteCommand(args) {
 			parallel: numberFlag(args, '--jobs')
 		});
 	} else {
-		throw new Error(`Unknown matte provider "${providerName}". Use fal or command.`);
+		throw new Error(`Unknown matte provider "${providerName}". Use fal, mediapipe or command.`);
 	}
+	console.error(`matte: provider ${provider.name}`);
 	const result = await createSubjectMatte(input, {
 		output,
 		provider,

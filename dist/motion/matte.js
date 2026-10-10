@@ -127,6 +127,7 @@ export function commandMatte(template, opts = {}) {
         }
     };
 }
+export { mediapipeMatte, pickMediaPipeModel, visualfriesCacheDir } from './matte-mediapipe.js';
 /** Frame ranges `[first, last]` that cover `frames` in pieces of at most `size` (≤ `max`). */
 export function planMatteChunks(frames, size, max = Number.POSITIVE_INFINITY) {
     if (!(size > 0 && size <= max))

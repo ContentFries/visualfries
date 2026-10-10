@@ -196,4 +196,5 @@ timelines → run `useFrame` callbacks and wait for the promises they return (fo
 → force a fresh raster → wait for the paint (an error after 2 s, never a silent timeout) →
 capture. The page loads the bundle, fonts and footage from one origin served from disk, because
 HTML-in-Canvas leaves cross-origin images out of the capture. Any frame can be rendered in any order with
-identical pixels; `render` splits clips into ranges across pages.
+identical pixels; `render` deals frames out to several pages and pipes them to ffmpeg in order,
+holding only a few frames in memory (frame files on disk are the fallback, and `--keep-frames`).

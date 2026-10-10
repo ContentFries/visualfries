@@ -36,7 +36,7 @@ Without `--at` it renders frame 0, frame 10, each cue plus 0.6 s and the last fr
 npx visualfries render project.vf.json --output out/ [--clip <id>]... [--jobs <n>] [--keep-frames]
 ```
 
-Renders clips to `out/<id>.mp4`, or `out/<id>.mov` (ProRes 4444) for `"alpha": true` clips, splitting each clip into `--jobs` parallel ranges (default: up to six). With a single clip, `--output reel.mp4` (or `.mov`) writes that file directly and skips the manifest. The videos are silent unless the clip names a footage in `"audio"` ([Footage and mattes](/docs/footage)). Writes `out/manifest.json`; this is the real output for the Quickstart project:
+Renders clips to `out/<id>.mp4`, or `out/<id>.mov` (ProRes 4444) for `"alpha": true` clips, with `--jobs` pages capturing frames in parallel (default: up to six). Frames are piped to ffmpeg in order as they are captured, so memory stays flat however long the clip is; if the pipe fails, the clip is rendered again through PNG files in the temp directory. `--keep-frames` uses that path and keeps the files. With a single clip, `--output reel.mp4` (or `.mov`) writes that file directly and skips the manifest. The videos are silent unless the clip names a footage in `"audio"` ([Footage and mattes](/docs/footage)). Writes `out/manifest.json`; this is the real output for the Quickstart project:
 
 ```json
 {

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.1](https://github.com/ContentFries/visualfries/compare/visualfries-v0.6.0...visualfries-v0.6.1) (2026-10-10)
+
+
+### Performance Improvements
+
+* **render:** pipe motion frames to ffmpeg instead of buffering them on disk ([#71](https://github.com/ContentFries/visualfries/issues/71)) ([205b290](https://github.com/ContentFries/visualfries/commit/205b29091e56df0580bfc23b06277825f78be299))
+
 ## [0.6.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.5.0...visualfries-v0.6.0) (2026-10-03)
 
 

@@ -1,7 +1,7 @@
 ---
 title: Install and doctor
 description: Install VisualFries in a Svelte 5 project and check the render toolchain with visualfries doctor. Rendering needs Playwright, ffmpeg and a Chromium browser.
-updated: 2026-09-27
+updated: 2026-10-10
 ---
 
 VisualFries is an npm package for Svelte 5 projects. Mounting scenes in an app needs only the package. Rendering video from the command line also needs ffmpeg and a Chromium browser, which `visualfries doctor` checks for you.
@@ -13,7 +13,7 @@ npm install visualfries svelte             # scenes in an app
 npm install visualfries svelte playwright  # also render from the command line
 ```
 
-Svelte 5 is a peer dependency. Playwright is an optional peer dependency that npm does not install on its own; the command-line renderer needs it. The main entry points:
+Svelte 5 is a peer dependency. Playwright is an optional peer dependency that npm does not install on its own; the command-line renderer needs it. `@mediapipe/tasks-vision` is another optional peer dependency, needed only for the free local [matte](/docs/footage#make-a-matte) (`npm install @mediapipe/tasks-vision`). The main entry points:
 
 | Import                    | Use it for                                                                  |
 | ------------------------- | --------------------------------------------------------------------------- |
@@ -31,7 +31,7 @@ The `visualfries` command is installed with the package. Run it with `npx visual
 npx visualfries doctor
 ```
 
-VisualFries needs Node.js 20 or newer. `doctor` reports Node, ffmpeg, Playwright, a Chromium executable and whether the temp directory is writable; fix every `FAIL` before a render. Vite and the Svelte Vite plugin are needed only to render scene JSON, so they show `WARN` when missing and do not fail the check. `--json` prints the same report with a `sceneRenders` flag.
+VisualFries needs Node.js 20 or newer. `doctor` reports Node, ffmpeg, Playwright, a Chromium executable and whether the temp directory is writable; fix every `FAIL` before a render. Vite and the Svelte Vite plugin are needed only to render scene JSON, and `@mediapipe/tasks-vision` only for the local matte, so they show `WARN` when missing and do not fail the check. `--json` prints the same report with a `sceneRenders` flag.
 
 Chromium is looked up in this order: `VISUALFRIES_CHROMIUM_PATH`, `VISUALFRIES_CHROMIUM` (older name), `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, common system locations (`/usr/bin/chromium`, Google Chrome), then Playwright's own build:
 

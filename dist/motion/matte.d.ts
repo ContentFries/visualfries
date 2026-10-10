@@ -61,6 +61,7 @@ export declare function commandMatte(template: string, opts?: {
     output?: 'luma' | 'alpha';
     extension?: string;
 }): MatteProvider;
+export { mediapipeMatte, pickMediaPipeModel, visualfriesCacheDir, type MediaPipeModel } from './matte-mediapipe.js';
 export type MatteOptions = {
     output: string;
     /** Who segments the video. Default: `falBiRefNet({ model, resolution, key: falKey })`. */

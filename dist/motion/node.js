@@ -850,7 +850,7 @@ export class FramePipeError extends Error {
  * ffmpeg reading PNG frames from stdin, in order. `write` resolves once ffmpeg has taken the
  * frame (back-pressure), so at most a few frames are held in memory whatever the clip length.
  */
-function ffmpegFramePipe(args) {
+export function ffmpegFramePipe(args) {
     const p = spawn(process.env.FFMPEG_PATH || 'ffmpeg', args, { stdio: ['pipe', 'ignore', 'pipe'] });
     let err = '';
     p.stderr.on('data', (d) => (err = (err + d).slice(-4000)));
@@ -870,7 +870,9 @@ function ffmpegFramePipe(args) {
             if (p.exitCode !== null || p.stdin.destroyed)
                 return gone();
             if (!p.stdin.write(png))
-                await Promise.race([once(p.stdin, 'drain'), gone()]);
+                // once() rejects on a stdin 'error' (EPIPE when ffmpeg dies mid-stream); report the
+                // process result instead, which carries the exit code and stderr.
+                await Promise.race([once(p.stdin, 'drain').catch(gone), gone()]);
         },
         async end() {
             p.stdin.end();
@@ -1067,7 +1069,11 @@ export async function renderMotionClips(loaded, opts) {
                     '-movflags',
                     '+faststart'
                 ];
-            const encode = [...audioInput(loaded, clip), ...codec, file];
+            // ffmpeg truncates its output as soon as it opens it, and the piped encode opens it before
+            // the first frame. Encode next to the target and replace it only on success, so a failed
+            // render keeps the last good file.
+            const partial = path.join(path.dirname(file), `.${path.basename(file, path.extname(file))}.partial-${process.pid}${path.extname(file)}`);
+            const encode = [...audioInput(loaded, clip), ...codec, partial];
             let mode = '';
             const open = async () => {
                 const page = await openClip(browser, bundle, clip, opts.invalidate);
@@ -1075,32 +1081,38 @@ export async function renderMotionClips(loaded, opts) {
                 return page;
             };
             let piped = !opts.keepFrames;
-            if (piped) {
-                try {
-                    const sink = ffmpegFramePipe([
-                        '-y',
-                        '-f',
-                        'image2pipe',
-                        '-framerate',
-                        String(clip.fps),
-                        '-c:v',
-                        'png',
-                        '-i',
-                        'pipe:0',
-                        ...encode
-                    ]);
-                    await pipeFrames(clip.frames, Math.min(jobs, clip.frames), open, sink);
+            try {
+                if (piped) {
+                    try {
+                        const sink = ffmpegFramePipe([
+                            '-y',
+                            '-f',
+                            'image2pipe',
+                            '-framerate',
+                            String(clip.fps),
+                            '-c:v',
+                            'png',
+                            '-i',
+                            'pipe:0',
+                            ...encode
+                        ]);
+                        await pipeFrames(clip.frames, Math.min(jobs, clip.frames), open, sink);
+                    }
+                    catch (error) {
+                        if (!(error instanceof FramePipeError))
+                            throw error;
+                        // Fallback: the slower path that writes every frame as a file first.
+                        opts.onProgress?.(`${clip.id}: piping frames to ffmpeg failed (${error.message.split('\n')[0]}); rendering again through frame files`);
+                        piped = false;
+                    }
                 }
-                catch (error) {
-                    if (!(error instanceof FramePipeError))
-                        throw error;
-                    // Fallback: the slower path that writes every frame as a file first.
-                    opts.onProgress?.(`${clip.id}: piping frames to ffmpeg failed (${error.message.split('\n')[0]}); rendering again through frame files`);
-                    piped = false;
-                }
+                if (!piped)
+                    await framesThenEncode(clip, jobs, open, encode, opts.keepFrames);
+                await fs.rename(partial, file);
             }
-            if (!piped)
-                await framesThenEncode(clip, jobs, open, encode, opts.keepFrames);
+            finally {
+                await fs.rm(partial, { force: true });
+            }
             const r = {
                 id: clip.id,
                 file,

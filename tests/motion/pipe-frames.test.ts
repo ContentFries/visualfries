@@ -79,3 +79,36 @@ describe('pipeFrames', () => {
 		expect(s.killed).toBe(true);
 	});
 });
+
+describe('ffmpegFramePipe', () => {
+	it('reports an encoder that dies mid-stream as FramePipeError with its stderr', async () => {
+		const { ffmpegFramePipe } = await import('../../src/lib/motion/node.js');
+		const fs = await import('node:fs/promises');
+		const os = await import('node:os');
+		const path = await import('node:path');
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-fake-ffmpeg-'));
+		const fake = path.join(dir, 'ffmpeg');
+		// Never reads stdin, so the frame below waits for 'drain' when the process exits.
+		await fs.writeFile(fake, '#!/bin/sh\necho "encoder exploded" >&2\nsleep 0.2\nexit 3\n', {
+			mode: 0o755
+		});
+		const previous = process.env.FFMPEG_PATH;
+		process.env.FFMPEG_PATH = fake;
+		try {
+			const s = ffmpegFramePipe([]);
+			const error = await s
+				.write(Buffer.alloc(8 * 1024 * 1024))
+				.then(() => s.write(Buffer.alloc(8 * 1024 * 1024)))
+				.then(
+					() => null,
+					(e: unknown) => e
+				);
+			expect(error).toBeInstanceOf(FramePipeError);
+			expect((error as Error).message).toContain('encoder exploded');
+		} finally {
+			if (previous === undefined) delete process.env.FFMPEG_PATH;
+			else process.env.FFMPEG_PATH = previous;
+			await fs.rm(dir, { recursive: true, force: true });
+		}
+	});
+});

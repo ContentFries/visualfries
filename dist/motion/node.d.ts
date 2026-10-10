@@ -139,6 +139,11 @@ type FrameSink = {
     kill(): void;
 };
 /**
+ * ffmpeg reading PNG frames from stdin, in order. `write` resolves once ffmpeg has taken the
+ * frame (back-pressure), so at most a few frames are held in memory whatever the clip length.
+ */
+export declare function ffmpegFramePipe(args: string[]): FrameSink;
+/**
  * Pages take frames in turn (page j renders j, j + jobs, …) and a reorder buffer hands them to
  * ffmpeg in order. A page waits while it is more than a few frames ahead of the encoder, so
  * memory stays flat; frames are deterministic in any order, which `check --determinism` proves.

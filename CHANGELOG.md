@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.5.0...visualfries-v0.6.0) (2026-10-03)
+
+
+### Features
+
+* **motion:** built-in captions and speaker-depth blocks, subject boxes, CI ([#62](https://github.com/ContentFries/visualfries/issues/62)) ([c64fb48](https://github.com/ContentFries/visualfries/commit/c64fb48c7e1e31d13e544b832b61aff410bbe047))
+
+
+### Bug Fixes
+
+* **build:** approve build scripts for pnpm 11 ([#65](https://github.com/ContentFries/visualfries/issues/65)) ([89aee91](https://github.com/ContentFries/visualfries/commit/89aee913b5dd4be0895737fbca43b713a0f86132))
+* **motion:** make frames independent of seek order for every block ([#66](https://github.com/ContentFries/visualfries/issues/66)) ([479564d](https://github.com/ContentFries/visualfries/commit/479564dd1bc0f7700360491d4d7b559e0ff2a72a))
+* **render:** draw scene text in its font in the CLI renderer ([#56](https://github.com/ContentFries/visualfries/issues/56)) ([#70](https://github.com/ContentFries/visualfries/issues/70)) ([aa44e8f](https://github.com/ContentFries/visualfries/commit/aa44e8fb8e0a409a4abf17339dbef3fb2709b05e))
+
 ## [0.5.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.4.1...visualfries-v0.5.0) (2026-10-02)
 
 

@@ -157,7 +157,7 @@ export function mediapipeMatte(
 	} = {}
 ): MatteProvider {
 	const choice = opts.model ?? 'auto';
-	if (choice !== 'auto' && !(choice in MEDIAPIPE_MODELS))
+	if (choice !== 'auto' && !Object.prototype.hasOwnProperty.call(MEDIAPIPE_MODELS, choice))
 		throw new Error(
 			`Unknown MediaPipe model "${choice}". Use ${Object.keys(MEDIAPIPE_MODELS).join(', ')} or auto.`
 		);
@@ -232,6 +232,7 @@ try {
 		if (!response.ok) throw new Error('Mask upload failed: ' + response.status);
 	};
 	const segment = () => {
+		const before = masks.length;
 		segmenter.segmentForVideo(image, (frames * 1000) / fps, (result) => {
 			const confidence = result.confidenceMasks[0].getAsFloat32Array();
 			if (confidence.length !== width * height)
@@ -250,6 +251,8 @@ try {
 			for (let i = 0; i < mask.length; i++) mask[i] = previous[i] * 255;
 			masks.push(mask);
 		});
+		// The CPU delegate calls back before segmentForVideo returns; masks must stay in order.
+		if (masks.length !== before + 1) throw new Error('MediaPipe returned no mask for frame ' + frames);
 		frames++;
 	};
 	const reader = (await fetch(base + 'frames')).body.getReader();
@@ -305,7 +308,7 @@ async function segmentWithMediaPipe(
 ): Promise<void> {
 	const { width, height } = cfg.model;
 	const token = randomUUID();
-	const children: ChildProcess[] = [];
+	const children: { process: ChildProcess; exited: Promise<void> }[] = [];
 	// `failed` rejects with the first problem anywhere (page, decoder, encoder, stall);
 	// `done` resolves with the page's frame count.
 	let fail!: (error: Error) => void;
@@ -340,7 +343,7 @@ async function segmentWithMediaPipe(
 		fail,
 		'pipe'
 	);
-	children.push(encoder.process);
+	children.push(encoder);
 
 	const server = http.createServer((req, res) => {
 		lastActivity = Date.now();
@@ -404,7 +407,7 @@ async function segmentWithMediaPipe(
 					fail,
 					'ignore'
 				);
-				children.push(decoder.process);
+				children.push(decoder);
 				res.writeHead(200, { 'content-type': 'application/octet-stream' });
 				decoder.process.stdout!.on('data', () => (lastActivity = Date.now()));
 				decoder.process.stdout!.pipe(res);
@@ -435,7 +438,7 @@ async function segmentWithMediaPipe(
 		res.writeHead(404).end();
 	}
 
-	let browser: Launched | undefined;
+	let launching: Promise<Launched> | undefined;
 	const watchdog = setInterval(() => {
 		if (Date.now() - lastActivity > STALL_TIMEOUT_MS)
 			fail(
@@ -450,11 +453,13 @@ async function segmentWithMediaPipe(
 			server.listen(0, '127.0.0.1', resolve);
 		});
 		const { port } = server.address() as { port: number };
-		browser = await launchChromium();
-		const page = await browser.newPage();
+		// Every step races the first failure, so a stalled browser cannot hang the piece.
+		launching = launchChromium();
+		const browser = await Promise.race([launching, failed]);
+		const page = await Promise.race([browser.newPage(), failed]);
 		page.on('pageerror', (e) => fail(new Error(`MediaPipe page error: ${String(e)}`)));
 		page.on('crash', () => fail(new Error('The MediaPipe page crashed.')));
-		await page.goto(`http://127.0.0.1:${port}/${token}/`);
+		await Promise.race([page.goto(`http://127.0.0.1:${port}/${token}/`), failed]);
 		const frames = await Promise.race([done, failed]);
 		encoder.process.stdin!.end();
 		await Promise.race([encoder.exited, failed]);
@@ -464,10 +469,15 @@ async function segmentWithMediaPipe(
 			);
 	} finally {
 		clearInterval(watchdog);
+		// Playwright gives up on a launch after 30 s, so this settles even if the launch stalled.
+		const browser = await launching?.catch(() => undefined);
 		await browser?.close().catch(() => {});
+		for (const child of children)
+			if (child.process.exitCode === null) child.process.kill('SIGKILL');
+		// Wait until ffmpeg has let go of the piece's files before the pipeline removes them.
+		await Promise.all(children.map((child) => child.exited.catch(() => {})));
 		server.closeAllConnections?.();
-		server.close();
-		for (const child of children) if (child.exitCode === null) child.kill('SIGKILL');
+		await new Promise<void>((resolve) => server.close(() => resolve()));
 	}
 }
 

@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -15,10 +16,11 @@ import { createSubjectMatte } from '../../src/lib/motion/matte.js';
 import { findChromium, probeVideo } from '../../src/lib/motion/node.js';
 
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
-const hasPlaywright = (() => {
+// A system Chromium or Playwright's own build, as the provider would launch.
+const hasBrowser = (() => {
 	try {
-		createRequire(import.meta.url).resolve('playwright');
-		return true;
+		const { chromium } = createRequire(import.meta.url)('playwright');
+		return !!findChromium() || existsSync(chromium.executablePath());
 	} catch {
 		return false;
 	}
@@ -26,6 +28,8 @@ const hasPlaywright = (() => {
 // Vitest runs from the repository root.
 const ROOT = process.cwd();
 
+// The test environment's AbortSignal is jsdom's, which Node's fetch rejects.
+const nodeFetch = ((url: string) => fetch(url)) as typeof fetch;
 const tempDir = () => fs.mkdtemp(path.join(os.tmpdir(), 'vf-mediapipe-test-'));
 const sha = (data: string) => createHash('sha256').update(data).digest('hex');
 
@@ -89,6 +93,7 @@ describe('ensureModelFile', () => {
 describe('mediapipeMatte', () => {
 	it('checks its options', () => {
 		expect(() => mediapipeMatte({ model: 'multiclass' as never })).toThrow(/Unknown MediaPipe/);
+		expect(() => mediapipeMatte({ model: 'constructor' as never })).toThrow(/Unknown MediaPipe/);
 		expect(() => mediapipeMatte({ smoothing: 1 })).toThrow(/smoothing/);
 		expect(() => mediapipeMatte({ smoothing: -0.1 })).toThrow(/smoothing/);
 		const provider = mediapipeMatte({ model: 'selfie', parallel: 2 });
@@ -107,11 +112,15 @@ describe('mediapipeMatte', () => {
 
 	it('keeps models in VISUALFRIES_CACHE_DIR when it is set', () => {
 		const saved = process.env.VISUALFRIES_CACHE_DIR;
-		process.env.VISUALFRIES_CACHE_DIR = '/somewhere/cache';
-		expect(visualfriesCacheDir()).toBe('/somewhere/cache');
-		delete process.env.VISUALFRIES_CACHE_DIR;
-		expect(visualfriesCacheDir()).toMatch(/visualfries$/);
-		if (saved !== undefined) process.env.VISUALFRIES_CACHE_DIR = saved;
+		try {
+			process.env.VISUALFRIES_CACHE_DIR = '/somewhere/cache';
+			expect(visualfriesCacheDir()).toBe('/somewhere/cache');
+			delete process.env.VISUALFRIES_CACHE_DIR;
+			expect(visualfriesCacheDir()).toMatch(/visualfries$/);
+		} finally {
+			if (saved === undefined) delete process.env.VISUALFRIES_CACHE_DIR;
+			else process.env.VISUALFRIES_CACHE_DIR = saved;
+		}
 	});
 
 	it('fails a piece with a clear message when the model cannot be downloaded', async () => {
@@ -139,12 +148,12 @@ describe('mediapipeMatte', () => {
 	});
 
 	// Real run: headless Chromium, the WASM build and the model from Google's storage.
-	it.skipIf(!hasFfmpeg || !hasPlaywright || !findChromium())(
+	it.skipIf(!hasFfmpeg || !hasBrowser)(
 		'cuts the speaker out of a real frame, frame-exact',
 		async () => {
 			const dir = await tempDir();
 			const input = path.join(dir, 'talk.mp4');
-			// The homepage plate (1000×1080 talking head) as a 1-second clip at a quarter size.
+			// The homepage plate (1000×1080 talking head) as a 3-second clip at a quarter size.
 			const made = spawnSync('ffmpeg', [
 				'-y',
 				'-loglevel',
@@ -158,24 +167,21 @@ describe('mediapipeMatte', () => {
 				'-r',
 				'30',
 				'-t',
-				'1',
+				'3',
 				input
 			]);
 			expect(made.status).toBe(0);
 			const output = path.join(dir, 'talk.matte.mp4');
 			const result = await createSubjectMatte(input, {
 				output,
-				chunkFrames: 20,
-				// The test environment's AbortSignal is jsdom's, which Node's fetch rejects.
-				provider: mediapipeMatte({
-					parallel: 2,
-					fetch: ((url: string) => fetch(url)) as typeof fetch
-				})
+				// 70 + 20 frames: the first piece spans several 30-mask uploads.
+				chunkFrames: 70,
+				provider: mediapipeMatte({ parallel: 2, fetch: nodeFetch })
 			});
-			expect(result.frames).toBe(30);
+			expect(result.frames).toBe(90);
 			expect(result.chunks).toBe(2);
 			const out = await probeVideo(output);
-			expect([out.width, out.height, out.frames]).toEqual([250, 270, 30]);
+			expect([out.width, out.height, out.frames]).toEqual([250, 270, 90]);
 			const px = (x: number, y: number) =>
 				spawnSync('ffmpeg', [
 					'-loglevel',
@@ -195,6 +201,33 @@ describe('mediapipeMatte', () => {
 			expect(px(20, 20)).toBeLessThan(40); // wall
 			expect(px(230, 60)).toBeLessThan(40);
 			await fs.rm(dir, { recursive: true, force: true });
+		},
+		120_000
+	);
+
+	it.skipIf(!hasFfmpeg || !hasBrowser)(
+		'reports a piece ffmpeg cannot read instead of hanging',
+		async () => {
+			const dir = await tempDir();
+			const input = path.join(dir, 'broken.mp4');
+			await fs.writeFile(input, 'not a video');
+			const output = path.join(dir, 'mask.mp4');
+			const provider = mediapipeMatte({ fetch: nodeFetch });
+			await expect(
+				provider.segment({
+					input,
+					output,
+					index: 0,
+					first: 0,
+					last: 9,
+					frames: 10,
+					fps: 30,
+					width: 160,
+					height: 120
+				})
+			).rejects.toThrow(/frame decoder failed|segmented 0 frames/);
+			// Every ffmpeg has exited, so the folder can go right away.
+			await fs.rm(dir, { recursive: true });
 		},
 		120_000
 	);

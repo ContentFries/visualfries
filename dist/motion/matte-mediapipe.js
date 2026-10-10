@@ -271,7 +271,6 @@ async function segmentWithMediaPipe(chunk, cfg) {
     ], 'MediaPipe mask encoder', fail, 'pipe');
     children.push(encoder);
     const server = http.createServer((req, res) => {
-        lastActivity = Date.now();
         handle(req, res).catch((error) => {
             fail(error);
             res.destroy();
@@ -282,6 +281,8 @@ async function segmentWithMediaPipe(chunk, cfg) {
         const prefix = `/${token}/`;
         if (!url.pathname.startsWith(prefix))
             return void res.writeHead(404).end();
+        // Only the page (it knows the token) keeps the piece alive.
+        lastActivity = Date.now();
         const route = url.pathname.slice(prefix.length);
         const send = (type, body) => void res.writeHead(200, { 'content-type': type, 'cache-control': 'no-store' }).end(body);
         const body = async () => {

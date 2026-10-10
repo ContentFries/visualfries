@@ -346,7 +346,6 @@ async function segmentWithMediaPipe(
 	children.push(encoder);
 
 	const server = http.createServer((req, res) => {
-		lastActivity = Date.now();
 		handle(req, res).catch((error) => {
 			fail(error);
 			res.destroy();
@@ -356,6 +355,8 @@ async function segmentWithMediaPipe(
 		const url = new URL(req.url ?? '/', 'http://localhost');
 		const prefix = `/${token}/`;
 		if (!url.pathname.startsWith(prefix)) return void res.writeHead(404).end();
+		// Only the page (it knows the token) keeps the piece alive.
+		lastActivity = Date.now();
 		const route = url.pathname.slice(prefix.length);
 		const send = (type: string, body: string | Buffer) =>
 			void res.writeHead(200, { 'content-type': type, 'cache-control': 'no-store' }).end(body);

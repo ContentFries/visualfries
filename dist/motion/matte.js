@@ -1,7 +1,9 @@
 import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { probeVideo } from './node.js';
 /** One API call; uploads and downloads get longer. */
 const HTTP_TIMEOUT_MS = 60 * 1000;
@@ -126,6 +128,32 @@ export function commandMatte(template, opts = {}) {
             });
         }
     };
+}
+/** `scripts/<name>` of this package, found from dist/ (published) or src/ (tests) alike. */
+function bundledScript(name) {
+    let dir = path.dirname(fileURLToPath(import.meta.url));
+    for (let i = 0; i < 5; i++) {
+        const candidate = path.join(dir, 'scripts', name);
+        if (existsSync(candidate))
+            return candidate;
+        dir = path.dirname(dir);
+    }
+    throw new Error(`Bundled script scripts/${name} not found next to the visualfries package.`);
+}
+/**
+ * Local matte with RobustVideoMatting (mobilenetv3) on the CPU: no API key, no account, temporally
+ * stable. Runs the bundled `scripts/rvm-matte.py` through `uv`, which brings torch, torchvision and
+ * numpy on first use (CPU wheels); the model is fetched once by torch.hub. Needs `uv` and `ffmpeg`.
+ * About 3 fps at 1080p and 16 fps at 540p on a 12-core server. RVM is recurrent, so long chunks keep
+ * it stable; 480 frames per chunk by default.
+ */
+export function rvmMatte(opts = {}) {
+    const script = opts.script ?? bundledScript('rvm-matte.py');
+    const threads = Math.max(1, Math.round(opts.threads ?? Math.min(10, os.cpus().length)));
+    const uv = opts.uv ?? 'uv';
+    const provider = commandMatte(`${uv} run -q --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match ` +
+        `--with torch --with torchvision --with numpy python "${script}" {input} {output} ${threads}`, { maxFrames: opts.maxFrames ?? 480, parallel: 1, output: 'luma' });
+    return { ...provider, name: `rvm (local CPU, ${threads} threads)` };
 }
 /** Frame ranges `[first, last]` that cover `frames` in pieces of at most `size` (≤ `max`). */
 export function planMatteChunks(frames, size, max = Number.POSITIVE_INFINITY) {

@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
-import { commandMatte, createSubjectMatte, falBiRefNet } from '../../src/lib/motion/matte.js';
+import { commandMatte, createSubjectMatte, falBiRefNet, rvmMatte } from '../../src/lib/motion/matte.js';
 import { probeVideo } from '../../src/lib/motion/node.js';
 
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -16,6 +16,33 @@ function ffmpeg(args: string[]) {
 	const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...args]);
 	if (r.status !== 0) throw new Error(String(r.stderr));
 }
+
+describe('rvmMatte', () => {
+	it('is a local provider running the bundled script through uv', () => {
+		const p = rvmMatte({ threads: 4 });
+		expect(p.name).toBe('rvm (local CPU, 4 threads)');
+		expect(p.maxFrames).toBe(480);
+		expect(p.parallel).toBe(1);
+		expect(p.output).toBe('luma');
+	});
+
+	it('ships the script', async () => {
+		await expect(fs.access(path.resolve('scripts/rvm-matte.py'))).resolves.toBeUndefined();
+	});
+
+	// The real model run needs uv + network for torch on first use; opt in with VF_TEST_RVM=1.
+	it.skipIf(!hasFfmpeg || !process.env.VF_TEST_RVM)('mattes a short clip locally', async () => {
+		const dir = await tempDir();
+		const input = path.join(dir, 'talk.mp4');
+		ffmpeg(['-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=25:duration=1', '-pix_fmt', 'yuv420p', input]);
+		const output = path.join(dir, 'matte.mp4');
+		const result = await createSubjectMatte(input, { output, provider: rvmMatte({ threads: 2 }) });
+		expect(result.frames).toBe(25);
+		const out = await probeVideo(output);
+		expect([out.width, out.height, out.frames]).toEqual([320, 180, 25]);
+		await fs.rm(dir, { recursive: true, force: true });
+	}, 600_000);
+});
 
 describe('commandMatte', () => {
 	it('needs input and output placeholders', () => {

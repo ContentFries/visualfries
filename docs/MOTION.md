@@ -150,8 +150,9 @@ extracted once into `.visualfries/footage/` (JPEG plates, PNG cut-outs) and load
 frame is captured, so footage is frame-accurate in any seek order.
 
 `visualfries matte talk.mp4 --output talk.matte.mp4` makes the matte: BiRefNet v2 on fal.ai
-(`FAL_KEY`) by default, or any local tool with `--command "tool {input} {output}"`, or any
-`MatteProvider` in Node. It splits, checks and joins the pieces frame-exact. Worked example:
+(`FAL_KEY`) by default; `--provider rvm` runs RobustVideoMatting locally on the CPU with no key
+(needs `uv`; about 3 fps at 1080p on 12 cores); any local tool works with
+`--command "tool {input} {output}"`, and any `MatteProvider` in Node. It splits, checks and joins the pieces frame-exact. Worked example:
 `static/demo/speaker-depth`.
 
 ## Built-in blocks and captions
@@ -172,7 +173,7 @@ visualfries still video.vf.json --clip B --at extra --at extra.end+0.5 --output 
 visualfries render video.vf.json --output out/ [--clip B] [--jobs 6]   # MP4 / MOV + manifest.json
 visualfries render video.vf.json --clip B --output b.mp4               # one clip straight to a file
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover
-visualfries matte talk.mp4 --output talk.matte.mp4               # subject matte (fal.ai or --command)
+visualfries matte talk.mp4 --output talk.matte.mp4 --provider rvm   # subject matte (rvm local, fal.ai or --command)
 ```
 
 `check` mounts every block and runs it across the clip: unknown cues, bad eases, maps that go

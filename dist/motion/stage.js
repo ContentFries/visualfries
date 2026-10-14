@@ -1,3 +1,4 @@
+import { findBadValues } from './badvalues.js';
 import { flushSync, mount, unmount } from 'svelte';
 import { Clip, MOTION_CONTEXT_KEY } from './runtime.svelte.js';
 import { seekTimeline } from './seek.js';
@@ -170,6 +171,7 @@ export function createMotionStage(options) {
     async function check(frames) {
         const errors = [];
         const warnings = [];
+        const seen = new Set();
         for (const n of frames) {
             try {
                 await applyTime(n);
@@ -178,6 +180,22 @@ export function createMotionStage(options) {
                 const message = error.message;
                 if (!errors.some((e) => e.message === message))
                     errors.push({ frame: n, message });
+                continue;
+            }
+            // broken math renders nothing and throws nothing: NaN/undefined in styles and SVG geometry
+            if (stage) {
+                for (const bad of findBadValues(stage)) {
+                    const key = `${bad.path}|${bad.attr}`;
+                    if (seen.has(key))
+                        continue;
+                    seen.add(key);
+                    if (seen.size > 5)
+                        break;
+                    errors.push({
+                        frame: n,
+                        message: `${bad.value.match(/NaN|undefined|-?Infinity/)?.[0]} in <${bad.path.split(' > ').pop()} ${bad.attr}> (${bad.path}): ${bad.attr}="${bad.value}"`
+                    });
+                }
             }
         }
         const running = document.getAnimations();

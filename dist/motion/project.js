@@ -47,7 +47,8 @@ export const MotionFootageShape = z.object({
      * Seconds extracted before and after the clips. Default 2. Raise it for `<Footage offset>`
      * larger than that.
      */
-    margin: z.number().min(0).optional()
+    /** Seconds extracted around the clips that use the footage, or "all" (blocks that jump around in it). */
+    margin: z.union([z.number().min(0), z.literal('all')]).optional()
 });
 export const MotionClipShape = z.object({
     id: z.string().regex(/^[A-Za-z0-9._-]+$/, 'clip id: letters, digits, dot, dash, underscore'),
@@ -63,7 +64,8 @@ export const MotionClipShape = z.object({
     cues: z
         .record(z
         .string()
-        .regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'cue name: identifier')
+        .regex(/^[\p{L}_][\p{L}\p{N}_ ]*$/u, 'cue name: letters (any language), digits, _ and spaces, not starting with a digit — e.g. "nových odberateľov" or "extra_2"')
+        .refine((name) => name === name.trim(), { message: 'cue name: no leading or trailing spaces' })
         .refine((name) => name !== 'start' && name !== 'end', {
         message: 'cue names "start" and "end" are built in'
     }), MotionAnchorShape)

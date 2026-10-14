@@ -80,7 +80,13 @@ const BUILTIN_PREFIX = '@visualfries/';
 /** Blocks that ship with VisualFries; a clip names them as `"block": "@visualfries/captions"`. */
 const BUILTIN_BLOCKS = {
     captions: 'Captions.svelte',
-    'speaker-depth': 'SpeakerDepth.svelte'
+    'speaker-depth': 'SpeakerDepth.svelte',
+    // motion recipes (docs/MOTION.md "Make it move")
+    kinetic: 'Kinetic.svelte',
+    arrows: 'Arrows.svelte',
+    wall: 'Wall.svelte',
+    screen: 'Screen.svelte',
+    'zoom-through': 'ZoomThrough.svelte'
 };
 function blockFile(dir, block) {
     if (!block.startsWith(BUILTIN_PREFIX))

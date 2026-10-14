@@ -1,6 +1,7 @@
 import { type MotionProject } from './project.js';
 import { type MotionWord } from './transcript.js';
 import { type ResolvedClip, type ResolvedProject } from './resolve.js';
+export { parseFcpxmlCuts, placeClips, type PlaceInput, type Placed } from './placement.js';
 import type { SubjectBox } from './resolve.js';
 export type LoadedMotionProject = {
     file: string;
@@ -157,4 +158,3 @@ export declare function renderMotionClips(loaded: LoadedMotionProject, opts: {
     keepFrames?: boolean;
     onProgress?: (msg: string) => void;
 }): Promise<RenderedClip[]>;
-export {};

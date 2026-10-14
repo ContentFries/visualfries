@@ -1,3 +1,4 @@
+import { findBadValues } from './badvalues.js';
 import { flushSync, mount, unmount, type Component } from 'svelte';
 import { Clip, MOTION_CONTEXT_KEY, type ClipController } from './runtime.svelte.js';
 import type { ResolvedClip } from './resolve.js';
@@ -217,12 +218,27 @@ export function createMotionStage(options: StageOptions) {
 	): Promise<{ errors: CheckIssue[]; warnings: CheckIssue[] }> {
 		const errors: CheckIssue[] = [];
 		const warnings: CheckIssue[] = [];
+		const seen = new Set<string>();
 		for (const n of frames) {
 			try {
 				await applyTime(n);
 			} catch (error) {
 				const message = (error as Error).message;
 				if (!errors.some((e) => e.message === message)) errors.push({ frame: n, message });
+				continue;
+			}
+			// broken math renders nothing and throws nothing: NaN/undefined in styles and SVG geometry
+			if (stage) {
+				for (const bad of findBadValues(stage)) {
+					const key = `${bad.path}|${bad.attr}`;
+					if (seen.has(key)) continue;
+					seen.add(key);
+					if (seen.size > 5) break;
+					errors.push({
+						frame: n,
+						message: `${bad.value.match(/NaN|undefined|-?Infinity/)?.[0]} in <${bad.path.split(' > ').pop()} ${bad.attr}> (${bad.path}): ${bad.attr}="${bad.value}"`
+					});
+				}
 			}
 		}
 		const running = document.getAnimations();

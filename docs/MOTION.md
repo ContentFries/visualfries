@@ -144,6 +144,21 @@ white = subject) for cutting the subject out:
 <!-- 0.4 s earlier: an echo -->
 ```
 
+**Words behind the speaker, as an overlay.** To lay text *behind* the speaker over the original
+video in an editor, render an `alpha` clip with `"holdout": "<footage>"`. While encoding, the alpha
+is multiplied by the inverse of that footage's matte (aligned to the program frame), so wherever
+the speaker is, the overlay is transparent and the real footage shows through. No plate is drawn,
+so nothing is resampled; before and after the footage nothing is cut.
+
+```json
+"footage": { "talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "start": 0 } },
+"clips": [{ "id": "behind", "block": "blocks/BigWord.svelte", "from": "it was", "until": "amazing",
+            "alpha": true, "holdout": "talk" }]
+```
+
+Everything in such a clip is held out; put elements that must stay in front of the speaker in a
+second clip on a higher track.
+
 `start` is the program second at which the footage's first frame plays; `offset` shifts a layer
 in seconds. A clip's `audio` muxes that footage's sound into the rendered clip. Frames are
 extracted once into `.visualfries/footage/` (JPEG plates, PNG cut-outs) and loaded before each

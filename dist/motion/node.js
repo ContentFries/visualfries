@@ -885,34 +885,52 @@ export function ffmpegFramePipe(args) {
     };
 }
 /**
- * ffmpeg input and mapping that mux the sound of the clip's `audio` footage, cut to the clip's
- * program range. Silence fills anything the footage does not cover.
+ * ffmpeg inputs, filters and mapping that follow the piped frames (input 0): the subject holdout
+ * of an alpha clip (`holdout`: alpha × (1 − matte) of that footage, aligned to the program frame)
+ * and the sound of the clip's `audio` footage, cut to the clip's program range. Silence fills
+ * anything the audio footage does not cover; outside its footage the holdout cuts nothing.
  */
-function audioInput(loaded, clip) {
-    if (!clip.audio)
-        return [];
-    const footage = loaded.project.footage?.[clip.audio];
-    if (!footage)
-        throw new Error(`Clip "${clip.id}": unknown audio footage "${clip.audio}".`);
-    const src = path.resolve(loaded.dir, footage.src);
-    // The picture places the footage on a whole frame; the sound follows the same frame.
-    const from = clip.start - Math.round((footage.start ?? 0) * clip.fps) / clip.fps;
-    const delayMs = Math.max(0, Math.round(-from * 1000));
-    return [
-        '-ss',
-        Math.max(0, from).toFixed(6),
-        '-i',
-        src,
-        '-map',
-        '0:v',
-        '-map',
-        '1:a:0',
-        '-af',
-        `${delayMs ? `adelay=${delayMs}:all=1,` : ''}apad`,
-        '-t',
-        clip.duration.toFixed(6),
-        ...(clip.alpha ? ['-c:a', 'pcm_s16le'] : ['-c:a', 'aac', '-b:a', '192k'])
-    ];
+export function encodeInputs(loaded, clip) {
+    const args = [];
+    let video = '0:v';
+    let next = 1;
+    if (clip.holdout) {
+        const footage = loaded.project.footage?.[clip.holdout];
+        if (!footage?.matte)
+            throw new Error(`Clip "${clip.id}": holdout footage "${clip.holdout}" needs a matte.`);
+        if (!clip.alpha)
+            throw new Error(`Clip "${clip.id}": holdout needs "alpha": true.`);
+        const matte = path.resolve(loaded.dir, footage.matte);
+        // footage frame shown at the clip's first frame (same rounding as <Footage>)
+        const first = clip.startFrame - Math.round((footage.start ?? 0) * clip.fps);
+        const pad = Math.max(0, -first);
+        const [w, h] = clip.size;
+        args.push('-ss', (Math.max(0, first) / clip.fps).toFixed(6), '-i', matte);
+        args.push('-filter_complex', [
+            '[0:v]format=yuva444p12le,split[vf_c][vf_x]',
+            '[vf_x]alphaextract,format=gray[vf_a]',
+            `[${next}:v]fps=${clip.fps},scale=${w}:${h}:flags=bicubic,format=gray,` +
+                `tpad=start=${pad}:stop=-1:color=black,trim=end_frame=${clip.frames},setpts=N/${clip.fps}/TB,negate[vf_m]`,
+            '[vf_a][vf_m]blend=all_mode=multiply,format=gray[vf_na]',
+            '[vf_c][vf_na]alphamerge,format=yuva444p12le[vf_v]'
+        ].join(';'));
+        video = '[vf_v]';
+        next++;
+    }
+    if (clip.audio) {
+        const footage = loaded.project.footage?.[clip.audio];
+        if (!footage)
+            throw new Error(`Clip "${clip.id}": unknown audio footage "${clip.audio}".`);
+        const src = path.resolve(loaded.dir, footage.src);
+        // The picture places the footage on a whole frame; the sound follows the same frame.
+        const from = clip.start - Math.round((footage.start ?? 0) * clip.fps) / clip.fps;
+        const delayMs = Math.max(0, Math.round(-from * 1000));
+        args.push('-ss', Math.max(0, from).toFixed(6), '-i', src, '-map', video, '-map', `${next}:a:0`, '-af', `${delayMs ? `adelay=${delayMs}:all=1,` : ''}apad`, '-t', clip.duration.toFixed(6), ...(clip.alpha ? ['-c:a', 'pcm_s16le'] : ['-c:a', 'aac', '-b:a', '192k']));
+    }
+    else if (clip.holdout) {
+        args.push('-map', video);
+    }
+    return args;
 }
 /**
  * Pages take frames in turn (page j renders j, j + jobs, …) and a reorder buffer hands them to
@@ -1073,7 +1091,7 @@ export async function renderMotionClips(loaded, opts) {
             // the first frame. Encode next to the target and replace it only on success, so a failed
             // render keeps the last good file.
             const partial = path.join(path.dirname(file), `.${path.basename(file, path.extname(file))}.partial-${process.pid}${path.extname(file)}`);
-            const encode = [...audioInput(loaded, clip), ...codec, partial];
+            const encode = [...encodeInputs(loaded, clip), ...codec, partial];
             let mode = '';
             const open = async () => {
                 const page = await openClip(browser, bundle, clip, opts.invalidate);

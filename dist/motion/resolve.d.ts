@@ -31,6 +31,8 @@ export type ResolvedClip = {
     background: string | null;
     /** Footage whose sound the render muxes into this clip. */
     audio: string | null;
+    /** Footage whose subject is cut out of this (alpha) clip while encoding. */
+    holdout: string | null;
     /** Frames of the project's footage, filled in by the node tooling before a page loads. */
     footage?: Record<string, FootageFrames>;
 };

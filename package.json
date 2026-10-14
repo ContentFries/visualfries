@@ -18,7 +18,7 @@
 		"prepublishOnly": "pnpm run package",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"test": "pnpm run test:unit -- --run",
+		"test": "vitest run",
 		"test:unit": "vitest",
 		"lint": "eslint . && prettier --check .",
 		"format": "prettier --write .",

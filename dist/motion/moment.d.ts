@@ -7,7 +7,7 @@ type CueTimes = Record<string, {
 /**
  * The one grammar for "a moment in a clip", shared by blocks (`clip.at`) and the CLI (`--at`):
  * - cue: `extra`, `extra.end`, `extra+0.4`, `extra.end - 0.2`, and the built-in `start` / `end`
- * - clip-local seconds: `2.5s` (or a plain number from code)
+ * - clip-local seconds: `2.5s` or `2.5` (a plain number from code works too)
  * - clip-local frame: `f120`
  * - `mid`: the middle of the clip
  * Returns clip-local seconds.

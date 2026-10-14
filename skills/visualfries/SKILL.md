@@ -328,6 +328,18 @@ Start with the built-in block `"block": "@visualfries/speaker-depth"`: the words
 
 Never use a `<video>` element in a block: it plays on wall-clock time. Animate on cues (`useTimeline` + `at('cue')`), keep randomness frame-keyed (`noise(frame, n)`).
 
+## Make It Move (no dry slides)
+
+Before writing a custom block for an insert, reach for the built-in motion recipes (`docs/MOTION.md`, "Make it move"): `@visualfries/wall` (zoom out of the speaker into a wall of sneak peeks), `@visualfries/kinetic` (kinetic typography from bound words), `@visualfries/arrows` (draw-on arrows, rings, spotlight), `@visualfries/screen` (real screen recording with a gliding camera), `@visualfries/zoom-through` (transition across a cut).
+
+Checklist for every insert:
+
+1. Something travels or the camera moves; no frame is static for more than ~2 s.
+2. Real material (screen, files, thumbnails) beats a drawing of it.
+3. Beats land on spoken words (cues), not on round seconds.
+4. Footage-based effects use the editor's full-quality export and are placed on the editor's cuts (`visualfries cuts` / `place`).
+5. Look at a still sheet of every clip before rendering; fix overflow, unreadable text, empty frames.
+
 ## Agent Output Contract
 
 For any generated VisualFries video package, produce:

@@ -162,6 +162,49 @@ VisualFries; their `props` replace a hand-written block. In your own blocks, `<C
 `bold`, `karaoke`, `pill`, `punch` and `neon`, and `clip.subject('talk')` returns where the
 speaker is (box and top of the head, from the matte). See the Captions and Footage docs pages.
 
+## Make it move (built-in motion recipes)
+
+Slides with a title and a few cards are the weakest inserts. What holds attention is motion
+design: something travels, the camera moves, words land on syllables. Five built-in blocks cover
+the moves that worked best in a 10-minute talking-head episode; every one is driven by cues and
+props only, so an agent writes JSON, not Svelte.
+
+| block | what it does | key props |
+|---|---|---|
+| `@visualfries/wall` | the shot zooms out into a 3×3 masonry wall of other clips (sneak peeks) and back in | `main`, `tiles[{footage, at, label}]`, `out`, `back` |
+| `@visualfries/kinetic` | kinetic typography from bound words: flips, swings in 3D, extruded letters, slam, explode, drop | `words: {"kinetic": "clip"}`, `phrases[{w, x, y, size, color, extrude, fx}]` |
+| `@visualfries/arrows` | arrows that draw on from A to B (optionally hand-drawn), label at the tail, rings, spotlight | `arrows[{at, from, to, bend, label, hand}]`, `rings`, `dim` |
+| `@visualfries/screen` | a real screen recording in a browser window, the camera glides to what is being said | `footage`, `cams[{at, r:[x,y,w,h]}]`, `notes`, `still` + `image` |
+| `@visualfries/zoom-through` | transition across a cut: rush forward, flash, settle | `cut`, `props.snap: false` |
+
+```json
+{ "id": "hook-wall", "block": "@visualfries/wall", "from": "this video", "until": "edited it", "tail": 0,
+  "cues": { "cut": "cut", "edited": "edited" },
+  "props": { "main": "talk", "out": "cut-0.1", "back": "edited+0.3", "label": "this video",
+             "tiles": [ { "footage": "insert3d", "at": 0.9, "label": "3D" },
+                        { "footage": "gag", "at": 1.5, "label": "gags" } ] } }
+```
+
+```json
+{ "id": "type", "block": "@visualfries/kinetic", "from": "If I had to", "until": "on it.",
+  "alpha": true, "words": { "kinetic": "clip" },
+  "props": { "first": "If", "phrases": [
+    { "w": [0, 3], "x": 0.78, "y": 0.18, "size": 130 },
+    { "w": [4, 5], "x": 0.5, "y": 0.04, "size": 260, "extrude": true, "fx": "slam" },
+    { "w": [6, 7], "x": 0.5, "y": 0.03, "size": 240, "color": "o", "extrude": true, "fx": "explode" },
+    { "w": [8, 12], "x": 0.78, "y": 0.14, "size": 120, "color": "g", "fx": "drop" } ] } }
+```
+
+Rules of thumb that made the difference:
+
+- Every insert has at least one travelling element or camera move; nothing static for more than
+  about 2 seconds. Arrows that draw on and a camera that moves to the number beat a list.
+- Real material over drawings: the actual screen, the actual files, the actual thumbnails.
+- Put kinetic words beside the speaker and some *behind* them (alpha clip + a matte holdout), and
+  keep the room slightly dimmed so the type pops.
+- Wall tiles and transitions run on the editor's footage: render them from the editor's
+  full-quality export, never from proxies, and place them with `visualfries place`.
+
 ## CLI
 
 ```bash

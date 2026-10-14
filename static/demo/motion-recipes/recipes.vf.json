@@ -1,0 +1,43 @@
+{
+	"size": [1920, 1080],
+	"fps": 25,
+	"transcript": "talk.transcript.json",
+	"fonts": [{ "family": "Anton", "src": "fonts/Anton-Regular.ttf" }],
+	"footage": {
+		"talk": { "src": "roughcut.mp4", "start": 0 },
+		"dashboard": { "src": "dashboard.mp4", "start": 596.12 },
+		"tile3d": { "src": "out-inserts/3d.mp4", "start": 0, "margin": 12 },
+		"tilegag": { "src": "out-inserts/gag.mp4", "start": 0, "margin": 12 }
+	},
+	"clips": [
+		{
+			"id": "wall", "block": "@visualfries/wall", "from": 0.6, "until": 3.2, "tail": 0,
+			"cues": { "cut": "edited", "ai": "by AI" },
+			"props": { "main": "talk", "out": "cut-0.12", "back": "ai+0.3", "label": "this video",
+				"tiles": [{ "footage": "tile3d", "at": 0.9, "label": "3D" }, { "footage": "tilegag", "at": 1.5, "label": "gags" }] }
+		},
+		{
+			"id": "type", "block": "@visualfries/kinetic", "from": { "say": "If I had to", "offset": -0.4 }, "until": "on it.",
+			"alpha": true, "words": { "kinetic": "clip" },
+			"props": { "first": "If", "phrases": [
+				{ "w": [0, 3], "x": 0.78, "y": 0.18, "size": 130 },
+				{ "w": [4, 5], "x": 0.5, "y": 0.04, "size": 260, "extrude": true, "fx": "slam" },
+				{ "w": [6, 7], "x": 0.5, "y": 0.03, "size": 240, "color": "o", "extrude": true, "fx": "explode" },
+				{ "w": [8, 12], "x": 0.78, "y": 0.14, "size": 120, "color": "g", "fx": "drop" }
+			] }
+		},
+		{ "id": "zoom", "block": "@visualfries/zoom-through", "from": 442.97, "until": 443.9, "tail": 0, "props": { "footage": "talk", "cut": 0.47, "snap": false } },
+		{
+			"id": "screen", "block": "@visualfries/screen", "from": { "say": "I built a tool", "offset": -0.4 }, "until": "for YouTube.",
+			"cues": { "hours": "watch hours", "subs": "new subscribers" },
+			"props": { "footage": "dashboard", "url": "studio", "cams": [{ "at": "hours", "r": [495, 215, 670, 320] }, { "at": "subs", "r": [1185, 215, 670, 320] }],
+				"notes": [{ "at": "hours", "text": "493 / 4 000 h", "y": 260 }] }
+		},
+		{
+			"id": "arrows", "block": "@visualfries/arrows", "from": { "say": "I built a tool", "offset": -0.4 }, "until": "for YouTube.", "alpha": true,
+			"cues": { "hours": "watch hours" },
+			"props": { "arrows": [{ "at": "hours+0.6", "from": [1600, 520], "to": [1060, 420], "bend": 0.25, "label": "493 h", "hand": true }],
+				"rings": [{ "at": "hours+0.4", "x": 240, "y": 370, "w": 500, "h": 140 }] }
+		}
+	]
+}

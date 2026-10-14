@@ -13,6 +13,7 @@ import { resolveMotionProject, type ResolvedClip, type ResolvedProject } from '.
 import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
 export { parseFcpxmlCuts, placeClips, type PlaceInput, type Placed } from './placement.js';
+export { renderPreview, previewChunks, type PreviewOptions } from './preview.js';
 import type { FootageFrames, SubjectBox } from './resolve.js';
 
 const require = createRequire(import.meta.url);

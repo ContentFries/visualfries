@@ -179,6 +179,16 @@ whose handles overlap are joined in the middle of the gap; an edge facing the ca
 cut inside its handle (or up to 5 frames into the words). A transition that straddles a cut on
 purpose sets `"props": { "snap": false }`.
 
+To review everything in context before the editor imports anything:
+
+```bash
+visualfries preview video.vf.json --base roughcut.mp4 --fcpxml timeline.fcpxml --mix sfx.wav
+```
+
+writes `out/preview.mp4` (720p): the rough cut with every rendered clip in its window, mixed with
+the extra audio. It composes in 60 s chunks (dozens of overlays in one ffmpeg graph run out of
+threads) and concatenates them losslessly; `--placement out/placement.json` reuses a placement.
+
 ## CLI
 
 ```bash

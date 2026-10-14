@@ -87,7 +87,13 @@ export const MotionClipShape = z.object({
 	alpha: z.boolean().optional(),
 	background: z.string().optional(),
 	/** Name of a footage whose sound is muxed into the rendered clip. */
-	audio: footageName.optional()
+	audio: footageName.optional(),
+	/**
+	 * Name of a footage with a matte: in an `alpha` clip, everything is cut out where that footage's
+	 * subject is (alpha × (1 − matte)), so the clip laid over the original video puts its content
+	 * BEHIND the speaker. Done by ffmpeg while encoding, frame-exact, no plate needed.
+	 */
+	holdout: footageName.optional()
 });
 export type MotionClip = z.infer<typeof MotionClipShape>;
 

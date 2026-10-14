@@ -34,6 +34,8 @@ export type ResolvedClip = {
 	background: string | null;
 	/** Footage whose sound the render muxes into this clip. */
 	audio: string | null;
+	/** Footage whose subject is cut out of this (alpha) clip while encoding. */
+	holdout: string | null;
 	/** Frames of the project's footage, filled in by the node tooling before a page loads. */
 	footage?: Record<string, FootageFrames>;
 };
@@ -303,7 +305,8 @@ export function resolveMotionClip(
 		props: clip.props ?? {},
 		alpha: clip.alpha ?? false,
 		background: clip.alpha ? null : (clip.background ?? project.background ?? null),
-		audio: clip.audio ?? null
+		audio: clip.audio ?? null,
+		holdout: clip.holdout ?? null
 	};
 }
 
@@ -332,6 +335,17 @@ export function resolveMotionProject(
 				field: 'audio',
 				message: `Unknown footage "${clip.audio}". Footage: ${Object.keys(project.footage ?? {}).join(', ') || 'none'}`
 			});
+		}
+		if (clip.holdout) {
+			const f = project.footage?.[clip.holdout];
+			const problem = !f
+				? `Unknown footage "${clip.holdout}". Footage: ${Object.keys(project.footage ?? {}).join(', ') || 'none'}`
+				: !f.matte
+					? `Footage "${clip.holdout}" has no matte; holdout needs one ("matte": "….matte.mp4").`
+					: !clip.alpha
+						? 'holdout cuts the subject out of the alpha channel, so the clip needs "alpha": true.'
+						: null;
+			if (problem) diagnostics.push({ level: 'error', clip: clip.id, field: 'holdout', message: problem });
 		}
 		const resolved = resolveMotionClip(clip, project, words, diagnostics);
 		if (resolved) clips.push(resolved);

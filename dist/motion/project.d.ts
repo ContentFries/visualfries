@@ -147,6 +147,7 @@ export declare const MotionClipShape: z.ZodObject<{
     alpha: z.ZodOptional<z.ZodBoolean>;
     background: z.ZodOptional<z.ZodString>;
     audio: z.ZodOptional<z.ZodString>;
+    holdout: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 export type MotionClip = z.infer<typeof MotionClipShape>;
 export declare const MotionProjectShape: z.ZodObject<{
@@ -245,6 +246,7 @@ export declare const MotionProjectShape: z.ZodObject<{
         alpha: z.ZodOptional<z.ZodBoolean>;
         background: z.ZodOptional<z.ZodString>;
         audio: z.ZodOptional<z.ZodString>;
+        holdout: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export type MotionProject = z.infer<typeof MotionProjectShape>;

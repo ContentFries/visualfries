@@ -144,6 +144,13 @@ type FrameSink = {
  */
 export declare function ffmpegFramePipe(args: string[]): FrameSink;
 /**
+ * ffmpeg inputs, filters and mapping that follow the piped frames (input 0): the subject holdout
+ * of an alpha clip (`holdout`: alpha × (1 − matte) of that footage, aligned to the program frame)
+ * and the sound of the clip's `audio` footage, cut to the clip's program range. Silence fills
+ * anything the audio footage does not cover; outside its footage the holdout cuts nothing.
+ */
+export declare function encodeInputs(loaded: Pick<LoadedMotionProject, 'project' | 'dir'>, clip: Pick<ResolvedClip, 'id' | 'audio' | 'holdout' | 'alpha' | 'fps' | 'start' | 'startFrame' | 'frames' | 'duration' | 'size'>): string[];
+/**
  * Pages take frames in turn (page j renders j, j + jobs, …) and a reorder buffer hands them to
  * ffmpeg in order. A page waits while it is more than a few frames ahead of the encoder, so
  * memory stays flat; frames are deterministic in any order, which `check --determinism` proves.

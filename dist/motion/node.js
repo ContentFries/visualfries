@@ -12,6 +12,8 @@ import { parseTranscriptWords } from './transcript.js';
 import { resolveMotionProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
+export { parseFcpxmlCuts, placeClips } from './placement.js';
+export { renderPreview, previewChunks } from './preview.js';
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CHROMIUM_FLAGS = ['--enable-blink-features=CanvasDrawElement', '--font-render-hinting=none'];

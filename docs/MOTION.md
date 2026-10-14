@@ -162,6 +162,23 @@ VisualFries; their `props` replace a hand-written block. In your own blocks, `<C
 `bold`, `karaoke`, `pill`, `punch` and `neon`, and `clip.subject('talk')` returns where the
 speaker is (box and top of the head, from the matte). See the Captions and Footage docs pages.
 
+## Placing clips on the editor's timeline
+
+Clips carry handles (e.g. 10 frames before and after the words) so an editor can trim them. Where
+they go is a question of the editor's cuts: an insert whose words start 2 frames after a cut shows
+2 frames of the old shot first. Export the timeline as FCPXML and let VisualFries place the clips:
+
+```bash
+visualfries cuts timeline.fcpxml --output cuts.json        # picture cut points (spine + connected video)
+visualfries place video.vf.json --fcpxml timeline.fcpxml   # → out/placement.json
+```
+
+`placement.json` lists every rendered clip with its visible window (`in`, `out`) and a track:
+full-screen clips alternate V2/V3 (handles overlap), alpha clips go to V4. Full-screen neighbours
+whose handles overlap are joined in the middle of the gap; an edge facing the camera snaps onto a
+cut inside its handle (or up to 5 frames into the words). A transition that straddles a cut on
+purpose sets `"props": { "snap": false }`.
+
 ## CLI
 
 ```bash

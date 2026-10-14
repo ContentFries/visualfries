@@ -53,6 +53,10 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]
   visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
+  visualfries cuts <timeline.fcpxml> [--output cuts.json]
+                    picture cut points of an NLE timeline (DaVinci Resolve / FCPXML 1.9)
+  visualfries place <project.vf.json> [--fcpxml timeline.fcpxml | --cuts cuts.json] [--output placement.json]
+                    visible window and track of every rendered clip; edges inside a handle snap onto cuts
   visualfries matte <video> --output <matte.mp4> [--provider fal|command] [options]
                     subject matte (white = subject) for "footage". Default provider: BiRefNet v2
                     on fal.ai (FAL_KEY; --model Matting, --resolution 1024x1024). Any local tool:
@@ -1694,6 +1698,61 @@ async function motionStillCommand(args) {
 	);
 }
 
+/** Picture cut points of an NLE timeline exported as FCPXML. */
+async function cutsCommand(args) {
+	const file = args[0];
+	if (!file) throw new Error('Usage: visualfries cuts <timeline.fcpxml> [--output cuts.json]');
+	const { parseFcpxmlCuts } = await motionModule();
+	const { cuts, duration } = parseFcpxmlCuts(await fs.readFile(file, 'utf8'));
+	const output = readFlag(args, '--output');
+	if (output) await fs.writeFile(output, JSON.stringify(cuts));
+	console.log(JSON.stringify({ cuts: cuts.length, duration, output: output ?? null, first: cuts.slice(0, 8) }, null, 2));
+}
+
+/**
+ * Visible windows of the rendered clips on the editor's timeline (manifest + project), optionally
+ * snapped onto the cuts of the timeline (--fcpxml or --cuts). Writes placement.json.
+ */
+async function placeCommand(args) {
+	const file = args[0];
+	if (!file)
+		throw new Error(
+			'Usage: visualfries place <project.vf.json> [--fcpxml timeline.fcpxml | --cuts cuts.json] [--manifest out/manifest.json] [--handle-frames 10] [--output placement.json]'
+		);
+	const { loadMotionProject, parseFcpxmlCuts, placeClips } = await motionModule();
+	const loaded = await loadMotionProject(file);
+	const manifestPath = readFlag(args, '--manifest', path.join(loaded.dir, 'out', 'manifest.json'));
+	const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+	const fps = loaded.project.fps;
+	const handle = numberFlag(args, '--handle-frames', 10) / fps;
+	const fcpxml = readFlag(args, '--fcpxml');
+	const cutsFile = readFlag(args, '--cuts');
+	const cuts = fcpxml
+		? parseFcpxmlCuts(await fs.readFile(fcpxml, 'utf8')).cuts
+		: cutsFile
+			? JSON.parse(await fs.readFile(cutsFile, 'utf8'))
+			: [];
+	const byId = Object.fromEntries(loaded.project.clips.map((c) => [c.id, c]));
+	const placed = placeClips(
+		manifest.clips
+			.filter((c) => byId[c.id])
+			.map((c) => ({
+				id: c.id,
+				file: path.basename(c.file),
+				programStart: c.programStart,
+				programEnd: c.programEnd,
+				alpha: !!c.alpha,
+				tail: byId[c.id].tail ?? handle,
+				snap: byId[c.id].props?.snap !== false
+			})),
+		{ fps, handle, cuts }
+	);
+	const output = readFlag(args, '--output', path.join(loaded.dir, 'out', 'placement.json'));
+	await fs.writeFile(output, JSON.stringify(placed, null, 1));
+	const snapped = placed.filter((p) => p.snapIn !== undefined || p.snapOut !== undefined).length;
+	console.log(JSON.stringify({ output, clips: placed.length, cuts: cuts.length, snapped }, null, 2));
+}
+
 async function matteCommand(args) {
 	const input = args[0];
 	const output = readFlag(args, '--output');
@@ -1808,6 +1867,8 @@ async function main() {
 	if (command === 'still') return motionStillCommand(args);
 	if (command === 'check') return motionCheckCommand(args);
 	if (command === 'matte') return matteCommand(args);
+	if (command === 'cuts') return cutsCommand(args);
+	if (command === 'place') return placeCommand(args);
 	if (command === 'render' && args[0] && (await isMotionProjectFile(args[0])))
 		return motionRenderCommand(args);
 	if (command === 'render') return renderCommand(args);

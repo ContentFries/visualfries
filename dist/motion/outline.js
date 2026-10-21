@@ -109,25 +109,32 @@ export function outlineStyle(options, doc = document) {
  * `<span use:outline={{ width: 6, color: '#fff' }}>AI</span>`.
  *
  * Hollow text sets the element's CSS `filter` and text colours: animate blur on a parent and
- * keep text-shadow off the element. Give inline elements `display: inline-block`.
+ * keep text-shadow off the element. Give inline elements `display: inline-block`. An update and
+ * `destroy` put back the inline values (and `!important`) the element had before.
  */
 export function outline(node, options) {
-    let applied = [];
-    const apply = (o) => {
-        for (const name of applied)
-            node.style.removeProperty(name);
-        const style = outlineStyle(o, node.ownerDocument);
-        for (const [name, value] of Object.entries(style))
-            node.style.setProperty(name, value);
-        applied = Object.keys(style);
-    };
-    apply(options);
-    return {
-        update: apply,
-        destroy() {
-            for (const name of applied)
+    // The element's own inline declarations that the outline replaced, by property.
+    const saved = new Map();
+    const restore = () => {
+        for (const [name, { value, priority }] of saved) {
+            if (value)
+                node.style.setProperty(name, value, priority);
+            else
                 node.style.removeProperty(name);
-            applied = [];
+        }
+        saved.clear();
+    };
+    const apply = (o) => {
+        const style = outlineStyle(o, node.ownerDocument);
+        restore();
+        for (const [name, value] of Object.entries(style)) {
+            saved.set(name, {
+                value: node.style.getPropertyValue(name),
+                priority: node.style.getPropertyPriority(name)
+            });
+            node.style.setProperty(name, value);
         }
     };
+    apply(options);
+    return { update: apply, destroy: restore };
 }

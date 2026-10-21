@@ -126,4 +126,28 @@ describe('outline action', () => {
 		expect(el.style.color).toBe('');
 		expect(el.style.opacity).toBe('0.7');
 	});
+
+	it('puts back the inline values it replaced, with their priority', () => {
+		const el = document.createElement('span');
+		el.style.setProperty('color', 'rgb(1, 2, 3)', 'important');
+		el.style.filter = 'blur(2px)';
+		document.body.appendChild(el);
+		const action = outline(el, { width: 6, color: '#fff' });
+		expect(el.style.color).toBe('rgb(255, 0, 0)');
+		expect(el.style.getPropertyPriority('color')).toBe('');
+		expect(el.style.filter).toBe(`url(#${outlineFilterId('#fff')})`);
+
+		// Filled text sets neither colour nor filter: the element's own come back.
+		action.update({ width: 6, color: '#000', mode: 'filled' });
+		expect(el.style.color).toBe('rgb(1, 2, 3)');
+		expect(el.style.getPropertyPriority('color')).toBe('important');
+		expect(el.style.filter).toBe('blur(2px)');
+
+		action.update({ width: 4, color: '#ffe' });
+		action.update({ width: 6, color: '#fff' });
+		action.destroy();
+		expect(el.style.color).toBe('rgb(1, 2, 3)');
+		expect(el.style.getPropertyPriority('color')).toBe('important');
+		expect(el.style.filter).toBe('blur(2px)');
+	});
 });

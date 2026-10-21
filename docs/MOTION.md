@@ -362,6 +362,7 @@ draws the inner contours that variable fonts and many serifs keep inside their l
 `width` is the line's thickness outside the letters (px or a CSS length). `hollow` (default)
 sets the element's text colours and a CSS `filter`, so put it on the text element itself (never
 on an ancestor of a canvas) and animate blur on a parent. `filled` keeps the text colour.
+When the options change or the element unmounts, the element's own inline values come back.
 
 ## Brand, style and format
 

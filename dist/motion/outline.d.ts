@@ -30,9 +30,10 @@ export declare function outlineStyle(options: OutlineOptions, doc?: Document): R
  * `<span use:outline={{ width: 6, color: '#fff' }}>AI</span>`.
  *
  * Hollow text sets the element's CSS `filter` and text colours: animate blur on a parent and
- * keep text-shadow off the element. Give inline elements `display: inline-block`.
+ * keep text-shadow off the element. Give inline elements `display: inline-block`. An update and
+ * `destroy` put back the inline values (and `!important`) the element had before.
  */
 export declare function outline(node: HTMLElement, options: OutlineOptions): {
     update: (o: OutlineOptions) => void;
-    destroy(): void;
+    destroy: () => void;
 };

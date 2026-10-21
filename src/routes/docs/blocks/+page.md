@@ -38,6 +38,8 @@ A **motion block** is a Svelte 5 component that draws one clip. It reads the cli
 
 VisualFries owns the timeline: it is paused, primed once so every tween records its start values, and seeked to the clip time on each frame.
 
+**Named moves without GSAP.** For entrances, exits and emphasis, [motion primitives](/docs/motion) need one line: `<h1 use:motion={{ enter: 'pop', at: 'extra' }}>`.
+
 **3. Per-frame drawing.** For canvas, procedural SVG or an existing engine.
 
 ```svelte
@@ -89,4 +91,4 @@ import { useReady } from 'visualfries/motion';
 useReady(decodeImages()); // the first frame waits until this settles
 ```
 
-Next: [The clip object](/docs/clip-api) lists every helper; [Determinism rules](/docs/determinism) lists what a block must not do.
+Next: [The clip object](/docs/clip-api) lists every helper; [Motion primitives](/docs/motion) lists the named moves; [Determinism rules](/docs/determinism) lists what a block must not do.

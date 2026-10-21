@@ -337,6 +337,26 @@ Time motion-project clips to a music track like to words (`docs/MOTION.md`, "Mus
 3. Anchor with `{ "bar": 5 }`, `{ "beat": 17 }`, `{ "bar": 5, "beat": 3 }`, `{ "downbeat": "after", "at": "the drop" }`, `"offset": "-1b"`; in blocks `'bar 5'`, `'downbeat > extra'`, `'extra.end - 1b'` and `clip.pulse()` (0 on each beat → 1) for on-beat motion.
 4. Run `visualfries check` and read the bar grid before anything else. If the BPM column is twice (or half) the tempo of the music, set `"tempo": "half"` (or `"double"`) on the music item; if bars start on the wrong hit, `"downbeat": n`; a constant offset, `"shift": seconds`. Never edit the beats file to fix this.
 
+## Motion primitives in blocks
+
+In a motion block, give elements named moves with one line instead of writing GSAP:
+
+```svelte
+<script>
+	import { motion } from 'visualfries/motion';
+</script>
+
+<h1 use:motion={{ enter: 'pop', at: 'title', exit: 'fade', emphasis: 'punch' }}>…</h1>
+<p use:motion={{ enter: 'rise', split: 'words', at: 'list' }}>…</p>
+<span use:motion={{ count: 12400, at: 'stat' }}>0</span>
+```
+
+- Entrances (exits mirror them): `fade`, `pop`, `slide`, `scale`, `rise`, `drop`, `reveal`, `blur-in`, `spring`, `typewriter`, `draw` (SVG strokes). Emphasis: `pulse`, `shake`, `wiggle`, `punch`, `highlight`, `underline`, `strike`, `glow`. Options: `at`, `until`, `duration`, `direction`, `split: words|chars|lines`, `stagger`, `intensity`, `count`, `color`.
+- Defaults scale with the clip's energy: `"props": { "energy": "calm" | "balanced" | "punchy" }`.
+- `use:motion` owns transform, opacity, filter, clip-path and visibility of its element: do not animate those from markup or `useTimeline` on the same element; nest a wrapper instead. Keep moving elements mounted (no `{#if}`).
+- Every move records events (`pop`, `slam`, `whoosh`, `type`, `tick` …) in `clip.events()` for sound effects; add your own with `clip.event(name, at)`.
+- Run `visualfries check --determinism` after adding motion. Example: `static/demo/motion`; reference: the Motion primitives docs page.
+
 ## Agent Output Contract
 
 For any generated VisualFries video package, produce:

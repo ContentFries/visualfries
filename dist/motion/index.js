@@ -1,5 +1,7 @@
 // Browser-side API for motion blocks. Node tooling lives in `visualfries/motion/node`.
 export { Clip, useClip, useTimeline, useFrame, useReady, clamp, lerp, random, noise } from './runtime.svelte.js';
+export { motion } from './motion.js';
+export { ENERGY } from './primitives.js';
 export { default as Footage } from './Footage.svelte';
 export { default as Captions } from './Captions.svelte';
 export { footageFrameUrl, subjectBox } from './footage.js';

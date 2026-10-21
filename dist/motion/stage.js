@@ -1,6 +1,6 @@
 import { findBadValues } from './badvalues.js';
 import { flushSync, mount, unmount } from 'svelte';
-import { Clip, MOTION_CONTEXT_KEY } from './runtime.svelte.js';
+import { Clip, MOTION_CONTEXT_KEY, registerClipRoot } from './runtime.svelte.js';
 import { seekTimeline } from './seek.js';
 /**
  * Browser side of motion rendering. Everything that decides pixels lives here so
@@ -78,6 +78,7 @@ export function createMotionStage(options) {
             frameFns: [],
             ready: []
         };
+        registerClipRoot(controller);
         const instance = mount(Block, {
             target: root,
             props: { ...data.props },
@@ -263,7 +264,11 @@ export function createMotionStage(options) {
         }
         return { errors, warnings };
     }
-    return { mode, load, frame, check, unload };
+    /** Events the loaded clip's blocks recorded (`clip.event`, `use:motion`), in time order. */
+    function events() {
+        return active?.controller.clip.events() ?? [];
+    }
+    return { mode, load, frame, check, unload, events };
 }
 function describe(el) {
     // `className` of an SVG element is an SVGAnimatedString, not the class text.

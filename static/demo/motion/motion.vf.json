@@ -1,0 +1,33 @@
+{
+	"size": [1080, 1920],
+	"fps": 30,
+	"background": "#111114",
+	"transcript": "voice.transcript.json",
+	"fonts": [
+		{ "family": "Anton", "src": "fonts/Anton-Regular.ttf" },
+		{ "family": "Newsreader", "src": "fonts/Newsreader.ttf", "weight": "200 800" }
+	],
+	"clips": [
+		{
+			"id": "primitives",
+			"block": "blocks/Primitives.svelte",
+			"from": "motion in one",
+			"until": "let it go",
+			"tail": 0.7,
+			"cues": {
+				"title": "motion",
+				"line": "one line",
+				"pop": "pop",
+				"rise": "rise",
+				"slide": "slide",
+				"type": "type it out",
+				"draw": "draw the arrow",
+				"count": "count to",
+				"shake": "shake it",
+				"highlight": "highlight it",
+				"go": "let it go"
+			},
+			"props": { "energy": "balanced" }
+		}
+	]
+}

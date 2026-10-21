@@ -55,7 +55,7 @@ describe('resolved program', () => {
 				clip: 'codec',
 				field: 'slot',
 				message:
-					'No shot frees the "panel" slot for 90 of the clip\'s 90 frames (first at 3.30 s); the clip is hidden there. Shots with a "panel" slot: strip.'
+					'No shot frees the "panel" slot for 90 of the clip\'s 90 frames (first at 3.30 s); the clip is hidden there. Shots with a "panel" slot: strip, window.'
 			}
 		]);
 		expectGolden('retake.program.json', p);
@@ -241,8 +241,8 @@ describe('shots, clips, keys and events', () => {
 			{ kind: 'whip', frame: 156, owner: 'whip' },
 			{ kind: 'transition', frame: 156, owner: 'whip.transition' },
 			{ kind: 'transition', frame: 204, owner: 'cut5.transition' },
-			// The camera moving back to full after the whip, halfway through the morph.
-			{ kind: 'shot', frame: 214, owner: 'full-204' }
+			// The whip back to full, halfway through its morph (0.42 s).
+			{ kind: 'whip', frame: 210, owner: 'full-204' }
 		]);
 	});
 

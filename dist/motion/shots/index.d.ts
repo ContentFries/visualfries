@@ -9,7 +9,7 @@ export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
  * morphing from the previous shot's layout over the shot's first `morphFrames` frames. Pure:
  * every frame is a function of the shot track, the frame and the subject at that frame.
  */
-/** Built-in shots that are drawn. The other names `SHOTS` lists draw as `full` until built. */
+/** Built-in shots that are drawn. */
 export declare const SHOT_MODULES: Readonly<Record<string, ShotModule>>;
 /** The module drawing `name`; null for a shot not built yet or a custom file. */
 export declare function shotModule(name: string): ShotModule | null;
@@ -21,7 +21,11 @@ export type ShotSpan = Pick<ProgramShot, 'id' | 'shot' | 'startFrame' | 'frames'
  * before it.
  */
 export declare function defaultMorph(prev: string | null, next: string): Morph | null;
-/** Events of a shot in program frames (see `ShotModule.events`). */
+/**
+ * Events of a shot in program frames (see `ShotModule.events`). After a shot with a
+ * `leaveEvent` (a whip) that event marks the middle of the morph in place of a `shot` event,
+ * and the shot's other events inside the morph move to its end, where the camera lands.
+ */
 export declare function shotEvents(shot: ShotSpan, prev: string | null): ShotEvent[];
 type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys'>;
 /**

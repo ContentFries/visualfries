@@ -912,7 +912,10 @@ function morphs(
 	return shots;
 }
 
-/** A clip behind the subject needs a matte on every footage on screen with it. */
+/**
+ * A clip behind the subject, and a shot that cuts the subject out (`behind`), need a matte on
+ * every footage on screen with them.
+ */
 function checkBehind(
 	clips: ProgramClip[],
 	cuts: ProgramCut[],
@@ -920,6 +923,22 @@ function checkBehind(
 	project: MotionProject,
 	diagnostics: ProgramDiagnostic[]
 ) {
+	for (const shot of shots) {
+		if (!shotModule(shot.shot)?.needsMatte) continue;
+		const names = new Set(
+			shot.source ? [shot.source.name] : cuts.filter((c) => overlaps(c, shot)).map((c) => c.source)
+		);
+		const bare = [...names].filter((n) => !project.footage?.[n]?.matte);
+		if (bare.length || !names.size)
+			diagnostics.push({
+				level: 'error',
+				item: shot.id,
+				field: 'shots',
+				message: names.size
+					? `The "${shot.shot}" shot needs a matte, but footage ${bare.map((n) => `"${n}"`).join(', ')} has none (visualfries matte).`
+					: `The "${shot.shot}" shot needs footage with a matte on screen.`
+			});
+	}
 	for (const clip of clips) {
 		if (clip.layer !== 'behind') continue;
 		const names = new Set([

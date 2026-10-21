@@ -242,12 +242,36 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
 - `strip`: the camera narrows into a strip and a `panel` slot opens beside it: camera left and
   panel right in landscape and square, camera on top and panel below in portrait.
   `params.side: "right"` swaps them; `params.size` is the camera's share of the frame.
+- `window`: the speaker in a rounded window over the style's surface, with a ring in the
+  brand's primary colour and a soft shadow, and a `panel` slot beside it. Landscape and square:
+  the window sits in a corner (`params.corner`: `bottom-right` by default, `bottom-left`,
+  `top-right`, `top-left`) and the panel takes the full height on the other side. Portrait: the
+  window is centred near the top and the panel takes the rest below it (`corner: "bottom-…"`
+  puts the window above the bottom band where captions and platform buttons sit, the panel
+  above it). `params.size` is the window's width as a share of the frame (default 0.3 landscape,
+  0.4 square, 0.56 portrait), `params.zoom` how much closer the camera goes inside it (1.2),
+  `params.ring` the ring's width in pixels (0: none).
+- `behind`: the stage for a word behind the speaker's head. The footage stays framed like
+  `full` (`params.scale` goes closer), the room dims and blurs (`params.dim`, default 0.55;
+  `params.blur`, 12 px at 1080 px) while the speaker, cut out by the matte, stays sharp in front,
+  and a `word` slot follows the head: from a little above it to below the face, across the
+  frame. The word itself is a clip with `"layer": "behind"` and `"slot": "word"`; the shot only
+  sets the stage, and a behind clip also works without it. Needs a matte (`check` reports
+  footage without one).
+- `whip`: the camera whips off the frame with motion blur while a frame-sized `card` slot flies
+  in from the other side; the morph out of the shot whips back. `params.direction` is where the
+  camera goes (`left`, `right`, `up`, `down`, or `forward`/`back`: left/right in landscape and
+  square, up/down in portrait; default `forward`), `params.blur` the peak blur in pixels of a
+  1920 px move (default 48; 0: none). Without a clip in the slot the style's surface shows.
 
-The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full` and
-`strip`, 0.16 s into `punch`, 0.45 s out of a punch; none under a shot `transition`). A clip with
-`"slot": "panel"` fills that slot and moves with it; while no shot frees its slot it is hidden
-and `check` warns. Shots add `shot` and `punch` events to the program. `window`, `behind` and
-`whip` are framed `full` until they are built.
+The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full`,
+`strip` and `window`, 0.3 s into `behind`, 0.16 s into `punch`, 0.45 s out of a punch, 0.42 s
+into and out of a whip; none under a shot `transition`). A window's ring and shadow and a dimmed
+room fade with the move. A clip with `"slot": "panel"` fills that slot and moves with it; while
+no shot frees its slot it is hidden and `check` warns. Shots add events to the program for
+sounds to land on: `shot` halfway through a move into `strip` or `window` and back out of them,
+`punch` on a punch-in's first frame, and `whip` halfway through the whip out and the whip back
+(a punch after a whip hits when the camera lands).
 
 A `transition` on a cut, a shot or a clip hands the frame over inside a window around the cut:
 `{ "type": "push", "duration": 0.5, "align": "center", "ease": "expo.inOut", "direction":

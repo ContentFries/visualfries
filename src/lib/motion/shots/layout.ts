@@ -49,6 +49,20 @@ export type ShotLayout = {
 	 */
 	turn?: { rotation: number; pivot: { x: number; y: number } };
 	opacity?: number;
+	/** A ring of this many pixels in the brand's primary colour around the camera window. */
+	ring?: number;
+	/** How strongly the camera window casts a shadow on what is under it, 0–1. */
+	lift?: number;
+	/**
+	 * The room around the subject: the footage plate darkened by `dim` (0–1) and blurred by
+	 * `blur` pixels, with the subject cut out by its matte drawn over it untouched.
+	 */
+	room?: { dim: number; blur: number };
+	/**
+	 * Motion blur along each axis in pixels (standard deviation) on the footage and the clips in
+	 * slots; only inside a morph into or out of a shot that blurs its moves (see `ShotModule.blur`).
+	 */
+	motionBlur?: { x: number; y: number };
 };
 
 /** A program frame where something happens in a shot (a sound can land on it). */
@@ -68,6 +82,19 @@ export type ShotModule = {
 	events(ctx: { prev: string | null; morphFrames: number; frames: number }): ShotEvent[];
 	/** Problems with `params`, as messages. */
 	check?(params: Record<string, unknown>): string[];
+	/**
+	 * The event the morph out of this shot makes halfway (a whip back). It stands in for the next
+	 * shot's `shot` event in that morph; the next shot's other events in it move to its end,
+	 * where the camera lands.
+	 */
+	leaveEvent?: string;
+	/**
+	 * Peak motion blur in pixels along each axis of the morphs into and out of this shot; it
+	 * rises and falls with the move (see `shotLayoutAt`).
+	 */
+	blur?(input: ShotInput): { x: number; y: number };
+	/** The shot draws the subject cut out by its matte, so the footage on screen needs a matte. */
+	needsMatte?: boolean;
 };
 
 /**

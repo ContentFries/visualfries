@@ -88,13 +88,19 @@ export function beatThis(opts = {}) {
  *
  *   commandBeats('my-tracker --in {input} --out {output}')
  */
+/** The program a command runs, for the beats file: `"/opt/my tools/tracker" …` → `tracker`. */
+function commandName(template) {
+    const m = /^\s*(?:"([^"]*)"|'([^']*)'|(\S+))/.exec(template);
+    const program = m?.[1] ?? m?.[2] ?? m?.[3] ?? '';
+    return program.split(/[\\/]/).pop() || 'command';
+}
 export function commandBeats(template, opts = {}) {
     if (!template.includes('{input}') || !template.includes('{output}'))
         throw new Error('The beats command needs {input} and {output} placeholders.');
     const windows = process.platform === 'win32';
     // Paths reach the shell as environment variables, expanded once and never parsed again.
     const variable = (name) => (windows ? `"%${name}%"` : `"$${name}"`);
-    const name = opts.name ?? template.trim().split(/\s+/)[0];
+    const name = opts.name ?? commandName(template);
     return {
         name,
         async info() {
@@ -357,7 +363,7 @@ export async function analyzeBeats(music, opts = {}) {
             text = await fs.readFile(beatsOut, 'utf8');
         }
         catch {
-            throw new Error(`${analyzer.name} wrote no beats to {output}.`);
+            throw new Error(`${analyzer.name} finished without writing beats to ${beatsOut}. A --command analyzer must write them to the path that replaces {output}.`);
         }
         const parsed = parseAnalyzerOutput(text);
         const info = { ...(await analyzer.info()), ...parsed.analyzer };

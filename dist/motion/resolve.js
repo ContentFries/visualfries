@@ -1,3 +1,4 @@
+import { AMBIGUOUS_BAR_ANCHOR } from './project.js';
 import { describeWords, findPhrase, suggestPhrases } from './transcript.js';
 import { BEAT_OFFSET, findBarBeat, findBeat, nearBeat, pickMusic, shiftByBeats } from './beat-grid.js';
 class AnchorError extends Error {
@@ -63,6 +64,9 @@ function resolveAnchor(anchor, words, fps, window, defaultEdge, localBase, beats
         return { time, end: time, words: [] };
     }
     if ('bar' in anchor || 'downbeat' in anchor || 'beat' in anchor) {
+        if ('bar' in anchor &&
+            ('at' in anchor || 'downbeat' in anchor || typeof anchor.beat === 'string'))
+            throw new AnchorError(AMBIGUOUS_BAR_ANCHOR);
         // Beats are absolute: bar 5 is bar 5 wherever the clip is.
         const music = musicFor(beats, anchor.music);
         let base;
@@ -70,7 +74,9 @@ function resolveAnchor(anchor, words, fps, window, defaultEdge, localBase, beats
             base = findBarBeat(music.grid, anchor.bar, anchor.beat ?? 1, music.name).time;
         else if ('downbeat' in anchor || typeof anchor.beat === 'string') {
             const direction = 'downbeat' in anchor ? anchor.downbeat : anchor.beat;
-            const at = resolveAnchor(anchor.at, words, fps, window, 'start', localBase, beats).time;
+            // `at` keeps the caller's edge: in `until` a phrase means its end, so the downbeat after
+            // it never cuts the phrase short. `{ say, edge }` still picks another edge.
+            const at = resolveAnchor(anchor.at, words, fps, window, defaultEdge, localBase, beats).time;
             base = nearBeat(music.grid, at, 'downbeat' in anchor ? 'downbeat' : 'beat', direction, music.name).time;
         }
         else
@@ -193,19 +199,23 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [])
             fail(`words.${name}`, error);
         }
     }
-    let clipBeats = [];
-    let noBeats;
-    try {
-        clipBeats = musicFor(beats, undefined).grid.map(({ index, time, bar, beat }) => ({
-            index,
-            time,
-            local: time - start,
-            bar,
-            beat
-        }));
-    }
-    catch (error) {
-        noBeats = error.message;
+    // Without music the clip gets no beat fields at all, so it resolves exactly as before.
+    let musicFields = null;
+    if (music.length) {
+        try {
+            musicFields = {
+                beats: musicFor(beats, undefined).grid.map(({ index, time, bar, beat }) => ({
+                    index,
+                    time,
+                    local: time - start,
+                    bar,
+                    beat
+                }))
+            };
+        }
+        catch (error) {
+            musicFields = { noBeats: error.message };
+        }
     }
     return {
         id: clip.id,
@@ -223,8 +233,7 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [])
         alpha: clip.alpha ?? false,
         background: clip.alpha ? null : (clip.background ?? project.background ?? null),
         audio: clip.audio ?? null,
-        beats: clipBeats,
-        ...(noBeats ? { noBeats } : {})
+        ...musicFields
     };
 }
 /** `music`: beats of the project's music items, placed in the program (see `programBeats`). */

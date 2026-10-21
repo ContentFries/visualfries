@@ -1,4 +1,4 @@
-import { findBarBeat, findBeat, nearBeat, shiftByBeats } from './beat-grid.js';
+import { NO_MUSIC_BEATS, findBarBeat, findBeat, nearBeat, shiftByBeats } from './beat-grid.js';
 /** Cue names every clip has; projects cannot redefine them. */
 export const RESERVED_CUES = ['start', 'end'];
 // Cue names are letters (any script), digits, `_` and inner spaces, not starting with a digit:
@@ -26,35 +26,36 @@ const NEAR_MOMENT = /^(beat|downbeat)\s*([<>])\s*(.+)$/;
  * Returns clip-local seconds.
  */
 export function resolveMoment(at, ctx) {
+    return momentIn(at, at, ctx);
+}
+/** `whole` is the moment as written, so an error inside `extr - 1b` names all of it. */
+function momentIn(at, whole, ctx) {
     if (typeof at === 'number')
         return at;
     const text = at.trim();
-    const grid = () => {
-        if (ctx.beats?.length)
-            return ctx.beats;
-        throw new Error(`Clip "${ctx.id}": "${at}" needs music beats. ${ctx.noBeats ?? 'The clip has no music with beats.'}`);
-    };
     const label = `the music of clip "${ctx.id}"`;
-    const wrap = (fn) => {
+    /** Runs a beat lookup; its error gets the clip and moment in front, once. */
+    const onBeats = (fn) => {
+        if (!ctx.beats?.length)
+            throw new Error(`Clip "${ctx.id}": "${whole}" needs music beats. ${ctx.noBeats ?? NO_MUSIC_BEATS}`);
         try {
-            return fn();
+            return fn(ctx.beats);
         }
         catch (error) {
-            throw new Error(`Clip "${ctx.id}": "${at}": ${error.message}`);
+            throw new Error(`Clip "${ctx.id}": "${whole}": ${error.message}`);
         }
     };
     const near = NEAR_MOMENT.exec(text);
     if (near) {
-        const time = resolveMoment(near[3], ctx);
+        const time = momentIn(near[3], whole, ctx);
         const kind = near[1];
-        return wrap(() => nearBeat(grid(), time, kind, near[2] === '>' ? 'after' : 'before', label))
-            .time;
+        return onBeats((grid) => nearBeat(grid, time, kind, near[2] === '>' ? 'after' : 'before', label)).time;
     }
     const offset = OFFSET_MOMENT.exec(text);
     if (offset) {
-        const base = resolveMoment(offset[1], ctx);
+        const base = momentIn(offset[1], whole, ctx);
         const amount = Number(offset[3]) * (offset[2] === '-' ? -1 : 1);
-        return offset[4] ? wrap(() => shiftByBeats(grid(), base, amount, label)) : base + amount;
+        return offset[4] ? onBeats((grid) => shiftByBeats(grid, base, amount, label)) : base + amount;
     }
     if (text === 'mid')
         return ctx.duration / 2;
@@ -66,10 +67,10 @@ export function resolveMoment(at, ctx) {
         return Number(seconds[1]);
     const beat = BEAT_MOMENT.exec(text);
     if (beat)
-        return wrap(() => findBeat(grid(), Number(beat[1]), label)).time;
+        return onBeats((grid) => findBeat(grid, Number(beat[1]), label)).time;
     const bar = BAR_MOMENT.exec(text);
     if (bar)
-        return wrap(() => findBarBeat(grid(), Number(bar[1]), Number(bar[2] ?? 1), label)).time;
+        return onBeats((grid) => findBarBeat(grid, Number(bar[1]), Number(bar[2] ?? 1), label)).time;
     const m = CUE_MOMENT.exec(text);
     const builtin = {
         start: { start: 0, end: 0 },
@@ -80,7 +81,8 @@ export function resolveMoment(at, ctx) {
     if (!m || !cue) {
         const known = [...Object.keys(ctx.cues), ...RESERVED_CUES].join(', ');
         const beats = ctx.beats?.length ? ', "bar 5", "beat 17", "downbeat > extra", "extra - 1b"' : '';
-        throw new Error(`Clip "${ctx.id}": unknown moment "${at}". Use a cue (${known}), "extra.end+0.3", "2.5s" (or 2.5), "f120", "mid"${beats}.`);
+        const part = at === whole ? '' : ` in "${whole}"`;
+        throw new Error(`Clip "${ctx.id}": unknown moment "${at}"${part}. Use a cue (${known}), "extra.end+0.3", "2.5s" (or 2.5), "f120", "mid"${beats}.`);
     }
     return m[2] === '.end' ? cue.end : cue.start;
 }

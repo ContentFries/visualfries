@@ -9,7 +9,7 @@ import type {
 } from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { subjectBox } from './footage.js';
-import { beatPhase, type GridBeat, type MotionBeatRef } from './beat-grid.js';
+import { NO_MUSIC_BEATS, beatPhase, type GridBeat, type MotionBeatRef } from './beat-grid.js';
 
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
@@ -108,7 +108,7 @@ export class Clip {
 	pulse(on: 'beat' | 'bar' = 'beat'): number {
 		if (!this.#grid.length)
 			throw new Error(
-				`Clip "${this.id}": pulse() needs music beats. ${this.#noBeats ?? 'The clip has no music with beats.'}`
+				`Clip "${this.id}": pulse() needs music beats. ${this.#noBeats ?? NO_MUSIC_BEATS}`
 			);
 		return beatPhase(this.#grid, this.t, on, `the music of clip "${this.id}"`, 0.5 / this.fps);
 	}

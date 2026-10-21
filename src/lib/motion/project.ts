@@ -44,43 +44,58 @@ export type MotionAnchor =
 			offset?: number | string;
 	  };
 
+/** `{ bar, beat: "after", at }` would silently lose `bar`; such anchors are refused. */
+export const AMBIGUOUS_BAR_ANCHOR =
+	'An anchor with "bar" cannot also have "at", "downbeat" or "beat": "after"/"before". Use { "bar": 5, "beat": 3 } for a beat in a bar, or { "beat": "after", "at": … } for the beat after a moment.';
+
+const isAmbiguousBar = (value: unknown) =>
+	typeof value === 'object' &&
+	value !== null &&
+	'bar' in value &&
+	('at' in value || 'downbeat' in value || typeof (value as { beat?: unknown }).beat === 'string');
+
 export const MotionAnchorShape: z.ZodType<MotionAnchor> = z.lazy(() =>
-	z.union([
-		z.number(),
-		z.string().min(1),
-		z.object({
-			say: z.string().min(1),
-			/** start: first word starts; last: last word starts; end: last word ends. */
-			edge: z.enum(['start', 'last', 'end']).optional(),
-			occurrence: z.number().int().min(1).optional(),
-			offset: AnchorOffsetShape.optional()
-		}),
-		z.object({ frame: z.number().int().min(0), offset: AnchorOffsetShape.optional() }),
-		z.object({
-			bar: z.number().int().min(0),
-			/** Beat inside the bar; default 1 (the downbeat). */
-			beat: z.number().int().min(1).optional(),
-			music: musicRef,
-			offset: AnchorOffsetShape.optional()
-		}),
-		z.object({
-			beat: z.number().int().min(1),
-			music: musicRef,
-			offset: AnchorOffsetShape.optional()
-		}),
-		z.object({
-			downbeat: z.enum(['after', 'before']),
-			at: MotionAnchorShape,
-			music: musicRef,
-			offset: AnchorOffsetShape.optional()
-		}),
-		z.object({
-			beat: z.enum(['after', 'before']),
-			at: MotionAnchorShape,
-			music: musicRef,
-			offset: AnchorOffsetShape.optional()
-		})
-	])
+	z
+		.unknown()
+		.refine((value) => !isAmbiguousBar(value), { message: AMBIGUOUS_BAR_ANCHOR, abort: true })
+		.pipe(
+			z.union([
+				z.number(),
+				z.string().min(1),
+				z.object({
+					say: z.string().min(1),
+					/** start: first word starts; last: last word starts; end: last word ends. */
+					edge: z.enum(['start', 'last', 'end']).optional(),
+					occurrence: z.number().int().min(1).optional(),
+					offset: AnchorOffsetShape.optional()
+				}),
+				z.object({ frame: z.number().int().min(0), offset: AnchorOffsetShape.optional() }),
+				z.object({
+					bar: z.number().int().min(0),
+					/** Beat inside the bar; default 1 (the downbeat). */
+					beat: z.number().int().min(1).optional(),
+					music: musicRef,
+					offset: AnchorOffsetShape.optional()
+				}),
+				z.object({
+					beat: z.number().int().min(1),
+					music: musicRef,
+					offset: AnchorOffsetShape.optional()
+				}),
+				z.object({
+					downbeat: z.enum(['after', 'before']),
+					at: MotionAnchorShape,
+					music: musicRef,
+					offset: AnchorOffsetShape.optional()
+				}),
+				z.object({
+					beat: z.enum(['after', 'before']),
+					at: MotionAnchorShape,
+					music: musicRef,
+					offset: AnchorOffsetShape.optional()
+				})
+			])
+		)
 );
 
 /** Words pulled from the transcript: a phrase, a range, or every word in the clip. */

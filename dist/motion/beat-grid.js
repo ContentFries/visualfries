@@ -119,6 +119,8 @@ export function correctBeats(file, corrections = {}) {
 // ---------------------------------------------------------------- lookups
 export class BeatError extends Error {
 }
+/** Why beat anchors, beat moments and `pulse()` fail in a project without music beats. */
+export const NO_MUSIC_BEATS = 'Beat anchors need music with beats: add "music": [{ "src": "music.mp3", "beats": "music.beats.json" }] to the project (visualfries beats music.mp3 writes the beats file).';
 /** `-1b`, `+0.5b`, `2b`: an offset counted in beats. */
 export const BEAT_OFFSET = /^([+-]?\d*\.?\d+)b$/;
 function needTwo(grid, label) {
@@ -276,7 +278,7 @@ export function pickMusic(music, id) {
         return hit;
     }
     if (!music.length)
-        throw new BeatError('Beat anchors need music with beats: add "music": [{ "src": "music.mp3", "beats": "music.beats.json" }] to the project (visualfries beats music.mp3 writes the beats file).');
+        throw new BeatError(NO_MUSIC_BEATS);
     if (music.length > 1)
         throw new BeatError(`Several music items have beats (${music.map((m) => m.name).join(', ')}); give each an "id" and say which with "music": "<id>".`);
     return music[0];

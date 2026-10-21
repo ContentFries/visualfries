@@ -1,4 +1,4 @@
-import type { MotionClip, MotionProject } from './project.js';
+import { type MotionClip, type MotionProject } from './project.js';
 import { type MotionWord } from './transcript.js';
 import { type MotionBeatRef, type MusicBeats } from './beat-grid.js';
 export type MotionWordRef = MotionWord & {
@@ -34,9 +34,10 @@ export type ResolvedClip = {
     audio: string | null;
     /**
      * Every beat of the clip's music (also those outside the clip), for beat moments,
-     * `clip.beats` and `clip.pulse()`. Empty without music; `noBeats` then says why.
+     * `clip.beats` and `clip.pulse()`. Absent when the project has no music with beats, so
+     * such projects resolve exactly as before; `noBeats` says why a clip with music has none.
      */
-    beats: MotionBeatRef[];
+    beats?: MotionBeatRef[];
     noBeats?: string;
     /** Frames of the project's footage, filled in by the node tooling before a page loads. */
     footage?: Record<string, FootageFrames>;

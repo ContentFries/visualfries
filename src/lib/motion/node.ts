@@ -44,6 +44,11 @@ export type LoadedMotionProject = {
 	transcriptHash: string | null;
 	/** The project's music items with their beats (corrected and placed in the program). */
 	music: LoadedMusic[];
+	/**
+	 * Short hash of every beats file and its corrections (`from`, `until`, `shift`, `downbeat`,
+	 * `tempo`); null without music beats. Beat-anchored clips move when it changes.
+	 */
+	musicHash: string | null;
 	resolved: ResolvedProject;
 };
 
@@ -52,6 +57,8 @@ export type LoadedMusic = {
 	/** Absolute path of the beats file; null when the item has none. */
 	beatsFile: string | null;
 	analysis: BeatsFile | null;
+	/** SHA-256 of the beats file as read; null when the item has none. */
+	beatsHash: string | null;
 	beats: MusicBeats | null;
 	/** Bars in program seconds, for the `check` grid. */
 	bars: BarRow[];
@@ -65,14 +72,24 @@ async function loadMusic(project: MotionProject, dir: string): Promise<LoadedMus
 	const loaded: LoadedMusic[] = [];
 	for (const music of project.music ?? []) {
 		if (!music.beats) {
-			loaded.push({ music, beatsFile: null, analysis: null, beats: null, bars: [] });
+			loaded.push({
+				music,
+				beatsFile: null,
+				analysis: null,
+				beatsHash: null,
+				beats: null,
+				bars: []
+			});
 			continue;
 		}
 		const beatsFile = path.resolve(dir, music.beats);
 		const src = path.resolve(dir, music.src);
 		let analysis: BeatsFile;
+		let beatsHash: string;
 		try {
-			analysis = BeatsFileShape.parse(JSON.parse(await fs.readFile(beatsFile, 'utf8')));
+			const text = await fs.readFile(beatsFile, 'utf8');
+			beatsHash = createHash('sha256').update(text).digest('hex');
+			analysis = BeatsFileShape.parse(JSON.parse(text));
 		} catch (error) {
 			throw new Error(
 				`Music "${music.id ?? music.src}": cannot read ${music.beats} (${(error as Error).message.split('\n')[0]}). Make it with: visualfries beats ${music.src} --output ${music.beats}`
@@ -94,6 +111,7 @@ async function loadMusic(project: MotionProject, dir: string): Promise<LoadedMus
 			music,
 			beatsFile,
 			analysis,
+			beatsHash,
 			beats,
 			bars: barRows(beats.grid, analysis.bars, corrected)
 		});
@@ -128,6 +146,21 @@ export async function loadMotionProject(
 		: null;
 	const music = await loadMusic(project, dir);
 	const musicBeats = music.map((m) => m.beats).filter((b): b is MusicBeats => !!b);
+	const timing = music
+		.filter((m) => m.beatsHash)
+		.map(({ music: m, beatsHash }) => [
+			beatsHash,
+			m.id ?? null,
+			m.src,
+			m.from ?? null,
+			m.until ?? null,
+			m.shift ?? null,
+			m.downbeat ?? null,
+			m.tempo ?? null
+		]);
+	const musicHash = timing.length
+		? createHash('sha256').update(JSON.stringify(timing)).digest('hex').slice(0, 12)
+		: null;
 	return {
 		file: abs,
 		dir,
@@ -135,6 +168,7 @@ export async function loadMotionProject(
 		words,
 		transcriptHash,
 		music,
+		musicHash,
 		resolved: resolveMotionProject(project, words, musicBeats)
 	};
 }
@@ -966,7 +1000,7 @@ export function frameForAt(clip: ResolvedClip, at: string): number {
 		cues: clip.cues,
 		duration: clip.duration,
 		fps: clip.fps,
-		beats: clip.beats.map((b) => ({ index: b.index, time: b.local, bar: b.bar, beat: b.beat })),
+		beats: clip.beats?.map((b) => ({ index: b.index, time: b.local, bar: b.bar, beat: b.beat })),
 		noBeats: clip.noBeats
 	});
 	return Math.max(0, Math.min(clip.frames - 1, Math.round(seconds * clip.fps)));
@@ -1181,7 +1215,9 @@ export type RenderedClip = {
 	seconds: number;
 	/** Transcript the clip was timed against. */
 	transcript: string | null;
-	/** Set when the clip was rendered against another transcript than the newest render. */
+	/** Music beats and corrections the clip was timed against (`musicHash`); absent without music. */
+	music?: string;
+	/** Set when the clip was rendered against another transcript or music beats than the newest render. */
 	stale?: boolean;
 };
 
@@ -1530,7 +1566,8 @@ export async function renderMotionClips(
 				alpha: clip.alpha,
 				mode,
 				seconds: (Date.now() - t0) / 1000,
-				transcript: loaded.transcriptHash
+				transcript: loaded.transcriptHash,
+				...(loaded.musicHash ? { music: loaded.musicHash } : {})
 			};
 			results.push(r);
 			opts.onProgress?.(`${clip.id}: ${clip.frames} frames in ${r.seconds.toFixed(1)} s (${mode})`);
@@ -1552,11 +1589,17 @@ export async function renderMotionClips(
 	const current = new Set(loaded.project.clips.map((c) => c.id));
 	const kept = previous
 		.filter((c) => !rendered.has(c.id) && current.has(c.id))
-		.map((c) => ({ ...c, stale: c.transcript !== loaded.transcriptHash || undefined }));
+		.map((c) => ({
+			...c,
+			stale:
+				c.transcript !== loaded.transcriptHash ||
+				(c.music ?? null) !== loaded.musicHash ||
+				undefined
+		}));
 	const stale = kept.filter((c) => c.stale).map((c) => c.id);
 	if (stale.length) {
 		opts.onProgress?.(
-			`Warning: ${stale.join(', ')} were rendered against another transcript; their placement may be off. Re-render them.`
+			`Warning: ${stale.join(', ')} were rendered against another transcript or other music beats; their placement may be off. Re-render them.`
 		);
 	}
 	const merged = [...kept, ...results].sort((a, b) => a.programStartFrame - b.programStartFrame);
@@ -1567,6 +1610,7 @@ export async function renderMotionClips(
 				fps: loaded.project.fps,
 				size: loaded.project.size,
 				transcript: loaded.transcriptHash,
+				...(loaded.musicHash ? { music: loaded.musicHash } : {}),
 				clips: merged
 			},
 			null,

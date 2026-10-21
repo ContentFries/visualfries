@@ -6,7 +6,16 @@ const AnchorOffsetShape = z.union([
 ]);
 /** Which music item's beats an anchor uses; needed only when several music items have beats. */
 const musicRef = z.string().min(1).optional();
-export const MotionAnchorShape = z.lazy(() => z.union([
+/** `{ bar, beat: "after", at }` would silently lose `bar`; such anchors are refused. */
+export const AMBIGUOUS_BAR_ANCHOR = 'An anchor with "bar" cannot also have "at", "downbeat" or "beat": "after"/"before". Use { "bar": 5, "beat": 3 } for a beat in a bar, or { "beat": "after", "at": … } for the beat after a moment.';
+const isAmbiguousBar = (value) => typeof value === 'object' &&
+    value !== null &&
+    'bar' in value &&
+    ('at' in value || 'downbeat' in value || typeof value.beat === 'string');
+export const MotionAnchorShape = z.lazy(() => z
+    .unknown()
+    .refine((value) => !isAmbiguousBar(value), { message: AMBIGUOUS_BAR_ANCHOR, abort: true })
+    .pipe(z.union([
     z.number(),
     z.string().min(1),
     z.object({
@@ -41,7 +50,7 @@ export const MotionAnchorShape = z.lazy(() => z.union([
         music: musicRef,
         offset: AnchorOffsetShape.optional()
     })
-]));
+])));
 /** Words pulled from the transcript: a phrase, a range, or every word in the clip. */
 export const MotionWordsShape = z.union([
     z.literal('clip'),

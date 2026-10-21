@@ -198,11 +198,18 @@ mix with them:
 
 | Anchor                                    | Means                                                                                     |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `{ "beat": 17 }`                          | the 17th beat of the music file (1-based, counting from its first beat)                   |
+| `{ "beat": 17 }`                          | the 17th beat of the music (1-based from its first beat, counted after corrections)       |
 | `{ "bar": 5 }`, `{ "bar": 5, "beat": 3 }` | the downbeat of bar 5; its 3rd beat. Bar 0 holds pickup beats before the first downbeat   |
 | `{ "downbeat": "after", "at": … }`        | the first downbeat at or after another anchor (seconds, a phrase, a frame, a beat anchor) |
 | `{ "beat": "before", "at": … }`           | the last beat at or before it (`"after"`/`"before"` work for both)                        |
 | `"offset": -0.03` / `"offset": "-1b"`     | on any object anchor: seconds, or beats along the grid (`"0.5b"` = half a beat)           |
+
+Beats are numbered after the corrections below: with `"tempo": "double"`, `{ "beat": 17 }` is
+the 17th beat of the doubled grid. A phrase in `at` takes the edge of the field it sits in: in
+`until` it is the phrase's end, so `"until": { "downbeat": "after", "at": "that is the trick" }`
+never cuts the phrase short; in `from` and `cues` it is the start. `{ "say": …, "edge": … }`
+picks another edge. `bar` does not mix with `at`: `{ "bar": 2, "beat": "after", "at": … }` is an
+error.
 
 As with words, numbers inside `cues` (also in `at`) are clip-local; beats themselves are
 absolute, so `{ "bar": 5 }` is bar 5 wherever the clip is. A bar that does not exist, a beat

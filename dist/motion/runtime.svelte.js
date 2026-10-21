@@ -2,7 +2,7 @@ import { getContext, onMount } from 'svelte';
 import { gsap } from 'gsap';
 import { resolveMoment } from './moment.js';
 import { subjectBox } from './footage.js';
-import { beatPhase } from './beat-grid.js';
+import { NO_MUSIC_BEATS, beatPhase } from './beat-grid.js';
 const CONTEXT_KEY = Symbol.for('visualfries.motion.clip');
 export class Clip {
     /** Clip-local time in seconds. Reactive: use it directly in markup. */
@@ -86,7 +86,7 @@ export class Clip {
      */
     pulse(on = 'beat') {
         if (!this.#grid.length)
-            throw new Error(`Clip "${this.id}": pulse() needs music beats. ${this.#noBeats ?? 'The clip has no music with beats.'}`);
+            throw new Error(`Clip "${this.id}": pulse() needs music beats. ${this.#noBeats ?? NO_MUSIC_BEATS}`);
         return beatPhase(this.#grid, this.t, on, `the music of clip "${this.id}"`, 0.5 / this.fps);
     }
     /** Eased 0→1 progress starting at `at`, lasting `duration` seconds. */

@@ -37,6 +37,8 @@ export type MotionAnchor = number | string | {
     music?: string;
     offset?: number | string;
 };
+/** `{ bar, beat: "after", at }` would silently lose `bar`; such anchors are refused. */
+export declare const AMBIGUOUS_BAR_ANCHOR = "An anchor with \"bar\" cannot also have \"at\", \"downbeat\" or \"beat\": \"after\"/\"before\". Use { \"bar\": 5, \"beat\": 3 } for a beat in a bar, or { \"beat\": \"after\", \"at\": \u2026 } for the beat after a moment.";
 export declare const MotionAnchorShape: z.ZodType<MotionAnchor>;
 /** Words pulled from the transcript: a phrase, a range, or every word in the clip. */
 export declare const MotionWordsShape: z.ZodUnion<readonly [z.ZodLiteral<"clip">, z.ZodString, z.ZodObject<{

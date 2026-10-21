@@ -96,6 +96,44 @@ describe('beat anchors in the project', () => {
 		expect(c.cues.beat.start + c.start).toBeCloseTo(4.5);
 	});
 
+	it('takes the phrase end for "at" in until, so the downbeat after never cuts it', () => {
+		// "hold on" starts before the downbeat at 5 s and ends after it.
+		const held = parseTranscriptWords([
+			{ text: 'hold', start: 4.6, end: 4.9 },
+			{ text: 'on', start: 4.9, end: 5.4 }
+		]);
+		const p = project({
+			from: 0,
+			until: { downbeat: 'after', at: 'hold on' },
+			cues: {
+				enter: { downbeat: 'after', at: 'hold on' },
+				late: { downbeat: 'after', at: { say: 'hold on', edge: 'end' } }
+			}
+		});
+		const music = (p.music ?? []).map((m) => programBeats(file, m));
+		const r = resolveMotionProject(p, held, music);
+		expect(r.diagnostics.filter((d) => d.level === 'error')).toEqual([]);
+		expect(r.clips[0].end).toBe(7);
+		// Cues keep the start edge; an explicit edge still wins.
+		expect(r.clips[0].cues.enter.start).toBeCloseTo(5);
+		expect(r.clips[0].cues.late.start).toBeCloseTo(7);
+		const start = resolveMotionProject(
+			project({ from: 0, until: { downbeat: 'after', at: { say: 'hold on', edge: 'start' } } }),
+			held,
+			music
+		);
+		expect(start.clips[0].end).toBe(5);
+	});
+
+	it('refuses "bar" together with "at" instead of dropping it', () => {
+		expect(() => project({ from: { bar: 2, beat: 'after', at: 1 }, until: 9 })).toThrow(
+			/An anchor with \\?"bar\\?" cannot also have/
+		);
+		expect(() => project({ from: { bar: 2, downbeat: 'after', at: 1 }, until: 9 })).toThrow(
+			/An anchor with \\?"bar\\?" cannot also have/
+		);
+	});
+
 	it('offsets anchors by beats or seconds', () => {
 		const r = resolve({
 			from: { bar: 2, offset: '-1b' },
@@ -132,7 +170,9 @@ describe('beat anchors in the project', () => {
 		});
 		const plain = resolveMotionProject(p, words);
 		expect(plain.diagnostics.filter((d) => d.level === 'error')).toEqual([]);
-		expect(plain.clips[0].beats).toEqual([]);
+		// No beat fields at all, so a project without music resolves exactly as before.
+		expect(plain.clips[0]).not.toHaveProperty('beats');
+		expect(plain.clips[0]).not.toHaveProperty('noBeats');
 		const r = resolveMotionProject({ ...p, clips: [{ ...p.clips[0], from: { bar: 1 } }] }, words);
 		expect(r.diagnostics[0].message).toMatch(/Beat anchors need music with beats/);
 	});
@@ -225,7 +265,10 @@ describe('beat moments and pulse in blocks', () => {
 	});
 
 	it('names the problem when a beat moment does not exist', () => {
-		expect(() => clip.at('bar 12')).toThrow(/"bar 12": Bar 12 does not exist/);
+		expect(() => clip.at('bar 12')).toThrow(/^Clip "c": "bar 12": Bar 12 does not exist/);
+		expect(() => clip.at('bar 12')).not.toThrow(/Clip "c".*Clip "c"/);
+		expect(() => clip.at('extr - 1b')).toThrow(/unknown moment "extr" in "extr - 1b"/);
+		expect(() => clip.at('downbeat > extr')).toThrow(/unknown moment "extr" in "downbeat > extr"/);
 	});
 
 	it('gives the phase within the beat and the bar, from time alone', () => {
@@ -257,7 +300,16 @@ describe('beat moments and pulse in blocks', () => {
 			clips: [{ id: 'c', block: 'b.svelte', from: 0, until: 2 }]
 		});
 		const plain = new Clip(resolveMotionProject(p, null).clips[0]);
-		expect(() => plain.at('bar 2')).toThrow(/needs music beats\. Beat anchors need music/);
+		const message = (() => {
+			try {
+				plain.at('bar 2');
+			} catch (error) {
+				return (error as Error).message;
+			}
+		})();
+		expect(message).toMatch(/^Clip "c": "bar 2" needs music beats\. Beat anchors need music/);
+		expect(message?.match(/Clip "c"/g)).toHaveLength(1);
+		expect(() => plain.at('end - 1b')).toThrow(/^Clip "c": "end - 1b" needs music beats\./);
 		expect(() => plain.pulse()).toThrow(/pulse\(\) needs music beats/);
 		expect(plain.at('end-0.5')).toBeCloseTo(1.5);
 	});
@@ -408,6 +460,15 @@ describe('visualfries beats', () => {
 		expect(() => commandBeats('tracker {input}')).toThrow(/\{output\}/);
 	});
 
+	it('names the analyzer after the program, without quotes or path', () => {
+		expect(commandBeats('"/opt/my tools/tracker" {input} {output}').name).toBe('tracker');
+		expect(commandBeats("'C:\\bin\\beat.exe' {input} {output}").name).toBe('beat.exe');
+		expect(commandBeats('/usr/bin/beat-tracker --in {input} --out {output}').name).toBe(
+			'beat-tracker'
+		);
+		expect(commandBeats('x {input} {output}', { name: 'mine' }).name).toBe('mine');
+	});
+
 	it.skipIf(!hasFfmpeg)('runs any analyzer command and writes the beats file', async () => {
 		const dir = await tempDir();
 		const music = path.join(dir, 'my music.wav');
@@ -465,6 +526,18 @@ describe('visualfries beats', () => {
 			/240\.0 BPM · 4 beats per bar · 33 beats · 8 bars · corrections: tempo double/
 		);
 		expect(grid).toMatch(/fixture 1\.0\.0/);
+		// Rendered clips go stale when the beats file or a correction changes.
+		const hash = loaded.musicHash;
+		expect(hash).toMatch(/^[0-9a-f]{12}$/);
+		expect((await loadMotionProject(projectFile)).musicHash).toBe(hash);
+		await write({ tempo: 'double', shift: 0.01 });
+		const shifted = (await loadMotionProject(projectFile)).musicHash;
+		expect(shifted).not.toBe(hash);
+		await fs.writeFile(
+			path.join(dir, 'music.beats.json'),
+			formatBeatsFile({ ...file, tempo: 121, source: { ...file.source, sha256 } })
+		);
+		expect((await loadMotionProject(projectFile)).musicHash).not.toBe(shifted);
 		await fs.writeFile(path.join(dir, 'music.wav'), 'another track');
 		await expect(loadMotionProject(projectFile)).rejects.toThrow(
 			/music\.wav changed since music\.beats\.json was made\. Run: visualfries beats music\.wav/

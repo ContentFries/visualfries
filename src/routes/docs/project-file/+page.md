@@ -72,15 +72,15 @@ Ship fonts with the project. A render must never depend on what happens to be in
 
 `from`, `until` and every cue accept the same forms:
 
-| Form                | Example                                                              | Meaning                                                               |
-| ------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Phrase              | `"matched silently"`                                                 | The first word of the phrase (for `until`: the end of its last word). |
-| Phrase with options | `{ "say": "extra", "edge": "end", "occurrence": 2, "offset": -0.1 }` | `edge` is `start`, `last` (when the last word starts) or `end`.       |
-| Seconds             | `12.5`                                                               | Program seconds for `from`/`until`; clip seconds for cues.            |
-| Frame               | `{ "frame": 274 }`                                                   | Program frame for `from`/`until`; clip frame for cues.                |
-| Beat                | `{ "beat": 17 }`, `{ "bar": 5 }`, `{ "bar": 5, "beat": 3 }`          | A beat of the music, the downbeat of bar 5, or its 3rd beat.          |
-| Nearest beat        | `{ "downbeat": "after", "at": "the drop" }`                          | First (down)beat at or after another anchor; `"before"`: last one.    |
-| Beat offset         | `{ "bar": 9, "offset": "-1b" }`                                      | Any object anchor's `offset` can count beats instead of seconds.      |
+| Form                | Example                                                              | Meaning                                                                                  |
+| ------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Phrase              | `"matched silently"`                                                 | The first word of the phrase (for `until`: the end of its last word).                    |
+| Phrase with options | `{ "say": "extra", "edge": "end", "occurrence": 2, "offset": -0.1 }` | `edge` is `start`, `last` (when the last word starts) or `end`.                          |
+| Seconds             | `12.5`                                                               | Program seconds for `from`/`until`; clip seconds for cues.                               |
+| Frame               | `{ "frame": 274 }`                                                   | Program frame for `from`/`until`; clip frame for cues.                                   |
+| Beat                | `{ "beat": 17 }`, `{ "bar": 5 }`, `{ "bar": 5, "beat": 3 }`          | A beat of the music (counted after corrections), the downbeat of bar 5, or its 3rd beat. |
+| Nearest beat        | `{ "downbeat": "after", "at": "the drop" }`                          | First (down)beat at or after another anchor; `"before"`: last one.                       |
+| Beat offset         | `{ "bar": 9, "offset": "-1b" }`                                      | Any object anchor's `offset` can count beats instead of seconds.                         |
 
 `from` is searched in the whole transcript. `until` is searched from the clip's start onward, so its `occurrence` counts only matches after `from`. Cue phrases are searched inside the clip, so a common word can be a cue as long as it is said once there. Use two or three words for `from` and `until`. The full rules, including what happens when a phrase is missing or appears twice, are in [Time and cues](/docs/time-and-cues). Music, beats files and corrections (`tempo`, `downbeat`, `shift`) are described in `docs/MOTION.md` under "Music and beats".
 

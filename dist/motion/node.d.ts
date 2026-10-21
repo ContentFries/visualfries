@@ -12,6 +12,11 @@ export type LoadedMotionProject = {
     transcriptHash: string | null;
     /** The project's music items with their beats (corrected and placed in the program). */
     music: LoadedMusic[];
+    /**
+     * Short hash of every beats file and its corrections (`from`, `until`, `shift`, `downbeat`,
+     * `tempo`); null without music beats. Beat-anchored clips move when it changes.
+     */
+    musicHash: string | null;
     resolved: ResolvedProject;
 };
 export type LoadedMusic = {
@@ -19,6 +24,8 @@ export type LoadedMusic = {
     /** Absolute path of the beats file; null when the item has none. */
     beatsFile: string | null;
     analysis: BeatsFile | null;
+    /** SHA-256 of the beats file as read; null when the item has none. */
+    beatsHash: string | null;
     beats: MusicBeats | null;
     /** Bars in program seconds, for the `check` grid. */
     bars: BarRow[];
@@ -181,7 +188,9 @@ export type RenderedClip = {
     seconds: number;
     /** Transcript the clip was timed against. */
     transcript: string | null;
-    /** Set when the clip was rendered against another transcript than the newest render. */
+    /** Music beats and corrections the clip was timed against (`musicHash`); absent without music. */
+    music?: string;
+    /** Set when the clip was rendered against another transcript or music beats than the newest render. */
     stale?: boolean;
 };
 /** The encoder went away while frames were being piped; the frames themselves were fine. */

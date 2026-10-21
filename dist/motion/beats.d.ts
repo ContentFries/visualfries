@@ -27,13 +27,6 @@ export declare function beatThis(opts?: {
     model?: string;
     threads?: number;
 }): BeatAnalyzer;
-/**
- * Any local beat tracker. `template` is a shell command with `{input}` (the decoded WAV) and
- * `{output}` (where the tool writes its beats) placeholders. The tool writes either text lines
- * `time [position-in-bar]` (1 = downbeat) or JSON (see `parseAnalyzerOutput`).
- *
- *   commandBeats('my-tracker --in {input} --out {output}')
- */
 export declare function commandBeats(template: string, opts?: {
     name?: string;
     version?: string;

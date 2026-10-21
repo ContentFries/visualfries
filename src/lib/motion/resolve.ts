@@ -1,4 +1,10 @@
-import type { MotionAnchor, MotionClip, MotionProject, MotionWords } from './project.js';
+import {
+	AMBIGUOUS_BAR_ANCHOR,
+	type MotionAnchor,
+	type MotionClip,
+	type MotionProject,
+	type MotionWords
+} from './project.js';
 import { describeWords, findPhrase, suggestPhrases, type MotionWord } from './transcript.js';
 import {
 	BEAT_OFFSET,
@@ -46,9 +52,10 @@ export type ResolvedClip = {
 	audio: string | null;
 	/**
 	 * Every beat of the clip's music (also those outside the clip), for beat moments,
-	 * `clip.beats` and `clip.pulse()`. Empty without music; `noBeats` then says why.
+	 * `clip.beats` and `clip.pulse()`. Absent when the project has no music with beats, so
+	 * such projects resolve exactly as before; `noBeats` says why a clip with music has none.
 	 */
-	beats: MotionBeatRef[];
+	beats?: MotionBeatRef[];
 	noBeats?: string;
 	/** Frames of the project's footage, filled in by the node tooling before a page loads. */
 	footage?: Record<string, FootageFrames>;
@@ -191,6 +198,11 @@ function resolveAnchor(
 		return { time, end: time, words: [] };
 	}
 	if ('bar' in anchor || 'downbeat' in anchor || 'beat' in anchor) {
+		if (
+			'bar' in anchor &&
+			('at' in anchor || 'downbeat' in anchor || typeof anchor.beat === 'string')
+		)
+			throw new AnchorError(AMBIGUOUS_BAR_ANCHOR);
 		// Beats are absolute: bar 5 is bar 5 wherever the clip is.
 		const music = musicFor(beats, anchor.music);
 		let base: number;
@@ -199,7 +211,9 @@ function resolveAnchor(
 		else if ('downbeat' in anchor || typeof anchor.beat === 'string') {
 			const direction =
 				'downbeat' in anchor ? anchor.downbeat : (anchor.beat as 'after' | 'before');
-			const at = resolveAnchor(anchor.at, words, fps, window, 'start', localBase, beats).time;
+			// `at` keeps the caller's edge: in `until` a phrase means its end, so the downbeat after
+			// it never cuts the phrase short. `{ say, edge }` still picks another edge.
+			const at = resolveAnchor(anchor.at, words, fps, window, defaultEdge, localBase, beats).time;
 			base = nearBeat(
 				music.grid,
 				at,
@@ -354,18 +368,22 @@ export function resolveMotionClip(
 		}
 	}
 
-	let clipBeats: MotionBeatRef[] = [];
-	let noBeats: string | undefined;
-	try {
-		clipBeats = musicFor(beats, undefined).grid.map(({ index, time, bar, beat }) => ({
-			index,
-			time,
-			local: time - start,
-			bar,
-			beat
-		}));
-	} catch (error) {
-		noBeats = (error as Error).message;
+	// Without music the clip gets no beat fields at all, so it resolves exactly as before.
+	let musicFields: { beats: MotionBeatRef[] } | { noBeats: string } | null = null;
+	if (music.length) {
+		try {
+			musicFields = {
+				beats: musicFor(beats, undefined).grid.map(({ index, time, bar, beat }) => ({
+					index,
+					time,
+					local: time - start,
+					bar,
+					beat
+				}))
+			};
+		} catch (error) {
+			musicFields = { noBeats: (error as Error).message };
+		}
 	}
 
 	return {
@@ -384,8 +402,7 @@ export function resolveMotionClip(
 		alpha: clip.alpha ?? false,
 		background: clip.alpha ? null : (clip.background ?? project.background ?? null),
 		audio: clip.audio ?? null,
-		beats: clipBeats,
-		...(noBeats ? { noBeats } : {})
+		...musicFields
 	};
 }
 

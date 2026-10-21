@@ -64,6 +64,8 @@ export declare function correctBeats(file: BeatsFile, corrections?: BeatCorrecti
 })[];
 export declare class BeatError extends Error {
 }
+/** Why beat anchors, beat moments and `pulse()` fail in a project without music beats. */
+export declare const NO_MUSIC_BEATS = "Beat anchors need music with beats: add \"music\": [{ \"src\": \"music.mp3\", \"beats\": \"music.beats.json\" }] to the project (visualfries beats music.mp3 writes the beats file).";
 /** `-1b`, `+0.5b`, `2b`: an offset counted in beats. */
 export declare const BEAT_OFFSET: RegExp;
 /** The beat with number `n` (1-based over the whole file). */

@@ -3,8 +3,13 @@
 	props. Every prop of <Captions> works, plus:
 	  words     name of the clip's `words` selection to caption (default "captions")
 	  footage   footage to show full-bleed behind the captions (optional)
-	  background  CSS background when there is no footage
+	  background  CSS background when there is no footage (can be keyed in a program)
 -->
+<script module lang="ts">
+	/** Props a program's keys may animate (see docs/MOTION.md, "Keys"). */
+	export const animatable = { background: 'gradient' } as const;
+</script>
+
 <script lang="ts">
 	import { useClip } from '../runtime.svelte.js';
 	import Captions from '../Captions.svelte';
@@ -14,9 +19,11 @@
 	const {
 		words: key = 'captions',
 		footage,
-		background,
+		background: _background,
 		...options
 	} = clip.props as Record<string, any>;
+	// Read live: keys change it while the clip plays.
+	const background = $derived(clip.props.background as string | undefined);
 	const words = clip.words[key];
 	if (!words) {
 		throw new Error(

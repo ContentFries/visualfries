@@ -121,20 +121,28 @@ const mod360 = (x) => ((x % 360) + 360) % 360;
 /**
  * Mix two colours at `t` (0 = `from`, 1 = `to`; values outside 0–1 extrapolate, as overshooting
  * eases need) with premultiplied alpha, so a transparent end takes the other end's colour and only
- * fades. `oklch` takes the shorter hue arc; a grey end adopts the other end's hue.
+ * fades. `oklch` (the default) takes the shorter hue arc; a grey end adopts the other end's hue,
+ * and the hue moves at the alpha-weighted progress, so a (nearly) transparent end only fades.
+ * (CSS mixes hue unweighted; here a fade never passes through a third hue.)
  */
-export function mixColors(from, to, t, space = 'oklab') {
+export function mixColors(from, to, t, space = 'oklch') {
     const rawAlpha = lerp(from.alpha, to.alpha, t);
     const alpha = clamp01(rawAlpha);
     if (space === 'oklch') {
         const x = oklabToOklch(from);
         const y = oklabToOklch(to);
+        // A grey end has no hue of its own: it takes the other end's.
         const hx = x.c < ACHROMATIC ? y.h : x.h;
         const hy = y.c < ACHROMATIC ? x.h : y.h;
-        const h = mod360(hx + shortestArc(hx, hy) * t);
         if (rawAlpha <= 0) {
+            const h = mod360(hx + shortestArc(hx, hy) * t);
             return oklchToOklab({ l: lerp(x.l, y.l, t), c: Math.max(0, lerp(x.c, y.c, t)), h, alpha });
         }
+        // Premultiplied: each end counts by its alpha. Lightness and chroma premultiplied are a
+        // straight mix at the alpha-weighted progress `w`; the hue takes the same progress, so an
+        // end that is (nearly) transparent only fades and never drags its own hue in.
+        const w = (t * to.alpha) / rawAlpha;
+        const h = mod360(hx + shortestArc(hx, hy) * w);
         const l = lerp(x.l * from.alpha, y.l * to.alpha, t) / rawAlpha;
         const c = Math.max(0, lerp(x.c * from.alpha, y.c * to.alpha, t) / rawAlpha);
         return oklchToOklab({ l, c, h, alpha });

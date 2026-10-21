@@ -4,7 +4,7 @@
  * stage. A colour is held in OKLab with straight alpha so values outside sRGB (a vivid `oklch()`)
  * survive until output, where they are gamut mapped by chroma reduction (CSS Color 4).
  */
-/** The space two colours blend in: OKLab (default) or OKLCH along the shorter hue arc. */
+/** The space two colours blend in: OKLCH along the shorter hue arc (default) or OKLab. */
 export type ColorSpace = 'oklab' | 'oklch';
 /** A colour in OKLab with straight (not premultiplied) alpha. */
 export type Oklab = {
@@ -38,7 +38,9 @@ export declare function gamutMapToSrgb(color: Oklab): Rgb;
 /**
  * Mix two colours at `t` (0 = `from`, 1 = `to`; values outside 0–1 extrapolate, as overshooting
  * eases need) with premultiplied alpha, so a transparent end takes the other end's colour and only
- * fades. `oklch` takes the shorter hue arc; a grey end adopts the other end's hue.
+ * fades. `oklch` (the default) takes the shorter hue arc; a grey end adopts the other end's hue,
+ * and the hue moves at the alpha-weighted progress, so a (nearly) transparent end only fades.
+ * (CSS mixes hue unweighted; here a fade never passes through a third hue.)
  */
 export declare function mixColors(from: Oklab, to: Oklab, t: number, space?: ColorSpace): Oklab;
 /**
@@ -50,7 +52,7 @@ export declare function shortestArc(a: number, b: number): number;
 /** `rgb(r g b / a)` after gamut mapping; channels to 3 decimals, alpha to 4. */
 export declare function formatColor(color: Oklab): string;
 export type ColorOptions = {
-    /** Colour space the two colours blend in. Default `oklab`. */
+    /** Colour space the two colours blend in. Default `oklch` (keeps the midpoint saturated). */
     space?: ColorSpace;
 };
 /** Mix two CSS colours and write the result as `rgb(r g b / a)`. */

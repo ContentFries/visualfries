@@ -3,6 +3,7 @@ import { type Transition } from './timeline.js';
 import type { MotionWord } from './transcript.js';
 import type { MusicBeats } from './beat-grid.js';
 import type { ProjectLook } from './resolve.js';
+import type { AnimatableKind } from './interpolate.js';
 /** A word of the program transcript and where it came from. */
 export type ProgramWord = MotionWord & {
     /** Footage the word was spoken in; null for a project-level transcript without footage. */
@@ -61,6 +62,18 @@ export type ProgramInputs = {
      * or null when the file does not exist. Absent: not looked up.
      */
     sounds?: Record<string, SoundInfo | null>;
+    /**
+     * What each block named by a clip marks animatable (`export const animatable` in its
+     * `<script module>`), by the name as written; `error` when the declaration cannot be read.
+     * Absent: not looked up, so keyed props are not checked against it.
+     */
+    animatable?: Record<string, BlockAnimatable>;
+};
+/** A block's animatable props as `check` reads them from its source. */
+export type BlockAnimatable = {
+    props: Record<string, AnimatableKind>;
+} | {
+    error: string;
 };
 /**
  * `warning`: why the hit offset could not be read (it is then 0); `error`: the file has no

@@ -1,19 +1,8 @@
+/** Props a program's keys may animate (see docs/MOTION.md, "Keys"). */
+export declare const animatable: {
+    readonly background: "gradient";
+};
 import Captions from '../Captions.svelte';
-interface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {
-    new (options: import('svelte').ComponentConstructorOptions<Props>): import('svelte').SvelteComponent<Props, Events, Slots> & {
-        $$bindings?: Bindings;
-    } & Exports;
-    (internal: unknown, props: {
-        $$events?: Events;
-        $$slots?: Slots;
-    }): Exports & {
-        $set?: any;
-        $on?: any;
-    };
-    z_$$bindings?: Bindings;
-}
-declare const Captions: $$__sveltets_2_IsomorphicComponent<Record<string, never>, {
-    [evt: string]: CustomEvent<any>;
-}, {}, {}, string>;
-type Captions = InstanceType<typeof Captions>;
+declare const Captions: import("svelte").Component<Record<string, never>, {}, "">;
+type Captions = ReturnType<typeof Captions>;
 export default Captions;

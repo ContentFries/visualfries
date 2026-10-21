@@ -20,8 +20,13 @@
 
 	Colours and fonts come from the project's brand: accent, primary (for `alt`), text, muted,
 	surface, background, heading font (words) and body font (chips). `cool` is the mood colour of
-	`cold` and stays blue unless set.
+	`cold` and stays blue unless set. `background` (behind the studio) can be keyed in a program.
 -->
+<script module lang="ts">
+	/** Props a program's keys may animate (see docs/MOTION.md, "Keys"). */
+	export const animatable = { background: 'gradient' } as const;
+</script>
+
 <script lang="ts">
 	import { noise, useClip, useFrame, useTimeline, type At } from '../runtime.svelte.js';
 	import Footage from '../Footage.svelte';

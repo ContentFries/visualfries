@@ -22,15 +22,17 @@ import {
 } from './shots/index.js';
 import { SUBJECT_SMOOTH } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
+import { keyTracks, placementTransform, type Animatable, type KeyTracks } from './keys.js';
 
 /**
  * The program's layer tree on one stage, for a segment of the program:
  *
  *   #vf-stage
  *     .vf-side[a]  .vf-fill             style fill around a framed shot
- *                  .vf-plate > img      footage the cut list shows, in the shot's camera window
- *                  .vf-behind           clips with `layer: "behind"` (frame space)
- *                  .vf-subject > img    the subject cut out by its matte, over the behind clips
+ *                  .vf-picture          the footage as one picture (a shot's `opacity` key fades it):
+ *                    .vf-plate > img    footage the cut list shows, in the shot's camera window
+ *                    .vf-behind         clips with `layer: "behind"` (frame space)
+ *                    .vf-subject > img  the subject cut out by its matte, over the behind clips
  *     .vf-side[b]  the same, for the incoming side of a cut or shot transition
  *     .vf-clips    front clips in project order; a slotted clip follows its slot
  *     .vf-overlay  one element per transition, above everything
@@ -43,6 +45,10 @@ import { createTransitionPlayer } from './transitions/player.js';
  * Inside a cut or shot transition window side a shows the outgoing picture and side b the
  * incoming one (see `transitionSidesAt`); clips that end on the cut leave with side a and clips
  * that start on it arrive with side b. The transition engine moves, hides or covers them.
+ *
+ * Keys: a shot's keys move its camera (see `keyCamera`); a clip's placement keys move a
+ * `.vf-keys` box between its root and the block (the root stays the transitions'), and its
+ * props keys set `clip.props` on every seek, which redraws what the block reads from them.
  */
 
 type Mounted = {
@@ -51,6 +57,10 @@ type Mounted = {
 	instance: ReturnType<typeof mount>;
 	/** Clip frame shown at the current program frame; null: hidden. */
 	shown: number | null;
+	/** The clip's keys as tracks. */
+	tracks: KeyTracks;
+	/** Inside the root, around the block: what placement keys move (null without them). */
+	keyed: HTMLDivElement | null;
 };
 
 type Picture = { box: HTMLDivElement; img: HTMLImageElement };
@@ -58,6 +68,8 @@ type Picture = { box: HTMLDivElement; img: HTMLImageElement };
 type Side = {
 	el: HTMLDivElement;
 	fill: HTMLDivElement;
+	/** Plate, behind clips and subject: faded together, so the subject never doubles the plate. */
+	picture: HTMLDivElement;
 	plate: Picture;
 	behind: HTMLDivElement;
 	subject: Picture;
@@ -139,12 +151,13 @@ function side(stage: HTMLElement, name: 'a' | 'b'): Side {
 	const el = layer(stage, 'vf-side', ISOLATED);
 	el.dataset.side = name;
 	const fill = layer(el, 'vf-fill');
-	const plate = picture(el, 'vf-plate');
+	const group = layer(el, 'vf-picture');
+	const plate = picture(group, 'vf-plate');
 	// Painted over their whole box (see `TransitionSides`).
 	for (const solid of [el, fill, plate.box]) solid.dataset.solid = '';
-	const behind = layer(el, 'vf-behind', ISOLATED);
-	const subject = picture(el, 'vf-subject');
-	return { el, fill, plate, behind, subject };
+	const behind = layer(group, 'vf-behind', ISOLATED);
+	const subject = picture(group, 'vf-subject');
+	return { el, fill, picture: group, plate, behind, subject };
 }
 
 /** Places `el` at `rect` (absolute, stage pixels); writes only what changed. */
@@ -162,7 +175,7 @@ function place(el: HTMLElement, rect: Rect) {
 
 /** The camera window: clips the picture to `layout.clip`, footage placed at `layout.camera`. */
 function frameBox(pic: Picture, layout: ShotLayout) {
-	const { clip, camera, radius } = layout;
+	const { clip, camera, radius, turn } = layout;
 	place(pic.box, clip);
 	pic.box.style.borderRadius = radius ? `${radius}px` : '';
 	place(pic.img, {
@@ -171,6 +184,10 @@ function frameBox(pic: Picture, layout: ShotLayout) {
 		width: camera.width,
 		height: camera.height
 	});
+	pic.img.style.transform = turn ? `rotate(${turn.rotation}deg)` : '';
+	pic.img.style.transformOrigin = turn
+		? `${turn.pivot.x - camera.x}px ${turn.pivot.y - camera.y}px`
+		: '';
 }
 
 /** Shows `url` in `img`; resolves once the image is decoded. */
@@ -191,11 +208,15 @@ function clipError(id: string, error: unknown): Error {
 const endOf = (s: { startFrame: number; frames: number }) => s.startFrame + s.frames;
 const FULL = { shot: 'full', params: {} };
 
-/** Builds the layer tree in `stage` and mounts every clip of the segment. */
+/**
+ * Builds the layer tree in `stage` and mounts every clip of the segment. `animatable` holds what
+ * each block exports as `animatable`; a keyed prop missing there is an error of the clip.
+ */
 export function createProgramScene(
 	stage: HTMLDivElement,
 	seg: StageSegment,
-	blocks: Record<string, Component<Record<string, unknown>>>
+	blocks: Record<string, Component<Record<string, unknown>>>,
+	animatable: Record<string, Animatable | undefined> = {}
 ): ProgramScene {
 	// On the stage too: fills and transition overlays use the brand's colours.
 	applyLook(stage, seg);
@@ -223,9 +244,26 @@ export function createProgramScene(
 			);
 			root.dataset.clip = data.id;
 			applyLook(root, seg);
+			let tracks: KeyTracks;
+			try {
+				tracks = keyTracks(data.keys, {
+					size: seg.size,
+					animatable: animatable[data.block] ?? {},
+					block: data.block
+				});
+			} catch (error) {
+				throw clipError(data.id, error);
+			}
+			const keyed = tracks.placement ? layer(root, 'vf-keys') : null;
 			// Roots stay visible until the first seek: blocks may measure text when they mount.
+			// Keyed props start at their value on the clip's first frame.
 			const controller: ClipController = {
-				clip: new Clip({ ...data, footage: seg.footage, footageMap: seg.footageMap ?? undefined }),
+				clip: new Clip({
+					...data,
+					props: { ...data.props, ...tracks.props?.(data.startFrame) },
+					footage: seg.footage,
+					footageMap: seg.footageMap ?? undefined
+				}),
 				root,
 				timelines: [],
 				frameFns: [],
@@ -236,14 +274,14 @@ export function createProgramScene(
 			try {
 				// The clip's reactive props: what changes `clip.props` later reaches the block.
 				instance = mount(Block, {
-					target: root,
+					target: keyed ?? root,
 					props: controller.clip.props,
 					context: new Map([[MOTION_CONTEXT_KEY, controller]])
 				});
 			} catch (error) {
 				throw clipError(data.id, error);
 			}
-			mounted.push({ data, controller, instance, shown: null });
+			mounted.push({ data, controller, instance, shown: null, tracks, keyed });
 			ready.push(...controller.ready);
 		}
 		flushSync();
@@ -273,7 +311,7 @@ export function createProgramScene(
 					? sourceSubjectBox(frames, view.frame, Math.round(SUBJECT_SMOOTH * seg.fps))
 					: null
 		};
-		return shot ? shotLayout(shot, input) : shotLayoutAt(seg.shots, f, input);
+		return shot ? shotLayout(shot, input, f) : shotLayoutAt(seg.shots, f, input);
 	}
 
 	/** Which side a clip rides in transition `t`: out when it ends on the cut, in when it starts on it. */
@@ -374,6 +412,8 @@ export function createProgramScene(
 
 	function drawSide(s: Side, view: SideView, behind: boolean, pending: Promise<unknown>[]) {
 		s.fill.style.background = view.layout.fill ? surface(seg) : '';
+		const opacity = view.layout.opacity;
+		s.picture.style.opacity = opacity === undefined ? '' : String(opacity);
 		frameBox(s.plate, view.layout);
 		frameBox(s.subject, view.layout);
 		const frames = framesOf(view.view);
@@ -414,6 +454,14 @@ export function createProgramScene(
 				if (local === null) return;
 				m.controller.clip.t = local / seg.fps;
 				m.controller.clip.frame = local;
+				// Keys follow the frame the clip shows (held at its edges inside a window).
+				const at = m.data.startFrame + local;
+				if (m.tracks.props) Object.assign(m.controller.clip.props, m.tracks.props(at));
+				if (m.keyed) {
+					const p = m.tracks.placement!(at);
+					m.keyed.style.transform = placementTransform(p);
+					m.keyed.style.opacity = p.opacity === 1 ? '' : String(p.opacity);
+				}
 			});
 			arrangeBehind(now);
 			flushSync();

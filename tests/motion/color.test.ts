@@ -128,15 +128,26 @@ describe('mixColors', () => {
 	it('red → blue midpoint in OKLab is the straight line, lighter than the RGB midpoint', () => {
 		const red = parseColor('red');
 		const blue = parseColor('blue');
-		const mid = mixColors(red, blue, 0.5);
+		const mid = mixColors(red, blue, 0.5, 'oklab');
 		expect(mid.l).toBeCloseTo((red.l + blue.l) / 2, 12);
 		expect(mid.a).toBeCloseTo((red.a + blue.a) / 2, 12);
 		expect(mid.b).toBeCloseTo((red.b + blue.b) / 2, 12);
-		expect(interpolateColor('red', 'blue', 0.5)).toBe('rgb(140.362 83.033 162.308 / 1)');
+		expect(interpolateColor('red', 'blue', 0.5, { space: 'oklab' })).toBe(
+			'rgb(140.362 83.033 162.308 / 1)'
+		);
 		// the RGB midpoint (128 0 128) is darker than both the average lightness and the OKLab mix
 		expect(parseColor('rgb(127.5 0 127.5)').l).toBeLessThan(mid.l - 0.1);
 		// OKLab trades chroma for even lightness here; OKLCH keeps it (test above)
 		expect(chroma(mid)).toBeLessThan(chroma(parseColor('rgb(127.5 0 127.5)')));
+	});
+
+	it('mixes in OKLCH unless told otherwise', () => {
+		const red = parseColor('red');
+		const blue = parseColor('blue');
+		expect(mixColors(red, blue, 0.5)).toEqual(mixColors(red, blue, 0.5, 'oklch'));
+		expect(interpolateColor('red', 'blue', 0.5)).toBe(
+			interpolateColor('red', 'blue', 0.5, { space: 'oklch' })
+		);
 	});
 
 	it('mixes alpha premultiplied, so a transparent end only fades', () => {
@@ -145,6 +156,21 @@ describe('mixColors', () => {
 		expect(interpolateColor('red', 'transparent', 1)).toBe('rgb(0 0 0 / 0)');
 		expect(interpolateColor('transparent', 'red', 0.5, { space: 'oklch' })).toBe(
 			'rgb(255 0 0 / 0.5)'
+		);
+		// A transparent end's own hue does not count either.
+		expect(interpolateColor('rgb(0 0 255 / 0)', 'red', 0.25, { space: 'oklch' })).toBe(
+			'rgb(255 0 0 / 0.25)'
+		);
+		expect(interpolateColor('rgb(0 0 255 / 0)', 'red', 0.25, { space: 'oklab' })).toBe(
+			'rgb(255 0 0 / 0.25)'
+		);
+		// Nearly transparent behaves like transparent: no hue of its own drags the mix.
+		const near = parseColor(interpolateColor('rgb(0 0 255 / 0.000000001)', 'red', 0.25));
+		const want = parseColor('rgb(255 0 0 / 0.25)');
+		for (const k of ['l', 'a', 'b'] as const) expect(near[k]).toBeCloseTo(want[k], 4);
+		// Equal alphas: the plain OKLCH mix.
+		expect(interpolateColor('rgb(0 0 255 / 0.5)', 'rgb(255 0 0 / 0.5)', 0.5)).toBe(
+			interpolateColor('blue', 'red', 0.5).replace('/ 1)', '/ 0.5)')
 		);
 	});
 

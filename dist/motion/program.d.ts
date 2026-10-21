@@ -3,7 +3,7 @@ import { type Key, type Provenance } from './timeline.js';
 import { type FormatClass, type ResolvedFormat } from './format.js';
 import { type ResolvedClip } from './resolve.js';
 import { type ProgramDiagnostic, type ProgramInputs, type ProgramWord } from './cutlist.js';
-export type { ProgramDiagnostic, ProgramInputs, ProgramWord, SourceInfo } from './cutlist.js';
+export type { BlockAnimatable, ProgramDiagnostic, ProgramInputs, ProgramWord, SourceInfo } from './cutlist.js';
 /** Hashes the node tooling computes from files; they go into the program and its segments. */
 export type ProgramHashes = {
     project?: string;
@@ -28,11 +28,15 @@ export type ProgramFormat = ResolvedFormat & {
     name: string;
     size: [number, number];
 };
-/** A keyframe at a program frame; lengths stay as written (px or "%") until interpolation. */
+/**
+ * A keyframe at a program frame. Lengths stay as written (px or "%") until interpolation; brand
+ * tokens in props (`"brand.primary"`) are already replaced by the brand's colours. `ease` shapes
+ * the move arriving at this key: the key's own, else the energy's (see `KEY_EASE`).
+ */
 export type ResolvedKey = {
     frame: number;
     values: Omit<Key, 'at' | 'ease' | 'mix'>;
-    ease: string | null;
+    ease: string;
     mix: 'oklab' | 'oklch';
 };
 export type ProgramSource = {

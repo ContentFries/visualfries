@@ -12,10 +12,13 @@ import { brandTokens, NEUTRAL_BRAND } from './brand.js';
 import { formatTokens, resolveFormat } from './format.js';
 import { createProgramScene, type ProgramScene } from './program-stage.js';
 import type { StageSegment } from './segments.js';
+import type { Animatable } from './keys.js';
 
 export type StageFont = { family: string; url: string; weight?: string | number; style?: string };
 export type StageOptions = {
 	blocks: Record<string, Component<Record<string, unknown>>>;
+	/** What each block exports as `animatable` (program mode: keyed props). */
+	animatable?: Record<string, Animatable | undefined>;
 	fonts?: StageFont[];
 	css?: string;
 	/** Paint wait in ms before a frame fails. */
@@ -103,7 +106,7 @@ export function createMotionStage(options: StageOptions) {
 		unload();
 		createStage(data.size, data.background);
 		await loadFonts();
-		segment = createProgramScene(stage!, data, options.blocks);
+		segment = createProgramScene(stage!, data, options.blocks, options.animatable);
 		findNestedCanvases();
 		assertNoEffectOverNestedCanvas();
 		await Promise.all(segment.ready);

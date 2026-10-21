@@ -58,7 +58,7 @@ export function createMotionStage(options) {
         unload();
         createStage(data.size, data.background);
         await loadFonts();
-        segment = createProgramScene(stage, data, options.blocks);
+        segment = createProgramScene(stage, data, options.blocks, options.animatable);
         findNestedCanvases();
         assertNoEffectOverNestedCanvas();
         await Promise.all(segment.ready);

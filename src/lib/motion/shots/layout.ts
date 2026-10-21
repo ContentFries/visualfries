@@ -43,6 +43,12 @@ export type ShotLayout = {
 	closed: Record<string, Rect>;
 	/** What shows around the camera window: the style's surface, or nothing. */
 	fill: 'surface' | null;
+	/**
+	 * Shot keys: the footage turned by `rotation` degrees about `pivot` (stage pixels, the face)
+	 * and drawn at `opacity`. Absent without such keys.
+	 */
+	turn?: { rotation: number; pivot: { x: number; y: number } };
+	opacity?: number;
 };
 
 /** A program frame where something happens in a shot (a sound can land on it). */

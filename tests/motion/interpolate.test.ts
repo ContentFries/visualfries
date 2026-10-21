@@ -12,6 +12,7 @@ import {
 } from '../../src/lib/motion/color.js';
 import {
 	createTrack,
+	TrackError,
 	formatGradient,
 	interpolate,
 	interpolator,
@@ -157,7 +158,22 @@ describe('createTrack', () => {
 				{ frame: 0, value: 0 },
 				{ frame: 5, value: 1, ease: 'wobble' }
 			])
-		).toThrow(/key 1 to 2: Unknown ease "wobble"/);
+		).toThrow(/key 1 to key 2: Unknown ease "wobble"/);
+		// Labels name keys as the caller knows them; the error says which key is at fault.
+		let caught: unknown;
+		try {
+			createTrack('length', [
+				{ frame: 9, value: '5%', label: 'keys[0]' },
+				{ frame: 0, value: 10, label: 'keys[1]' }
+			]);
+		} catch (error) {
+			caught = error;
+		}
+		expect(caught).toBeInstanceOf(TrackError);
+		expect((caught as TrackError).message).toMatch(
+			/^Keys: keys\[1\] to keys\[0\]: Cannot interpolate/
+		);
+		expect((caught as TrackError).key).toBe(0);
 		expect(() =>
 			createTrack('gradient', [
 				{ frame: 0, value: 'linear-gradient(red, blue)' },
@@ -264,7 +280,33 @@ describe('gradients', () => {
 		expect(interpolate('gradient', radial, 'transparent', 1)).toMatch(
 			/^radial-gradient\(circle 30px at 20% 80%, rgb\(0 0 0 \/ 0\) 0%,/
 		);
-		expect(interpolate('gradient', 'red', 'blue', 0.5)).toBe('rgb(140.362 83.033 162.308 / 1)');
+		expect(interpolate('gradient', 'red', 'blue', 0.5)).toBe(
+			formatColor(mixColors(parseColor('red'), parseColor('blue'), 0.5, 'oklch'))
+		);
+	});
+
+	it('mixes gradient stops and shadow colours in OKLCH unless told otherwise', () => {
+		const oklch = formatColor(mixColors(parseColor('red'), parseColor('blue'), 0.5, 'oklch'));
+		const oklab = formatColor(mixColors(parseColor('red'), parseColor('blue'), 0.5, 'oklab'));
+		expect(oklch).not.toBe(oklab);
+		const g = interpolate(
+			'gradient',
+			'linear-gradient(red, red)',
+			'linear-gradient(blue, blue)',
+			0.5
+		);
+		expect(stopsOf(g).map((s) => s[0])).toEqual([oklch, oklch]);
+		expect(
+			stopsOf(
+				interpolate('gradient', 'linear-gradient(red, red)', 'linear-gradient(blue, blue)', 0.5, {
+					space: 'oklab'
+				})
+			).map((s) => s[0])
+		).toEqual([oklab, oklab]);
+		expect(interpolate('shadow', '0 0 10px red', '0 0 10px blue', 0.5)).toContain(oklch);
+		expect(
+			interpolate('shadow', '0 0 10px red', '0 0 10px blue', 0.5, { space: 'oklab' })
+		).toContain(oklab);
 	});
 
 	it('turns the angle along the shorter path', () => {

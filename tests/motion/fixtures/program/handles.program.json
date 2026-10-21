@@ -208,7 +208,7 @@
 					"values": {
 						"scale": 1
 					},
-					"ease": null,
+					"ease": "power2.inOut",
 					"mix": "oklch"
 				},
 				{
@@ -224,7 +224,7 @@
 					"values": {
 						"x": "5%"
 					},
-					"ease": null,
+					"ease": "power2.inOut",
 					"mix": "oklch"
 				}
 			],
@@ -359,7 +359,7 @@
 					"values": {
 						"opacity": 0.5
 					},
-					"ease": null,
+					"ease": "power2.inOut",
 					"mix": "oklch"
 				},
 				{
@@ -367,7 +367,7 @@
 					"values": {
 						"opacity": 1
 					},
-					"ease": null,
+					"ease": "power2.inOut",
 					"mix": "oklch"
 				}
 			],
@@ -853,7 +853,7 @@
 				"whip.transition",
 				"cut5.transition"
 			],
-			"hash": "b9d357a1aef9b401652ed07f2a5b12ffb0fd969d"
+			"hash": "31c52077b202a823afd19f6da10cbcc8e2d328d5"
 		}
 	],
 	"diagnostics": [
@@ -874,6 +874,12 @@
 			"item": "cut3",
 			"field": "cuts[2]",
 			"message": "cut 3: the audio edit point at 2.90 s cuts through \"So\" (2.75–3.05 s)."
+		},
+		{
+			"level": "warning",
+			"item": "punch",
+			"field": "keys[2].x",
+			"message": "\"x\" is first keyed at 4.20 s, after the shot's first key (3.20 s), so it is \"5%\" from the shot's start (3.20 s). Set \"x\" on the first key too."
 		},
 		{
 			"level": "warning",

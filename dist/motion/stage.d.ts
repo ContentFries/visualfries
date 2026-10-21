@@ -1,6 +1,7 @@
 import { type Component } from 'svelte';
 import type { ResolvedClip } from './resolve.js';
 import type { StageSegment } from './segments.js';
+import type { Animatable } from './keys.js';
 export type StageFont = {
     family: string;
     url: string;
@@ -9,6 +10,8 @@ export type StageFont = {
 };
 export type StageOptions = {
     blocks: Record<string, Component<Record<string, unknown>>>;
+    /** What each block exports as `animatable` (program mode: keyed props). */
+    animatable?: Record<string, Animatable | undefined>;
     fonts?: StageFont[];
     css?: string;
     /** Paint wait in ms before a frame fails. */

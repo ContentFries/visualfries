@@ -3,7 +3,17 @@ import { full } from './full.js';
 import { punch } from './punch.js';
 import { strip } from './strip.js';
 import { easeOf } from '../ease.js';
-import type { Morph, Rect, ShotEvent, ShotInput, ShotLayout, ShotModule } from './layout.js';
+import { keyTracks, type Placement } from '../keys.js';
+import {
+	facePoint,
+	roundRect,
+	type Morph,
+	type Rect,
+	type ShotEvent,
+	type ShotInput,
+	type ShotLayout,
+	type ShotModule
+} from './layout.js';
 
 export type {
 	Energy,
@@ -36,7 +46,8 @@ export function shotModule(name: string): ShotModule | null {
 export type ShotSpan = Pick<
 	ProgramShot,
 	'id' | 'shot' | 'startFrame' | 'frames' | 'params' | 'morphFrames' | 'morphEase'
->;
+> &
+	Partial<Pick<ProgramShot, 'keys'>>;
 
 /**
  * The morph into shot `next` when the project does not set one: the previous shot's `leave`
@@ -57,7 +68,7 @@ export function shotEvents(shot: ShotSpan, prev: string | null): ShotEvent[] {
 	return local.map((e) => ({ kind: e.kind, frame: shot.startFrame + e.frame }));
 }
 
-type Framed = Pick<ShotSpan, 'shot' | 'params'>;
+type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys'>;
 const FULL: Framed = { shot: 'full', params: {} };
 const endOf = (s: { startFrame: number; frames: number }) => s.startFrame + s.frames;
 
@@ -92,21 +103,60 @@ export function shotsDuring<T extends ShotSpan>(
 	return shots.filter((s, i) => on(s) || (i + 1 < shots.length && on(shots[i + 1])));
 }
 
-/** The layout of one shot, alone. Shots not built yet are framed `full`. */
-export function shotLayout(shot: Framed, input: Omit<ShotInput, 'params'>): ShotLayout {
-	return (shotModule(shot.shot) ?? full).layout({ ...input, params: shot.params });
+/**
+ * The layout of one shot, alone. Shots not built yet are framed `full`. With program frame `f`
+ * the shot's keys at that frame move its camera (see `keyCamera`).
+ */
+export function shotLayout(shot: Framed, input: Omit<ShotInput, 'params'>, f?: number): ShotLayout {
+	const layout = (shotModule(shot.shot) ?? full).layout({ ...input, params: shot.params });
+	if (f === undefined || !shot.keys?.length) return layout;
+	const placement = keyTracks(shot.keys, { size: input.size }).placement;
+	return placement ? keyCamera(layout, placement(f), input.subject) : layout;
 }
 
-/** The layout on screen at program frame `f` (see `shotAt`). */
+/**
+ * The layout on screen at program frame `f` (see `shotAt`), keys included: inside a morph both
+ * shots' keys apply at `f` (a shot's keys hold their last value after its last key).
+ */
 export function shotLayoutAt(
 	shots: readonly ShotSpan[],
 	f: number,
 	input: Omit<ShotInput, 'params'>
 ): ShotLayout {
 	const { shot, prev, p } = shotAt(shots, f);
-	const to = shotLayout(shot, input);
-	return prev ? mixLayouts(shotLayout(prev, input), to, p) : to;
+	const to = shotLayout(shot, input, f);
+	return prev ? mixLayouts(shotLayout(prev, input, f), to, p) : to;
 }
+
+/**
+ * Shot keys composed on the camera: the footage scaled by `scale` about the face (the subject's
+ * head, else the point a shot frames when there is no matte), moved by `x`/`y`, turned by
+ * `rotation` about the face and drawn at `opacity`. The camera window stays where the shot put
+ * it, so a key moves the picture inside it like a camera operator would.
+ */
+export function keyCamera(
+	layout: ShotLayout,
+	key: Placement,
+	subject: ShotInput['subject']
+): ShotLayout {
+	const { camera } = layout;
+	const face = facePoint(subject);
+	const fx = camera.x + face.x * camera.width;
+	const fy = camera.y + face.y * camera.height;
+	const moved = roundRect({
+		x: fx - (fx - camera.x) * key.scale + key.x,
+		y: fy - (fy - camera.y) * key.scale + key.y,
+		width: camera.width * key.scale,
+		height: camera.height * key.scale
+	});
+	const out: ShotLayout = { ...layout, camera: moved };
+	if (key.rotation)
+		out.turn = { rotation: key.rotation, pivot: { x: px(fx + key.x), y: px(fy + key.y) } };
+	if (key.opacity !== 1) out.opacity = key.opacity;
+	return out;
+}
+
+const px = (v: number) => Math.round(v * 100) / 100;
 
 const mix = (a: number, b: number, t: number) => Math.round((a + (b - a) * t) * 100) / 100;
 const mixRect = (a: Rect, b: Rect, t: number): Rect => ({
@@ -131,7 +181,7 @@ export function mixLayouts(a: ShotLayout, b: ShotLayout, t: number): ShotLayout 
 		const shut = b.closed[name] ?? a.closed[name];
 		if (shut) closed[name] = shut;
 	}
-	return {
+	const out: ShotLayout = {
 		camera: mixRect(a.camera, b.camera, t),
 		clip: mixRect(a.clip, b.clip, t),
 		radius: mix(a.radius, b.radius, t),
@@ -139,4 +189,15 @@ export function mixLayouts(a: ShotLayout, b: ShotLayout, t: number): ShotLayout 
 		closed,
 		fill: a.fill ?? b.fill
 	};
+	// Keyed turns and fades blend like the rectangles; an unkeyed side counts as still.
+	if (a.turn || b.turn) {
+		const pivot = (l: ShotLayout) => l.turn?.pivot ?? (a.turn ?? b.turn)!.pivot;
+		out.turn = {
+			rotation: mix(a.turn?.rotation ?? 0, b.turn?.rotation ?? 0, t),
+			pivot: { x: mix(pivot(a).x, pivot(b).x, t), y: mix(pivot(a).y, pivot(b).y, t) }
+		};
+	}
+	if (a.opacity !== undefined || b.opacity !== undefined)
+		out.opacity = mix(a.opacity ?? 1, b.opacity ?? 1, t);
+	return out;
 }

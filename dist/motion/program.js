@@ -8,6 +8,9 @@ import { micro, resolveCutList, soundLength } from './cutlist.js';
 import { sha1 } from './sha1.js';
 import { defaultMorph, SHOT_MODULES, shotAt, shotEvents, shotLayout, shotModule, shotsDuring } from './shots/index.js';
 import { parseEase } from './ease.js';
+import { NEUTRAL_BRAND } from './brand.js';
+import { clipEnergy } from './energy.js';
+import { compileKeyTracks, KEY_EASE, PLACEMENT, substituteBrand } from './keys.js';
 import { screenDirection, transitionEvents, transitionModule } from './transitions/index.js';
 /** Seconds a transition not drawn yet lasts when the project does not say. */
 export const DEFAULT_TRANSITION_SECONDS = 0.5;
@@ -95,7 +98,10 @@ export function resolveProgram(project, inputs, opts = {}) {
         audio: { edit: c.edit, split: c.split, crossfade: c.crossfade, gain: c.gain, mute: c.mute },
         native: c.native
     }));
-    const shots = program ? resolveShots(project, inputs, words, cuts, frames, at, diagnostics) : [];
+    const brand = inputs.look?.brand ?? NEUTRAL_BRAND;
+    const shots = program
+        ? resolveShots(project, inputs, words, cuts, frames, at, diagnostics, format.size)
+        : [];
     const clips = resolved.clips.map((clip) => {
         const spec = project.clips.find((c) => c.id === clip.id);
         if (!program)
@@ -113,7 +119,19 @@ export function resolveProgram(project, inputs, opts = {}) {
             layer: spec.layer ?? 'front',
             transition: null,
             keys: program
-                ? resolveKeys(spec.keys, clip, 'clip', clip.id, { words, beats: { music: inputs.music ?? [], clip: spec.music } }, fps, diagnostics)
+                ? resolveKeys(spec.keys, clip, 'clip', clip.id, {
+                    words,
+                    beats: { music: inputs.music ?? [], clip: spec.music },
+                    fps,
+                    diagnostics,
+                    brand,
+                    energy: clipEnergy(clip),
+                    size: format.size,
+                    block: clip.block,
+                    animatable: spec.keys?.some((k) => k.props)
+                        ? blockAnimatable(inputs, clip.block, clip.id, diagnostics)
+                        : undefined
+                })
                 : [],
             z: project.clips.indexOf(spec),
             native: spec.native ?? null
@@ -199,19 +217,28 @@ function programSources(project, inputs) {
     }
     return out;
 }
-/** Item-local keys: numbers and frames from the item start, phrases inside it, `{ moment }`. */
-function resolveKeys(keys, item, kind, id, { words, beats }, fps, diagnostics) {
+/**
+ * Item-local keys: numbers and frames from the item start, phrases inside it, `{ moment }`.
+ * Brand tokens in props become colours; keys without `ease` take the energy's. The keys are
+ * then built into tracks exactly as the stage builds them, so whatever the stage could not draw
+ * (a prop the block does not mark animatable, px against "%", a linear against a radial
+ * gradient, an unknown ease) is an error here.
+ */
+function resolveKeys(keys, item, kind, id, ctx) {
+    const { words, beats, fps, diagnostics } = ctx;
     const start = item.startFrame / fps;
     const duration = item.frames / fps;
-    const out = [];
+    const report = (level, field, message) => diagnostics.push({
+        level,
+        ...(kind === 'clip' ? { clip: id } : { item: id }),
+        field,
+        message
+    });
+    let broken = false;
+    /** Resolved keys with their index as written. */
+    const resolved = [];
     (keys ?? []).forEach((key, i) => {
         const field = `keys[${i}].at`;
-        const report = (level, message) => diagnostics.push({
-            level,
-            ...(kind === 'clip' ? { clip: id } : { item: id }),
-            field,
-            message
-        });
         let time;
         try {
             const anchor = key.at;
@@ -233,18 +260,96 @@ function resolveKeys(keys, item, kind, id, { words, beats }, fps, diagnostics) {
             }
         }
         catch (error) {
-            report('error', error.message);
+            report('error', field, error.message);
+            broken = true;
             return;
         }
         const frame = Math.round(time * fps);
         if (frame < item.startFrame || frame > endOf(item))
-            report('warning', `Key at ${time.toFixed(2)} s is outside the ${kind} (${start.toFixed(2)}–${(start + duration).toFixed(2)} s).`);
+            report('warning', field, `Key at ${time.toFixed(2)} s is outside the ${kind} (${start.toFixed(2)}–${(start + duration).toFixed(2)} s).`);
+        if (key.ease !== undefined && !parseEase(key.ease)) {
+            report('error', `keys[${i}].ease`, `Unknown ease "${key.ease}". Use a GSAP name such as "power2.out", "back.out(1.7)", "expo.inOut" or "none".`);
+            broken = true;
+            return;
+        }
         const values = Object.fromEntries(Object.entries(key).filter(([k]) => k !== 'at' && k !== 'ease' && k !== 'mix'));
-        out.push({ frame, values, ease: key.ease ?? null, mix: key.mix ?? 'oklch' });
+        if (values.props) {
+            const props = {};
+            for (const [name, value] of Object.entries(values.props)) {
+                try {
+                    props[name] = substituteBrand(value, ctx.brand);
+                }
+                catch (error) {
+                    report('error', `keys[${i}].props.${name}`, error.message);
+                    broken = true;
+                }
+            }
+            values.props = props;
+        }
+        resolved.push({
+            key: { frame, values, ease: key.ease ?? KEY_EASE[ctx.energy], mix: key.mix ?? 'oklch' },
+            at: i
+        });
     });
-    return out.sort((a, b) => a.frame - b.frame);
+    resolved.sort((a, b) => a.key.frame - b.key.frame);
+    const out = resolved.map((r) => r.key);
+    const authored = resolved.map((r) => r.at);
+    if (!broken && out.length) {
+        // Without the block's declaration only placement can be checked here; the stage checks props.
+        const checked = ctx.animatable === undefined
+            ? out.map((k) => ({ ...k, values: { ...k.values, props: undefined } }))
+            : out;
+        const { problems } = compileKeyTracks(checked, {
+            size: ctx.size,
+            animatable: ctx.animatable ?? undefined,
+            block: ctx.block,
+            authored
+        });
+        for (const p of problems)
+            report('error', p.key === null ? 'keys' : `keys[${p.key}]${p.property ? `.${p.property}` : ''}`, p.message);
+        if (!problems.length)
+            warnLateFirstKeys(out, authored, kind, item, fps, report);
+    }
+    return out;
 }
-function resolveShots(project, inputs, words, cuts, frames, at, diagnostics) {
+/**
+ * A property first keyed after the item's first key holds that first value from the item's
+ * start (a lone `opacity: 0` on the last key hides the item the whole time): a warning, naming
+ * the key that sets it first.
+ */
+function warnLateFirstKeys(keys, authored, kind, item, fps, report) {
+    if (keys.length < 2)
+        return;
+    const first = keys[0].frame;
+    const seconds = (f) => `${(f / fps).toFixed(2)} s`;
+    const names = [
+        ...PLACEMENT.map((n) => [n, (k) => k.values[n]]),
+        ...[...new Set(keys.flatMap((k) => Object.keys(k.values.props ?? {})))]
+            .sort()
+            .map((n) => [`props.${n}`, (k) => k.values.props?.[n]])
+    ];
+    for (const [name, pick] of names) {
+        const i = keys.findIndex((k) => pick(k) !== undefined);
+        if (i < 0 || keys[i].frame <= first)
+            continue;
+        report('warning', `keys[${authored[i]}].${name}`, `"${name}" is first keyed at ${seconds(keys[i].frame)}, after the ${kind}'s first key (${seconds(first)}), so it is ${JSON.stringify(pick(keys[i]))} from the ${kind}'s start (${seconds(item.startFrame)}). Set "${name}" on the first key too.`);
+    }
+}
+/**
+ * What `block` marks animatable, from the node tooling's reading of its source: undefined when
+ * it was not looked up; an unreadable declaration is an error of the clip.
+ */
+function blockAnimatable(inputs, block, clip, diagnostics) {
+    const found = inputs.animatable?.[block];
+    if (!found)
+        return undefined;
+    if ('error' in found) {
+        diagnostics.push({ level: 'error', clip, field: 'block', message: found.error });
+        return {};
+    }
+    return found.props;
+}
+function resolveShots(project, inputs, words, cuts, frames, at, diagnostics, size) {
     const fps = project.fps;
     const written = [];
     /** What each written shot says about its morph: seconds, and whether a transition replaces it. */
@@ -341,7 +446,16 @@ function resolveShots(project, inputs, words, cuts, frames, at, diagnostics) {
             morphFrames: 0,
             morphEase: 'none',
             transition: null,
-            keys: resolveKeys(shot.keys, span, 'shot', id, { words, beats: beatsOf(inputs) }, fps, diagnostics),
+            keys: resolveKeys(shot.keys, span, 'shot', id, {
+                words,
+                beats: beatsOf(inputs),
+                fps,
+                diagnostics,
+                brand: inputs.look?.brand ?? NEUTRAL_BRAND,
+                energy: inputs.look?.style?.energy ?? 'balanced',
+                size,
+                animatable: null
+            }),
             native: shot.native ?? null
         };
         written.push(resolved);

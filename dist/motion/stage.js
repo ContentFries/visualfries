@@ -183,7 +183,7 @@ export function createMotionStage(options) {
                 continue;
             }
             // broken math renders nothing and throws nothing: NaN/undefined in styles and SVG geometry
-            if (stage) {
+            if (stage && seen.size < 5) {
                 for (const bad of findBadValues(stage)) {
                     const key = `${bad.path}|${bad.attr}`;
                     if (seen.has(key))
@@ -191,9 +191,12 @@ export function createMotionStage(options) {
                     seen.add(key);
                     if (seen.size > 5)
                         break;
+                    const token = (bad.attr === 'd'
+                        ? /NaN|undefined|-?Infinity/
+                        : /(?<![A-Za-z])(NaN|undefined|-?Infinity)/).exec(bad.value);
                     errors.push({
                         frame: n,
-                        message: `${bad.value.match(/NaN|undefined|-?Infinity/)?.[0]} in <${bad.path.split(' > ').pop()} ${bad.attr}> (${bad.path}): ${bad.attr}="${bad.value}"`
+                        message: `${token?.[1] ?? token?.[0]} in <${bad.path.split(' > ').pop()} ${bad.attr}> (${bad.path}): ${bad.attr}="${bad.value}"`
                     });
                 }
             }

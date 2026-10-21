@@ -59,6 +59,11 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     every clip on screen); --clip is then optional and --at takes program
                     moments ("2.5s", "f120", "end"); check runs per segment of the program
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
+                    with "cuts" or "shots" renders the whole program as one video
+                    (--export video, the default there; --export inserts renders clips):
+                    [--format <WxH>] [--no-cache]; segments are cached losslessly in
+                    .visualfries/segments/ and only changed segments are drawn again;
+                    <name>.program.json is saved beside the video
   visualfries cache <project.vf.json> [--clear]
                     size of the project's .visualfries/ cache; --clear drops extracted footage frames
   visualfries matte <video> --output <matte.mp4> [--provider fal|rvm|command] [options]
@@ -1955,10 +1960,34 @@ async function motionRenderCommand(args) {
 	const output = readFlag(args, '--output');
 	if (!output)
 		throw new Error(
-			'Usage: visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]'
+			'Usage: visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]\n' +
+				'       visualfries render <program.vf.json> --output <dir|video.mp4> [--export video] [--format <WxH>] [--jobs <n>] [--no-cache]'
 		);
 	const { loadMotionProject, renderMotionClips } = await motionModule();
 	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const programMode = loaded.cutList.mode === 'program';
+	const exportAs = readFlag(args, '--export', programMode ? 'video' : 'inserts');
+	if (!['video', 'inserts'].includes(exportAs))
+		throw new Error(`--export must be video or inserts, got "${exportAs}".`);
+	if (exportAs === 'video') {
+		if (!programMode)
+			throw new Error(
+				'--export video renders a whole program; this project has no "cuts" or "shots". Render its clips (the default), or add a cut list.'
+			);
+		if (readAllFlags(args, '--clip').length)
+			throw new Error('--clip picks clips to render one by one; add --export inserts.');
+		const { renderProgramVideo } = await import('../dist/motion/program-render.js');
+		const result = await renderProgramVideo(loaded, {
+			output,
+			format: readFlag(args, '--format'),
+			jobs: numberFlag(args, '--jobs'),
+			invalidate: readFlag(args, '--invalidate'),
+			fresh: hasFlag(args, '--no-cache'),
+			onProgress: (msg) => console.error(msg)
+		});
+		console.log(JSON.stringify(result, null, 2));
+		return;
+	}
 	const results = await renderMotionClips(loaded, {
 		output,
 		clips: readAllFlags(args, '--clip'),

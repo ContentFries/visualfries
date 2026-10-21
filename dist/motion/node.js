@@ -1325,6 +1325,19 @@ function ffmpeg(args, input) {
             p.stdin.end();
     });
 }
+/** Video settings of every finished H.264 file: clips, and programs after their one final encode. */
+export const H264_FINAL = [
+    '-c:v',
+    'libx264',
+    '-crf',
+    '14',
+    '-preset',
+    'medium',
+    '-pix_fmt',
+    'yuv420p',
+    '-movflags',
+    '+faststart'
+];
 /** The encoder went away while frames were being piped; the frames themselves were fine. */
 export class FramePipeError extends Error {
 }
@@ -1401,7 +1414,7 @@ function audioInput(loaded, clip) {
  * ffmpeg in order. A page waits while it is more than a few frames ahead of the encoder, so
  * memory stays flat; frames are deterministic in any order, which `check --determinism` proves.
  */
-export async function pipeFrames(frames, jobs, open, sink) {
+export async function pipeFrames(frames, jobs, open, sink, opts = {}) {
     const ahead = jobs * 2;
     const ready = new Map();
     let next = 0;
@@ -1435,6 +1448,8 @@ export async function pipeFrames(frames, jobs, open, sink) {
                     await new Promise((r) => wake.push(r));
                 if (failed)
                     return;
+                // Another render this one is part of failed: stop at the next frame.
+                opts.signal?.throwIfAborted();
                 ready.set(f, await page.capture(f));
                 notify();
             }
@@ -1541,18 +1556,7 @@ export async function renderMotionClips(loaded, opts) {
                     '-alpha_bits',
                     '16'
                 ]
-                : [
-                    '-c:v',
-                    'libx264',
-                    '-crf',
-                    '14',
-                    '-preset',
-                    'medium',
-                    '-pix_fmt',
-                    'yuv420p',
-                    '-movflags',
-                    '+faststart'
-                ];
+                : H264_FINAL;
             // ffmpeg truncates its output as soon as it opens it, and the piped encode opens it before
             // the first frame. Encode next to the target and replace it only on success, so a failed
             // render keeps the last good file.

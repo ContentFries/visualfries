@@ -1699,6 +1699,20 @@ function ffmpeg(args: string[], input?: NodeJS.ReadableStream): Promise<void> {
 	});
 }
 
+/** Video settings of every finished H.264 file: clips, and programs after their one final encode. */
+export const H264_FINAL = [
+	'-c:v',
+	'libx264',
+	'-crf',
+	'14',
+	'-preset',
+	'medium',
+	'-pix_fmt',
+	'yuv420p',
+	'-movflags',
+	'+faststart'
+];
+
 /** The encoder went away while frames were being piped; the frames themselves were fine. */
 export class FramePipeError extends Error {}
 
@@ -1782,7 +1796,8 @@ export async function pipeFrames(
 	frames: number,
 	jobs: number,
 	open: () => Promise<Pick<MotionPage, 'capture' | 'close'>>,
-	sink: FrameSink
+	sink: FrameSink,
+	opts: { signal?: AbortSignal } = {}
 ) {
 	const ahead = jobs * 2;
 	const ready = new Map<number, Buffer>();
@@ -1814,6 +1829,8 @@ export async function pipeFrames(
 			for (let f = j; f < frames; f += jobs) {
 				while (f - next >= ahead && !failed) await new Promise<void>((r) => wake.push(r));
 				if (failed) return;
+				// Another render this one is part of failed: stop at the next frame.
+				opts.signal?.throwIfAborted();
 				ready.set(f, await page.capture(f));
 				notify();
 			}
@@ -1947,18 +1964,7 @@ export async function renderMotionClips(
 						'-alpha_bits',
 						'16'
 					]
-				: [
-						'-c:v',
-						'libx264',
-						'-crf',
-						'14',
-						'-preset',
-						'medium',
-						'-pix_fmt',
-						'yuv420p',
-						'-movflags',
-						'+faststart'
-					];
+				: H264_FINAL;
 			// ffmpeg truncates its output as soon as it opens it, and the piped encode opens it before
 			// the first frame. Encode next to the target and replace it only on success, so a failed
 			// render keeps the last good file.

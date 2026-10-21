@@ -578,7 +578,7 @@ visualfries still video.vf.json --clip B --output b.png            # sheet: star
 visualfries still video.vf.json --clip B --at extra --at extra.end+0.5 --output b.png
 visualfries render video.vf.json --output out/ [--clip B] [--jobs 6]   # MP4 / MOV + manifest.json
 visualfries render video.vf.json --clip B --output b.mp4               # one clip straight to a file
-visualfries program program.vf.json [--format 1080x1920]                # the resolved program of a cut list
+visualfries render program.vf.json --output out/ [--format 1080x1920]   # a cut list or shots: one video
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover
 visualfries matte talk.mp4 --output talk.matte.mp4 --provider rvm   # subject matte (rvm local, fal.ai or --command)
 visualfries beats music.mp3                                      # music.beats.json (beat_this or --command)
@@ -595,8 +595,18 @@ that differ between seek orders. Run it after every edit; it takes seconds.
 the transcript it was timed against. Re-rendering some clips keeps the others; clips timed
 against an older transcript are marked `stale`.
 
-With `cuts` or `shots`, `render` still renders the clips one by one, in program time over the
-footage the cut list shows.
+With `cuts` or `shots`, `render` makes the whole program one video (`--export video`, the
+default there; `--export inserts` renders the clips one by one as without a cut list).
+`--format WxH` renders another frame size from the same project; `--output` is an `.mp4` or a
+directory that gets `<project>[.<format>].mp4`. Each segment (the range between two hard cuts)
+is drawn on its own pages and stored losslessly in `.visualfries/segments/<hash>-<engine>.mkv`;
+the segments are joined without re-encoding and encoded once with the clip settings. A segment
+whose hash did not change comes from that cache, so editing one clip draws only the segments
+it is on screen in (`--no-cache` draws everything again). With at least as many segments to draw
+as `--jobs` and none much longer than its share, each page takes whole segments; otherwise a
+segment's frames are spread over the pages. The resolved program is saved beside the video as `<name>.program.json`. Sound: for now
+the speech of the cut list, each cut's sound placed at its program time with short
+equal-power fades at the edit points; no music, effects or loudness normalisation yet.
 
 A re-take that changes words (not just timing) makes the affected cues fail with a suggestion,
 e.g. `"extra" not found … Did you mean "spare" at 59.80s?`. Update the phrase in the JSON;

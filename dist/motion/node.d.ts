@@ -295,6 +295,8 @@ export type RenderedClip = {
     /** Set when the clip was rendered against another transcript or music beats than the newest render. */
     stale?: boolean;
 };
+/** Video settings of every finished H.264 file: clips, and programs after their one final encode. */
+export declare const H264_FINAL: string[];
 /** The encoder went away while frames were being piped; the frames themselves were fine. */
 export declare class FramePipeError extends Error {
 }
@@ -313,7 +315,9 @@ export declare function ffmpegFramePipe(args: string[]): FrameSink;
  * ffmpeg in order. A page waits while it is more than a few frames ahead of the encoder, so
  * memory stays flat; frames are deterministic in any order, which `check --determinism` proves.
  */
-export declare function pipeFrames(frames: number, jobs: number, open: () => Promise<Pick<MotionPage, 'capture' | 'close'>>, sink: FrameSink): Promise<void>;
+export declare function pipeFrames(frames: number, jobs: number, open: () => Promise<Pick<MotionPage, 'capture' | 'close'>>, sink: FrameSink, opts?: {
+    signal?: AbortSignal;
+}): Promise<void>;
 export declare function renderMotionClips(loaded: LoadedMotionProject, opts: {
     output: string;
     clips?: string[];

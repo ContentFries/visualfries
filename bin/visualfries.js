@@ -1700,6 +1700,8 @@ async function motionStillCommand(args) {
 async function cacheCommand(args) {
 	const file = args[0];
 	if (!file) throw new Error('Usage: visualfries cache <project.vf.json> [--clear]');
+	const stat = await fs.stat(file).catch(() => null);
+	if (!stat?.isFile()) throw new Error(`${file} is not a project file.`);
 	const dir = path.join(path.dirname(path.resolve(file)), '.visualfries');
 	const size = async (p) => {
 		let total = 0;
@@ -1711,7 +1713,7 @@ async function cacheCommand(args) {
 		}
 		for (const e of entries) {
 			const q = path.join(p, e.name);
-			total += e.isDirectory() ? await size(q) : (await fs.stat(q)).size;
+			total += e.isDirectory() ? await size(q) : ((await fs.stat(q).catch(() => null))?.size ?? 0);
 		}
 		return total;
 	};
@@ -1726,9 +1728,31 @@ async function cacheCommand(args) {
 	const before = await size(dir);
 	if (hasFlag(args, '--clear')) {
 		await fs.rm(footage, { recursive: true, force: true });
-		console.log(JSON.stringify({ cache: dir, before: gb(before), after: gb(await size(dir)), removedFootageExtractions: folders.length }, null, 2));
+		console.log(
+			JSON.stringify(
+				{
+					cache: dir,
+					before: gb(before),
+					after: gb(await size(dir)),
+					removedFootageExtractions: folders.length
+				},
+				null,
+				2
+			)
+		);
 	} else {
-		console.log(JSON.stringify({ cache: dir, size: gb(before), footageExtractions: folders.length, hint: 'visualfries cache <project> --clear removes the footage frames; the next render extracts what it needs again.' }, null, 2));
+		console.log(
+			JSON.stringify(
+				{
+					cache: dir,
+					size: gb(before),
+					footageExtractions: folders.length,
+					hint: 'visualfries cache <project> --clear removes the footage frames; the next render extracts what it needs again.'
+				},
+				null,
+				2
+			)
+		);
 	}
 }
 

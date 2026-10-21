@@ -48,11 +48,27 @@ describe('cue names and moments', () => {
 describe('footage margin "all"', () => {
 	it.skipIf(!hasFfmpeg)('extracts every frame of the footage', async () => {
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-margin-'));
-		spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=size=64x36:rate=25:duration=4', '-pix_fmt', 'yuv420p', path.join(dir, 'v.mp4')]);
+		spawnSync('ffmpeg', [
+			'-y',
+			'-loglevel',
+			'error',
+			'-f',
+			'lavfi',
+			'-i',
+			'testsrc2=size=64x36:rate=25:duration=4',
+			'-pix_fmt',
+			'yuv420p',
+			path.join(dir, 'v.mp4')
+		]);
 		const write = async (margin: unknown) => {
 			await fs.writeFile(
 				path.join(dir, 'p.vf.json'),
-				JSON.stringify({ size: [64, 36], fps: 25, footage: { v: { src: 'v.mp4', start: 0, ...(margin === undefined ? {} : { margin }) } }, clips: [{ id: 'a', block: 'b.svelte', from: 0, until: 0.2 }] })
+				JSON.stringify({
+					size: [64, 36],
+					fps: 25,
+					footage: { v: { src: 'v.mp4', start: 0, ...(margin === undefined ? {} : { margin }) } },
+					clips: [{ id: 'a', block: 'b.svelte', from: 0, until: 0.2 }]
+				})
 			);
 			const loaded = await loadMotionProject(path.join(dir, 'p.vf.json'));
 			await prepareFootage(loaded, loaded.resolved.clips);
@@ -69,9 +85,22 @@ describe('cache command', () => {
 	it('reports and clears the footage cache', async () => {
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-cache-'));
 		await fs.writeFile(path.join(dir, 'p.vf.json'), '{}');
-		await fs.mkdir(path.join(dir, '.visualfries', 'footage', 'v-abc', 'plate'), { recursive: true });
-		await fs.writeFile(path.join(dir, '.visualfries', 'footage', 'v-abc', 'plate', '000000.jpg'), Buffer.alloc(5000));
-		const run = (...a: string[]) => JSON.parse(spawnSync('node', ['bin/visualfries.js', 'cache', path.join(dir, 'p.vf.json'), ...a]).stdout.toString());
+		await fs.mkdir(path.join(dir, '.visualfries', 'footage', 'v-abc', 'plate'), {
+			recursive: true
+		});
+		await fs.writeFile(
+			path.join(dir, '.visualfries', 'footage', 'v-abc', 'plate', '000000.jpg'),
+			Buffer.alloc(5000)
+		);
+		const run = (...a: string[]) =>
+			JSON.parse(
+				spawnSync('node', [
+					'bin/visualfries.js',
+					'cache',
+					path.join(dir, 'p.vf.json'),
+					...a
+				]).stdout.toString()
+			);
 		expect(run()).toMatchObject({ footageExtractions: 1 });
 		expect(run('--clear')).toMatchObject({ removedFootageExtractions: 1, after: '0.00 GB' });
 		await fs.rm(dir, { recursive: true, force: true });

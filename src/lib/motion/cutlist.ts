@@ -221,7 +221,7 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 	checkTranscripts(project, diagnostics);
 	const written = cutsOf(project, diagnostics);
 	// Cut points on beats read the music placed without words (the cut list decides the words).
-	let musicForCuts: { beats: BeatContext; deferred: string[] } | null = null;
+	let musicForCuts: { beats: BeatContext; deferred: string[]; failed: string[] } | null = null;
 	const cutBeats = () =>
 		(musicForCuts ??= inputs.tracks
 			? (() => {
@@ -231,9 +231,13 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 						sounds: inputs.sounds,
 						stage: 'cuts'
 					});
-					return { beats: { music: placed.beats, clip: undefined }, deferred: placed.deferred };
+					return {
+						beats: { music: placed.beats, clip: undefined },
+						deferred: placed.deferred,
+						failed: placed.failed
+					};
 				})()
-			: { beats: { music: inputs.music ?? [], clip: undefined }, deferred: [] });
+			: { beats: { music: inputs.music ?? [], clip: undefined }, deferred: [], failed: [] });
 	/**
 	 * The program frame of a beat a cut ends on. `at` is a point in the cut's own source, mapped
 	 * to program time through where the cut starts (`start`, a program frame).
@@ -254,7 +258,13 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 			).time;
 			anchor = { ...point, at: micro((start - srcIn) / fps + src) };
 		}
-		const { beats, deferred } = cutBeats();
+		const { beats, deferred, failed } = cutBeats();
+		// The music the anchor reads: the one it names, else the only one with beats.
+		const named = (point as { music?: string }).music;
+		if (named === undefined && deferred.length && beats.music.length)
+			throw new Error(
+				`Several music items have beats (${[...beats.music.map((m) => m.name), ...deferred].join(', ')}); say which with "music": "<id>".`
+			);
 		try {
 			const time = resolveAnchor(
 				anchor,
@@ -263,9 +273,14 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 			).time;
 			return Math.round(time * fps);
 		} catch (error) {
-			if (!deferred.length) throw error;
+			if (named !== undefined && failed.includes(named))
+				throw new Error(`Music "${named}" could not be placed; see its error.`);
+			const waits =
+				named === undefined ? !beats.music.length && deferred.length : deferred.includes(named);
+			if (!waits) throw error;
+			const which = named ?? deferred[0];
 			throw new Error(
-				`${(error as Error).message} Cut points read only music placed without phrases (the cut list decides where phrases play); ${deferred.map((d) => `"${d}"`).join(', ')} start${deferred.length > 1 ? '' : 's'} on a phrase.`
+				`Music "${which}" is placed by a phrase (its own "from", or that of the music it starts on), and the cut list decides where phrases play, so cut points cannot read its beats. Start it in seconds or on the beats of other music, or end the cut on a phrase.`
 			);
 		}
 	};

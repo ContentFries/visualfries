@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { parseMotionProject } from '$lib/motion/timeline.js';
 import { parseTranscriptWords } from '$lib/motion/transcript.js';
-import { BeatsFileShape, type BeatsFile } from '$lib/motion/beat-grid.js';
+import { BeatsFileShape, programBeats, type BeatsFile } from '$lib/motion/beat-grid.js';
 import { musicTrack } from '$lib/motion/music.js';
 import { resolveProgram, type ProgramInputs, type ResolvedProgram } from '$lib/motion/program.js';
 import { fileSha256, formatBeatsFile } from '../../src/lib/motion/beats.js';
@@ -91,11 +91,14 @@ function resolve(
 		duration?: number;
 		downbeats?: boolean;
 		inputs?: Partial<ProgramInputs>;
+		/** Hand the tracks over last item first (their order must not matter). */
+		reverse?: boolean;
 	} = {}
 ): ResolvedProgram {
 	const p = parseMotionProject(json);
 	const file = beatsFile(opts.duration ?? 40, { downbeats: opts.downbeats });
 	const tracks = (p.music ?? []).flatMap((m, i) => (m.beats ? [musicTrack(file, m, i)] : []));
+	if (opts.reverse) tracks.reverse();
 	return resolveProgram(p, {
 		words: null,
 		transcripts: { talk: opts.words ?? take1 },
@@ -266,10 +269,55 @@ describe('music end on a bar end', () => {
 		expect(own.audio.music[0].at + own.audio.music[0].dur!).toBeCloseTo(bar(3), 6);
 	});
 
-	it('is byte-identical between runs', () => {
-		const a = JSON.stringify(resolve(project(), { words: take2 }));
-		const b = JSON.stringify(resolve(project(), { words: take2 }));
-		expect(a).toBe(b);
+	it('does not depend on the order the tracks come in', () => {
+		const two = project({
+			music: [BED, { ...BED, id: 'sting', src: 'sting.wav', from: { bar: 2, music: 'bed' } }],
+			clips: [{ id: 'c', block: 'b.svelte', from: { bar: 3, music: 'sting' }, until: 8 }]
+		});
+		const a = resolve(two, { words: take2 });
+		expect(errors(a)).toEqual([]);
+		expect(JSON.stringify(resolve(two, { words: take2, reverse: true }))).toBe(JSON.stringify(a));
+	});
+
+	it('accepts a bar end up to half a frame after the program end, ending with the program', () => {
+		// Bars at 0.71 + 2(k − 1) s: the cut on bar 5 (8.71 s) rounds to frame 261, 8.70 s.
+		const off = { ...BED, from: 0.21, in: 0 };
+		const p = resolve(
+			project({
+				cuts: [{ source: 'talk', in: 0, out: { bar: 5 } }],
+				music: [off],
+				clips: [{ id: 'c', block: 'b.svelte', from: { bar: 4 }, until: { bar: 5 } }]
+			})
+		);
+		expect(errors(p)).toEqual([]);
+		expect(p.frames).toBe(261);
+		const [bed] = p.audio.music;
+		// The end of bar 4 (8.71 s) still counts; the fade is done on the program's last sample.
+		expect(bed.snap).toEqual({ bar: 4, target: 8.7 });
+		expect(bed.at + bed.dur!).toBeCloseTo(8.7, 6);
+		expect(p.clips[0].startFrame + p.clips[0].frames).toBe(261);
+		// One more frame short and the bar end is past the slack: the end of bar 3.
+		const shorter = resolve(
+			project({ cuts: [{ source: 'talk', in: 0, out: 8.66 }], music: [off] })
+		);
+		expect(shorter.frames).toBe(260);
+		expect(shorter.audio.music[0].snap).toEqual({ bar: 3, target: 8.666667 });
+	});
+
+	it('keeps beat anchors to the beats the music plays, up to its snapped end', () => {
+		// "until" 5.9 snaps to the end of bar 3 (6.6 s): bar 4's downbeat is the last beat.
+		const p = resolve(
+			project({
+				music: [{ ...BED, until: 5.9 }],
+				clips: [
+					{ id: 'a', block: 'b.svelte', from: { bar: 3, beat: 3 }, until: { bar: 4 } },
+					{ id: 'b', block: 'b.svelte', from: { bar: 4 }, until: { bar: 4, beat: 2 } }
+				]
+			})
+		);
+		expect(p.clips.map((c) => c.id)).toEqual(['a']);
+		expect(p.clips[0].startFrame + p.clips[0].frames).toBe(frameOf(bar(4)));
+		expect(errors(p)).toEqual([expect.stringMatching(/^until: Bar 4 has no beat 2/)]);
 	});
 });
 
@@ -316,17 +364,98 @@ describe('music diagnostics', () => {
 		expect(errors(p)).toContain(`music[0].snap: ${advice}`);
 		expect(errors(p)).toContain(`music[0].beats: ${advice}`);
 		// Without downbeats there are no bars to end on.
-		const flat = resolve(project({ music: [{ ...BED, snap: 'bar' }] }), { downbeats: false });
-		expect(errors(flat)[0]).toMatch(/^cuts\[0\]\.out: cut 1: .*no downbeats/);
-		expect(errors(flat)).toContain(
+		const flat = resolve(project({ cuts: PLAIN, music: [{ ...BED, snap: 'bar' }] }), {
+			downbeats: false
+		});
+		expect(errors(flat)).toEqual([
 			'music[0].snap: Music "bed" has no downbeats, so it has no bars to end on. Re-analyse with a tool that finds downbeats, or set "snap": false.'
-		);
+		]);
 		// Unasked, beats without downbeats simply do not snap.
 		const quiet = resolve(project({ cuts: [{ source: 'talk', in: 0, out: 3 }] }), {
 			downbeats: false
 		});
 		expect(quiet.diagnostics.filter((d) => d.level !== 'info')).toEqual([]);
 		expect(quiet.audio.music[0].dur).toBeCloseTo(2.8, 6);
+	});
+
+	it('says once that music cannot start on its own beats', () => {
+		const own =
+			'music[0].from: Music "bed" cannot start on its own beats: they move with it. Start it in seconds, on a phrase, or on a beat of music listed before it ({ "bar": 2, "music": "<id>" }).';
+		const p = resolve(
+			project({
+				cuts: PLAIN,
+				music: [
+					{ ...BED, from: { bar: 2 } },
+					{ id: 'vo', src: 'vo.wav' }
+				],
+				clips: [{ id: 'c', block: 'b.svelte', from: { bar: 3 }, until: { bar: 4 } }],
+				sfx: [{ at: { bar: 3 }, sound: 'hit.wav' }]
+			})
+		);
+		// It plays from 0 instead, so what sits on its beats still resolves; "vo" is not to blame.
+		expect(errors(p)).toEqual([own]);
+		expect(p.clips[0].startFrame).toBe(frameOf(4.4));
+		expect(
+			errors(resolve(project({ cuts: PLAIN, music: [{ ...BED, from: { bar: 2, music: 'bed' } }] })))
+		).toEqual([own]);
+		// Music listed later cannot be the one it starts on either.
+		const later = resolve(
+			project({
+				cuts: PLAIN,
+				music: [
+					{ ...BED, from: { bar: 2, music: 'sting' } },
+					{ ...BED, id: 'sting', src: 'sting.wav' }
+				]
+			})
+		);
+		expect(errors(later)).toEqual([
+			'music[0].from: Music "bed" starts on a beat of "sting", which is listed after it. Music can start only on the beats of music listed before it; move "sting" up.'
+		]);
+	});
+
+	it('refuses music that would start past the end of its file', () => {
+		const p = resolve(project({ cuts: PLAIN, music: [{ ...BED, from: -15, in: 30 }] }));
+		expect(errors(p)).toEqual([
+			'music[0].in: Music "bed" would start 45.00 s into "bed.wav", which is 40.00 s long.'
+		]);
+		expect(p.audio.music).toEqual([]);
+	});
+
+	it('keeps snap messages to where a snap can happen', () => {
+		// Beats already in program time (no tracks) have no bars.
+		const legacy = parseMotionProject(project({ cuts: PLAIN, music: [{ ...BED, snap: 'bar' }] }));
+		const given = resolveProgram(legacy, {
+			words: null,
+			transcripts: { talk: take1 },
+			sources: { talk: source(500) },
+			music: [programBeats(beatsFile(40), { ...BED })]
+		});
+		expect(errors(given)).toEqual([
+			'music[0].snap: Music "bed": "snap": "bar" needs its beats in seconds of the music file (inputs.tracks, as the node tooling reads them); beats already placed in the program (inputs.music) have no bars to end on.'
+		]);
+		// A broken cut list leaves no program to end in: only its own errors.
+		const broken = resolve(
+			project({
+				cuts: [{ source: 'talk', in: 0, out: { bar: 2 } }],
+				music: [BED, { ...BED, id: 'sting', src: 'sting.wav' }]
+			})
+		);
+		expect(broken.diagnostics.filter((d) => d.level !== 'info').map((d) => d.field)).toEqual([
+			'cuts[0].out'
+		]);
+		// Inserts mode mixes no music: one warning that "snap" does nothing there.
+		const inserts = resolve({
+			size: [1920, 1080],
+			fps: 30,
+			music: [
+				{ ...BED, snap: 'bar' },
+				{ ...BED, id: 'sting', src: 'sting.wav', snap: false }
+			],
+			clips: [{ id: 'c', block: 'b.svelte', from: 0, until: 2 }]
+		});
+		expect(warnings(inserts)).toEqual([
+			'music[0].snap: "snap" has no effect without "cuts" or "shots": music is mixed, and ends on a bar, only in a program.'
+		]);
 	});
 
 	it('refuses beats in "in", beats before the cut starts and music placed by words', () => {
@@ -344,9 +473,104 @@ describe('music diagnostics', () => {
 			'cuts[2].out: cut 3: "out" on the music lands at 0.60 s, not after the cut starts (2.60 s).'
 		]);
 		const words = resolve(project({ music: [{ ...BED, from: 'hello and welcome' }] }));
-		expect(errors(words)[0]).toMatch(
-			/^cuts\[0\]\.out: cut 1: .* Cut points read only music placed without phrases \(the cut list decides where phrases play\); "bed" starts on a phrase\.$/
+		expect(errors(words)[0]).toBe(
+			'cuts[0].out: cut 1: Music "bed" is placed by a phrase (its own "from", or that of the music it starts on), and the cut list decides where phrases play, so cut points cannot read its beats. Start it in seconds or on the beats of other music, or end the cut on a phrase.'
 		);
+		// A phrase in "until" only waits: cut points still read the music.
+		const until = resolve(project({ music: [{ ...BED, until: 'for today' }] }));
+		expect(errors(until)).toEqual([]);
+		expect(until.cuts.map((c) => c.startFrame)).toEqual([0, 78, 138]);
+		expect(until.audio.music[0].snap).toEqual({ bar: 3, target: 8.5 });
+	});
+
+	it('reads several music items on cut points, and asks which when it is not said', () => {
+		const sting = { ...BED, id: 'sting', src: 'sting.wav', from: 1, in: 0 };
+		const cuts = [
+			{ source: 'talk', in: 0, out: { bar: 2, music: 'bed' } },
+			// Sting bar 2 (file 2.5 s) plays at 3.5 s.
+			{ source: 'talk', in: 5, out: { bar: 2, music: 'sting' } },
+			{ source: 'talk', in: 8, out: 9 }
+		];
+		const p = resolve(project({ cuts, music: [BED, sting] }));
+		expect(errors(p)).toEqual([]);
+		expect(p.cuts.map((c) => c.startFrame)).toEqual([0, 78, frameOf(3.5)]);
+		const unnamed = resolve(
+			project({ cuts: [{ source: 'talk', in: 0, out: { bar: 2 } }], music: [BED, sting] })
+		);
+		expect(errors(unnamed)).toEqual([
+			'cuts[0].out: cut 1: Several music items have beats (bed, sting); give each an "id" and say which with "music": "<id>".'
+		]);
+		// One of them waiting for a phrase is still one of several.
+		const waiting = resolve(
+			project({
+				cuts: [{ source: 'talk', in: 0, out: { bar: 2 } }],
+				music: [BED, { ...sting, from: 'hello and welcome' }]
+			})
+		);
+		expect(errors(waiting).filter((e) => e.startsWith('cuts'))).toEqual([
+			'cuts[0].out: cut 1: Several music items have beats (bed, sting); say which with "music": "<id>".'
+		]);
+	});
+
+	it('keeps J/L splits and transitions on cuts that end on beats', () => {
+		const p = resolve(
+			project({
+				cuts: [
+					{ source: 'talk', in: 'hello and welcome', out: { bar: 2 } },
+					{
+						source: 'talk',
+						in: 'first open',
+						out: { bar: 3 },
+						audio: { split: -0.3 },
+						transition: { type: 'wipe', duration: 0.4 }
+					},
+					{ source: 'talk', in: 'then pick', out: 'for today', audio: { split: 0.2 } }
+				]
+			})
+		);
+		expect(errors(p)).toEqual([]);
+		// The picture cuts on the bars; the sound moves by the split; the wipe centres on the cut.
+		expect(p.cuts.map((c) => [c.startFrame, c.audio.edit])).toEqual([
+			[0, 0],
+			[78, 2.3],
+			[138, 4.8]
+		]);
+		expect(p.transitions.map((t) => [t.cutFrame, t.startFrame, t.frames])).toEqual([[78, 72, 12]]);
+		expect(p.segments.map((s) => s.startFrame)).toEqual([0, 138]);
+	});
+
+	it('drops the beats of the part "in" skips', () => {
+		// File second 10 plays at 5 s: bar 6 (file 10.5 s) is the first downbeat heard, at 5.5 s.
+		const late = { ...BED, from: 5, in: 10 };
+		const plain = [{ source: 'talk', in: 0, out: 12 }];
+		const p = resolve(
+			project({
+				cuts: plain,
+				music: [late],
+				clips: [
+					{
+						id: 'c',
+						block: 'b.svelte',
+						from: { downbeat: 'after', at: 1 },
+						until: { bar: 7 }
+					}
+				]
+			})
+		);
+		expect(errors(p)).toEqual([]);
+		// A search from inside the silence finds the first beat that plays.
+		expect(p.clips[0].startFrame).toBe(frameOf(5.5));
+		expect(p.clips[0].beats![0].time).toBe(5);
+		// A bar the music skips does not exist.
+		const skipped = resolve(
+			project({
+				cuts: [{ source: 'talk', in: 0, out: { bar: 4 } }, ...plain],
+				music: [late]
+			})
+		);
+		expect(errors(skipped)).toEqual([
+			'cuts[0].out: cut 1: Bar 4 does not exist: bed has bars 6–20.'
+		]);
 	});
 });
 
@@ -438,9 +662,12 @@ describe.skipIf(!hasFfmpeg)('music on beats through the node tooling', () => {
 		const expected = CLICKS.map((t) => Math.round((0.1 + t) * RATE)).filter((n) => n < end);
 		expect(found.length).toBe(expected.length);
 		found.forEach((n, i) => expect(Math.abs(n - expected[i])).toBeLessThanOrEqual(1));
-		// The downbeats of bars 2 and 4 sound exactly on the first sample of their cuts.
-		expect(expected).toContain(78 * 1600);
-		expect(expected).toContain(198 * 1600);
+		// In the mix, the downbeats of bars 2 and 4 sound on the first sample of their cuts.
+		for (const cut of [78, 198])
+			expect(
+				found.some((n) => Math.abs(n - cut * 1600) <= 1),
+				`click at frame ${cut}`
+			).toBe(true);
 	});
 
 	it('keeps a music item that cannot be placed an error of the loaded project', async () => {
@@ -450,19 +677,36 @@ describe.skipIf(!hasFfmpeg)('music on beats through the node tooling', () => {
 			JSON.stringify({
 				size: [320, 180],
 				fps: 30,
-				music: [{ ...BED, src: 'bed.wav', from: { frame: 3, offset: '1b', music: 'none' } }],
+				music: [{ ...BED, src: 'bed.wav', from: { bar: 2 } }],
 				clips: [{ id: 'c', block: 'b.svelte', from: 0, until: 1 }]
 			})
 		);
 		const loaded = await loadMotionProject(file);
-		// Its own beats do not exist yet where it starts; nothing earlier has beats.
 		expect(loaded.resolved.diagnostics).toEqual([
-			expect.objectContaining({
+			{
 				level: 'error',
 				field: 'music[0].from',
-				message: expect.stringMatching(/^Beat anchors need music with beats/)
-			})
+				message:
+					'Music "bed" cannot start on its own beats: they move with it. Start it in seconds, on a phrase, or on a beat of music listed before it ({ "bar": 2, "music": "<id>" }).'
+			}
 		]);
+	});
+
+	it('resolves the same program in fresh processes', async () => {
+		const program = await load(3);
+		const cli = () =>
+			spawnSync(
+				process.execPath,
+				[path.resolve('bin/visualfries.js'), 'program', 'p.vf.json', '--json'],
+				{
+					cwd: dir,
+					encoding: 'utf8'
+				}
+			).stdout;
+		const first = cli();
+		expect(JSON.parse(first).audio.music[0].snap).toEqual({ bar: 4, target: 8.6 });
+		expect(cli()).toBe(first);
+		expect(JSON.stringify(JSON.parse(first))).toBe(JSON.stringify(program));
 	});
 
 	it('re-snaps the music end when a cut changes', async () => {

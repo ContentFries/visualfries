@@ -163,7 +163,7 @@ export function nearBeat(grid, time, kind, direction, label) {
         ? pool.find((b) => b.time >= time - eps)
         : [...pool].reverse().find((b) => b.time <= time + eps);
     if (!hit)
-        throw new BeatError(`No ${kind} ${direction} ${time.toFixed(2)}s: ${label} ${direction === 'after' ? 'ends' : 'starts'} before that.`);
+        throw new BeatError(`No ${kind} ${direction} ${time.toFixed(2)}s: ${label} ${direction === 'after' ? 'ends before' : 'starts after'} that.`);
     return hit;
 }
 /**

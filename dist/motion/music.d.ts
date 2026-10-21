@@ -46,7 +46,14 @@ export type PlacedMusic = {
         ends: BarEnd[];
         next: number;
     } | null;
-    /** Its beats in program seconds, for beat anchors; null without a beats file. */
+    /**
+     * Every beat it plays, in program seconds: from file second `in` on (the part `in` skips is
+     * never heard, so its beats do not exist). Null without a beats file.
+     */
+    grid: (GridBeat & {
+        energy: number | null;
+    })[] | null;
+    /** Its beats for beat anchors: `grid` up to `until`; null without a beats file. */
     beats: MusicBeats | null;
 };
 export type MusicPlacement = {
@@ -54,8 +61,13 @@ export type MusicPlacement = {
     placed: (PlacedMusic | null)[];
     /** Beats of every placed item with beats, in program seconds, in project order. */
     beats: MusicBeats[];
-    /** Items left for the program stage because a phrase places them. */
+    /**
+     * Items with beats left for the program stage: their `from` is on a phrase, or on the beats of
+     * music that waits.
+     */
     deferred: string[];
+    /** Items with beats whose place failed (see the diagnostics). */
+    failed: string[];
     diagnostics: ProgramDiagnostic[];
 };
 /** Whether an anchor needs a transcript (a phrase, or a phrase in its `at`). */
@@ -66,12 +78,15 @@ export declare function missingBeats(project: Pick<MotionProject, 'music'>): str
  * Places each music item in the program: `from` (any program anchor; a beat anchor reads music
  * placed before it), `in` (seconds into the file at `from`) and `until` (any anchor; beat
  * anchors read its own beats unless they name another music). Its beats move with it: a beat at
- * file second t plays at `from + t − in`; beats after `until` do not exist.
+ * file second t plays at `from + t − in`. Beats in the part `in` skips are left out (`grid`),
+ * and `beats` stops at `until`; `musicEnds` cuts them at the end the music really has.
  *
- * Stage `cuts` is for cut points on beats, before program words exist: an item that a phrase
- * places waits (`deferred`). Stage `program` places everything against the program words.
- * Without `tracks`, `given` (beats already in program time) serves the anchors and no item has
- * its own bars.
+ * Stage `cuts` is for cut points on beats, before program words exist: an item whose `from` is
+ * a phrase, or a beat of music that waits, waits too (`deferred`), and a phrase in `until` is
+ * left for later. Stage `program` places everything against the program words; a `from` or
+ * `until` that fails there is reported and the item plays from 0 (or to the end), so beats
+ * anchored on it do not fail one by one. Without `tracks`, `given` (beats already in program
+ * time) serves the anchors and no item has its own bars.
  */
 export declare function placeMusic(project: MotionProject, opts: {
     tracks?: MusicTrack[];
@@ -80,6 +95,10 @@ export declare function placeMusic(project: MotionProject, opts: {
     sounds?: Record<string, SoundInfo | null>;
     stage: 'cuts' | 'program';
 }): MusicPlacement;
+/** A music item's beats for anchors: those it plays up to `end` (null: to the file end). */
+export declare function musicBeats(music: Pick<MotionMusic, 'id' | 'src'>, grid: (GridBeat & {
+    energy: number | null;
+})[], end: number | null): MusicBeats;
 /** How a music item ends: where, and whether it snapped to a bar end. */
 export type MusicEnd = {
     /** Program seconds at which the music has faded out. */
@@ -88,12 +107,25 @@ export type MusicEnd = {
     bar: number | null;
     /** Where it would end without the bar snap (`until` or the program end). */
     target: number;
+    /** Program seconds up to which its beats exist: `end`, or the bar end it snapped to. */
+    beatsUntil: number;
 };
 /**
  * The end of a placed music item in a program `programEnd` seconds long. It aims at `until`
  * (or the program end), never past the program end. With `snap` (default when the music has
  * downbeats) it takes the bar end nearest that aim, the earlier one on a tie, so a retake that
- * changes the program length re-snaps it. A file that runs out first ends the music there (on its
- * last bar end when snapping), with a warning.
+ * changes the program length re-snaps it. A bar end up to `slack` seconds (half a frame) after
+ * the program end still counts: a cut on a beat rounds to the nearest frame, so the program may
+ * end that much before the bar does; the music then ends with the program. A file that runs out
+ * first ends the music there (on its last bar end when snapping), with a warning.
  */
-export declare function musicEnd(music: MotionMusic, placed: PlacedMusic, programEnd: number, diagnostics: ProgramDiagnostic[]): MusicEnd;
+export declare function musicEnd(music: MotionMusic, placed: PlacedMusic, programEnd: number, slack: number, diagnostics: ProgramDiagnostic[]): MusicEnd;
+/**
+ * Each placed item's end in a program `programEnd` seconds long (null: not known yet, nothing
+ * ends), and the beats anchors may use: those the music plays, up to that end (else `until`).
+ */
+export declare function musicEnds(project: MotionProject, placed: (PlacedMusic | null)[], programEnd: number | null, diagnostics: ProgramDiagnostic[]): {
+    ends: (MusicEnd | null)[];
+    beats: MusicBeats[];
+    byItem: (MusicBeats | null)[];
+};

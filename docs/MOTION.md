@@ -398,8 +398,8 @@ error.
 
 As with words, numbers inside `cues` (also in `at`) are clip-local; beats themselves are
 absolute, so `{ "bar": 5 }` is bar 5 wherever the clip is. A bar that does not exist, a beat
-after the music's `until` or a missing beats file is an error that names the valid range,
-never a silent guess. With several music items with beats, give each an `id` and pick one per
+the music does not play (in the part `in` skips, or after its end) or a missing beats file is
+an error that names the valid range, never a silent guess. With several music items with beats, give each an `id` and pick one per
 anchor (`"music": "bed"`) or per clip (`"music": "bed"` on the clip).
 
 In blocks and `--at`, the same as strings: `'bar 5'`, `'bar 5.3'` (beat 3 of bar 5), `'beat 17'`,
@@ -420,8 +420,11 @@ beat falls a few milliseconds after it. `clip.beats` lists every beat of the mus
 `index`, program `time`, clip-local `local`, `bar` and `beat` (1 = downbeat).
 
 **The music item:** `src`, `beats`, `from` (where the music starts in the program, default 0),
-`in` (seconds into the music file that play at `from`, default 0) and `until` (where it stops;
-later beats do not exist). A program render (`cuts` or `shots`) also mixes it, with `gain`,
+`in` (seconds into the music file that play at `from`, default 0) and `until` (where it stops).
+Its beats exist only while it plays: none in the part `in` skips (a search such as
+`{ "downbeat": "after", "at": 1 }` from before the music starts finds its first beat), and none
+after its end: in a program with a cut list or `duration`, the bar end it snaps to (below);
+otherwise `until`. A program render (`cuts` or `shots`) also mixes it, with `gain`,
 `fade` and `keys` (see "Program sound" under CLI), and ends it on a bar (below); rendering
 clips one by one does not.
 
@@ -514,7 +517,9 @@ cues, shots, keys, `sfx` and the music's own gain keys land on the frame nearest
 - **Where it starts.** `from` takes any program anchor: seconds, `{ "frame" }`, a phrase of the
   program transcript, or a beat of a music item listed before it (`{ "bar": 9, "music":
 "intro" }`). A negative number starts inside the file, like `in`. `until` takes any anchor
-  too; its beat anchors read the item's own beats unless they name another music.
+  too; its beat anchors read the item's own beats unless they name another music. Music cannot
+  start on its own beats (they move with it). A `from` that fails is reported once, and the
+  music then starts at 0, so what sits on its beats still resolves.
 - **Cuts on beats.** A cut's `out` can be a beat of the music instead of a point in its source:
   `{ "bar": 5 }`, `{ "bar": 5, "beat": 3 }`, `{ "beat": 17 }`, or `{ "downbeat": "after", "at":
 "the settings" }` (the first downbeat at or after a point of the cut's own source; `"before"`,
@@ -522,16 +527,19 @@ cues, shots, keys, `sfx` and the music's own gain keys land on the frame nearest
   anchors. The cut then ends, and the next one starts, on the frame nearest that beat; its source
   `in` stays where it was. A retake that changes an earlier cut moves the cut's source end, not
   the beat. `in` is a point in the source and takes no beats (a cut starts where the one before
-  it ends). Cut points read only music placed without phrases, because the cut list decides
-  where phrases play.
+  it ends). Cut points read only music whose `from` is not a phrase (nor a beat of such music),
+  because the cut list decides where phrases play; a phrase in `until` is fine.
 - **Ending on a bar.** The music ends, its fade-out done, on the bar end nearest to `until` (or
-  to the program end), never after the program end. A bar ends on the next downbeat; the last
+  to the program end), never after the program end. A bar end up to half a frame after the
+  program end still counts, since a cut on a beat rounds to the nearest frame; the music then
+  ends, faded out, with the program. A bar ends on the next downbeat; the last
   bar of the file ends one bar after its downbeat. The end is worked out on every resolve, so
   when a retake or a changed cut makes the program longer or shorter, the music re-snaps to the
   bar end that is now nearest. This is the default for music whose beats have downbeats;
   `"snap": false` keeps the exact end, and `"snap": "bar"` insists on it (an error without beats
   or downbeats). `visualfries program` shows where each music item ends and which bar it snapped
-  to, and the program file has the same as `audio.music[].snap: { bar, target }`.
+  to, and the program file has the same as `audio.music[].snap: { bar, target }`. Without a cut
+  list or shots nothing is mixed, and `snap` gives a warning.
 
 `check` reports:
 
@@ -542,7 +550,11 @@ cues, shots, keys, `sfx` and the music's own gain keys land on the frame nearest
 - music shorter than needed (the file runs out before the bar end, `until` or program end it
   should reach): a warning, and the music ends on its last bar end inside the file (or where the
   file ends, without beats);
+- music that starts on its own beats or on music listed after it, or would start past the end of
+  its file (`in`, plus a negative `from`): errors;
 - a cut `out` on a beat that lands before the cut starts, and beats in a cut's `in`: errors.
+
+Snap warnings are left out while the cut list itself has errors.
 
 ## Built-in blocks and captions
 

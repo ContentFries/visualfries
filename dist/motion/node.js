@@ -19,7 +19,7 @@ import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
 import { readBlockAnimatable } from './animatable.js';
 import { BeatsFileShape, barRows, formatBarGrid } from './beat-grid.js';
-import { musicTrack, placeMusic } from './music.js';
+import { musicEnds, musicTrack, placeMusic } from './music.js';
 import { fileSha256 } from './beats.js';
 import { footageMap, footageRanges } from './footage-map.js';
 const require = createRequire(import.meta.url);
@@ -359,7 +359,7 @@ export async function loadMotionProject(file, opts = {}) {
     }
     const common = { file: abs, dir, project, music, musicHash, brand, style, inputs, hashes };
     const cutList = resolveCutList(project, inputs);
-    const placement = placeLoadedMusic(music, project, inputs, cutList.mode === 'inserts' ? words : cutList.words);
+    const placement = placeLoadedMusic(music, project, inputs, cutList, cutList.mode === 'inserts' ? words : cutList.words);
     const musicBeats = placement.beats;
     // A music item that cannot be placed is an error of the project, as in the program.
     const musicDiagnostics = placement.diagnostics
@@ -389,16 +389,23 @@ export async function loadMotionProject(file, opts = {}) {
  * fills in each item's place, beats and bar grid. Returns the beats for the clips and why an
  * item could not be placed.
  */
-function placeLoadedMusic(music, project, inputs, words) {
-    const { placed, beats, diagnostics } = placeMusic(project, {
+function placeLoadedMusic(music, project, inputs, cutList, words) {
+    const { placed, diagnostics } = placeMusic(project, {
         tracks: inputs.tracks,
         words,
         sounds: inputs.sounds,
         stage: 'program'
     });
+    // As `resolveProgram` does: where the cut list (or `duration`) fixes the program length, the
+    // beats run to each item's end. Its warnings are the program's to report.
+    const frames = cutList.mode === 'program'
+        ? (cutList.frames ??
+            (project.duration !== undefined ? Math.round(project.duration * project.fps) : null))
+        : null;
+    const { beats, byItem } = musicEnds(project, placed, frames === null ? null : frames / project.fps, []);
     music.forEach((m, i) => {
         m.placed = placed[i];
-        m.beats = placed[i]?.beats ?? null;
+        m.beats = byItem[i];
         const corrected = m.music.tempo !== undefined || m.music.downbeat !== undefined;
         if (m.beats && m.analysis)
             m.bars = barRows(m.beats.grid, m.analysis.bars, corrected);

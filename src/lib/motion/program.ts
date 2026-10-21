@@ -10,7 +10,14 @@ import {
 } from './timeline.js';
 import { NO_BEATS, resolveAnchor, type AnchorContext, type BeatContext } from './anchors.js';
 import { NO_MUSIC_BEATS, pickMusic, type GridBeat } from './beat-grid.js';
-import { missingBeats, musicEnd, placeMusic, type PlacedMusic } from './music.js';
+import {
+	missingBeats,
+	musicEnd,
+	musicEnds,
+	placeMusic,
+	type MusicEnd,
+	type PlacedMusic
+} from './music.js';
 import { resolveFormat, type FormatClass, type ResolvedFormat } from './format.js';
 import { resolveMoment } from './moment.js';
 import { resolveMotionProject, type ResolvedClip } from './resolve.js';
@@ -310,7 +317,32 @@ export function resolveProgram(
 		stage: 'program'
 	});
 	diagnostics.push(...placement.diagnostics);
-	const inputs = given.tracks ? { ...given, music: placement.beats } : given;
+	// Where the cut list (or `duration`) fixes the program length, each music item's end is known
+	// before anything reads its beats, so beat anchors exist exactly while the music plays. After a
+	// broken cut list the length means nothing: no warnings about ends then.
+	const fixedFrames = program
+		? (cutList.frames ??
+			(project.duration !== undefined ? Math.round(project.duration * fps) : null))
+		: null;
+	const cutsBroken = cutList.diagnostics.some((d) => d.level === 'error');
+	const { ends, beats: playing } = musicEnds(
+		project,
+		placement.placed,
+		fixedFrames === null ? null : fixedFrames / fps,
+		cutsBroken ? [] : diagnostics
+	);
+	const inputs = given.tracks ? { ...given, music: playing } : given;
+	if (!program) {
+		const i = (project.music ?? []).findIndex((m) => m.snap !== undefined);
+		if (i >= 0)
+			diagnostics.push({
+				level: 'warning',
+				item: project.music![i].id ?? `music${i + 1}`,
+				field: `music[${i}].snap`,
+				message:
+					'"snap" has no effect without "cuts" or "shots": music is mixed, and ends on a bar, only in a program.'
+			});
+	}
 	const warn = (level: ProgramDiagnostic['level'], item: string, field: string, message: string) =>
 		diagnostics.push({ level, item, field, message });
 
@@ -332,14 +364,14 @@ export function resolveProgram(
 		).time;
 
 	// Program length: the cut list, else `duration`, else the latest end of clips or music.
-	const musicEnds = placement.placed.flatMap((m) =>
+	const musicStops = placement.placed.flatMap((m) =>
 		m?.until == null ? [] : [Math.round(m.until * fps)]
 	);
 	const frames =
 		cutList.frames ??
 		(project.duration !== undefined
 			? Math.round(project.duration * fps)
-			: Math.max(0, ...resolved.clips.map(endOf), ...musicEnds));
+			: Math.max(0, ...resolved.clips.map(endOf), ...musicStops));
 
 	const sources = programSources(project, inputs);
 	const cuts: ProgramCut[] = cutList.cuts.map((c) => ({
@@ -410,7 +442,16 @@ export function resolveProgram(
 	const audio = {
 		speech: program ? speechPieces(project, cutList.cuts, sources, inputs, frames / fps) : [],
 		sfx: resolveSfx(project, transitions, inputs, at, diagnostics),
-		music: resolveMusic(project, placement.placed, frames / fps, program, inputs, at, diagnostics),
+		music: resolveMusic(
+			project,
+			placement.placed,
+			ends,
+			frames / fps,
+			program,
+			inputs,
+			at,
+			diagnostics
+		),
 		levels: { sfx: mix.sfx ?? MIX_DEFAULTS.sfx, music: mix.music ?? MIX_DEFAULTS.music },
 		master: {
 			lufs: mix.loudness ?? MIX_DEFAULTS.loudness,
@@ -1308,6 +1349,7 @@ function resolveSfx(
 function resolveMusic(
 	project: MotionProject,
 	placed: (PlacedMusic | null)[],
+	ends: (MusicEnd | null)[],
 	end: number,
 	program: boolean,
 	inputs: ProgramInputs,
@@ -1331,9 +1373,11 @@ function resolveMusic(
 		const start = Math.max(0, place.from);
 		// Only a program mixes music; inserts keep the plain end, as before bar snaps existed.
 		const target = Math.min(place.until ?? end, end);
-		const stop = program
-			? musicEnd(music, place, end, diagnostics)
-			: { end: target, bar: null, target };
+		const stop =
+			ends[i] ??
+			(program
+				? musicEnd(music, place, end, 0.5 / project.fps, diagnostics)
+				: { end: target, bar: null, target, beatsUntil: target });
 		const dur = Math.max(0, stop.end - start);
 		const gainKeys: { at: number; gain: number }[] = [];
 		(music.keys ?? []).forEach((key, k) => {
@@ -1371,23 +1415,26 @@ function resolveMusic(
  * file: one error on that music says how to make the file.
  */
 function checkMissingBeats(project: MotionProject, diagnostics: ProgramDiagnostic[]) {
-	const advice = missingBeats(project);
-	if (!advice) return;
-	const ids = new Set((project.music ?? []).filter((m) => !m.beats && m.id).map((m) => m.id!));
-	const asked = diagnostics.some(
-		(d) =>
-			d.message.includes(NO_MUSIC_BEATS) ||
-			[...ids].some((id) => d.message.includes(`Unknown music "${id}"`))
-	);
-	if (!asked) return;
-	const i = (project.music ?? []).findIndex((m) => !m.beats);
-	const m = project.music![i];
-	diagnostics.push({
-		level: 'error',
-		item: m.id ?? `music${i + 1}`,
-		field: `music[${i}].beats`,
-		message: advice
-	});
+	const list = project.music ?? [];
+	const advise = (i: number) =>
+		diagnostics.push({
+			level: 'error',
+			item: list[i].id ?? `music${i + 1}`,
+			field: `music[${i}].beats`,
+			message: missingBeats({ music: [list[i]] })!
+		});
+	const said = diagnostics.map((d) => d.message);
+	// An anchor that names music without a beats file.
+	const named = list
+		.map((m, i) => [m, i] as const)
+		.filter(([m]) => !m.beats && m.id && said.some((t) => t.includes(`Unknown music "${m.id}"`)));
+	named.forEach(([, i]) => advise(i));
+	// Beat anchors found no music with beats: only when no music item has a beats file, since
+	// otherwise the music with beats is the one to fix.
+	if (!named.length && !list.some((m) => m.beats) && said.some((t) => t.includes(NO_MUSIC_BEATS))) {
+		const i = list.findIndex((m) => !m.beats);
+		if (i >= 0) advise(i);
+	}
 }
 
 function checkIds(

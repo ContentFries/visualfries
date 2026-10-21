@@ -33,7 +33,7 @@ import {
 	type BeatsFile,
 	type MusicBeats
 } from './beat-grid.js';
-import { musicTrack, placeMusic, type MusicTrack, type PlacedMusic } from './music.js';
+import { musicEnds, musicTrack, placeMusic, type MusicTrack, type PlacedMusic } from './music.js';
 import { fileSha256 } from './beats.js';
 import { footageMap, footageRanges, type FootageMap, type FrameRange } from './footage-map.js';
 import type { FootageFrames, FootageRange, SubjectBox } from './resolve.js';
@@ -467,6 +467,7 @@ export async function loadMotionProject(
 		music,
 		project,
 		inputs,
+		cutList,
 		cutList.mode === 'inserts' ? words : cutList.words
 	);
 	const musicBeats = placement.beats;
@@ -506,17 +507,31 @@ function placeLoadedMusic(
 	music: LoadedMusic[],
 	project: MotionProject,
 	inputs: ProgramInputs,
+	cutList: CutList,
 	words: MotionWord[] | null
 ): { beats: MusicBeats[]; diagnostics: ProgramDiagnostic[] } {
-	const { placed, beats, diagnostics } = placeMusic(project, {
+	const { placed, diagnostics } = placeMusic(project, {
 		tracks: inputs.tracks,
 		words,
 		sounds: inputs.sounds,
 		stage: 'program'
 	});
+	// As `resolveProgram` does: where the cut list (or `duration`) fixes the program length, the
+	// beats run to each item's end. Its warnings are the program's to report.
+	const frames =
+		cutList.mode === 'program'
+			? (cutList.frames ??
+				(project.duration !== undefined ? Math.round(project.duration * project.fps) : null))
+			: null;
+	const { beats, byItem } = musicEnds(
+		project,
+		placed,
+		frames === null ? null : frames / project.fps,
+		[]
+	);
 	music.forEach((m, i) => {
 		m.placed = placed[i];
-		m.beats = placed[i]?.beats ?? null;
+		m.beats = byItem[i];
 		const corrected = m.music.tempo !== undefined || m.music.downbeat !== undefined;
 		if (m.beats && m.analysis) m.bars = barRows(m.beats.grid, m.analysis.bars, corrected);
 	});

@@ -55,7 +55,12 @@ export type PlacedMusic = {
 	 * bar to count on past the file. Null without beats or without downbeats.
 	 */
 	bars: { ends: BarEnd[]; next: number } | null;
-	/** Its beats in program seconds, for beat anchors; null without a beats file. */
+	/**
+	 * Every beat it plays, in program seconds: from file second `in` on (the part `in` skips is
+	 * never heard, so its beats do not exist). Null without a beats file.
+	 */
+	grid: (GridBeat & { energy: number | null })[] | null;
+	/** Its beats for beat anchors: `grid` up to `until`; null without a beats file. */
 	beats: MusicBeats | null;
 };
 
@@ -64,8 +69,13 @@ export type MusicPlacement = {
 	placed: (PlacedMusic | null)[];
 	/** Beats of every placed item with beats, in program seconds, in project order. */
 	beats: MusicBeats[];
-	/** Items left for the program stage because a phrase places them. */
+	/**
+	 * Items with beats left for the program stage: their `from` is on a phrase, or on the beats of
+	 * music that waits.
+	 */
 	deferred: string[];
+	/** Items with beats whose place failed (see the diagnostics). */
+	failed: string[];
 	diagnostics: ProgramDiagnostic[];
 };
 
@@ -78,11 +88,23 @@ export function anchorUsesWords(anchor: MotionAnchor | undefined): boolean {
 	return false;
 }
 
-const ownBeat = (anchor: MotionAnchor | undefined, owner: string | undefined): boolean => {
+type AnchorObject = Exclude<MotionAnchor, number | string>;
+
+/** Every music id an anchor names (also in its `at`). */
+function namedMusic(anchor: MotionAnchor | undefined): string[] {
+	if (anchor === undefined || typeof anchor !== 'object') return [];
+	const own = 'music' in anchor && anchor.music !== undefined ? [anchor.music] : [];
+	return [...own, ...('at' in anchor ? namedMusic(anchor.at) : [])];
+}
+
+/** Whether an anchor reads beats without naming the music (a beat anchor or a "-1b" offset). */
+function unnamedBeats(anchor: MotionAnchor | undefined): boolean {
 	if (anchor === undefined || typeof anchor !== 'object') return false;
-	if ('music' in anchor && anchor.music !== undefined && anchor.music === owner) return true;
-	return 'at' in anchor ? ownBeat(anchor.at, owner) : false;
-};
+	const a = anchor as AnchorObject & { music?: string; offset?: number | string };
+	const beatLike = 'bar' in a || 'downbeat' in a || 'beat' in a || typeof a.offset === 'string';
+	if (beatLike && a.music === undefined) return true;
+	return 'at' in a ? unnamedBeats(a.at) : false;
+}
 
 /** Most common number of beats in a bar of the grid (bars 1 and later). */
 function beatsPerBar(grid: GridBeat[]): number {
@@ -101,7 +123,7 @@ function beatsPerBar(grid: GridBeat[]): number {
 
 /** Bar ends of a program-time grid, as far as `fileEnd` (seconds, null: no limit). */
 function barEnds(grid: GridBeat[], fileEnd: number | null): PlacedMusic['bars'] {
-	if (!grid.length || grid[0].bar === null) return null;
+	if (grid.length < 2 || grid[0].bar === null) return null;
 	const downs = grid.filter((b) => b.beat === 1);
 	if (!downs.length) return null;
 	const ends: BarEnd[] = downs
@@ -126,12 +148,15 @@ export function missingBeats(project: Pick<MotionProject, 'music'>): string | nu
  * Places each music item in the program: `from` (any program anchor; a beat anchor reads music
  * placed before it), `in` (seconds into the file at `from`) and `until` (any anchor; beat
  * anchors read its own beats unless they name another music). Its beats move with it: a beat at
- * file second t plays at `from + t − in`; beats after `until` do not exist.
+ * file second t plays at `from + t − in`. Beats in the part `in` skips are left out (`grid`),
+ * and `beats` stops at `until`; `musicEnds` cuts them at the end the music really has.
  *
- * Stage `cuts` is for cut points on beats, before program words exist: an item that a phrase
- * places waits (`deferred`). Stage `program` places everything against the program words.
- * Without `tracks`, `given` (beats already in program time) serves the anchors and no item has
- * its own bars.
+ * Stage `cuts` is for cut points on beats, before program words exist: an item whose `from` is
+ * a phrase, or a beat of music that waits, waits too (`deferred`), and a phrase in `until` is
+ * left for later. Stage `program` places everything against the program words; a `from` or
+ * `until` that fails there is reported and the item plays from 0 (or to the end), so beats
+ * anchored on it do not fail one by one. Without `tracks`, `given` (beats already in program
+ * time) serves the anchors and no item has its own bars.
  */
 export function placeMusic(
 	project: MotionProject,
@@ -147,19 +172,25 @@ export function placeMusic(
 	const placed: (PlacedMusic | null)[] = [];
 	const beats: MusicBeats[] = [];
 	const deferred: string[] = [];
+	const failed: string[] = [];
 	const diagnostics: ProgramDiagnostic[] = [];
-	(project.music ?? []).forEach((music, i) => {
+	const list = project.music ?? [];
+	list.forEach((music, i) => {
 		const owner = music.id ?? `music${i + 1}`;
-		const fail = (field: string, message: string) => {
+		const error = (field: string, message: string) =>
 			diagnostics.push({ level: 'error', item: owner, field: `music[${i}].${field}`, message });
-			placed.push(null);
-		};
-		if (opts.stage === 'cuts' && (anchorUsesWords(music.from) || anchorUsesWords(music.until))) {
-			deferred.push(owner);
+		const track = opts.tracks?.find((t) => t.item === i) ?? null;
+		// At the cut stage an item placed on a phrase waits for the program words, and so does one
+		// placed on the beats of music that waits.
+		const waits =
+			anchorUsesWords(music.from) ||
+			namedMusic(music.from).some((id) => deferred.includes(id)) ||
+			(deferred.length > 0 && unnamedBeats(music.from));
+		if (opts.stage === 'cuts' && waits) {
+			if (track) deferred.push(owner);
 			placed.push(null);
 			return;
 		}
-		const track = opts.tracks?.find((t) => t.item === i) ?? null;
 		const ctx: AnchorContext = {
 			words: opts.words,
 			fps,
@@ -168,30 +199,51 @@ export function placeMusic(
 			scope: 'program',
 			beats: { music: opts.tracks ? [...beats] : (opts.given ?? []), clip: undefined }
 		};
-		if (ownBeat(music.from, music.id)) {
-			fail('from', `Music "${owner}" cannot start on its own beats; they move with it.`);
-			return;
+		// A failed `from` or `until` is reported once; the item then plays from 0 (or to the end)
+		// so that what is anchored on its beats still resolves instead of failing everywhere.
+		let from = 0;
+		const later = namedMusic(music.from).find((id) => list.slice(i + 1).some((m) => m.id === id));
+		let why: string | null = null;
+		if (music.id !== undefined && namedMusic(music.from).includes(music.id)) why = ownBeats(owner);
+		else if (later)
+			why = `Music "${owner}" starts on a beat of "${later}", which is listed after it. Music can start only on the beats of music listed before it; move "${later}" up.`;
+		else if (track && !beats.length && unnamedBeats(music.from)) why = ownBeats(owner);
+		else if (music.from !== undefined) {
+			try {
+				from = resolveAnchor(music.from, ctx, 'start').time;
+			} catch (e) {
+				why = (e as Error).message;
+			}
 		}
-		let from: number;
-		try {
-			from = music.from === undefined ? 0 : resolveAnchor(music.from, ctx, 'start').time;
-		} catch (error) {
-			fail('from', (error as Error).message);
-			return;
+		if (why !== null) {
+			error('from', why);
+			// Cut points never read music whose place is unknown.
+			if (opts.stage === 'cuts') {
+				if (track) failed.push(owner);
+				placed.push(null);
+				return;
+			}
 		}
 		const offset = music.in ?? 0;
 		const duration = track?.duration ?? opts.sounds?.[music.src]?.duration ?? null;
-		if (duration !== null && offset >= duration) {
-			fail(
-				'in',
-				`"in" (${offset} s) is not inside "${music.src}" (${duration.toFixed(2)} s long).`
+		const first = offset + Math.max(0, -from);
+		if (duration !== null && first >= duration) {
+			error(
+				music.in !== undefined ? 'in' : 'from',
+				`Music "${owner}" would start ${first.toFixed(2)} s into "${music.src}", which is ${duration.toFixed(2)} s long.`
 			);
+			placed.push(null);
 			return;
 		}
-		// With in = 0 this is `from + time`, exactly as before `in` existed.
-		const grid = track?.grid.map((b) => ({ ...b, time: micro(from + (b.time - offset)) })) ?? null;
+		// File second t plays at `from + t − in`; with in = 0 that is `from + t`, as before `in`
+		// existed. Beats in the part `in` skips are never heard, so they do not exist.
+		const grid =
+			track?.grid
+				.filter((b) => offset === 0 || b.time >= offset - 1e-6)
+				.map((b) => ({ ...b, time: micro(from + (b.time - offset)) })) ?? null;
 		let until: number | null = null;
-		if (music.until !== undefined) {
+		// At the cut stage a phrase in `until` waits: cut points see the beats up to the file end.
+		if (music.until !== undefined && !(opts.stage === 'cuts' && anchorUsesWords(music.until))) {
 			const self: MusicBeats | null = grid
 				? { id: owner, name: music.id ?? music.src, grid }
 				: null;
@@ -205,16 +257,15 @@ export function placeMusic(
 					},
 					'end'
 				).time;
-			} catch (error) {
-				fail('until', (error as Error).message);
-				return;
-			}
-			if (until <= Math.max(0, from)) {
-				fail(
-					'until',
-					`Music "${owner}" stops (${until.toFixed(2)} s) before it starts (${Math.max(0, from).toFixed(2)} s).`
-				);
-				return;
+				if (until <= Math.max(0, from)) {
+					error(
+						'until',
+						`Music "${owner}" stops (${until.toFixed(2)} s) before it starts (${Math.max(0, from).toFixed(2)} s).`
+					);
+					until = null;
+				}
+			} catch (e) {
+				error('until', (e as Error).message);
 			}
 		}
 		const fileEnd = duration === null ? null : micro(from + duration - offset);
@@ -226,18 +277,29 @@ export function placeMusic(
 			until,
 			fileEnd,
 			bars: grid ? barEnds(grid, fileEnd) : null,
-			beats: grid
-				? {
-						id: music.id ?? null,
-						name: music.id ?? music.src,
-						grid: grid.filter((b) => until === null || b.time <= until + 1e-6)
-					}
-				: null
+			grid,
+			beats: grid ? musicBeats(music, grid, until) : null
 		};
 		placed.push(item);
 		if (item.beats) beats.push(item.beats);
 	});
-	return { placed, beats, deferred, diagnostics };
+	return { placed, beats, deferred, failed, diagnostics };
+}
+
+const ownBeats = (owner: string) =>
+	`Music "${owner}" cannot start on its own beats: they move with it. Start it in seconds, on a phrase, or on a beat of music listed before it ({ "bar": 2, "music": "<id>" }).`;
+
+/** A music item's beats for anchors: those it plays up to `end` (null: to the file end). */
+export function musicBeats(
+	music: Pick<MotionMusic, 'id' | 'src'>,
+	grid: (GridBeat & { energy: number | null })[],
+	end: number | null
+): MusicBeats {
+	return {
+		id: music.id ?? null,
+		name: music.id ?? music.src,
+		grid: grid.filter((b) => end === null || b.time <= end + 1e-6)
+	};
 }
 
 /** How a music item ends: where, and whether it snapped to a bar end. */
@@ -248,19 +310,24 @@ export type MusicEnd = {
 	bar: number | null;
 	/** Where it would end without the bar snap (`until` or the program end). */
 	target: number;
+	/** Program seconds up to which its beats exist: `end`, or the bar end it snapped to. */
+	beatsUntil: number;
 };
 
 /**
  * The end of a placed music item in a program `programEnd` seconds long. It aims at `until`
  * (or the program end), never past the program end. With `snap` (default when the music has
  * downbeats) it takes the bar end nearest that aim, the earlier one on a tie, so a retake that
- * changes the program length re-snaps it. A file that runs out first ends the music there (on its
- * last bar end when snapping), with a warning.
+ * changes the program length re-snaps it. A bar end up to `slack` seconds (half a frame) after
+ * the program end still counts: a cut on a beat rounds to the nearest frame, so the program may
+ * end that much before the bar does; the music then ends with the program. A file that runs out
+ * first ends the music there (on its last bar end when snapping), with a warning.
  */
 export function musicEnd(
 	music: MotionMusic,
 	placed: PlacedMusic,
 	programEnd: number,
+	slack: number,
 	diagnostics: ProgramDiagnostic[]
 ): MusicEnd {
 	const field = `music[${placed.item}]`;
@@ -283,19 +350,22 @@ export function musicEnd(
 			'.snap',
 			placed.beats
 				? `Music "${placed.owner}" has no downbeats, so it has no bars to end on. Re-analyse with a tool that finds downbeats, or set "snap": false.`
-				: (missingBeats({ music: [music] }) ?? NO_MUSIC_BEATS)
+				: music.beats
+					? `Music "${placed.owner}": "snap": "bar" needs its beats in seconds of the music file (inputs.tracks, as the node tooling reads them); beats already placed in the program (inputs.music) have no bars to end on.`
+					: (missingBeats({ music: [music] }) ?? NO_MUSIC_BEATS)
 		);
 	}
 	if (wanted !== 'bar' || !placed.bars) {
 		if (fileEnd !== null && fileEnd < target - 0.05) {
 			short(fileEnd, '');
-			return { end: micro(Math.max(start, fileEnd)), bar: null, target };
+			const end = micro(Math.max(start, fileEnd));
+			return { end, bar: null, target, beatsUntil: end };
 		}
-		return { end: target, bar: null, target };
+		return { end: target, bar: null, target, beatsUntil: target };
 	}
 	const { ends, next } = placed.bars;
 	const eps = 1e-6;
-	const inside = (t: number) => t > start + eps && t <= programEnd + eps;
+	const inside = (t: number) => t > start + eps && t <= programEnd + slack + eps;
 	const nearest = (list: BarEnd[]) =>
 		list
 			.filter((b) => inside(b.time))
@@ -308,7 +378,7 @@ export function musicEnd(
 	const beyond: BarEnd[] = [];
 	const last = ends[ends.length - 1] ?? null;
 	if (last && next > 0)
-		for (let k = 1; last.time + k * next <= programEnd + eps; k++) {
+		for (let k = 1; last.time + k * next <= programEnd + slack + eps; k++) {
 			const time = micro(last.time + k * next);
 			if (fileEnd === null || time > fileEnd + 1e-3) beyond.push({ bar: last.bar + k, time });
 		}
@@ -321,9 +391,39 @@ export function musicEnd(
 			'.snap',
 			`Music "${placed.owner}" cannot end on a bar end: none falls between its start (${start.toFixed(2)} s) and ${fileEnd !== null && fileEnd < programEnd ? 'the end of the file' : 'the program end'} (${Math.min(programEnd, fileEnd ?? Infinity).toFixed(2)} s). It ends at ${end.toFixed(2)} s; "snap": false keeps that without this warning.`
 		);
-		return { end: micro(Math.max(start, end)), bar: null, target };
+		const stop = micro(Math.max(start, end));
+		return { end: stop, bar: null, target, beatsUntil: stop };
 	}
 	if (best && best !== real && !ends.includes(best))
 		short(real.time, ` on the end of bar ${real.bar}`);
-	return { end: real.time, bar: real.bar, target };
+	return {
+		end: micro(Math.min(real.time, programEnd)),
+		bar: real.bar,
+		target,
+		beatsUntil: real.time
+	};
+}
+
+/**
+ * Each placed item's end in a program `programEnd` seconds long (null: not known yet, nothing
+ * ends), and the beats anchors may use: those the music plays, up to that end (else `until`).
+ */
+export function musicEnds(
+	project: MotionProject,
+	placed: (PlacedMusic | null)[],
+	programEnd: number | null,
+	diagnostics: ProgramDiagnostic[]
+): { ends: (MusicEnd | null)[]; beats: MusicBeats[]; byItem: (MusicBeats | null)[] } {
+	const list = project.music ?? [];
+	const ends = list.map((music, i) =>
+		placed[i] && programEnd !== null
+			? musicEnd(music, placed[i]!, programEnd, 0.5 / project.fps, diagnostics)
+			: null
+	);
+	const byItem = list.map((music, i) => {
+		const place = placed[i];
+		if (!place?.grid) return null;
+		return ends[i] ? musicBeats(music, place.grid, ends[i]!.beatsUntil) : place.beats;
+	});
+	return { ends, beats: byItem.filter((b): b is MusicBeats => !!b), byItem };
 }

@@ -295,6 +295,107 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('transitions on the program stage', 
 		}
 	}, 600_000);
 
+	it('covers the corners with the wipe bars across the short side of the frame', async () => {
+		// Portrait wiping left and landscape wiping up: the bars travel along the short side, so
+		// the slant shifts their corners further than 15 % of the travel.
+		const BARS = [
+			[0xf4, 0x3f, 0x5e],
+			[0xfb, 0xc4, 0x2d],
+			[0x5b, 0x8c, 0xff]
+		];
+		for (const [name, size, direction] of [
+			['tall-left', [W, H], 'left'],
+			['wide-up', [H, W], 'up']
+		] as const) {
+			const json = project([...size], true);
+			json.cuts[2] = { ...json.cuts[2], transition: { type: 'wipe', direction } };
+			await fs.writeFile(file(name), JSON.stringify(json));
+			const loaded = await loadMotionProject(file(name));
+			const pngs = await captureProgramFrames(loaded, [89, 90]);
+			const [w, h] = size;
+			for (const f of [89, 90]) {
+				const px = ffmpeg(
+					['-i', 'pipe:0', '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'],
+					pngs.get(f)!
+				);
+				const rgbAt = (x: number, y: number) => [
+					...px.subarray((y * w + x) * 4, (y * w + x) * 4 + 3)
+				];
+				for (const [x, y] of [
+					[0, 0],
+					[w - 1, 0],
+					[0, h - 1],
+					[w - 1, h - 1],
+					[w >> 1, h >> 1]
+				])
+					expect(
+						BARS.some((c) => near(rgbAt(x, y), c, 6)),
+						`${name} frame ${f} at ${x},${y}: ${rgbAt(x, y)}`
+					).toBe(true);
+			}
+		}
+	}, 120_000);
+
+	it('keeps clip z-index inside its layer: behind the subject, under the transition bars', async () => {
+		/** A magenta band with a high z-index. */
+		const raised = (z: number, top: number) => `<div class="band"></div>
+
+<style>
+	.band { position: absolute; left: 0; right: 0; top: ${top}px; height: 60px; background: #ff00ff; z-index: ${z}; }
+</style>
+`;
+		await fs.writeFile(path.join(dir, 'Raised1.svelte'), raised(1, 300));
+		await fs.writeFile(path.join(dir, 'Raised10.svelte'), raised(10, 100));
+		const json = project([W, H], true);
+		json.clips = [
+			{ id: 'behind', block: 'Raised1.svelte', from: 0, until: 1.4, layer: 'behind' },
+			{ id: 'caption', block: 'Raised10.svelte', from: 2.5, until: 4.4 }
+		] as typeof json.clips;
+		await fs.writeFile(file('stacking'), JSON.stringify(json));
+		const loaded = await loadMotionProject(file('stacking'));
+		const pngs = await captureProgramFrames(loaded, [10, 89, 90]);
+		const raw = new Map([10, 89, 90].map((f) => [f, rgba(pngs.get(f)!)]));
+		// Beside the speaker the band shows; on the speaker the subject covers it.
+		expect(near(at(raw.get(10)!, 20, 330), [255, 0, 255])).toBe(true);
+		expect(near(at(raw.get(10)!, 180, 330), [255, 0, 255])).toBe(false);
+		// While the wipe covers the cut, its bars cover the z-index 10 caption.
+		for (const f of [89, 90])
+			expect(near(at(raw.get(f)!, 180, 130), [255, 0, 255]), `frame ${f}`).toBe(false);
+	}, 120_000);
+
+	it('pushes without a dark seam between the blurred sides', async () => {
+		// Flat grey footage: any pixel darker than it is the seam.
+		ffmpeg([
+			'-f',
+			'lavfi',
+			'-i',
+			`color=c=0x808080:s=${W}x${H}:r=30:d=4`,
+			'-pix_fmt',
+			'yuv420p',
+			path.join(dir, 'flat.mp4')
+		]);
+		const json = {
+			size: [W, H],
+			fps: 30,
+			background: '#000000',
+			footage: { flat: { src: 'flat.mp4' } },
+			cuts: [
+				{ source: 'flat', in: 0, out: 1 },
+				{ source: 'flat', in: 2, out: 3, transition: { type: 'push', duration: 0.5 } }
+			]
+		};
+		await fs.writeFile(file('seam'), JSON.stringify(json));
+		const loaded = await loadMotionProject(file('seam'));
+		const frames = [27, 29, 30, 31, 33];
+		const pngs = await captureProgramFrames(loaded, frames);
+		for (const f of frames) {
+			const px = rgba(pngs.get(f)!);
+			let darkest = 255;
+			for (let y = 0; y < H; y++) darkest = Math.min(darkest, at(px, W >> 1, y)[0]);
+			expect(darkest, `frame ${f}`).toBeGreaterThan(0x80 - 8);
+		}
+	}, 120_000);
+
 	it('passes check --determinism in both formats', async () => {
 		for (const name of ['tall', 'wide']) {
 			const results = await checkProgram(await loadMotionProject(file(name)), {

@@ -1,4 +1,5 @@
 import { type LoadedMotionProject } from './node.js';
+import type { AudioPiece } from './program.js';
 export type RenderedSegment = {
     id: string;
     startFrame: number;
@@ -45,3 +46,13 @@ export type ProgramRenderOptions = {
 };
 /** Renders the program of a project with `cuts` or `shots` into one video. */
 export declare function renderProgramVideo(loaded: LoadedMotionProject, opts: ProgramRenderOptions): Promise<RenderedProgram>;
+/**
+ * A stand-in for the program mixer: each speech piece trimmed from its file, faded
+ * (equal-power), placed at its program time and summed; silence elsewhere. No music, sound
+ * effects or loudness normalisation. Inputs count from 1 (input 0 is the picture); the mix is
+ * `[speech]`, 48 kHz stereo, `seconds` long.
+ */
+export declare function speechMix(dir: string, pieces: AudioPiece[], seconds: number): {
+    inputs: string[];
+    filter: string;
+};

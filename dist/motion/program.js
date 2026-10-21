@@ -581,6 +581,12 @@ function resolveTransitions(project, resolvedCuts, cuts, shots, clips, fps, cls,
             warn('error', clip.id, 'transition', `The ${t.type} window starts before the program.`);
             continue;
         }
+        // A push slides everything below the clip off the frame (the footage plate, for a clip
+        // behind the subject); `check` measures whether a front clip covers the frame.
+        if (t.type === 'push' && (clip.layer === 'behind' || clip.slot))
+            warn('warning', clip.id, 'transition', clip.layer === 'behind'
+                ? 'A push on a clip behind the subject slides the footage plate off the frame while the speaker stays: the empty stage shows around the speaker. Use wipe, or put the clip in front.'
+                : `A push on a slotted clip slides everything below it off the frame, but the clip fills only its "${clip.slot}" slot: the empty stage shows around it. Use wipe, or a clip that covers the frame.`);
         // Before its first frame the clip holds that frame.
         t.held.in = t.cutFrame - t.startFrame;
         clip.transition = t.id;
@@ -712,6 +718,24 @@ function checkIds(project, cuts, shots, clips, diagnostics) {
             seen.set(id, kind);
     }
 }
+/** Strings in clip props that may name a project file (no URLs, data or colours). */
+export function propFiles(props) {
+    const found = new Set();
+    const walk = (value) => {
+        if (typeof value === 'string') {
+            if (value.length < 512 &&
+                /\.[a-z0-9]{1,5}$/i.test(value) &&
+                !/^([a-z][a-z0-9+.-]*:|#|\/\/)/i.test(value))
+                found.add(value);
+        }
+        else if (Array.isArray(value))
+            value.forEach(walk);
+        else if (value && typeof value === 'object')
+            Object.values(value).forEach(walk);
+    };
+    props.forEach(walk);
+    return [...found].sort();
+}
 /**
  * Segments split the program at cuts without a transition, never inside a transition window.
  * A segment's hash covers what is on screen in it (resolved data, source files, blocks, custom
@@ -745,7 +769,9 @@ function resolveSegments(program, project) {
                 ...shots.map((s) => s.shot).filter((s) => isCustom(s, CUSTOM_SHOT)),
                 ...transitions.map((t) => t.type).filter((t) => isCustom(t, CUSTOM_TRANSITION)),
                 ...(project.fonts ?? []).map((f) => f.src),
-                ...(project.css ?? [])
+                ...(project.css ?? []),
+                // Project files a clip names in its props (hashed when they exist).
+                ...propFiles(clips.map((c) => c.props)).filter((f) => f in program.hashes.assets)
             ])
         ];
         const hash = sha1(JSON.stringify({

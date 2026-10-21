@@ -11,7 +11,7 @@ export type {
 	TransitionSetup,
 	TransitionSides
 } from './contract.js';
-export { wipeBarAt } from './wipe.js';
+export { wipeBarAt, wipeBox } from './wipe.js';
 
 /**
  * The transition registry and the pure parts of the engine: progress per program frame, the

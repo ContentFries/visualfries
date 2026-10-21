@@ -1,13 +1,19 @@
 // @vitest-environment node
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { findChromium, loadMotionProject } from '../../src/lib/motion/node.js';
 import { captureProgramFrames } from '../../src/lib/motion/program-node.js';
-import { renderProgramVideo, type RenderedProgram } from '../../src/lib/motion/program-render.js';
+import {
+	renderProgramVideo,
+	speechMix,
+	type RenderedProgram
+} from '../../src/lib/motion/program-render.js';
+import { motionProgram } from '../../src/lib/motion/node.js';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -233,6 +239,49 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		const differ = [...Array(120).keys()].filter((f) => !frameOf(a, f).equals(frameOf(b, f)));
 		expect(differ.length).toBeGreaterThan(0);
 		expect(differ.every((f) => f >= 30 && f < 60)).toBe(true);
+		// The intermediate of the replaced segment is gone; the cache keeps what the render used.
+		expect(existsSync(first.segments[1].file)).toBe(false);
+		const kept = (await fs.readdir(path.join(dir, '.visualfries', 'segments'))).filter((f) =>
+			f.endsWith('.mkv')
+		);
+		expect(kept.sort()).toEqual(edited.segments.map((s) => path.basename(s.file)).sort());
+		await fs.writeFile(file, programJson('ONE'));
+	}, 150_000);
+
+	it('draws again the segment of a block whose imported helper changed', async () => {
+		const tinted = `<script>
+	import { useClip } from 'visualfries/motion';
+	import { tint } from './color.js';
+	useClip();
+</script>
+
+<div class="box" style="background: {tint}"></div>
+
+<style>
+	.box { position: absolute; left: 200px; top: 60px; width: 80px; height: 80px; }
+</style>
+`;
+		await fs.writeFile(path.join(dir, 'Tinted.svelte'), tinted);
+		await fs.writeFile(path.join(dir, 'color.js'), "export const tint = '#ff0000';\n");
+		const json = programJson('ONE', [
+			{ id: 'tint', block: 'Tinted.svelte', from: 2.2, until: 2.8 }
+		]);
+		await fs.writeFile(file, json);
+		const red = await renderProgramVideo(await loadMotionProject(file), { output: out('red.mp4') });
+		await fs.writeFile(path.join(dir, 'color.js'), "export const tint = '#0000ff';\n");
+		const blue = await renderProgramVideo(await loadMotionProject(file), {
+			output: out('blue.mp4')
+		});
+		// Only the third segment (frames 60–119) shows the block.
+		expect(blue.segments.map((s) => s.cached)).toEqual([true, true, false]);
+		expect(blue.segments[2].hash).not.toBe(red.segments[2].hash);
+		const a = rgb(red.file);
+		const b = rgb(blue.file);
+		const px = (raw: Buffer, f: number) => [
+			...frameOf(raw, f).subarray((100 * W + 240) * 3, (100 * W + 240) * 3 + 3)
+		];
+		expect(px(a, 70)[0]).toBeGreaterThan(200);
+		expect(px(b, 70)[2]).toBeGreaterThan(200);
 		await fs.writeFile(file, programJson('ONE'));
 	}, 150_000);
 
@@ -270,4 +319,147 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		expect(left.filter((f) => f.includes('.partial-'))).toEqual([]);
 		expect(await fs.readdir(crashDir)).not.toContain('out.mp4');
 	}, 150_000);
+
+	it('removes partial files when interrupted, and those of a killed render on the next run', async () => {
+		const runDir = path.join(dir, 'interrupt');
+		await fs.mkdir(runDir);
+		await fs.copyFile(path.join(dir, 'num.mp4'), path.join(runDir, 'num.mp4'));
+		await fs.copyFile(path.join(dir, 'Label.svelte'), path.join(runDir, 'Label.svelte'));
+		const project = path.join(runDir, 'program.vf.json');
+		await fs.writeFile(project, programJson('ONE'));
+		const segmentsDir = path.join(runDir, '.visualfries', 'segments');
+		// A render killed outright (no chance to clean up) leaves its partial files behind.
+		const dead = spawnSync('node', ['-e', 'process.stdout.write(String(process.pid))']);
+		const deadPid = Number(String(dead.stdout));
+		await fs.mkdir(segmentsDir, { recursive: true });
+		const orphans = [
+			path.join(segmentsDir, `${'0'.repeat(40)}-${'0'.repeat(12)}.partial-${deadPid}-seg1.mkv`),
+			path.join(segmentsDir, `.concat-${deadPid}-1.txt`),
+			path.join(runDir, `.out.partial-${deadPid}.mp4`)
+		];
+		for (const f of orphans) await fs.writeFile(f, 'x');
+		// Interrupt the CLI while it draws the first segment.
+		const cli = spawn(
+			'node',
+			[
+				path.resolve('bin/visualfries.js'),
+				'render',
+				project,
+				'--output',
+				path.join(runDir, 'out.mp4')
+			],
+			{ stdio: 'ignore' }
+		);
+		const exited = new Promise<void>((resolve) => cli.on('exit', () => resolve()));
+		const started = Date.now();
+		const live = () =>
+			fs
+				.readdir(segmentsDir)
+				.then((names) => names.filter((n) => n.includes(`.partial-${cli.pid}-`)));
+		while (!(await live()).length && Date.now() - started < 60_000)
+			await new Promise((r) => setTimeout(r, 50));
+		expect((await live()).length).toBeGreaterThan(0);
+		for (const f of orphans) expect(existsSync(f), f).toBe(false);
+		cli.kill('SIGINT');
+		await exited;
+		expect(await live()).toEqual([]);
+		expect((await fs.readdir(runDir)).filter((n) => n.includes('.partial-'))).toEqual([]);
+		expect(existsSync(path.join(runDir, 'out.mp4'))).toBe(false);
+	}, 150_000);
+
+	it('counts the program segments in `visualfries cache` and --clear drops them', async () => {
+		const cache = (...args: string[]) =>
+			JSON.parse(
+				String(
+					spawnSync('node', [path.resolve('bin/visualfries.js'), 'cache', file, ...args]).stdout
+				)
+			);
+		const before = cache();
+		expect(before.segments).toBeGreaterThan(0);
+		expect(before.segmentsSize).toMatch(/GB$/);
+		const cleared = cache('--clear');
+		expect(cleared.removedSegments).toBe(before.segments);
+		expect(existsSync(path.join(dir, '.visualfries', 'segments'))).toBe(false);
+	});
+});
+
+describe.skipIf(!hasFfmpeg)('program speech placement', () => {
+	let dir: string;
+	beforeAll(async () => {
+		dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-program-speech-'));
+	});
+	afterAll(async () => {
+		await fs.rm(dir, { recursive: true, force: true });
+	});
+
+	it('places every sample of the speech where the cut list puts it, also from source 0', async () => {
+		// Clicks: one-sample impulses in a 48 kHz file, at known source samples.
+		const RATE = 48000;
+		const clicks = [4800, 33600, 52800, 91200, 120000];
+		const pcm = Buffer.alloc(3 * RATE * 2);
+		for (const c of clicks) pcm.writeInt16LE(20000, c * 2);
+		ffmpeg(
+			[
+				'-f',
+				's16le',
+				'-ar',
+				String(RATE),
+				'-ac',
+				'1',
+				'-i',
+				'pipe:0',
+				path.join(dir, 'clicks.wav')
+			],
+			pcm
+		);
+		ffmpeg([
+			'-f',
+			'lavfi',
+			'-i',
+			`color=black:s=${W}x${H}:r=${FPS}:d=3`,
+			'-pix_fmt',
+			'yuv420p',
+			path.join(dir, 'v.mp4')
+		]);
+		const file = path.join(dir, 'speech.vf.json');
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [W, H],
+				fps: FPS,
+				footage: { v: { src: 'v.mp4', audio: 'clicks.wav' } },
+				// Program 0–1 s: source 1–2 s; 1–2 s: source 0–1 s (starts at the very first sample).
+				cuts: [
+					{ source: 'v', in: 1, out: 2 },
+					{ source: 'v', in: 0, out: 1 }
+				]
+			})
+		);
+		const { program } = await motionProgram(await loadMotionProject(file));
+		expect(program.audio.speech[1]).toMatchObject({ at: 1, srcIn: 0, fadeIn: 0.005 });
+		const { inputs, filter } = speechMix(dir, program.audio.speech, 2);
+		// Input 0 stands in for the picture, as in the final encode.
+		const raw = ffmpeg([
+			...['-f', 'lavfi', '-i', 'color=black:s=16x16:r=30:d=2'],
+			...inputs,
+			...['-filter_complex', filter, '-map', '[speech]', '-ac', '1', '-f', 'f32le', 'pipe:1']
+		]);
+		const samples = new Float32Array(raw.buffer, raw.byteOffset, raw.length / 4);
+		const peaks = [...samples.keys()].filter((i) => Math.abs(samples[i]) > 0.3);
+		// Source 1.1 s and 1.9 s land at program 0.1 s and 0.9 s; source 0.1 s and 0.7 s at 1.1 s
+		// and 1.7 s; the click at 2.5 s is outside both cuts.
+		expect(peaks).toEqual([4800, 43200, 52800, 81600]);
+		// A piece written before its file starts (older program files) keeps its samples in place.
+		const early = program.audio.speech.map((p, i) =>
+			i === 1 ? { ...p, srcIn: -0.005, at: 0.995, dur: 1.005, fadeIn: 0.01 } : p
+		);
+		const mixed = speechMix(dir, early, 2);
+		const again = ffmpeg([
+			...['-f', 'lavfi', '-i', 'color=black:s=16x16:r=30:d=2'],
+			...mixed.inputs,
+			...['-filter_complex', mixed.filter, '-map', '[speech]', '-ac', '1', '-f', 'f32le', 'pipe:1']
+		]);
+		const s2 = new Float32Array(again.buffer, again.byteOffset, again.length / 4);
+		expect([...s2.keys()].filter((i) => Math.abs(s2[i]) > 0.3)).toEqual(peaks);
+	});
 });

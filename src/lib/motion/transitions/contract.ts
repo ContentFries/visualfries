@@ -24,7 +24,9 @@ export type TransitionEvent = { kind: string; at: number };
 export type TransitionSides = {
 	/**
 	 * What leaves: the outgoing side of a cut or shot transition (and the clips that end on its
-	 * cut), or every layer below the clip of a clip transition.
+	 * cut), or every layer below the clip of a clip transition. Elements marked `data-solid`
+	 * (a side, its fill and its footage window) paint their whole box: a filter may treat their
+	 * edge as the end of the picture rather than as transparency.
 	 */
 	out: HTMLElement[];
 	/** What arrives: the incoming side (and the clips that start on its cut), or the clip root. */

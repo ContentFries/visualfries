@@ -8,6 +8,8 @@ export type ProgramScene = {
     seek(f: number): void;
     /** Draws the footage and runs `useFrame` of the clips on screen; resolves once all settle. */
     draw(f: number): Promise<void>;
+    /** What `check` should warn about at the frame last drawn (see `pushGaps`). */
+    warnings(f: number): string[];
     destroy(): void;
 };
 /** Builds the layer tree in `stage` and mounts every clip of the segment. */

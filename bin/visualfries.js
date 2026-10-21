@@ -65,7 +65,8 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     .visualfries/segments/ and only changed segments are drawn again;
                     <name>.program.json is saved beside the video
   visualfries cache <project.vf.json> [--clear]
-                    size of the project's .visualfries/ cache; --clear drops extracted footage frames
+                    size of the project's .visualfries/ cache; --clear drops extracted footage
+                    frames and rendered program segments
   visualfries matte <video> --output <matte.mp4> [--provider fal|rvm|command] [options]
                     subject matte (white = subject) for "footage". Default provider: BiRefNet v2
                     on fal.ai (FAL_KEY; --model Matting, --resolution 1024x1024). Local, no key:
@@ -1829,7 +1830,10 @@ async function motionStillCommand(args) {
 	);
 }
 
-/** Size of a project's `.visualfries/` cache (footage frames), and `--clear` to drop the footage frames. */
+/**
+ * Size of a project's `.visualfries/` cache (footage frames, program segments), and `--clear` to
+ * drop them.
+ */
 async function cacheCommand(args) {
 	const file = args[0];
 	if (!file) throw new Error('Usage: visualfries cache <project.vf.json> [--clear]');
@@ -1852,22 +1856,22 @@ async function cacheCommand(args) {
 	};
 	const gb = (n) => `${(n / 1e9).toFixed(2)} GB`;
 	const footage = path.join(dir, 'footage');
-	let folders = [];
-	try {
-		folders = await fs.readdir(footage);
-	} catch {
-		folders = [];
-	}
+	const segmentsDir = path.join(dir, 'segments');
+	const list = async (p) => fs.readdir(p).catch(() => []);
+	const folders = await list(footage);
+	const segments = (await list(segmentsDir)).filter((n) => n.endsWith('.mkv'));
 	const before = await size(dir);
 	if (hasFlag(args, '--clear')) {
 		await fs.rm(footage, { recursive: true, force: true });
+		await fs.rm(segmentsDir, { recursive: true, force: true });
 		console.log(
 			JSON.stringify(
 				{
 					cache: dir,
 					before: gb(before),
 					after: gb(await size(dir)),
-					removedFootageExtractions: folders.length
+					removedFootageExtractions: folders.length,
+					removedSegments: segments.length
 				},
 				null,
 				2
@@ -1880,7 +1884,10 @@ async function cacheCommand(args) {
 					cache: dir,
 					size: gb(before),
 					footageExtractions: folders.length,
-					hint: 'visualfries cache <project> --clear removes the footage frames; the next render extracts what it needs again.'
+					footageSize: gb(await size(footage)),
+					segments: segments.length,
+					segmentsSize: gb(await size(segmentsDir)),
+					hint: 'visualfries cache <project> --clear removes the footage frames and program segments; the next render extracts and draws what it needs again.'
 				},
 				null,
 				2

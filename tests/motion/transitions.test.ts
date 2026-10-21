@@ -12,7 +12,8 @@ import {
 	TRANSITION_MODULES,
 	transitionEvents,
 	transitionProgress,
-	wipeBarAt
+	wipeBarAt,
+	wipeBox
 } from '$lib/motion/transitions/index.js';
 import { createTransitionPlayer } from '$lib/motion/transitions/player.js';
 
@@ -157,6 +158,28 @@ describe('transitions in the resolved program', () => {
 		]);
 	});
 
+	it('warns about a push on a clip behind the subject or in a slot', () => {
+		const json = read('retake.vf.json');
+		json.clips[1].transition = 'push';
+		const slotted = program(json).diagnostics.filter((d) => d.item === 'codec');
+		expect(slotted).toContainEqual(
+			expect.objectContaining({
+				level: 'warning',
+				field: 'transition',
+				message: expect.stringMatching(/^A push on a slotted clip .* "panel" slot/)
+			})
+		);
+		const handles = read('handles.vf.json');
+		handles.clips[0].transition = 'push';
+		expect(program(handles).diagnostics).toContainEqual(
+			expect.objectContaining({
+				level: 'warning',
+				item: 'price',
+				message: expect.stringMatching(/^A push on a clip behind the subject/)
+			})
+		);
+	});
+
 	it('holds no clip for a transition that is not drawn', () => {
 		const clip = { id: 'c', startFrame: 20, frames: 10 };
 		const card = transition({ type: 'card', startFrame: 16, frames: 8, cutFrame: 20 });
@@ -247,6 +270,56 @@ describe('transition modules on the DOM', () => {
 		expect(els[0].style.transform).toBe('translate(-128px, 0px)');
 		expect(els[1].style.transform).toBe('translate(512px, 0px)');
 		expect(els[0].style.filter).toBe('');
+	});
+
+	it('wipe bars overhang the slant in every format, across the travel too', () => {
+		const slant = (cross: number) => Math.tan((12 * Math.PI) / 180) * 0.6 * cross;
+		const overhang = (box: string) => -Number(/(?:left|top):(-?[\d.]+)px/.exec(box)![1]);
+		// Along the long side the old 15 % is enough; across it the slant needs more.
+		expect(wipeBox([1920, 1080], true)).toBe('top:-10%;height:120%;left:-288px;width:2496px');
+		for (const [size, across] of [
+			[[1080, 1920], true],
+			[[1920, 1080], false],
+			[[1080, 1080], true],
+			[[1080, 1920], false]
+		] as [[number, number], boolean][]) {
+			const cross = across ? size[1] : size[0];
+			expect(overhang(wipeBox(size, across)), `${size} ${across}`).toBeGreaterThanOrEqual(
+				slant(cross)
+			);
+		}
+	});
+
+	it('wipe sets bar colours as values, never as more CSS', () => {
+		const { layer } = stage();
+		const t = transition({
+			type: 'wipe',
+			params: { colors: ['red; display: none', '#00ff00'] }
+		});
+		createTransitionPlayer(layer, [t], { size, cls: 'landscape' });
+		const bars = [...layer.firstElementChild!.children] as HTMLElement[];
+		expect(bars.map((b) => b.style.display)).toEqual(['', '']);
+		expect(bars[0].style.background).toBe('');
+		expect(bars[1].style.background).toMatch(/^(#00ff00|rgb\(0, 255, 0\))$/);
+	});
+
+	it('push blurs a solid side inside its box and keeps its edge opaque', () => {
+		const { els, layer } = stage();
+		els[0].dataset.solid = '';
+		const t = transition({ ease: 'none' });
+		const player = createTransitionPlayer(layer, [t], { size, cls: 'landscape' });
+		const solid = layer.querySelector<SVGFilterElement>('filter[id$="-solid"]')!;
+		expect(['x', 'y', 'width', 'height'].map((a) => solid.getAttribute(a))).toEqual([
+			'0',
+			'0',
+			'100%',
+			'100%'
+		]);
+		expect(solid.querySelector('feFuncA')!.getAttribute('tableValues')).toBe('0 1');
+		player.seek(t.cutFrame, () => ({ out: [els[0]], in: [els[2]] }));
+		expect(els[0].style.filter).toContain(`#${solid.id}`);
+
+		expect(els[2].style.filter).toMatch(/-blur\b/);
 	});
 
 	it('wipe hides the incoming side until halfway, then the outgoing one', () => {

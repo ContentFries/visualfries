@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, rmSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -9,8 +9,8 @@ import { fileURLToPath } from 'node:url';
 import {
 	H264_FINAL,
 	bundleMotionProject,
+	chromiumExecutable,
 	ffmpegFramePipe,
-	findChromium,
 	launch,
 	motionProgram,
 	pipeFrames,
@@ -107,6 +107,9 @@ export async function renderProgramVideo(
 
 	const cacheDir = path.join(loaded.dir, '.visualfries', 'segments');
 	await fs.mkdir(cacheDir, { recursive: true });
+	// Left by a render that was killed before it could clean up.
+	await removeOrphans(cacheDir, /\.(?:partial|concat)-(\d+)-[^/]*\.(?:mkv|txt)$/);
+	await removeOrphans(path.dirname(file), /^\..+\.partial-(\d+)\.mp4$/);
 	const engine = await engineHash(opts.invalidate);
 	const segments: RenderedSegment[] = program.segments.map((s) => {
 		const cached = path.join(cacheDir, `${s.hash}-${engine}.mkv`);
@@ -146,6 +149,7 @@ export async function renderProgramVideo(
 	const audio = await joinAndEncode(loaded, program, segments, file);
 	const encodeSeconds = (Date.now() - t1) / 1000;
 	await fs.writeFile(sidecar, resolved);
+	await pruneSegments(cacheDir, loaded, program.format.name, segments, t0);
 	log(
 		`final encode: ${program.frames} frames in ${encodeSeconds.toFixed(1)} s${audio === 'silent' ? ' (silent)' : ''}`
 	);
@@ -179,7 +183,7 @@ function outputFile(loaded: LoadedMotionProject, opts: ProgramRenderOptions): st
 /**
  * What the pixels of a segment depend on besides its own hash: the VisualFries runtime that
  * draws it (stage, shots, transitions, built-in blocks), the Svelte and GSAP it is bundled with,
- * the browser, the stage invalidation and the intermediate encoding.
+ * the bundler, the browser binary, the stage invalidation and the intermediate encoding.
  */
 async function engineHash(invalidate?: string): Promise<string> {
 	const hash = createHash('sha1');
@@ -187,18 +191,19 @@ async function engineHash(invalidate?: string): Promise<string> {
 		.filter((f) => /\.(js|ts|svelte|css)$/.test(f) && !f.endsWith('.d.ts'))
 		.sort();
 	for (const f of files) hash.update(f).update(await fs.readFile(path.join(HERE, f)));
-	for (const pkg of ['svelte', 'gsap', 'playwright']) {
+	for (const pkg of ['svelte', 'gsap', 'playwright', 'esbuild']) {
 		try {
 			hash.update(`${pkg}@${require(`${pkg}/package.json`).version}`);
 		} catch {
 			hash.update(`${pkg}@-`);
 		}
 	}
-	const chromium = findChromium();
+	// The binary pages really run in (a system Chromium or Playwright's own build).
+	const chromium = await chromiumExecutable();
 	if (chromium) {
 		const st = statSync(chromium);
 		hash.update(`${chromium}:${st.size}:${st.mtimeMs}`);
-	}
+	} else hash.update('chromium:-');
 	hash.update(JSON.stringify({ invalidate: invalidate ?? null, intermediate: INTERMEDIATE }));
 	return hash.digest('hex').slice(0, 12);
 }
@@ -228,6 +233,7 @@ async function renderSegments(
 		const t0 = Date.now();
 		const segment = program.segments.find((x) => x.id === s.id) as ProgramSegment;
 		const partial = s.file.replace(/\.mkv$/, `.partial-${process.pid}-${s.id}.mkv`);
+		const untrack = trackPartial(partial);
 		try {
 			const sink = ffmpegFramePipe([
 				'-y',
@@ -256,6 +262,7 @@ async function renderSegments(
 			await fs.rename(partial, s.file);
 		} finally {
 			await fs.rm(partial, { force: true });
+			untrack();
 		}
 		s.seconds = (Date.now() - t0) / 1000;
 		opts.log(
@@ -311,6 +318,7 @@ async function joinAndEncode(
 		path.dirname(file),
 		`.${path.basename(file, '.mp4')}.partial-${process.pid}.mp4`
 	);
+	const untrack = [trackPartial(list), trackPartial(partial)];
 	await fs.writeFile(
 		list,
 		segments.map((s) => `file '${s.file.replace(/'/g, "'\\''")}'`).join('\n') + '\n'
@@ -342,6 +350,7 @@ async function joinAndEncode(
 	} finally {
 		await fs.rm(list, { force: true });
 		await fs.rm(partial, { force: true });
+		for (const done of untrack) done();
 	}
 	return pieces.length ? 'speech' : 'silent';
 }
@@ -349,18 +358,30 @@ async function joinAndEncode(
 /**
  * A stand-in for the program mixer: each speech piece trimmed from its file, faded
  * (equal-power), placed at its program time and summed; silence elsewhere. No music, sound
- * effects or loudness normalisation.
+ * effects or loudness normalisation. Inputs count from 1 (input 0 is the picture); the mix is
+ * `[speech]`, 48 kHz stereo, `seconds` long.
  */
-function speechInputs(
-	loaded: LoadedMotionProject,
+export function speechMix(
+	dir: string,
 	pieces: AudioPiece[],
 	seconds: number
-): string[] {
-	if (!pieces.length) return ['-map', '0:v'];
+): { inputs: string[]; filter: string } {
 	const inputs: string[] = [];
 	const chains: string[] = [];
-	pieces.forEach((p, i) => {
-		const src = path.resolve(loaded.dir, p.file);
+	pieces.forEach((piece, i) => {
+		// A piece reaching before its file (not resolved by this version) starts with the sound:
+		// later and shorter by the missing part, so every sample keeps its place.
+		const early = Math.max(0, -piece.srcIn);
+		const p = early
+			? {
+					...piece,
+					srcIn: 0,
+					at: piece.at + early,
+					dur: piece.dur === null ? null : Math.max(0, piece.dur - early),
+					fadeIn: Math.max(0, piece.fadeIn - early)
+				}
+			: piece;
+		const src = path.resolve(dir, p.file);
 		inputs.push('-ss', p.srcIn.toFixed(6), ...(p.dur ? ['-t', p.dur.toFixed(6)] : []), '-i', src);
 		const filters = ['aresample=48000', 'aformat=sample_fmts=fltp:channel_layouts=stereo'];
 		if (p.fadeIn) filters.push(`afade=t=in:d=${p.fadeIn}:curve=qsin`);
@@ -373,10 +394,20 @@ function speechInputs(
 	const mix =
 		pieces.map((_, i) => `[a${i}]`).join('') +
 		`amix=inputs=${pieces.length}:duration=longest:normalize=0,apad=whole_dur=${seconds}[speech]`;
+	return { inputs, filter: [...chains, mix].join(';') };
+}
+
+function speechInputs(
+	loaded: LoadedMotionProject,
+	pieces: AudioPiece[],
+	seconds: number
+): string[] {
+	if (!pieces.length) return ['-map', '0:v'];
+	const { inputs, filter } = speechMix(loaded.dir, pieces, seconds);
 	return [
 		...inputs,
 		'-filter_complex',
-		[...chains, mix].join(';'),
+		filter,
 		'-map',
 		'0:v',
 		'-map',
@@ -386,6 +417,109 @@ function speechInputs(
 		'-b:a',
 		'192k'
 	];
+}
+
+// ---------------------------------------------------------------- cache housekeeping
+
+/** Temporary files of this process, removed when it is interrupted. */
+const partials = new Set<string>();
+let onSignal: ((signal: NodeJS.Signals) => void) | null = null;
+/** Set by SIGINT or SIGTERM: no render of this process writes another temporary file. */
+let interrupted: NodeJS.Signals | null = null;
+
+/**
+ * Registers a temporary file: SIGINT or SIGTERM removes it before the process exits, and a
+ * render still running then stops at its next file. Returns the call that unregisters it.
+ */
+function trackPartial(file: string): () => void {
+	if (interrupted) throw new Error(`Render stopped by ${interrupted}.`);
+	partials.add(file);
+	if (!onSignal) {
+		onSignal = (signal) => {
+			interrupted = signal;
+			for (const f of partials) rmSync(f, { force: true });
+			partials.clear();
+			process.off('SIGINT', onSignal!);
+			process.off('SIGTERM', onSignal!);
+			onSignal = null;
+			// Others listening (Playwright closes its browsers) end the process; else end it as
+			// the signal would have.
+			if (!process.listenerCount(signal)) process.kill(process.pid, signal);
+		};
+		process.on('SIGINT', onSignal);
+		process.on('SIGTERM', onSignal);
+	}
+	return () => {
+		partials.delete(file);
+		if (!partials.size && onSignal) {
+			process.off('SIGINT', onSignal);
+			process.off('SIGTERM', onSignal);
+			onSignal = null;
+		}
+	};
+}
+
+const alive = (pid: number) => {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		return (error as NodeJS.ErrnoException).code === 'EPERM';
+	}
+};
+
+/**
+ * Removes temporary files (partial intermediates and encodes, join lists) whose name carries
+ * the id of a process no longer running: `pattern` captures it.
+ */
+async function removeOrphans(dir: string, pattern: RegExp) {
+	const names = await fs.readdir(dir).catch(() => [] as string[]);
+	await Promise.all(
+		names.map(async (name) => {
+			const m = pattern.exec(name);
+			if (!m || Number(m[1]) === process.pid || alive(Number(m[1]))) return;
+			await fs.rm(path.join(dir, name), { force: true });
+		})
+	);
+}
+
+/**
+ * Keeps the intermediates some render of a project in this folder still uses. Each project and
+ * format records the files of its latest render (`<project>.<format>.json`); an intermediate no
+ * record names (an edited segment, an older engine) is removed, unless it is newer than this
+ * render's start (another render in the folder may still be writing its record).
+ */
+async function pruneSegments(
+	cacheDir: string,
+	loaded: LoadedMotionProject,
+	format: string,
+	segments: RenderedSegment[],
+	since: number
+) {
+	const name = path.basename(loaded.file).replace(/(\.vf)?\.json$/i, '');
+	await fs.writeFile(
+		path.join(cacheDir, `${name}.${format}.json`),
+		JSON.stringify({ files: segments.map((s) => path.basename(s.file)) }, null, 2) + '\n'
+	);
+	const names = await fs.readdir(cacheDir);
+	const used = new Set<string>();
+	for (const record of names.filter((n) => n.endsWith('.json'))) {
+		try {
+			const { files } = JSON.parse(await fs.readFile(path.join(cacheDir, record), 'utf8'));
+			for (const f of files ?? []) used.add(f);
+		} catch {
+			// A record being written by another render: keep everything this round.
+			return;
+		}
+	}
+	await Promise.all(
+		names
+			.filter((n) => /^[0-9a-f]{40}-[0-9a-f]{12}\.mkv$/.test(n) && !used.has(n))
+			.map(async (n) => {
+				const st = await fs.stat(path.join(cacheDir, n)).catch(() => null);
+				if (st && st.mtimeMs < since) await fs.rm(path.join(cacheDir, n), { force: true });
+			})
+	);
 }
 
 function run(args: string[]): Promise<void> {

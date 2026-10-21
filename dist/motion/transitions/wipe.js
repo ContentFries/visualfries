@@ -35,6 +35,20 @@ function colors(params) {
 function bars(overlay) {
     return [...overlay.children];
 }
+/**
+ * A bar's box: 120 % of the frame across the travel and longer than the frame along it, by an
+ * overhang on each end that covers what the slant shifts its corners (tan 12° of half its
+ * cross length), so no corner of the picture shows while it covers the frame, in any format.
+ */
+export function wipeBox(size, across) {
+    const [along, cross] = across ? size : [size[1], size[0]];
+    const overhang = Math.max(0.15 * along, Math.ceil(Math.tan((SLANT * Math.PI) / 180) * 0.6 * cross) + 2);
+    const length = `${-overhang}px`;
+    const span = `${along + 2 * overhang}px`;
+    return across
+        ? `top:-10%;height:120%;left:${length};width:${span}`
+        : `left:-10%;width:120%;top:${length};height:${span}`;
+}
 /** Where bar `i` of `n` is at progress `p`, in percent of its own length (0 = covering). */
 export function wipeBarAt(i, n, p) {
     if (p < MID)
@@ -55,15 +69,13 @@ export const wipe = {
             out.push(`"colors" must be a list of CSS colours (got ${JSON.stringify(c)}).`);
         return out;
     },
-    setup(overlay, { direction, params }) {
-        const across = horizontal(direction);
-        // Longer than the frame along the travel, wider across it, so the slant never shows an edge.
-        const box = across
-            ? 'top:-10%;height:120%;left:-15%;width:130%'
-            : 'left:-10%;width:120%;top:-15%;height:130%';
+    setup(overlay, { direction, params, size }) {
+        const box = wipeBox(size, horizontal(direction));
         for (const color of colors(params)) {
             const bar = document.createElement('div');
-            bar.style.cssText = `position:absolute;${box};background:${color}`;
+            bar.style.cssText = `position:absolute;${box}`;
+            // Set as a property: an invalid colour is dropped, never read as more CSS.
+            bar.style.background = color;
             overlay.appendChild(bar);
         }
     },

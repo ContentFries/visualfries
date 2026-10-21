@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -436,6 +437,67 @@ describe.skipIf(!hasFfmpeg)('loading a program', () => {
 		expect(separate.inputs.sources!.talk).toMatchObject({ audio: true });
 		expect(separate.inputs.sources!.talk.audioDuration).toBeCloseTo(1.5, 2);
 		expect(separate.hashes.sources.talk).toBe(own.hashes.sources.talk);
+	});
+});
+
+describe.skipIf(!hasFfmpeg)('segment hashes of the files behind the pictures', () => {
+	it('follow imported helpers, CSS url() targets and files named in props, per segment', async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vf-assets-'));
+		spawnSync('ffmpeg', [
+			...['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=black:s=32x32:r=30:d=2'],
+			...['-pix_fmt', 'yuv420p', path.join(dir, 'v.mp4')]
+		]);
+		const write = (name: string, text: string) => fs.writeFileSync(path.join(dir, name), text);
+		write(
+			'Tinted.svelte',
+			`<script>import { tint } from './color.js';</script><b style="color: {tint}">x</b>`
+		);
+		write('color.js', "export const tint = 'red';\n");
+		write('Plain.svelte', '<b>y</b>');
+		write('logo.png', 'one');
+		write('style.css', 'body { background: url(bg.png); }');
+		write('bg.png', 'one');
+		write(
+			'p.vf.json',
+			JSON.stringify({
+				size: [32, 32],
+				fps: 30,
+				css: ['style.css'],
+				footage: { v: { src: 'v.mp4' } },
+				// Two hard cuts: two segments, one clip in each.
+				cuts: [
+					{ source: 'v', in: 0, out: 1 },
+					{ source: 'v', in: 1, out: 2 }
+				],
+				clips: [
+					{ id: 'tint', block: 'Tinted.svelte', from: 0.2, until: 0.8 },
+					{ id: 'logo', block: 'Plain.svelte', from: 1.2, until: 1.8, props: { image: 'logo.png' } }
+				]
+			})
+		);
+		const hashes = async () => {
+			const { program } = await motionProgram(await loadMotionProject(path.join(dir, 'p.vf.json')));
+			return { segments: program.segments.map((s) => s.hash), assets: program.hashes.assets };
+		};
+		const before = await hashes();
+		expect(Object.keys(before.assets).sort()).toEqual([
+			'Plain.svelte',
+			'Tinted.svelte',
+			'logo.png',
+			'style.css'
+		]);
+		write('color.js', "export const tint = 'blue';\n");
+		const helper = await hashes();
+		expect(helper.segments[0]).not.toBe(before.segments[0]);
+		expect(helper.segments[1]).toBe(before.segments[1]);
+		write('logo.png', 'two');
+		const prop = await hashes();
+		expect(prop.segments[0]).toBe(helper.segments[0]);
+		expect(prop.segments[1]).not.toBe(helper.segments[1]);
+		write('bg.png', 'two');
+		const css = await hashes();
+		expect(css.assets['style.css']).not.toBe(prop.assets['style.css']);
+		expect(css.segments.every((h, i) => h !== prop.segments[i])).toBe(true);
 	});
 });
 

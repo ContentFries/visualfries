@@ -334,6 +334,8 @@ export function createMotionStage(options: StageOptions) {
 				if (!active && !segment) break; // unloaded to keep the page alive
 				continue;
 			}
+			for (const message of segment?.warnings(n) ?? [])
+				if (!warnings.some((w) => w.message === message)) warnings.push({ frame: n, message });
 			// broken math renders nothing and throws nothing: NaN/undefined in styles and SVG geometry
 			if (stage && seen.size < 5) {
 				for (const bad of findBadValues(stage)) {

@@ -11,7 +11,7 @@ const BLUR_MIN = 0.4;
 const horizontal = (d) => d === 'left' || d === 'right' || d === null;
 const sign = (d) => (d === 'right' || d === 'down' ? 1 : -1);
 const px = (v) => Math.round(v * 100) / 100;
-const filterId = (overlay) => `${overlay.id}-blur`;
+const filterId = (overlay, solid) => `${overlay.id}-${solid ? 'solid' : 'blur'}`;
 function translate(d, offset) {
     return horizontal(d) ? `translate(${px(offset)}px, 0px)` : `translate(0px, ${px(offset)}px)`;
 }
@@ -23,24 +23,39 @@ export const push = {
     events: [{ kind: 'transition', at: 0.5 }],
     check: (params) => [...checkKnown(params, ['blur']), ...checkNumber(params, 'blur', 0, 400)],
     setup(overlay, { direction }) {
-        // One-axis blur: an SVG filter the sides reference while it is strong enough to see.
+        // One-axis blur: SVG filters the sides reference while it is strong enough to see. A
+        // solid element (a side) is blurred inside its own box and keeps it opaque: the seam
+        // where the two sides meet never blends with the stage behind them (a darker band).
+        // Everything else (riding clips) blurs into transparency around it.
         const ns = 'http://www.w3.org/2000/svg';
         const svg = document.createElementNS(ns, 'svg');
         svg.setAttribute('width', '0');
         svg.setAttribute('height', '0');
         svg.style.position = 'absolute';
-        const filter = document.createElementNS(ns, 'filter');
-        filter.id = filterId(overlay);
         const across = horizontal(direction);
-        filter.setAttribute('x', across ? '-30%' : '0');
-        filter.setAttribute('y', across ? '0' : '-30%');
-        filter.setAttribute('width', across ? '160%' : '100%');
-        filter.setAttribute('height', across ? '100%' : '160%');
-        filter.setAttribute('color-interpolation-filters', 'sRGB');
-        const blur = document.createElementNS(ns, 'feGaussianBlur');
-        blur.setAttribute('stdDeviation', '0 0');
-        filter.appendChild(blur);
-        svg.appendChild(filter);
+        for (const solid of [false, true]) {
+            const filter = document.createElementNS(ns, 'filter');
+            filter.id = filterId(overlay, solid);
+            filter.setAttribute('x', solid || !across ? '0' : '-30%');
+            filter.setAttribute('y', solid || across ? '0' : '-30%');
+            filter.setAttribute('width', solid || !across ? '100%' : '160%');
+            filter.setAttribute('height', solid || across ? '100%' : '160%');
+            filter.setAttribute('color-interpolation-filters', 'sRGB');
+            const blur = document.createElementNS(ns, 'feGaussianBlur');
+            blur.setAttribute('stdDeviation', '0 0');
+            filter.appendChild(blur);
+            if (solid) {
+                // Colours come out of the blur averaged over the box alone (alpha is divided out);
+                // only the alpha the edge lost is put back.
+                const opaque = document.createElementNS(ns, 'feComponentTransfer');
+                const alpha = document.createElementNS(ns, 'feFuncA');
+                alpha.setAttribute('type', 'discrete');
+                alpha.setAttribute('tableValues', '0 1');
+                opaque.appendChild(alpha);
+                filter.appendChild(opaque);
+            }
+            svg.appendChild(filter);
+        }
         overlay.appendChild(svg);
     },
     apply({ p, eased, direction, params, size, out, in: incoming, overlay }) {
@@ -56,13 +71,11 @@ export const push = {
         const on = amount > BLUR_MIN;
         if (on) {
             const value = amount.toFixed(1);
-            overlay
-                .querySelector('feGaussianBlur')
-                .setAttribute('stdDeviation', horizontal(direction) ? `${value} 0` : `0 ${value}`);
+            for (const blur of overlay.querySelectorAll('feGaussianBlur'))
+                blur.setAttribute('stdDeviation', horizontal(direction) ? `${value} 0` : `0 ${value}`);
         }
-        const filter = on ? `url(#${filterId(overlay)})` : '';
         for (const el of [...out, ...incoming])
-            el.style.filter = filter;
+            el.style.filter = on ? `url(#${filterId(overlay, 'solid' in el.dataset)})` : '';
     },
     release({ out, in: incoming }) {
         for (const el of [...out, ...incoming]) {

@@ -24,6 +24,11 @@ function applyLook(el, seg) {
         el.style.setProperty(name, value);
 }
 const LAYER = 'position:absolute;inset:0';
+/**
+ * A layer whose children stack inside it: a block's `z-index` (or a blend mode) cannot lift it
+ * out of its clip, past the subject or over the transition overlay.
+ */
+const ISOLATED = `${LAYER};isolation:isolate`;
 function layer(parent, className, style = LAYER) {
     const el = document.createElement('div');
     el.className = className;
@@ -34,7 +39,7 @@ function layer(parent, className, style = LAYER) {
 /** An `<img>` in its own clipped box (the camera window); empty images stay hidden. */
 function picture(parent, className) {
     // Placed by `frameBox` alone: an `inset` here would fight its left and top.
-    const box = layer(parent, className, 'position:absolute;overflow:hidden');
+    const box = layer(parent, className, 'position:absolute;overflow:hidden;isolation:isolate');
     const img = document.createElement('img');
     img.alt = '';
     img.draggable = false;
@@ -43,11 +48,14 @@ function picture(parent, className) {
     return { box, img };
 }
 function side(stage, name) {
-    const el = layer(stage, 'vf-side');
+    const el = layer(stage, 'vf-side', ISOLATED);
     el.dataset.side = name;
     const fill = layer(el, 'vf-fill');
     const plate = picture(el, 'vf-plate');
-    const behind = layer(el, 'vf-behind');
+    // Painted over their whole box (see `TransitionSides`).
+    for (const solid of [el, fill, plate.box])
+        solid.dataset.solid = '';
+    const behind = layer(el, 'vf-behind', ISOLATED);
     const subject = picture(el, 'vf-subject');
     return { el, fill, plate, behind, subject };
 }
@@ -99,8 +107,8 @@ export function createProgramScene(stage, seg, blocks) {
     // Side b shows only inside a cut or shot transition window.
     const b = side(stage, 'b');
     b.el.style.display = 'none';
-    const front = layer(stage, 'vf-clips');
-    const overlay = layer(stage, 'vf-overlay', `${LAYER};pointer-events:none`);
+    const front = layer(stage, 'vf-clips', ISOLATED);
+    const overlay = layer(stage, 'vf-overlay', `${ISOLATED};pointer-events:none`);
     const player = createTransitionPlayer(overlay, seg.transitions, { size: seg.size, cls: seg.cls });
     const mounted = [];
     const ready = [];
@@ -111,8 +119,8 @@ export function createProgramScene(stage, seg, blocks) {
                 throw new Error(`Block "${data.block}" is not in the bundle.`);
             // A slotted root is placed on every seek, where the shot puts its slot.
             const root = layer(data.layer === 'behind' ? a.behind : front, 'vf-clip', data.slot
-                ? `position:absolute;left:0;top:0;width:${seg.size[0]}px;height:${seg.size[1]}px`
-                : LAYER);
+                ? `position:absolute;left:0;top:0;width:${seg.size[0]}px;height:${seg.size[1]}px;isolation:isolate`
+                : ISOLATED);
             root.dataset.clip = data.id;
             applyLook(root, seg);
             // Roots stay visible until the first seek: blocks may measure text when they mount.
@@ -349,10 +357,48 @@ export function createProgramScene(stage, seg, blocks) {
             }
             await Promise.all(pending);
         },
+        warnings(f) {
+            const out = [];
+            for (const t of seg.transitions) {
+                // Right after the window the pushed-in clip is in place.
+                if (t.kind !== 'clip' || t.type !== 'push' || f !== t.startFrame + t.frames)
+                    continue;
+                const m = mounted.find((x) => x.data.id === t.owner);
+                if (!m || m.shown === null || m.data.layer === 'behind' || m.data.slot)
+                    continue;
+                if (!coversStage(m.controller.root, stage))
+                    out.push(`The push into clip "${t.owner}" slides everything below it off the frame, but the clip does not cover the frame: the empty stage shows around it. Use wipe, or give the clip a full-frame background.`);
+            }
+            return out;
+        },
         destroy() {
             for (const m of mounted)
                 unmount(m.instance);
             mounted.length = 0;
         }
     };
+}
+/**
+ * Whether something inside `root` paints over the whole stage: an element covering the stage's
+ * box with an opaque background colour, a background image, or an image, canvas or video.
+ */
+function coversStage(root, stage) {
+    const frame = stage.getBoundingClientRect();
+    const covers = (r) => r.left <= frame.left + 1 &&
+        r.top <= frame.top + 1 &&
+        r.right >= frame.right - 1 &&
+        r.bottom >= frame.bottom - 1;
+    for (const el of root.querySelectorAll('*')) {
+        if (!covers(el.getBoundingClientRect()))
+            continue;
+        if (/^(IMG|CANVAS|VIDEO)$/.test(el.tagName))
+            return true;
+        const style = getComputedStyle(el);
+        if (style.backgroundImage !== 'none')
+            return true;
+        const alpha = /rgba?\(([^)]+)\)/.exec(style.backgroundColor)?.[1].split(',')[3];
+        if (style.backgroundColor !== 'transparent' && (alpha === undefined || Number(alpha) > 0.9))
+            return true;
+    }
+    return false;
 }

@@ -147,6 +147,11 @@ export type BrowserLike = {
     newPage(opts: object): Promise<PageLike>;
     close(): Promise<void>;
 };
+/**
+ * The Chromium binary `launch` starts: the one `findChromium` finds, else Playwright's own
+ * build; null without either.
+ */
+export declare function chromiumExecutable(): Promise<string | null>;
 export declare function launch(): Promise<BrowserLike>;
 export type MotionPage = {
     mode: 'html-in-canvas' | 'dom';

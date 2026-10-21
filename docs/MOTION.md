@@ -192,7 +192,8 @@ white = subject) for cutting the subject out:
 
 Frames are extracted around the clips that use a footage (2 s margin); a block that jumps far
 into it (video tiles with big `offset`s) sets `"margin": 12` or `"margin": "all"`. The cache lives in
-`.visualfries/`; `visualfries cache <project>` shows its size and `--clear` drops the footage frames.
+`.visualfries/`; `visualfries cache <project>` shows its size and `--clear` drops the footage
+frames and rendered program segments.
 
 `start` is the program second at which the footage's first frame plays; `offset` shifts a layer
 in seconds. A clip's `audio` muxes that footage's sound into the rendered clip. Frames are
@@ -247,11 +248,34 @@ The layout moves from the previous shot's over `morph` seconds (default: 0.7 s i
 and `check` warns. Shots add `shot` and `punch` events to the program. `window`, `behind` and
 `whip` are framed `full` until they are built.
 
+A `transition` on a cut, a shot or a clip hands the frame over inside a window around the cut:
+`{ "type": "push", "duration": 0.5, "align": "center", "ease": "expo.inOut", "direction":
+"left", "params": { … } }`, or just the type as a string. `align` puts the window's middle
+(`center`), start or end on the cut; `duration` and `ease` default per type. A transition never
+changes program time or sound; where a side runs out of handle its edge frame holds. Drawn so
+far:
+
+- `push` (0.55 s, `expo.inOut`): the incoming picture pushes the outgoing one off the frame,
+  with a blur along the travel that peaks halfway. `direction` is `left`, `right`, `up` or
+  `down`, or `forward`/`back` (left/right in landscape and square, up/down in portrait;
+  default `forward`). `params.blur` is the peak blur in pixels of a 1920 px travel (default 50;
+  0 for none). On a clip everything below it is pushed out, so the clip should cover the frame:
+  `check` warns about a push on a slotted clip, a clip behind the subject, or a clip that leaves
+  part of the frame empty.
+- `wipe` (0.8 s, `none`): slanted bars in the brand's primary, accent and a third colour sweep
+  across along `direction` (as for `push`); the picture changes halfway, while the last bar
+  covers the frame, and the bars sweep on out in reverse order. `params.colors` replaces the bar
+  colours (a list of CSS colours, first bar first). On a clip only the clip appears; the layers
+  below it stay.
+
+`zoom-through`, `shape-mask`, `blinds`, `card` and custom `.svelte` transitions resolve into the
+program but cut on the cut for now; `check` warns about them.
+
 `visualfries matte talk.mp4 --output talk.matte.mp4` makes the matte: BiRefNet v2 on fal.ai
 (`FAL_KEY`) by default; `--provider rvm` runs RobustVideoMatting locally on the CPU with no key
 (needs `uv`; about 3 fps at 1080p on 12 cores); any local tool works with
-`--command "tool {input} {output}"`, and any `MatteProvider` in Node. It splits, checks and joins the pieces frame-exact. Worked example:
-`static/demo/speaker-depth`.
+`--command "tool {input} {output}"`, and any `MatteProvider` in Node. It splits, checks and
+joins the pieces frame-exact. Worked example: `static/demo/speaker-depth`.
 
 ## Music and beats
 
@@ -600,13 +624,17 @@ default there; `--export inserts` renders the clips one by one as without a cut 
 `--format WxH` renders another frame size from the same project; `--output` is an `.mp4` or a
 directory that gets `<project>[.<format>].mp4`. Each segment (the range between two hard cuts)
 is drawn on its own pages and stored losslessly in `.visualfries/segments/<hash>-<engine>.mkv`;
-the segments are joined without re-encoding and encoded once with the clip settings. A segment
-whose hash did not change comes from that cache, so editing one clip draws only the segments
-it is on screen in (`--no-cache` draws everything again). With at least as many segments to draw
-as `--jobs` and none much longer than its share, each page takes whole segments; otherwise a
-segment's frames are spread over the pages. The resolved program is saved beside the video as `<name>.program.json`. Sound: for now
-the speech of the cut list, each cut's sound placed at its program time with short
-equal-power fades at the edit points; no music, effects or loudness normalisation yet.
+the segments are joined without re-encoding and encoded once with the clip settings. A
+segment's hash covers what is on screen in it, including every file its blocks import, the
+files project CSS points to and project files named in clip props, so editing one clip or one
+helper draws only the segments it is on screen in (`--no-cache` draws everything again). After
+a render the folder keeps only the intermediates the latest render of each project and format
+there uses; an interrupted render removes its partial files, and the next render removes those
+of a render that was killed. With at least as many segments to draw as `--jobs` and none much
+longer than its share, each page takes whole segments; otherwise a segment's frames are spread
+over the pages. The resolved program is saved beside the video as `<name>.program.json`.
+Sound: for now the speech of the cut list, each cut's sound placed at its program time with
+short equal-power fades at the edit points; no music, effects or loudness normalisation yet.
 
 A re-take that changes words (not just timing) makes the affected cues fail with a suggestion,
 e.g. `"extra" not found … Did you mean "spare" at 59.80s?`. Update the phrase in the JSON;

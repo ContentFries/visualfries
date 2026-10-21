@@ -1,6 +1,6 @@
 import { push } from './push.js';
 import { wipe } from './wipe.js';
-export { wipeBarAt } from './wipe.js';
+export { wipeBarAt, wipeBox } from './wipe.js';
 /**
  * The transition registry and the pure parts of the engine: progress per program frame, the
  * screen direction per format class, and the events in program frames. The stage side lives in

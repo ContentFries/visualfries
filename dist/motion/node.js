@@ -13,7 +13,7 @@ import { BUILTIN_STYLES, NEUTRAL_STYLE, resolveStyle } from './style.js';
 import { isProgramProject, parseMotionProject } from './timeline.js';
 import { parseTranscriptWords } from './transcript.js';
 import { resolveCutList } from './cutlist.js';
-import { resolveProgram } from './program.js';
+import { propFiles, resolveProgram } from './program.js';
 import { resolveMotionProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
@@ -318,26 +318,99 @@ export function describeMusicGrid(loaded) {
     }
     return parts.join('\n\n');
 }
-/** Short content hashes of the files a program's pixels depend on besides footage. */
+/**
+ * Short hashes of the files a program's pixels depend on besides footage, by the name the
+ * project gives them. A block, custom shot or transition covers every file its bundle reads (the
+ * helpers it imports, their imports, images loaded through them), a CSS file the files its
+ * `url()`s point to, and a clip prop naming a project file that file; fonts their contents.
+ * Each segment hashes only the names on screen in it, so an edit invalidates only its segments.
+ */
 async function assetHashes(loaded) {
     const { project, dir } = loaded;
     const custom = (name, ext) => (ext.test(name) ? [name] : []);
-    const names = new Set([
+    const code = new Set([
         ...project.clips.map((c) => c.block),
         ...(project.shots ?? []).flatMap((s) => custom(s.shot, /\.(ts|js)$/)),
         ...[...(project.cuts ?? []), ...(project.shots ?? []), ...project.clips].flatMap((item) => item.transition
             ? custom(typeof item.transition === 'string' ? item.transition : item.transition.type, /\.svelte$/)
-            : []),
-        ...(project.fonts ?? []).map((f) => f.src),
-        ...(project.css ?? [])
+            : [])
     ]);
+    const css = new Set(project.css ?? []);
+    const fonts = new Set((project.fonts ?? []).map((f) => f.src));
     const out = {};
-    for (const name of [...names].sort()) {
-        const file = name.startsWith(BUILTIN_PREFIX) ? blockFile(dir, name) : path.resolve(dir, name);
-        const content = await fs.readFile(file).catch(() => null);
-        if (content)
-            out[name] = shortHash(content);
+    /** Content hashes of files read so far, by absolute path (null: missing). */
+    const seen = new Map();
+    const contentOf = async (abs) => {
+        if (!seen.has(abs)) {
+            const content = await fs.readFile(abs).catch(() => null);
+            seen.set(abs, content ? shortHash(content) : null);
+        }
+        return seen.get(abs);
+    };
+    /** One hash over files: their paths (relative to the project) and contents. */
+    const hashFiles = async (files) => shortHash(JSON.stringify(await Promise.all([...new Set(files)].sort().map(async (f) => [path.relative(dir, f), await contentOf(f)]))));
+    const inputs = await bundleInputs(loaded, [...code].map((name) => blockFile(dir, name)));
+    for (const name of [...code].sort()) {
+        const file = blockFile(dir, name);
+        if (!(await contentOf(file)))
+            continue;
+        out[name] = await hashFiles(inputs.get(file) ?? [file]);
     }
+    for (const name of [...css].sort()) {
+        const file = path.resolve(dir, name);
+        const text = await fs.readFile(file, 'utf8').catch(() => null);
+        if (text === null)
+            continue;
+        const targets = [];
+        rebaseCssUrls(text, path.dirname(file), targets);
+        out[name] = await hashFiles([file, ...targets]);
+    }
+    for (const name of [...fonts].sort()) {
+        const hash = await contentOf(path.resolve(dir, name));
+        if (hash)
+            out[name] = hash;
+    }
+    for (const name of propFiles(project.clips.map((c) => c.props))) {
+        if (name in out)
+            continue;
+        const file = path.resolve(dir, name);
+        const st = await fs.stat(file).catch(() => null);
+        const hash = st?.isFile() ? await contentOf(file) : null;
+        if (hash)
+            out[name] = hash;
+    }
+    return out;
+}
+/**
+ * Every file each entry's bundle reads (esbuild's metafile), by entry. An entry that does not
+ * build is left out: its own file stands for it, and rendering reports the error.
+ */
+async function bundleInputs(loaded, entries) {
+    const out = new Map();
+    if (!entries.length)
+        return out;
+    const { esbuild, options } = await bundleOptions();
+    await Promise.all([...new Set(entries)].map(async (entry) => {
+        if (!existsSync(entry))
+            return;
+        try {
+            const result = await esbuild.build({
+                ...options,
+                entryPoints: [entry],
+                absWorkingDir: loaded.dir,
+                format: 'esm',
+                write: false,
+                metafile: true,
+                outdir: path.join(os.tmpdir(), 'vf-inputs')
+            });
+            out.set(entry, Object.keys(result.metafile.inputs)
+                .filter((key) => !/^[a-z-]+:/.test(key))
+                .map((key) => path.resolve(loaded.dir, key)));
+        }
+        catch {
+            // Not buildable now: hashed by its own contents.
+        }
+    }));
     return out;
 }
 /**
@@ -398,24 +471,70 @@ function blockFile(dir, block) {
     const file = BUILTIN_BLOCKS[block.slice(BUILTIN_PREFIX.length)];
     return file ? path.join(HERE, 'blocks', file) : path.join(HERE, 'blocks', '__missing__');
 }
-/** Compile the project's blocks together with the stage runtime into one page. */
-export async function bundleMotionProject(loaded, clips) {
+/** The package ships .js; tests bundle straight from the TypeScript source. */
+const ownModule = (name) => existsSync(path.join(HERE, `${name}.js`))
+    ? path.join(HERE, `${name}.js`)
+    : path.join(HERE, `${name}.ts`);
+/**
+ * esbuild with the settings blocks are bundled with: Svelte components and `.svelte.js`
+ * modules compiled for the browser, `visualfries/motion` resolved to this package, and the
+ * packages VisualFries depends on (svelte, gsap) found without the project's own node_modules.
+ */
+async function bundleOptions() {
     const esbuild = await import('esbuild');
     const { compile, compileModule } = await import('svelte/compiler');
-    const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-motion-'));
-    // The package ships .js; tests bundle straight from the TypeScript source.
-    const own = (name) => existsSync(path.join(HERE, `${name}.js`))
-        ? path.join(HERE, `${name}.js`)
-        : path.join(HERE, `${name}.ts`);
-    const stageModule = own('stage');
-    const motionIndex = own('index');
-    // Blocks may import anything VisualFries depends on (svelte, gsap) without their own node_modules.
+    const motionIndex = ownModule('index');
     const packageRoot = path.resolve(HERE, '..', '..');
     const nodePaths = [
         path.join(packageRoot, 'node_modules'),
         path.resolve(path.dirname(require.resolve('svelte/package.json')), '..'),
         path.resolve(path.dirname(require.resolve('gsap/package.json')), '..')
     ];
+    const plugin = {
+        name: 'visualfries-motion',
+        setup(build) {
+            build.onResolve({ filter: /^visualfries\/motion$/ }, () => ({ path: motionIndex }));
+            build.onLoad({ filter: /\.svelte$/ }, async (args) => {
+                const source = await fs.readFile(args.path, 'utf8');
+                const out = compile(source, {
+                    filename: args.path,
+                    generate: 'client',
+                    css: 'injected',
+                    dev: false
+                });
+                return { contents: out.js.code, loader: 'js', resolveDir: path.dirname(args.path) };
+            });
+            build.onLoad({ filter: /\.svelte\.(js|ts)$/ }, async (args) => {
+                let source = await fs.readFile(args.path, 'utf8');
+                if (args.path.endsWith('.ts'))
+                    source = (await esbuild.transform(source, { loader: 'ts' })).code;
+                const out = compileModule(source, {
+                    filename: args.path,
+                    generate: 'client',
+                    dev: false
+                });
+                return { contents: out.js.code, loader: 'js', resolveDir: path.dirname(args.path) };
+            });
+        }
+    };
+    return {
+        esbuild,
+        options: {
+            bundle: true,
+            nodePaths,
+            conditions: ['svelte', 'browser'],
+            mainFields: ['svelte', 'browser', 'module', 'main'],
+            logLevel: 'silent',
+            loader: { '.png': 'dataurl', '.jpg': 'dataurl', '.svg': 'text' },
+            plugins: [plugin]
+        }
+    };
+}
+/** Compile the project's blocks together with the stage runtime into one page. */
+export async function bundleMotionProject(loaded, clips) {
+    const { esbuild, options } = await bundleOptions();
+    const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-motion-'));
+    const stageModule = ownModule('stage');
     const blocks = [...new Set(clips.map((c) => c.block))];
     for (const block of blocks) {
         if (!existsSync(blockFile(loaded.dir, block)))
@@ -433,44 +552,10 @@ export async function bundleMotionProject(loaded, clips) {
             .join(', ')} }, fonts: window.__vfFonts, css: window.__vfCss, invalidate: window.__vfInvalidate });`
     ].join('\n');
     await esbuild.build({
+        ...options,
         stdin: { contents: entry, resolveDir: loaded.dir, sourcefile: 'motion-entry.js', loader: 'js' },
-        bundle: true,
         format: 'iife',
-        outfile: path.join(outDir, 'bundle.js'),
-        nodePaths,
-        conditions: ['svelte', 'browser'],
-        mainFields: ['svelte', 'browser', 'module', 'main'],
-        logLevel: 'silent',
-        loader: { '.png': 'dataurl', '.jpg': 'dataurl', '.svg': 'text' },
-        plugins: [
-            {
-                name: 'visualfries-motion',
-                setup(build) {
-                    build.onResolve({ filter: /^visualfries\/motion$/ }, () => ({ path: motionIndex }));
-                    build.onLoad({ filter: /\.svelte$/ }, async (args) => {
-                        const source = await fs.readFile(args.path, 'utf8');
-                        const out = compile(source, {
-                            filename: args.path,
-                            generate: 'client',
-                            css: 'injected',
-                            dev: false
-                        });
-                        return { contents: out.js.code, loader: 'js', resolveDir: path.dirname(args.path) };
-                    });
-                    build.onLoad({ filter: /\.svelte\.(js|ts)$/ }, async (args) => {
-                        let source = await fs.readFile(args.path, 'utf8');
-                        if (args.path.endsWith('.ts'))
-                            source = (await esbuild.transform(source, { loader: 'ts' })).code;
-                        const out = compileModule(source, {
-                            filename: args.path,
-                            generate: 'client',
-                            dev: false
-                        });
-                        return { contents: out.js.code, loader: 'js', resolveDir: path.dirname(args.path) };
-                    });
-                }
-            }
-        ]
+        outfile: path.join(outDir, 'bundle.js')
     });
     const roots = [outDir];
     const files = [];
@@ -531,6 +616,23 @@ export function findChromium() {
         '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
     ];
     return candidates.find((c) => c && existsSync(c));
+}
+/**
+ * The Chromium binary `launch` starts: the one `findChromium` finds, else Playwright's own
+ * build; null without either.
+ */
+export async function chromiumExecutable() {
+    const found = findChromium();
+    if (found)
+        return found;
+    try {
+        const { chromium } = await import('playwright');
+        const own = chromium.executablePath();
+        return own && existsSync(own) ? own : null;
+    }
+    catch {
+        return null;
+    }
 }
 export async function launch() {
     let chromium;

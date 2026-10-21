@@ -23,7 +23,7 @@ const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
 const FRAMES = 12;
 
-async function project(clip: object, files: Record<string, string> = {}) {
+async function project(clip: object, files: Record<string, string> = {}, top: object = {}) {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-webgl-'));
 	for (const [name, text] of Object.entries(files)) await fs.writeFile(path.join(dir, name), text);
 	await fs.writeFile(
@@ -32,7 +32,8 @@ async function project(clip: object, files: Record<string, string> = {}) {
 			size: [320, 180],
 			fps: 30,
 			background: '#000000',
-			clips: [{ id: 'webgl', block: BLOCK, from: 0, until: FRAMES / 30, ...clip }]
+			clips: [{ id: 'webgl', block: BLOCK, from: 0, until: FRAMES / 30, ...clip }],
+			...top
 		})
 	);
 	return { dir, loaded: await loadMotionProject(path.join(dir, 'p.vf.json')) };
@@ -50,7 +51,7 @@ function pixel(png: Buffer, x: number, y: number, width: number): number[] {
 }
 
 /** A page that loads, then never answers a frame: what Playwright does once the renderer died. */
-function stuckBrowser() {
+function stuckBrowser({ loads = true } = {}) {
 	const listeners: Record<string, ((e: unknown) => void)[]> = {};
 	let calls = 0;
 	const page = {
@@ -58,7 +59,7 @@ function stuckBrowser() {
 		route: async () => {},
 		goto: async () => {},
 		evaluate: () =>
-			++calls === 1 ? Promise.resolve({ mode: 'html-in-canvas' }) : new Promise(() => {}),
+			++calls === 1 && loads ? Promise.resolve({ mode: 'html-in-canvas' }) : new Promise(() => {}),
 		locator: () => ({ screenshot: async () => Buffer.alloc(0) }),
 		close: async () => {}
 	};
@@ -79,6 +80,16 @@ describe('a page that crashes or stops answering', () => {
 		crash();
 		await expect(frame).rejects.toThrow('Clip "a": the browser page crashed during frame 3');
 		await expect(page.capture(4)).rejects.toThrow(/crashed during frame 4/);
+	});
+
+	it('names the clip once when the page crashes while loading', async () => {
+		const { browser, crash } = stuckBrowser({ loads: false });
+		const page = openClip(browser as never, bundle, clip);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		crash();
+		await expect(page).rejects.toThrow(
+			/^Clip "a": the browser page crashed during loading \(Chromium's renderer process died\)\.$/
+		);
 	});
 
 	it('fails the frame when the page never answers', async () => {
@@ -118,6 +129,27 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('a block with its own WebGL canvas',
 		}, 60_000);
 	}
 
+	for (const invalidate of [undefined, 'reattach']) {
+		it(`shows a canvas that mounts mid-clip, the same in any order (invalidate: ${invalidate ?? 'default'})`, async () => {
+			const { loaded } = await project({ props: { from: 2 } });
+			const order = [0, 1, 2, 3, 1, 4, 0, 5, 2, 1];
+			const stills = await renderStills(
+				loaded,
+				order.map((f) => ({ clip: 'webgl', at: `f${f}` })),
+				{ invalidate }
+			);
+			const first = new Map<number, Buffer>();
+			for (const s of stills) {
+				expect(pixel(s.png, 10, 10, 320), `frame ${s.frame}`).toEqual(
+					s.frame < 2 ? [0, 0, 0, 255] : [(s.frame * 8) % 256, 128, 64, 255]
+				);
+				const seen = first.get(s.frame);
+				if (seen) expect(s.png.equals(seen), `frame ${s.frame} depends on order`).toBe(true);
+				else first.set(s.frame, s.png);
+			}
+		}, 60_000);
+	}
+
 	it('names a filter around the canvas instead of crashing the page', async () => {
 		const { loaded } = await project({ props: { wrap: 'filter: blur(1px)' } });
 		await expect(renderStills(loaded, [{ clip: 'webgl', at: 'f0' }])).rejects.toThrow(
@@ -125,6 +157,17 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('a block with its own WebGL canvas',
 		);
 		const [checked] = await checkMotionProject(loaded);
 		expect(checked.errors.map((e) => e.message).join('\n')).toMatch(/has a CSS filter/);
+	}, 60_000);
+
+	it('names the stage by its id', async () => {
+		const { loaded } = await project(
+			{},
+			{ 'stage.css': '#vf-stage { filter: blur(1px) }' },
+			{ styles: ['stage.css'] }
+		);
+		await expect(renderStills(loaded, [{ clip: 'webgl', at: 'f0' }])).rejects.toThrow(
+			'Clip "webgl" failed to load: <div id="vf-stage"> has a CSS filter'
+		);
 	}, 60_000);
 
 	it('fails the render at once when the page crashes', async () => {

@@ -24,6 +24,8 @@ export function createMotionStage(options) {
     let stage = null;
     let active = null;
     let seeks = 0;
+    /** `<canvas layoutsubtree>` elements the block nests in the stage, as of the last seek. */
+    let nested = [];
     async function load(data) {
         try {
             return await mountClip(data);
@@ -83,6 +85,7 @@ export function createMotionStage(options) {
         });
         flushSync();
         active = { controller, instance, data };
+        findNestedCanvases();
         assertNoEffectOverNestedCanvas();
         await Promise.all(controller.ready);
         await document.fonts.ready;
@@ -100,6 +103,7 @@ export function createMotionStage(options) {
         for (const tl of controller.timelines)
             seekTimeline(tl, t);
         // Before `useFrame`: a block that awaits its own canvas's paint would crash there.
+        findNestedCanvases();
         assertNoEffectOverNestedCanvas();
         const pending = [];
         for (const fn of controller.frameFns) {
@@ -134,11 +138,12 @@ export function createMotionStage(options) {
             c.requestPaint?.();
         });
     }
-    /** `<canvas layoutsubtree>` elements a block nests inside the stage's own canvas. */
-    function nestedCanvases() {
-        return canvas && stage
-            ? [...stage.querySelectorAll('canvas[layoutsubtree]')]
-            : [];
+    /** Refreshes `nested`: the `<canvas layoutsubtree>` elements inside the stage's own canvas. */
+    function findNestedCanvases() {
+        nested =
+            canvas && stage
+                ? [...stage.querySelectorAll('canvas[layoutsubtree]')]
+                : [];
     }
     /**
      * Chromium's renderer crashes when a nested `<canvas layoutsubtree>`, or anything between it
@@ -146,8 +151,8 @@ export function createMotionStage(options) {
      * clip first so the browser's next paint does not crash the page anyway.
      */
     function assertNoEffectOverNestedCanvas() {
-        for (const nested of nestedCanvases()) {
-            for (let el = nested; el && el !== canvas; el = el.parentElement) {
+        for (const inner of nested) {
+            for (let el = inner; el && el !== canvas; el = el.parentElement) {
                 const style = getComputedStyle(el);
                 const effect = style.filter !== 'none' ? 'filter' : style.maskImage !== 'none' ? 'mask' : null;
                 if (!effect)
@@ -168,14 +173,16 @@ export function createMotionStage(options) {
         // (a WebGL canvas sampling its children), so such a stage is re-inserted instead. The
         // re-insert comes before the seek: a nested canvas re-inserted after its own paint is left
         // out of the next paint of the stage's canvas, and the frame would come out without it.
-        const reattach = how === 'reattach' || (how === 'filters' && nestedCanvases().length > 0);
+        const reattach = how === 'reattach' || (how === 'filters' && nested.length > 0);
         if (reattach && canvas)
             canvas.appendChild(stage);
-        const t = await applyTime(n);
+        // The seek may mount a nested canvas under the previous frame's filter, so the filter is
+        // off during the seek and toggled after it. Nothing paints in between.
         if (how === 'filters')
-            stage.style.filter =
-                nestedCanvases().length > 0 ? '' : ++seeks % 2 ? 'saturate(1)' : 'contrast(1)';
-        assertNoEffectOverNestedCanvas();
+            stage.style.filter = '';
+        const t = await applyTime(n);
+        if (how === 'filters' && nested.length === 0)
+            stage.style.filter = ++seeks % 2 ? 'saturate(1)' : 'contrast(1)';
         await nextPaint();
         const paintMs = performance.now() - t0;
         let image;
@@ -197,6 +204,7 @@ export function createMotionStage(options) {
         canvas = null;
         ctx = null;
         stage = null;
+        nested = [];
     }
     /**
      * Run the clip's logic at the given frames without painting: collects exceptions (unknown
@@ -206,6 +214,8 @@ export function createMotionStage(options) {
         const errors = [];
         const warnings = [];
         const seen = new Set();
+        if (stage)
+            stage.style.filter = ''; // a frame's filter would fail a canvas mounted mid-clip
         for (const n of frames) {
             try {
                 await applyTime(n);
@@ -256,5 +266,7 @@ export function createMotionStage(options) {
     return { mode, load, frame, check, unload };
 }
 function describe(el) {
-    return `<${el.tagName.toLowerCase()}${el.className ? ` class="${el.className}"` : ''}>`;
+    // `className` of an SVG element is an SVGAnimatedString, not the class text.
+    const cls = el.getAttribute('class');
+    return `<${el.tagName.toLowerCase()}${el.id ? ` id="${el.id}"` : ''}${cls ? ` class="${cls}"` : ''}>`;
 }

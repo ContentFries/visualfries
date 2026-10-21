@@ -205,14 +205,15 @@ the block stays untouched.
 
 ## How frames are made
 
-The page renders the block into a `<canvas layoutsubtree>` and captures it with
-HTML-in-Canvas (`drawElementImage`, Chromium flag `CanvasDrawElement`). Without it the
-stage falls back to DOM screenshots. Each frame: set time → flush Svelte → seek GSAP
-timelines → run `useFrame` callbacks and wait for the promises they return (footage frames)
-→ force a fresh raster (a filter toggled on the stage, or re-inserting the stage before the seek
-when a block nests a `<canvas layoutsubtree>`) → wait for the paint (an error after 2 s, never a
-silent timeout) → capture. A page that crashes or stops answering fails the render with the clip
-and frame; it never hangs it. The page loads the bundle, fonts and footage from one origin served from disk, because
-HTML-in-Canvas leaves cross-origin images out of the capture. Any frame can be rendered in any order with
-identical pixels; `render` deals frames out to several pages and pipes them to ffmpeg in order,
-holding only a few frames in memory (frame files on disk are the fallback, and `--keep-frames`).
+The page renders the block into a `<canvas layoutsubtree>` and captures it with HTML-in-Canvas
+(`drawElementImage`, Chromium flag `CanvasDrawElement`). Without it the stage falls back to DOM
+screenshots. Each frame: set time → flush Svelte → seek GSAP timelines → run `useFrame`
+callbacks and wait for the promises they return (footage frames) → force a fresh raster (a
+filter toggled on the stage, or re-inserting the stage before the seek when a block nests a
+`<canvas layoutsubtree>`) → wait for the paint (an error after 2 s, never a silent timeout) →
+capture. A page that crashes or stops answering fails the render with the clip and frame; it
+never hangs it. The page loads the bundle, fonts and footage from one origin served from disk,
+because HTML-in-Canvas leaves cross-origin images out of the capture. Any frame can be rendered
+in any order with identical pixels; `render` deals frames out to several pages and pipes them
+to ffmpeg in order, holding only a few frames in memory (frame files on disk are the fallback,
+and `--keep-frames`).

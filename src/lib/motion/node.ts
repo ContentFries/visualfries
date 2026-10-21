@@ -344,6 +344,11 @@ export async function openClip(
 		onCrash?.();
 	});
 	const timeout = opts.timeout ?? PAGE_TIMEOUT_MS;
+	/** `prefix: message`, unless `settle` already named the clip in it. */
+	const named = (prefix: string, error: unknown) => {
+		const message = pageMessage(error);
+		return message.startsWith(`Clip "${clip.id}"`) ? message : `${prefix}: ${message}`;
+	};
 	/** `work`, or an error as soon as the page crashes or `ms` pass. One call at a time. */
 	async function settle<T>(what: string, work: Promise<T>, ms = timeout): Promise<T> {
 		let timer: ReturnType<typeof setTimeout> | undefined;
@@ -386,9 +391,7 @@ export async function openClip(
 			page.evaluate((data) => (window as any).__vfMotionStage.load(data), clip)
 		);
 	} catch (error) {
-		throw new Error(
-			[`Clip "${clip.id}" failed to load: ${pageMessage(error)}`, ...errors].join('\n')
-		);
+		throw new Error([named(`Clip "${clip.id}" failed to load`, error), ...errors].join('\n'));
 	}
 	return {
 		mode: info.mode,
@@ -404,12 +407,7 @@ export async function openClip(
 					)
 				);
 			} catch (error) {
-				const message = pageMessage(error);
-				throw new Error(
-					message.startsWith(`Clip "${clip.id}"`)
-						? message
-						: `Clip "${clip.id}", frame ${frame}: ${message}`
-				);
+				throw new Error(named(`Clip "${clip.id}", frame ${frame}`, error));
 			}
 			if (r.image) return Buffer.from(r.image.slice(r.image.indexOf(',') + 1), 'base64');
 			return settle(

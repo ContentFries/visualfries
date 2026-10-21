@@ -3,7 +3,7 @@
   frame it waits for the canvas to paint, uploads the children with texElementImage2D and
   draws them through a shader. The colour changes with the frame, so a frame that comes out
   without the canvas, or with another frame's pixels, shows. `props.wrap` puts a CSS style on
-  an element around the canvas.
+  an element around the canvas; `props.from` mounts the canvas only from that frame on.
 -->
 <script>
 	import { useClip, useFrame } from 'visualfries/motion';
@@ -13,8 +13,10 @@
 	let canvas = $state();
 	let source = $state();
 	let gl;
+	let glCanvas;
 
 	function setup() {
+		glCanvas = canvas;
 		gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true });
 		const shader = (type, text) => {
 			const s = gl.createShader(type);
@@ -51,7 +53,8 @@
 	}
 
 	useFrame(async () => {
-		if (!gl) setup();
+		if (!canvas) return;
+		if (glCanvas !== canvas) setup();
 		// The children's pixels exist only once the canvas has painted them.
 		await new Promise((resolve) => {
 			canvas.addEventListener('paint', resolve, { once: true });
@@ -64,11 +67,13 @@
 </script>
 
 <div class="wrap" style={clip.props.wrap ?? ''}>
-	<canvas bind:this={canvas} layoutsubtree {width} {height}>
-		<div bind:this={source} style:background="rgb({(clip.frame * 8) % 256} 128 64)">
-			{clip.frame}
-		</div>
-	</canvas>
+	{#if clip.frame >= (clip.props.from ?? 0)}
+		<canvas bind:this={canvas} layoutsubtree {width} {height}>
+			<div bind:this={source} style:background="rgb({(clip.frame * 8) % 256} 128 64)">
+				{clip.frame}
+			</div>
+		</canvas>
+	{/if}
 </div>
 
 <style>

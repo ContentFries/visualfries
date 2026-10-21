@@ -7,6 +7,8 @@
 	  words     [{ text, at, until?, style?, enter?, size?, y?, hit? }]
 	            style: "solid" | "accent" | "outline" | "echo" (three receding copies) | "strike"
 	            enter: "slam" | "left" | "right" | "rise"
+	            size:  font size in px, used as written; default: sized to the word and shrunk until
+	                   it fits the frame width in the block's font
 	            y:     vertical centre, 0–1 of the clip height; default: just under the top of the
 	                   head, measured from the matte, so the head covers the middle of the word
 	            hit:   flash, shake and a camera punch on the face
@@ -26,6 +28,7 @@
 	import Captions from '../Captions.svelte';
 	import { parseColor, toHex } from '../brand.js';
 	import { outline } from '../outline.js';
+	import { OUTLINE_EM, wordSize, type MeasureText } from './speaker-depth-size.js';
 
 	type Word = {
 		text: string;
@@ -65,21 +68,14 @@
 	const head0 = toStage(clip.subject(name, 0, 0.5));
 	const FACE = { x: head0.x, y: head0.y + FOOT_H * 0.14 };
 
-	// Outline of the "outline" and "echo" styles, in em, drawn outside the letters.
-	const OUTLINE_EM = 0.014;
-	// Words grow to this scale while they hold and must still fit in 92 % of the width.
-	const HOLD_SCALE = 1.05;
-	const fitWidth = (W * 0.92) / HOLD_SCALE;
 	// Fonts are loaded before blocks mount, so the canvas measures the real face.
-	const measure = document.createElement('canvas').getContext('2d');
-	/** Shrink a word whose measured width at `px` would not fit `fitWidth`. */
-	const fit = (text: string, px: number, outlined: boolean) => {
-		if (!measure) return px;
-		measure.font = `${px}px ${font}`;
-		const width =
-			measure.measureText(text.toUpperCase()).width + (outlined ? 2 * OUTLINE_EM * px : 0);
-		return width > fitWidth ? Math.floor((px * fitWidth) / width) : px;
-	};
+	const ctx = document.createElement('canvas').getContext('2d');
+	const measure: MeasureText = ctx
+		? (text, px) => {
+				ctx.font = `${px}px ${font}`;
+				return ctx.measureText(text).width;
+			}
+		: null;
 
 	const sec = (a: At) => clip.at(a);
 	const words: (Word & { start: number; end: number; px: number; top: number })[] = (
@@ -91,12 +87,12 @@
 		// A word stays at least long enough to land and be read.
 		const end = Math.min(clip.duration, Math.max(until, start + 0.7));
 		const text = String(w.text);
-		// The size guess assumes a condensed face; wider fonts are measured and fitted.
-		const px = fit(
-			text,
-			w.size ?? Math.round(Math.min(W * 0.9, (W * 0.92) / (0.53 * Math.max(2, text.length)))),
-			w.style === 'outline' || w.style === 'echo'
-		);
+		const px = wordSize(text, {
+			size: w.size,
+			width: W,
+			outlined: w.style === 'outline' || w.style === 'echo',
+			measure
+		});
 		const head = toStage(clip.subject(name, Math.round(start * clip.fps), 0.3));
 		const centre = w.y !== undefined ? w.y * H : head.y + px * 0.18;
 		const top = Math.max(H * 0.03, Math.min(H * 0.62, centre - px * 0.43));

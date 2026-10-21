@@ -1,0 +1,6 @@
+{
+	"size": [320, 180],
+	"fps": 30,
+	"background": "#000000",
+	"clips": [{ "id": "webgl", "block": "WebGlBlock.svelte", "from": 0, "until": 1 }]
+}

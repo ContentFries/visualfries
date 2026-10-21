@@ -32,6 +32,33 @@ type BundleResult = {
 /** Compile the project's blocks together with the stage runtime into one page. */
 export declare function bundleMotionProject(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<BundleResult>;
 export declare function findChromium(): string | undefined;
+type RouteLike = {
+    request(): {
+        url(): string;
+    };
+    fulfill(response: {
+        status: number;
+        body?: Buffer | string;
+        contentType?: string;
+    }): Promise<void>;
+};
+type PageLike = {
+    goto(url: string): Promise<unknown>;
+    route(url: string, handler: (route: RouteLike) => unknown): Promise<void>;
+    evaluate<R, A>(fn: (arg: A) => R | Promise<R>, arg: A): Promise<R>;
+    locator(sel: string): {
+        screenshot(opts: {
+            omitBackground?: boolean;
+            type?: 'png';
+        }): Promise<Buffer>;
+    };
+    on(event: 'pageerror' | 'console' | 'crash', fn: (e: any) => void): void;
+    close(): Promise<void>;
+};
+type BrowserLike = {
+    newPage(opts: object): Promise<PageLike>;
+    close(): Promise<void>;
+};
 export type MotionPage = {
     mode: 'html-in-canvas' | 'dom';
     capture(frame: number): Promise<Buffer>;
@@ -47,6 +74,15 @@ export type MotionPage = {
     }>;
     close(): Promise<void>;
 };
+/**
+ * One page with one clip loaded. Every call fails as soon as the page crashes or stops
+ * answering: Playwright leaves a call to a crashed page pending forever, so without this a
+ * renderer crash would hang `render` instead of failing it. Exported for tests.
+ */
+export declare function openClip(browser: BrowserLike, bundle: BundleResult, clip: ResolvedClip, opts?: {
+    invalidate?: string;
+    timeout?: number;
+}): Promise<MotionPage>;
 type VideoInfo = {
     width: number;
     height: number;

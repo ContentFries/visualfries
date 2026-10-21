@@ -128,12 +128,31 @@ export const ProvenanceShape = z.looseObject({
     prompt: z.string().optional(),
     seed: z.union([z.number(), z.string()]).optional()
 });
+/**
+ * A sound effect at a program moment. `sound` is a sound file relative to the project; when a
+ * sound library's `sounds.json` lists it, its hit (not its first sample) lands on `at`.
+ */
 export const SfxShape = z.object({
     id: itemId.optional(),
     at: anchor,
     sound: z.string().min(1),
     /** dB on top of the global SFX level. */
     gain: z.number().optional()
+});
+/**
+ * Levels of the program mix. Effects and music sit at a steady level relative to the speech
+ * (its integrated loudness as cut); the finished video is then brought to `loudness` with its
+ * true peak at or under `truePeak`.
+ */
+export const MixShape = z.object({
+    /** dB of each effect's loudest 100 ms under the speech loudness. Default -10. */
+    sfx: z.number().optional(),
+    /** dB of each music item's integrated loudness under the speech loudness. Default -15. */
+    music: z.number().optional(),
+    /** Integrated loudness of the finished video, LUFS. Default -14. */
+    loudness: z.number().max(0).optional(),
+    /** True-peak ceiling of the finished video, dBTP. Default -1. */
+    truePeak: z.number().max(0).optional()
 });
 /** Program mode: the project describes the whole program (a cut list or a shots track). */
 export function isProgramProject(project) {

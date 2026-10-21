@@ -11,8 +11,14 @@ import { parseEase } from './ease.js';
 import { screenDirection, transitionEvents, transitionModule } from './transitions/index.js';
 /** Seconds a transition not drawn yet lasts when the project does not say. */
 export const DEFAULT_TRANSITION_SECONDS = 0.5;
-/** Loudness of finished videos. */
-const MASTER = { lufs: -14, truePeak: -1 };
+/**
+ * Mix levels when the project does not set them: effects about 10 dB under the speech (issue
+ * 07), music at one steady level under it (issue 17), finished videos at −14 LUFS integrated
+ * with true peaks at or under −1 dBTP.
+ */
+export const MIX_DEFAULTS = { sfx: -10, music: -15, loudness: -14, truePeak: -1 };
+/** Default music fades: an anti-click fade-in and a one-second fade-out. */
+export const MUSIC_FADE = { in: 0.01, out: 1 };
 const isCustom = (name, ext) => ext.test(name);
 const CUSTOM_SHOT = /\.(ts|js)$/;
 const CUSTOM_TRANSITION = /\.svelte$/;
@@ -118,11 +124,16 @@ export function resolveProgram(project, inputs, opts = {}) {
         ? resolveTransitions(project, cutList.cuts, cuts, shots, clips, fps, format.class, warn)
         : [];
     const events = resolveEvents(shots, transitions);
+    const mix = project.mix ?? {};
     const audio = {
         speech: program ? speechPieces(project, cutList.cuts, sources, inputs, frames / fps) : [],
-        sfx: resolveSfx(project, at, diagnostics),
-        music: resolveMusic(project, frames / fps),
-        master: { ...MASTER }
+        sfx: resolveSfx(project, transitions, inputs, at, diagnostics),
+        music: resolveMusic(project, frames / fps, at, diagnostics),
+        levels: { sfx: mix.sfx ?? MIX_DEFAULTS.sfx, music: mix.music ?? MIX_DEFAULTS.music },
+        master: {
+            lufs: mix.loudness ?? MIX_DEFAULTS.loudness,
+            truePeak: mix.truePeak ?? MIX_DEFAULTS.truePeak
+        }
     };
     // Clips, music and sfx share one id space only in a program (inserts mode keeps them apart).
     if (program)
@@ -649,21 +660,43 @@ function speechPieces(project, cuts, sources, inputs, end) {
     });
     return pieces;
 }
-function resolveSfx(project, at, diagnostics) {
+/**
+ * Effects: each `sfx` item, and each transition that names a `sound` (its hit on the
+ * transition's first event, the middle of the window for the built-ins). A sound's hit offset
+ * comes from the sound library's metadata (`inputs.sounds`); the file then starts that much
+ * before the moment, cut off at the program start. Sorted by program time.
+ */
+function resolveSfx(project, transitions, inputs, at, diagnostics) {
+    const fps = project.fps;
     const out = [];
+    const place = (owner, field, sound, moment, gain) => {
+        const info = inputs.sounds?.[sound];
+        if (info === null) {
+            diagnostics.push({
+                level: 'error',
+                item: owner,
+                field,
+                message: `Sound file "${sound}" not found (paths are relative to the project).`
+            });
+            return;
+        }
+        const hit = info?.hit ?? 0;
+        out.push({
+            owner,
+            file: sound,
+            srcIn: micro(Math.max(0, hit - moment)),
+            dur: null,
+            at: micro(Math.max(0, moment - hit)),
+            fadeIn: 0,
+            fadeOut: 0,
+            gain
+        });
+    };
     (project.sfx ?? []).forEach((sfx, i) => {
         const id = sfx.id ?? `sfx${i + 1}`;
+        let moment;
         try {
-            out.push({
-                owner: id,
-                file: sfx.sound,
-                srcIn: 0,
-                dur: null,
-                at: micro(Math.round(at(sfx.at) * project.fps) / project.fps),
-                fadeIn: 0,
-                fadeOut: 0,
-                gain: sfx.gain ?? 0
-            });
+            moment = Math.round(at(sfx.at) * fps) / fps;
         }
         catch (error) {
             diagnostics.push({
@@ -672,27 +705,54 @@ function resolveSfx(project, at, diagnostics) {
                 field: `sfx[${i}].at`,
                 message: error.message
             });
+            return;
         }
+        place(id, `sfx[${i}].sound`, sfx.sound, moment, sfx.gain ?? 0);
     });
-    return out.sort((a, b) => a.at - b.at);
+    for (const t of transitions) {
+        if (typeof t.sound !== 'string')
+            continue;
+        const frame = transitionEvents(t)[0]?.frame ?? t.cutFrame;
+        place(`${t.id}.sound`, 'transition.sound', t.sound, frame / fps, 0);
+    }
+    return out.sort((a, b) => a.at - b.at || a.owner.localeCompare(b.owner));
 }
 /**
- * Where each music item plays: its first sample at `from` (cut off before the program start)
- * until `until` or the program end. Gain, fades and gain keys come with the mixer (T9).
+ * Where each music item plays: from `from` (a negative `from` starts inside the file) until
+ * `until` or the program end, with its gain, fades (each at most the piece's length) and gain
+ * keys in program seconds. Its level under the speech is the mixer's (`levels.music`).
  */
-function resolveMusic(project, end) {
+function resolveMusic(project, end, at, diagnostics) {
     return (project.music ?? []).map((music, i) => {
+        const owner = music.id ?? `music${i + 1}`;
         const from = music.from ?? 0;
-        const until = music.until ?? end;
+        const start = Math.max(0, from);
+        const dur = Math.max(0, Math.min(music.until ?? end, end) - start);
+        const gainKeys = [];
+        (music.keys ?? []).forEach((key, k) => {
+            try {
+                gainKeys.push({ at: micro(at(key.at)), gain: key.gain });
+            }
+            catch (error) {
+                diagnostics.push({
+                    level: 'error',
+                    item: owner,
+                    field: `music[${i}].keys[${k}].at`,
+                    message: error.message
+                });
+            }
+        });
+        gainKeys.sort((a, b) => a.at - b.at);
         return {
-            owner: music.id ?? `music${i + 1}`,
+            owner,
             file: music.src,
             srcIn: micro(Math.max(0, -from)),
-            dur: micro(Math.max(0, until - Math.max(0, from))),
-            at: micro(Math.max(0, from)),
-            fadeIn: 0,
-            fadeOut: 0,
-            gain: 0
+            dur: micro(dur),
+            at: micro(start),
+            fadeIn: micro(Math.min(dur, music.fade?.in ?? MUSIC_FADE.in)),
+            fadeOut: micro(Math.min(dur, music.fade?.out ?? MUSIC_FADE.out)),
+            gain: music.gain ?? 0,
+            ...(gainKeys.length ? { gainKeys } : {})
         };
     });
 }

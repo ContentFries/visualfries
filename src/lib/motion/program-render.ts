@@ -18,7 +18,8 @@ import {
 	type BundleResult,
 	type LoadedMotionProject
 } from './node.js';
-import type { AudioPiece, ProgramSegment, ResolvedProgram } from './program.js';
+import type { ProgramSegment, ResolvedProgram } from './program.js';
+import { STEMS, mixProgram, writeWav, type MixReport, type StemName } from './audio.js';
 import { assertProgramRenders, openSegment } from './program-node.js';
 
 /**
@@ -57,8 +58,12 @@ export type RenderedProgram = {
 	format: string;
 	fps: number;
 	frames: number;
-	/** `speech`: the cut list's sound, placed per cut (no music, effects or loudness yet). */
-	audio: 'speech' | 'silent';
+	/** `mixed`: speech, effects and music, normalised; `silent`: the program has no sound. */
+	audio: 'mixed' | 'silent';
+	/** Levels and loudness of the mix; null when silent. */
+	mix: MixReport | null;
+	/** With `stems`: the WAV file of each stem beside the video. */
+	stems: Record<StemName, string> | null;
 	mode: string;
 	segments: RenderedSegment[];
 	/** Seconds for the whole render, and for the final join and encode alone. */
@@ -75,6 +80,11 @@ export type ProgramRenderOptions = {
 	invalidate?: string;
 	/** Draw every segment again, replacing what the cache holds. */
 	fresh?: boolean;
+	/**
+	 * Also write the stems beside the video (`<name>.speech.wav`, `.sfx.wav`, `.music.wav`):
+	 * 48 kHz 32-bit float, with the master gain and limiter applied, so they add up to the mix.
+	 */
+	stems?: boolean;
 	/**
 	 * How pages share the work: `auto` (whole segments per page when there are at least as many
 	 * segments to draw as jobs, none much longer than its share), or always `segments` or always
@@ -109,7 +119,7 @@ export async function renderProgramVideo(
 	await fs.mkdir(cacheDir, { recursive: true });
 	// Left by a render that was killed before it could clean up.
 	await removeOrphans(cacheDir, /\.(?:partial|concat)-(\d+)-[^/]*\.(?:mkv|txt)$/);
-	await removeOrphans(path.dirname(file), /^\..+\.partial-(\d+)\.mp4$/);
+	await removeOrphans(path.dirname(file), /^\..+\.partial-(\d+)\.(?:mp4|wav)$/);
 	const engine = await engineHash(opts.invalidate);
 	const segments: RenderedSegment[] = program.segments.map((s) => {
 		const cached = path.join(cacheDir, `${s.hash}-${engine}.mkv`);
@@ -146,12 +156,25 @@ export async function renderProgramVideo(
 	}
 
 	const t1 = Date.now();
-	const audio = await joinAndEncode(loaded, program, segments, file);
+	const mixed = await mixProgram(program, { dir: loaded.dir, stems: opts.stems });
+	if (mixed)
+		log(
+			`mix: speech ${mixed.report.speech ?? '–'} LUFS, ${mixed.report.lufs} LUFS and ${mixed.report.truePeak} dBTP after ${mixed.report.gain} dB${mixed.report.limiter ? ` (limiter ${mixed.report.limiter} dB)` : ''}`
+		);
+	await joinAndEncode(program, segments, file, mixed?.samples ?? null);
+	let stems: RenderedProgram['stems'] = null;
+	if (mixed?.stems) {
+		stems = {} as Record<StemName, string>;
+		for (const stem of STEMS) {
+			stems[stem] = file.replace(/\.mp4$/i, `.${stem}.wav`);
+			await writeWav(stems[stem], mixed.stems[stem]);
+		}
+	}
 	const encodeSeconds = (Date.now() - t1) / 1000;
 	await fs.writeFile(sidecar, resolved);
 	await pruneSegments(cacheDir, loaded, program.format.name, segments, t0);
 	log(
-		`final encode: ${program.frames} frames in ${encodeSeconds.toFixed(1)} s${audio === 'silent' ? ' (silent)' : ''}`
+		`final encode: ${program.frames} frames in ${encodeSeconds.toFixed(1)} s${mixed ? '' : ' (silent)'}`
 	);
 	return {
 		file,
@@ -159,7 +182,9 @@ export async function renderProgramVideo(
 		format: program.format.name,
 		fps: program.fps,
 		frames: program.frames,
-		audio,
+		audio: mixed ? 'mixed' : 'silent',
+		mix: mixed?.report ?? null,
+		stems,
 		mode,
 		segments,
 		seconds: (Date.now() - t0) / 1000,
@@ -301,15 +326,16 @@ async function renderSegments(
 
 /**
  * Joins the intermediates in order (stream copy through the concat demuxer, no decode between
- * segments) and encodes the result once, with the speech of the cut list when the sources have
- * sound. Encodes beside the target and replaces it only on success.
+ * segments) and encodes the result once, with the program mix when there is one (written beside
+ * the target as a float WAV for the encode). Encodes beside the target and replaces it only on
+ * success.
  */
 async function joinAndEncode(
-	loaded: LoadedMotionProject,
 	program: ResolvedProgram,
 	segments: RenderedSegment[],
-	file: string
-): Promise<'speech' | 'silent'> {
+	file: string,
+	mix: Float32Array | null
+): Promise<void> {
 	const list = path.join(
 		path.dirname(segments[0].file),
 		`.concat-${process.pid}-${Date.now()}.txt`
@@ -318,14 +344,15 @@ async function joinAndEncode(
 		path.dirname(file),
 		`.${path.basename(file, '.mp4')}.partial-${process.pid}.mp4`
 	);
-	const untrack = [trackPartial(list), trackPartial(partial)];
+	const wav = partial.replace(/\.mp4$/, '.wav');
+	const untrack = [trackPartial(list), trackPartial(partial), trackPartial(wav)];
 	await fs.writeFile(
 		list,
 		segments.map((s) => `file '${s.file.replace(/'/g, "'\\''")}'`).join('\n') + '\n'
 	);
-	const pieces = program.audio.speech;
 	const seconds = program.frames / program.fps;
 	try {
+		if (mix) await writeWav(wav, mix);
 		await run([
 			'-y',
 			'-f',
@@ -334,13 +361,15 @@ async function joinAndEncode(
 			'0',
 			'-i',
 			list,
-			...speechInputs(loaded, pieces, seconds),
+			...(mix
+				? ['-i', wav, '-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-b:a', '192k']
+				: ['-map', '0:v']),
 			// Number frames by count: timestamps of joined files must not drop or repeat a frame.
 			'-vf',
 			`setpts=N/(${program.fps}*TB)`,
 			'-r',
 			String(program.fps),
-			// A hard end: padded sound must never keep the encode running past the picture.
+			// A hard end: the sound must never keep the encode running past the picture.
 			'-t',
 			seconds.toFixed(6),
 			...H264_FINAL,
@@ -350,73 +379,9 @@ async function joinAndEncode(
 	} finally {
 		await fs.rm(list, { force: true });
 		await fs.rm(partial, { force: true });
+		await fs.rm(wav, { force: true });
 		for (const done of untrack) done();
 	}
-	return pieces.length ? 'speech' : 'silent';
-}
-
-/**
- * A stand-in for the program mixer: each speech piece trimmed from its file, faded
- * (equal-power), placed at its program time and summed; silence elsewhere. No music, sound
- * effects or loudness normalisation. Inputs count from 1 (input 0 is the picture); the mix is
- * `[speech]`, 48 kHz stereo, `seconds` long.
- */
-export function speechMix(
-	dir: string,
-	pieces: AudioPiece[],
-	seconds: number
-): { inputs: string[]; filter: string } {
-	const inputs: string[] = [];
-	const chains: string[] = [];
-	pieces.forEach((piece, i) => {
-		// A piece reaching before its file (not resolved by this version) starts with the sound:
-		// later and shorter by the missing part, so every sample keeps its place.
-		const early = Math.max(0, -piece.srcIn);
-		const p = early
-			? {
-					...piece,
-					srcIn: 0,
-					at: piece.at + early,
-					dur: piece.dur === null ? null : Math.max(0, piece.dur - early),
-					fadeIn: Math.max(0, piece.fadeIn - early)
-				}
-			: piece;
-		const src = path.resolve(dir, p.file);
-		inputs.push('-ss', p.srcIn.toFixed(6), ...(p.dur ? ['-t', p.dur.toFixed(6)] : []), '-i', src);
-		const filters = ['aresample=48000', 'aformat=sample_fmts=fltp:channel_layouts=stereo'];
-		if (p.fadeIn) filters.push(`afade=t=in:d=${p.fadeIn}:curve=qsin`);
-		if (p.fadeOut && p.dur)
-			filters.push(`afade=t=out:st=${Math.max(0, p.dur - p.fadeOut)}:d=${p.fadeOut}:curve=qsin`);
-		if (p.gain) filters.push(`volume=${p.gain}dB`);
-		filters.push(`adelay=${Math.round(p.at * 48000)}S:all=1`);
-		chains.push(`[${i + 1}:a]${filters.join(',')}[a${i}]`);
-	});
-	const mix =
-		pieces.map((_, i) => `[a${i}]`).join('') +
-		`amix=inputs=${pieces.length}:duration=longest:normalize=0,apad=whole_dur=${seconds}[speech]`;
-	return { inputs, filter: [...chains, mix].join(';') };
-}
-
-function speechInputs(
-	loaded: LoadedMotionProject,
-	pieces: AudioPiece[],
-	seconds: number
-): string[] {
-	if (!pieces.length) return ['-map', '0:v'];
-	const { inputs, filter } = speechMix(loaded.dir, pieces, seconds);
-	return [
-		...inputs,
-		'-filter_complex',
-		filter,
-		'-map',
-		'0:v',
-		'-map',
-		'[speech]',
-		'-c:a',
-		'aac',
-		'-b:a',
-		'192k'
-	];
 }
 
 // ---------------------------------------------------------------- cache housekeeping

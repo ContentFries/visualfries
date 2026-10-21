@@ -781,6 +781,10 @@
 			}
 		],
 		"music": [],
+		"levels": {
+			"sfx": -10,
+			"music": -15
+		},
 		"master": {
 			"lufs": -14,
 			"truePeak": -1

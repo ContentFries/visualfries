@@ -213,6 +213,10 @@ export declare const ProvenanceShape: z.ZodObject<{
     seed: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
 }, z.core.$loose>;
 export type Provenance = z.infer<typeof ProvenanceShape>;
+/**
+ * A sound effect at a program moment. `sound` is a sound file relative to the project; when a
+ * sound library's `sounds.json` lists it, its hit (not its first sample) lands on `at`.
+ */
 export declare const SfxShape: z.ZodObject<{
     id: z.ZodOptional<z.ZodString>;
     at: z.ZodLazy<z.ZodType<import("./project.js").MotionAnchor, unknown, z.core.$ZodTypeInternals<import("./project.js").MotionAnchor, unknown>>>;
@@ -220,6 +224,18 @@ export declare const SfxShape: z.ZodObject<{
     gain: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>;
 export type Sfx = z.infer<typeof SfxShape>;
+/**
+ * Levels of the program mix. Effects and music sit at a steady level relative to the speech
+ * (its integrated loudness as cut); the finished video is then brought to `loudness` with its
+ * true peak at or under `truePeak`.
+ */
+export declare const MixShape: z.ZodObject<{
+    sfx: z.ZodOptional<z.ZodNumber>;
+    music: z.ZodOptional<z.ZodNumber>;
+    loudness: z.ZodOptional<z.ZodNumber>;
+    truePeak: z.ZodOptional<z.ZodNumber>;
+}, z.core.$strip>;
+export type Mix = z.infer<typeof MixShape>;
 /** Program mode: the project describes the whole program (a cut list or a shots track). */
 export declare function isProgramProject(project: Pick<MotionProject, 'cuts' | 'shots'>): boolean;
 /** Parses a project file's JSON, with one readable line per problem instead of zod's dump. */

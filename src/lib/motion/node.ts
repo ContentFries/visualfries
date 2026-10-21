@@ -12,7 +12,13 @@ import { NEUTRAL_BRAND, resolveBrand, type ResolvedBrand } from './brand.js';
 import { BUILTIN_STYLES, NEUTRAL_STYLE, resolveStyle, type ResolvedStyle } from './style.js';
 import { isProgramProject, parseMotionProject } from './timeline.js';
 import { parseTranscriptWords, type MotionWord } from './transcript.js';
-import { resolveCutList, type CutList, type ProgramInputs, type SourceInfo } from './cutlist.js';
+import {
+	resolveCutList,
+	type CutList,
+	type ProgramInputs,
+	type SoundInfo,
+	type SourceInfo
+} from './cutlist.js';
 import { propFiles, resolveProgram, type ProgramHashes, type ResolvedProgram } from './program.js';
 import { resolveMotionProject, type ResolvedClip, type ResolvedProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
@@ -89,6 +95,68 @@ export type LoadedMusic = {
 	/** Bars in program seconds, for the `check` grid. */
 	bars: BarRow[];
 };
+
+/** Sound names of sfx items and of transitions that name a sound. */
+function soundNames(project: MotionProject): string[] {
+	const transitions = [
+		...(project.cuts ?? []).map((c) => c.transition),
+		...(project.shots ?? []).map((s) => s.transition),
+		...project.clips.map((c) => c.transition)
+	];
+	return [
+		...new Set([
+			...(project.sfx ?? []).map((s) => s.sound),
+			...transitions.flatMap((t) => (t && typeof t === 'object' && t.sound ? [t.sound] : []))
+		])
+	].sort();
+}
+
+/**
+ * Looks up each sound file: null when it does not exist, else its hit offset. A sound library
+ * keeps the offsets in a `sounds.json` (`sounds: [{ file, hitMs }]`, `file` relative to it) in
+ * the sound's folder or up to three folders above; without one the hit is the file start.
+ */
+async function loadSounds(
+	project: MotionProject,
+	dir: string
+): Promise<Record<string, SoundInfo | null>> {
+	const manifests = new Map<string, Map<string, number> | null>();
+	const manifest = async (folder: string) => {
+		if (!manifests.has(folder)) {
+			let hits: Map<string, number> | null = null;
+			try {
+				const data = JSON.parse(await fs.readFile(path.join(folder, 'sounds.json'), 'utf8'));
+				hits = new Map();
+				for (const s of Array.isArray(data?.sounds) ? data.sounds : [])
+					if (typeof s?.file === 'string' && typeof s?.hitMs === 'number')
+						hits.set(path.resolve(folder, s.file), s.hitMs / 1000);
+			} catch {
+				hits = null;
+			}
+			manifests.set(folder, hits);
+		}
+		return manifests.get(folder)!;
+	};
+	const out: Record<string, SoundInfo | null> = {};
+	for (const name of soundNames(project)) {
+		const file = path.resolve(dir, name);
+		if (!existsSync(file)) {
+			out[name] = null;
+			continue;
+		}
+		let hit = 0;
+		for (let folder = path.dirname(file), up = 0; up <= 3; up++, folder = path.dirname(folder)) {
+			const hits = await manifest(folder);
+			if (hits?.has(file)) {
+				hit = hits.get(file)!;
+				break;
+			}
+			if (path.dirname(folder) === folder) break;
+		}
+		out[name] = { hit };
+	}
+	return out;
+}
 
 /**
  * Reads each music item's beats file. A beats file made from another version of the music
@@ -352,6 +420,7 @@ export async function loadMotionProject(
 	}
 	const look = { brand: brand.resolved, style: style.resolved };
 	const inputs: ProgramInputs = { words, transcripts, sources, music: musicBeats, look };
+	if (isProgramProject(project)) inputs.sounds = await loadSounds(project, dir);
 	const common = { file: abs, dir, project, music, musicHash, brand, style, inputs, hashes };
 	const cutList = resolveCutList(project, inputs);
 	if (cutList.mode === 'inserts') {

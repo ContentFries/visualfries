@@ -30,6 +30,65 @@ const CHROMIUM_FLAGS = ['--enable-blink-features=CanvasDrawElement', '--font-ren
  */
 const ORIGIN = 'http://visualfries.local';
 const originUrl = (abs) => `${ORIGIN}/@fs${pathToFileURL(abs).pathname}`;
+/** Sound names of sfx items and of transitions that name a sound. */
+function soundNames(project) {
+    const transitions = [
+        ...(project.cuts ?? []).map((c) => c.transition),
+        ...(project.shots ?? []).map((s) => s.transition),
+        ...project.clips.map((c) => c.transition)
+    ];
+    return [
+        ...new Set([
+            ...(project.sfx ?? []).map((s) => s.sound),
+            ...transitions.flatMap((t) => (t && typeof t === 'object' && t.sound ? [t.sound] : []))
+        ])
+    ].sort();
+}
+/**
+ * Looks up each sound file: null when it does not exist, else its hit offset. A sound library
+ * keeps the offsets in a `sounds.json` (`sounds: [{ file, hitMs }]`, `file` relative to it) in
+ * the sound's folder or up to three folders above; without one the hit is the file start.
+ */
+async function loadSounds(project, dir) {
+    const manifests = new Map();
+    const manifest = async (folder) => {
+        if (!manifests.has(folder)) {
+            let hits = null;
+            try {
+                const data = JSON.parse(await fs.readFile(path.join(folder, 'sounds.json'), 'utf8'));
+                hits = new Map();
+                for (const s of Array.isArray(data?.sounds) ? data.sounds : [])
+                    if (typeof s?.file === 'string' && typeof s?.hitMs === 'number')
+                        hits.set(path.resolve(folder, s.file), s.hitMs / 1000);
+            }
+            catch {
+                hits = null;
+            }
+            manifests.set(folder, hits);
+        }
+        return manifests.get(folder);
+    };
+    const out = {};
+    for (const name of soundNames(project)) {
+        const file = path.resolve(dir, name);
+        if (!existsSync(file)) {
+            out[name] = null;
+            continue;
+        }
+        let hit = 0;
+        for (let folder = path.dirname(file), up = 0; up <= 3; up++, folder = path.dirname(folder)) {
+            const hits = await manifest(folder);
+            if (hits?.has(file)) {
+                hit = hits.get(file);
+                break;
+            }
+            if (path.dirname(folder) === folder)
+                break;
+        }
+        out[name] = { hit };
+    }
+    return out;
+}
 /**
  * Reads each music item's beats file. A beats file made from another version of the music
  * (its SHA-256 differs) is an error, like a word cue after a re-take; nothing is re-analysed.
@@ -262,6 +321,8 @@ export async function loadMotionProject(file, opts = {}) {
     }
     const look = { brand: brand.resolved, style: style.resolved };
     const inputs = { words, transcripts, sources, music: musicBeats, look };
+    if (isProgramProject(project))
+        inputs.sounds = await loadSounds(project, dir);
     const common = { file: abs, dir, project, music, musicHash, brand, style, inputs, hashes };
     const cutList = resolveCutList(project, inputs);
     if (cutList.mode === 'inserts') {

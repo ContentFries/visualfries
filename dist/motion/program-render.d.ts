@@ -1,5 +1,5 @@
 import { type LoadedMotionProject } from './node.js';
-import type { AudioPiece } from './program.js';
+import { type MixReport, type StemName } from './audio.js';
 export type RenderedSegment = {
     id: string;
     startFrame: number;
@@ -19,8 +19,12 @@ export type RenderedProgram = {
     format: string;
     fps: number;
     frames: number;
-    /** `speech`: the cut list's sound, placed per cut (no music, effects or loudness yet). */
-    audio: 'speech' | 'silent';
+    /** `mixed`: speech, effects and music, normalised; `silent`: the program has no sound. */
+    audio: 'mixed' | 'silent';
+    /** Levels and loudness of the mix; null when silent. */
+    mix: MixReport | null;
+    /** With `stems`: the WAV file of each stem beside the video. */
+    stems: Record<StemName, string> | null;
     mode: string;
     segments: RenderedSegment[];
     /** Seconds for the whole render, and for the final join and encode alone. */
@@ -37,6 +41,11 @@ export type ProgramRenderOptions = {
     /** Draw every segment again, replacing what the cache holds. */
     fresh?: boolean;
     /**
+     * Also write the stems beside the video (`<name>.speech.wav`, `.sfx.wav`, `.music.wav`):
+     * 48 kHz 32-bit float, with the master gain and limiter applied, so they add up to the mix.
+     */
+    stems?: boolean;
+    /**
      * How pages share the work: `auto` (whole segments per page when there are at least as many
      * segments to draw as jobs, none much longer than its share), or always `segments` or always
      * `frames`. For measurements.
@@ -46,13 +55,3 @@ export type ProgramRenderOptions = {
 };
 /** Renders the program of a project with `cuts` or `shots` into one video. */
 export declare function renderProgramVideo(loaded: LoadedMotionProject, opts: ProgramRenderOptions): Promise<RenderedProgram>;
-/**
- * A stand-in for the program mixer: each speech piece trimmed from its file, faded
- * (equal-power), placed at its program time and summed; silence elsewhere. No music, sound
- * effects or loudness normalisation. Inputs count from 1 (input 0 is the picture); the mix is
- * `[speech]`, 48 kHz stereo, `seconds` long.
- */
-export declare function speechMix(dir: string, pieces: AudioPiece[], seconds: number): {
-    inputs: string[];
-    filter: string;
-};

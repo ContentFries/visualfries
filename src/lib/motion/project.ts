@@ -3,6 +3,7 @@ import { ENERGIES } from './energy.js';
 import {
 	CutShape,
 	KeyShape,
+	MixShape,
 	ProvenanceShape,
 	SfxShape,
 	ShotShape,
@@ -159,9 +160,10 @@ const musicId = z
 	.regex(/^[A-Za-z_][A-Za-z0-9_-]*$/, 'music id: letters, digits, dash, underscore');
 
 /**
- * A music item. For now it only times things: beat anchors read its beats file (made by
- * `visualfries beats`); render does not mix it yet. Corrections fix what the analyzer got wrong
- * without touching the beats file, so re-analysis keeps them.
+ * A music item. Beat anchors read its beats file (made by `visualfries beats`); a program render
+ * mixes it at one steady level under the speech (`mix.music`), with its own gain, fades and gain
+ * keys on top. Corrections fix what the analyzer got wrong without touching the beats file, so
+ * re-analysis keeps them.
  */
 export const MotionMusicShape = z.object({
 	/** Name for beat anchors (`"music": "bed"`) when several music items have beats. */
@@ -178,7 +180,20 @@ export const MotionMusicShape = z.object({
 	/** Which beat of the bar is really beat 1 (counted after `tempo`). */
 	downbeat: z.number().int().min(1).optional(),
 	/** The analyzer found half (`double`) or twice (`half`) the real tempo. */
-	tempo: z.enum(['double', 'half']).optional()
+	tempo: z.enum(['double', 'half']).optional(),
+	/** dB on top of the project's music level (`mix.music`). */
+	gain: z.number().optional(),
+	/** Seconds the music fades in at its start and out at its end. Default 0.01 and 1. */
+	fade: z
+		.object({ in: z.number().min(0).optional(), out: z.number().min(0).optional() })
+		.optional(),
+	/**
+	 * Explicit level changes, dB on top of `gain` (a music-only intro, say): the level moves in a
+	 * straight line (in dB) from key to key and holds before the first and after the last.
+	 */
+	keys: z.array(z.object({ at: MotionAnchorShape, gain: z.number() })).optional(),
+	/** Where generated music came from. */
+	provenance: timeline(() => ProvenanceShape).optional()
 });
 export type MotionMusic = z.infer<typeof MotionMusicShape>;
 
@@ -349,6 +364,8 @@ const MotionProjectFields = z.object({
 	cuts: timeline(() => z.array(CutShape)).optional(),
 	shots: timeline(() => z.array(ShotShape)).optional(),
 	sfx: timeline(() => z.array(SfxShape)).optional(),
+	/** Levels of the program mix and the loudness of the finished video. */
+	mix: timeline(() => MixShape).optional(),
 	/** Program seconds when there is no cut list. Default: the latest end of clips or music. */
 	duration: z.number().positive().optional()
 });

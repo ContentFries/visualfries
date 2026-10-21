@@ -415,9 +415,11 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 			fs
 				.readdir(segmentsDir)
 				.then((names) => names.filter((n) => n.includes(`.partial-${cli.pid}-`)));
-		while (!(await live()).length && Date.now() - started < 60_000)
+		// What the loop saw: read again, a short segment may already be done and renamed.
+		let seen: string[] = [];
+		while (!(seen = await live()).length && Date.now() - started < 60_000)
 			await new Promise((r) => setTimeout(r, 50));
-		expect((await live()).length).toBeGreaterThan(0);
+		expect(seen.length).toBeGreaterThan(0);
 		for (const f of orphans) expect(existsSync(f), f).toBe(false);
 		cli.kill('SIGINT');
 		await exited;

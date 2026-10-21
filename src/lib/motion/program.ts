@@ -34,9 +34,18 @@ import {
 } from './shots/index.js';
 import type { MotionWord } from './transcript.js';
 import { parseEase } from './ease.js';
+import { NEUTRAL_BRAND, type ResolvedBrand } from './brand.js';
+import { clipEnergy, type Energy } from './energy.js';
+import { buildKeyTracks, KEY_EASE, substituteBrand, type Animatable } from './keys.js';
 import { screenDirection, transitionEvents, transitionModule } from './transitions/index.js';
 
-export type { ProgramDiagnostic, ProgramInputs, ProgramWord, SourceInfo } from './cutlist.js';
+export type {
+	BlockAnimatable,
+	ProgramDiagnostic,
+	ProgramInputs,
+	ProgramWord,
+	SourceInfo
+} from './cutlist.js';
 
 /** Hashes the node tooling computes from files; they go into the program and its segments. */
 export type ProgramHashes = {
@@ -62,11 +71,15 @@ export type { FormatClass };
  */
 export type ProgramFormat = ResolvedFormat & { name: string; size: [number, number] };
 
-/** A keyframe at a program frame; lengths stay as written (px or "%") until interpolation. */
+/**
+ * A keyframe at a program frame. Lengths stay as written (px or "%") until interpolation; brand
+ * tokens in props (`"brand.primary"`) are already replaced by the brand's colours. `ease` shapes
+ * the move arriving at this key: the key's own, else the energy's (see `KEY_EASE`).
+ */
 export type ResolvedKey = {
 	frame: number;
 	values: Omit<Key, 'at' | 'ease' | 'mix'>;
-	ease: string | null;
+	ease: string;
 	mix: 'oklab' | 'oklch';
 };
 
@@ -333,7 +346,10 @@ export function resolveProgram(
 		native: c.native
 	}));
 
-	const shots = program ? resolveShots(project, inputs, words, cuts, frames, at, diagnostics) : [];
+	const brand = inputs.look?.brand ?? NEUTRAL_BRAND;
+	const shots = program
+		? resolveShots(project, inputs, words, cuts, frames, at, diagnostics, format.size)
+		: [];
 	const clips: ProgramClip[] = resolved.clips.map((clip) => {
 		const spec = project.clips.find((c) => c.id === clip.id)!;
 		if (!program)
@@ -351,15 +367,19 @@ export function resolveProgram(
 			layer: spec.layer ?? 'front',
 			transition: null,
 			keys: program
-				? resolveKeys(
-						spec.keys,
-						clip,
-						'clip',
-						clip.id,
-						{ words, beats: { music: inputs.music ?? [], clip: spec.music } },
+				? resolveKeys(spec.keys, clip, 'clip', clip.id, {
+						words,
+						beats: { music: inputs.music ?? [], clip: spec.music },
 						fps,
-						diagnostics
-					)
+						diagnostics,
+						brand,
+						energy: clipEnergy(clip),
+						size: format.size,
+						block: clip.block,
+						animatable: spec.keys?.some((k) => k.props)
+							? blockAnimatable(inputs, clip.block, clip.id, diagnostics)
+							: undefined
+					})
 				: [],
 			z: project.clips.indexOf(spec),
 			native: spec.native ?? null
@@ -449,28 +469,50 @@ function programSources(
 	return out;
 }
 
-/** Item-local keys: numbers and frames from the item start, phrases inside it, `{ moment }`. */
+type KeyContext = {
+	words: MotionWord[] | null;
+	beats: BeatContext;
+	fps: number;
+	diagnostics: ProgramDiagnostic[];
+	/** Replaces brand tokens in props. */
+	brand: ResolvedBrand;
+	/** Energy whose ease keys without `ease` take. */
+	energy: Energy;
+	/** Format frame, for "%" lengths. */
+	size: [number, number];
+	/** Clips: what the block marks animatable (undefined: not known); shots: null (no props). */
+	animatable: Animatable | null | undefined;
+	block?: string;
+};
+
+/**
+ * Item-local keys: numbers and frames from the item start, phrases inside it, `{ moment }`.
+ * Brand tokens in props become colours; keys without `ease` take the energy's. The keys are
+ * then built into tracks exactly as the stage builds them, so whatever the stage could not draw
+ * (a prop the block does not mark animatable, px against "%", a linear against a radial
+ * gradient, an unknown ease) is an error here.
+ */
 function resolveKeys(
 	keys: Key[] | undefined,
 	item: Span,
 	kind: 'clip' | 'shot',
 	id: string,
-	{ words, beats }: { words: MotionWord[] | null; beats: BeatContext },
-	fps: number,
-	diagnostics: ProgramDiagnostic[]
+	ctx: KeyContext
 ): ResolvedKey[] {
+	const { words, beats, fps, diagnostics } = ctx;
 	const start = item.startFrame / fps;
 	const duration = item.frames / fps;
 	const out: ResolvedKey[] = [];
+	const report = (level: 'error' | 'warning', field: string, message: string) =>
+		diagnostics.push({
+			level,
+			...(kind === 'clip' ? { clip: id } : { item: id }),
+			field,
+			message
+		});
+	let broken = false;
 	(keys ?? []).forEach((key, i) => {
 		const field = `keys[${i}].at`;
-		const report = (level: 'error' | 'warning', message: string) =>
-			diagnostics.push({
-				level,
-				...(kind === 'clip' ? { clip: id } : { item: id }),
-				field,
-				message
-			});
 		let time: number;
 		try {
 			const anchor = key.at as ItemAnchor;
@@ -494,21 +536,80 @@ function resolveKeys(
 				).time;
 			}
 		} catch (error) {
-			report('error', (error as Error).message);
+			report('error', field, (error as Error).message);
+			broken = true;
 			return;
 		}
 		const frame = Math.round(time * fps);
 		if (frame < item.startFrame || frame > endOf(item))
 			report(
 				'warning',
+				field,
 				`Key at ${time.toFixed(2)} s is outside the ${kind} (${start.toFixed(2)}–${(start + duration).toFixed(2)} s).`
 			);
+		if (key.ease !== undefined && !parseEase(key.ease)) {
+			report(
+				'error',
+				`keys[${i}].ease`,
+				`Unknown ease "${key.ease}". Use a GSAP name such as "power2.out", "back.out(1.7)", "expo.inOut" or "none".`
+			);
+			broken = true;
+			return;
+		}
 		const values = Object.fromEntries(
 			Object.entries(key).filter(([k]) => k !== 'at' && k !== 'ease' && k !== 'mix')
 		) as ResolvedKey['values'];
-		out.push({ frame, values, ease: key.ease ?? null, mix: key.mix ?? 'oklch' });
+		if (values.props) {
+			const props: Record<string, unknown> = {};
+			for (const [name, value] of Object.entries(values.props)) {
+				try {
+					props[name] = substituteBrand(value, ctx.brand);
+				} catch (error) {
+					report('error', `keys[${i}].props.${name}`, (error as Error).message);
+					broken = true;
+				}
+			}
+			values.props = props;
+		}
+		out.push({ frame, values, ease: key.ease ?? KEY_EASE[ctx.energy], mix: key.mix ?? 'oklch' });
 	});
-	return out.sort((a, b) => a.frame - b.frame);
+	out.sort((a, b) => a.frame - b.frame);
+	if (!broken && out.length) {
+		// Without the block's declaration only placement can be checked here; the stage checks props.
+		const checked =
+			ctx.animatable === undefined
+				? out.map((k) => ({ ...k, values: { ...k.values, props: undefined } }))
+				: out;
+		try {
+			buildKeyTracks(checked, {
+				size: ctx.size,
+				animatable: ctx.animatable ?? undefined,
+				block: ctx.block
+			});
+		} catch (error) {
+			report('error', 'keys', (error as Error).message);
+		}
+	}
+	return out;
+}
+
+/**
+ * What `block` marks animatable, from the node tooling's reading of its source: undefined when
+ * it was not looked up; an unreadable declaration is an error of the clip.
+ */
+function blockAnimatable(
+	inputs: ProgramInputs,
+	block: string,
+	clip: string,
+	diagnostics: ProgramDiagnostic[]
+): Animatable | undefined {
+	const found = inputs.animatable?.[block];
+	if (!found) return undefined;
+	if ('error' in found) {
+		diagnostics.push({ level: 'error', clip, field: 'block', message: found.error });
+		return {};
+	}
+	return found.props;
 }
 
 function resolveShots(
@@ -518,7 +619,8 @@ function resolveShots(
 	cuts: ProgramCut[],
 	frames: number,
 	at: (anchor: MotionAnchor, from?: number) => number,
-	diagnostics: ProgramDiagnostic[]
+	diagnostics: ProgramDiagnostic[],
+	size: [number, number]
 ): ProgramShot[] {
 	const fps = project.fps;
 	const written: ProgramShot[] = [];
@@ -629,15 +731,16 @@ function resolveShots(
 			morphFrames: 0,
 			morphEase: 'none',
 			transition: null,
-			keys: resolveKeys(
-				shot.keys,
-				span,
-				'shot',
-				id,
-				{ words, beats: beatsOf(inputs) },
+			keys: resolveKeys(shot.keys, span, 'shot', id, {
+				words,
+				beats: beatsOf(inputs),
 				fps,
-				diagnostics
-			),
+				diagnostics,
+				brand: inputs.look?.brand ?? NEUTRAL_BRAND,
+				energy: inputs.look?.style?.energy ?? 'balanced',
+				size,
+				animatable: null
+			}),
 			native: shot.native ?? null
 		};
 		written.push(resolved);

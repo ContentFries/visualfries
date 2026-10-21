@@ -208,7 +208,7 @@
 					"values": {
 						"scale": 1
 					},
-					"ease": null,
+					"ease": "power2.inOut",
 					"mix": "oklch"
 				},
 				{
@@ -224,7 +224,7 @@
 					"values": {
 						"x": "5%"
 					},
-					"ease": null,
+					"ease": "power2.inOut",
 					"mix": "oklch"
 				}
 			],
@@ -359,7 +359,7 @@
 					"values": {
 						"opacity": 0.5
 					},
-					"ease": null,
+					"ease": "power2.inOut",
 					"mix": "oklch"
 				},
 				{
@@ -367,7 +367,7 @@
 					"values": {
 						"opacity": 1
 					},
-					"ease": null,
+					"ease": "power2.inOut",
 					"mix": "oklch"
 				}
 			],
@@ -853,7 +853,7 @@
 				"whip.transition",
 				"cut5.transition"
 			],
-			"hash": "b9d357a1aef9b401652ed07f2a5b12ffb0fd969d"
+			"hash": "31c52077b202a823afd19f6da10cbcc8e2d328d5"
 		}
 	],
 	"diagnostics": [

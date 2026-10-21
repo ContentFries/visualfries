@@ -5,7 +5,7 @@
  * survive until output, where they are gamut mapped by chroma reduction (CSS Color 4).
  */
 
-/** The space two colours blend in: OKLab (default) or OKLCH along the shorter hue arc. */
+/** The space two colours blend in: OKLCH along the shorter hue arc (default) or OKLab. */
 export type ColorSpace = 'oklab' | 'oklch';
 /** A colour in OKLab with straight (not premultiplied) alpha. */
 export type Oklab = { l: number; a: number; b: number; alpha: number };
@@ -148,20 +148,26 @@ const mod360 = (x: number) => ((x % 360) + 360) % 360;
 /**
  * Mix two colours at `t` (0 = `from`, 1 = `to`; values outside 0–1 extrapolate, as overshooting
  * eases need) with premultiplied alpha, so a transparent end takes the other end's colour and only
- * fades. `oklch` takes the shorter hue arc; a grey end adopts the other end's hue.
+ * fades. `oklch` (the default) takes the shorter hue arc; a grey or fully transparent end adopts
+ * the other end's hue.
  */
-export function mixColors(from: Oklab, to: Oklab, t: number, space: ColorSpace = 'oklab'): Oklab {
+export function mixColors(from: Oklab, to: Oklab, t: number, space: ColorSpace = 'oklch'): Oklab {
 	const rawAlpha = lerp(from.alpha, to.alpha, t);
 	const alpha = clamp01(rawAlpha);
 	if (space === 'oklch') {
 		const x = oklabToOklch(from);
 		const y = oklabToOklch(to);
+		// A grey end has no hue of its own: it takes the other end's.
 		const hx = x.c < ACHROMATIC ? y.h : x.h;
 		const hy = y.c < ACHROMATIC ? x.h : y.h;
-		const h = mod360(hx + shortestArc(hx, hy) * t);
 		if (rawAlpha <= 0) {
+			const h = mod360(hx + shortestArc(hx, hy) * t);
 			return oklchToOklab({ l: lerp(x.l, y.l, t), c: Math.max(0, lerp(x.c, y.c, t)), h, alpha });
 		}
+		// While anything shows, a fully transparent end's hue does not count either (it only fades).
+		const hf = from.alpha <= 0 ? hy : hx;
+		const ht = to.alpha <= 0 ? hx : hy;
+		const h = mod360(hf + shortestArc(hf, ht) * t);
 		const l = lerp(x.l * from.alpha, y.l * to.alpha, t) / rawAlpha;
 		const c = Math.max(0, lerp(x.c * from.alpha, y.c * to.alpha, t) / rawAlpha);
 		return oklchToOklab({ l, c, h, alpha });
@@ -191,7 +197,7 @@ export function formatColor(color: Oklab): string {
 }
 
 export type ColorOptions = {
-	/** Colour space the two colours blend in. Default `oklab`. */
+	/** Colour space the two colours blend in. Default `oklch` (keeps the midpoint saturated). */
 	space?: ColorSpace;
 };
 

@@ -34,7 +34,7 @@ export type AnimatableValue = {
 };
 
 export type InterpolateOptions = {
-	/** Colour space for colours, gradient stops and shadow colours. Default `oklab`. */
+	/** Colour space for colours, gradient stops and shadow colours. Default `oklch`. */
 	space?: ColorSpace;
 	/**
 	 * Box a gradient is drawn in. Required to turn a corner direction (`to top right`) into an

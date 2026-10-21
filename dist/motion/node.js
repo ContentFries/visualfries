@@ -17,6 +17,7 @@ import { propFiles, resolveProgram } from './program.js';
 import { resolveMotionProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
+import { readBlockAnimatable } from './animatable.js';
 import { BeatsFileShape, barRows, formatBarGrid, programBeats } from './beat-grid.js';
 import { fileSha256 } from './beats.js';
 import { footageMap, footageRanges } from './footage-map.js';
@@ -343,8 +344,13 @@ export async function loadMotionProject(file, opts = {}) {
     }
     const look = { brand: brand.resolved, style: style.resolved };
     const inputs = { words, transcripts, sources, music: musicBeats, look };
-    if (isProgramProject(project))
+    if (isProgramProject(project)) {
         inputs.sounds = await loadSounds(project, dir);
+        // Keyed props are checked against what each block marks animatable.
+        inputs.animatable = {};
+        for (const block of new Set(project.clips.map((c) => c.block)))
+            inputs.animatable[block] = await readBlockAnimatable(blockFile(dir, block));
+    }
     const common = { file: abs, dir, project, music, musicHash, brand, style, inputs, hashes };
     const cutList = resolveCutList(project, inputs);
     if (cutList.mode === 'inserts') {
@@ -629,9 +635,11 @@ export async function bundleMotionProject(loaded, clips) {
     }
     const entry = [
         `import { createMotionStage } from ${JSON.stringify(stageModule)};`,
-        ...blocks.map((b, i) => `import B${i} from ${JSON.stringify(blockFile(loaded.dir, b))};`),
+        ...blocks.map((b, i) => `import B${i}, * as M${i} from ${JSON.stringify(blockFile(loaded.dir, b))};`),
         `window.__vfMotionStage = createMotionStage({ blocks: { ${blocks
             .map((b, i) => `${JSON.stringify(b)}: B${i}`)
+            .join(', ')} }, animatable: { ${blocks
+            .map((b, i) => `${JSON.stringify(b)}: M${i}.animatable`)
             .join(', ')} }, fonts: window.__vfFonts, css: window.__vfCss, invalidate: window.__vfInvalidate });`
     ].join('\n');
     await esbuild.build({

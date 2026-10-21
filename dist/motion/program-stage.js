@@ -9,6 +9,7 @@ import { clipFrameAt } from './segments.js';
 import { shotLayout, shotLayoutAt } from './shots/index.js';
 import { SUBJECT_SMOOTH } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
+import { keyTracks, placementTransform } from './keys.js';
 /**
  * The fill around a framed shot: the brand's surface; without a brand, the project background
  * (the brand's neutral surface when there is none either).
@@ -74,15 +75,20 @@ function place(el, rect) {
 }
 /** The camera window: clips the picture to `layout.clip`, footage placed at `layout.camera`. */
 function frameBox(pic, layout) {
-    const { clip, camera, radius } = layout;
+    const { clip, camera, radius, turn, opacity } = layout;
     place(pic.box, clip);
     pic.box.style.borderRadius = radius ? `${radius}px` : '';
+    pic.box.style.opacity = opacity === undefined ? '' : String(opacity);
     place(pic.img, {
         x: camera.x - clip.x,
         y: camera.y - clip.y,
         width: camera.width,
         height: camera.height
     });
+    pic.img.style.transform = turn ? `rotate(${turn.rotation}deg)` : '';
+    pic.img.style.transformOrigin = turn
+        ? `${turn.pivot.x - camera.x}px ${turn.pivot.y - camera.y}px`
+        : '';
 }
 /** Shows `url` in `img`; resolves once the image is decoded. */
 function show(img, url) {
@@ -99,8 +105,11 @@ function clipError(id, error) {
 }
 const endOf = (s) => s.startFrame + s.frames;
 const FULL = { shot: 'full', params: {} };
-/** Builds the layer tree in `stage` and mounts every clip of the segment. */
-export function createProgramScene(stage, seg, blocks) {
+/**
+ * Builds the layer tree in `stage` and mounts every clip of the segment. `animatable` holds what
+ * each block exports as `animatable`; a keyed prop missing there is an error of the clip.
+ */
+export function createProgramScene(stage, seg, blocks, animatable = {}) {
     // On the stage too: fills and transition overlays use the brand's colours.
     applyLook(stage, seg);
     const a = side(stage, 'a');
@@ -123,9 +132,27 @@ export function createProgramScene(stage, seg, blocks) {
                 : ISOLATED);
             root.dataset.clip = data.id;
             applyLook(root, seg);
+            let tracks;
+            try {
+                tracks = keyTracks(data.keys, {
+                    size: seg.size,
+                    animatable: animatable[data.block] ?? {},
+                    block: data.block
+                });
+            }
+            catch (error) {
+                throw clipError(data.id, error);
+            }
+            const keyed = tracks.placement ? layer(root, 'vf-keys') : null;
             // Roots stay visible until the first seek: blocks may measure text when they mount.
+            // Keyed props start at their value on the clip's first frame.
             const controller = {
-                clip: new Clip({ ...data, footage: seg.footage, footageMap: seg.footageMap ?? undefined }),
+                clip: new Clip({
+                    ...data,
+                    props: { ...data.props, ...tracks.props?.(data.startFrame) },
+                    footage: seg.footage,
+                    footageMap: seg.footageMap ?? undefined
+                }),
                 root,
                 timelines: [],
                 frameFns: [],
@@ -136,7 +163,7 @@ export function createProgramScene(stage, seg, blocks) {
             try {
                 // The clip's reactive props: what changes `clip.props` later reaches the block.
                 instance = mount(Block, {
-                    target: root,
+                    target: keyed ?? root,
                     props: controller.clip.props,
                     context: new Map([[MOTION_CONTEXT_KEY, controller]])
                 });
@@ -144,7 +171,7 @@ export function createProgramScene(stage, seg, blocks) {
             catch (error) {
                 throw clipError(data.id, error);
             }
-            mounted.push({ data, controller, instance, shown: null });
+            mounted.push({ data, controller, instance, shown: null, tracks, keyed });
             ready.push(...controller.ready);
         }
         flushSync();
@@ -169,7 +196,7 @@ export function createProgramScene(stage, seg, blocks) {
                 ? sourceSubjectBox(frames, view.frame, Math.round(SUBJECT_SMOOTH * seg.fps))
                 : null
         };
-        return shot ? shotLayout(shot, input) : shotLayoutAt(seg.shots, f, input);
+        return shot ? shotLayout(shot, input, f) : shotLayoutAt(seg.shots, f, input);
     }
     /** Which side a clip rides in transition `t`: out when it ends on the cut, in when it starts on it. */
     function rides(data, t) {
@@ -314,6 +341,15 @@ export function createProgramScene(stage, seg, blocks) {
                     return;
                 m.controller.clip.t = local / seg.fps;
                 m.controller.clip.frame = local;
+                // Keys follow the frame the clip shows (held at its edges inside a window).
+                const at = m.data.startFrame + local;
+                if (m.tracks.props)
+                    Object.assign(m.controller.clip.props, m.tracks.props(at));
+                if (m.keyed) {
+                    const p = m.tracks.placement(at);
+                    m.keyed.style.transform = placementTransform(p);
+                    m.keyed.style.opacity = p.opacity === 1 ? '' : String(p.opacity);
+                }
             });
             arrangeBehind(now);
             flushSync();

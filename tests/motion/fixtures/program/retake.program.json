@@ -172,7 +172,7 @@
 					"values": {
 						"scale": 1.15
 					},
-					"ease": null,
+					"ease": "power2.inOut",
 					"mix": "oklch"
 				}
 			],
@@ -812,14 +812,14 @@
 				"cut3.transition",
 				"codec.transition"
 			],
-			"hash": "8f0e19b03d3c1a7b43d27d0467de49fa33632e5c"
+			"hash": "3083b67145a4de7dc5c10faf8e1129e88730928a"
 		},
 		{
 			"id": "seg3",
 			"startFrame": 147,
 			"frames": 42,
 			"items": ["cut4", "full-99", "codec"],
-			"hash": "fd177aa9fc8ae5f9560bae297d42bdbdb4fd91f8"
+			"hash": "5f2b450292daaeffe474d4439c7151a32c77a498"
 		}
 	],
 	"diagnostics": [

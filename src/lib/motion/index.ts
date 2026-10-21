@@ -59,6 +59,7 @@ export {
 	shotLayout,
 	shotLayoutAt,
 	shotModule,
+	keyCamera,
 	type Rect as ShotRect,
 	type ShotInput,
 	type ShotLayout,
@@ -86,3 +87,12 @@ export { BUILTIN_STYLES, type ResolvedStyle } from './style.js';
 export { SAFE_ZONES, SAFE_ZONES_CHECKED } from './safe-zones.js';
 export { resolveFormat, type FormatClass, type ResolvedFormat, type SafeInsets } from './format.js';
 export type { Brand, Style } from './project.js';
+export {
+	KEY_EASE,
+	buildKeyTracks,
+	keyTracks,
+	substituteBrand,
+	type Animatable,
+	type KeyTracks,
+	type Placement
+} from './keys.js';

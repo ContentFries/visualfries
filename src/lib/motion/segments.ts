@@ -138,7 +138,8 @@ export function segmentStage(
 			frames: s.frames,
 			params: s.params,
 			morphFrames: s.morphFrames,
-			morphEase: s.morphEase
+			morphEase: s.morphEase,
+			keys: s.keys
 		})),
 		clips,
 		transitions: program.transitions.filter((t) => t.startFrame < to && endOf(t) > from)
@@ -168,12 +169,18 @@ export function segmentCheckFrames(
 
 /**
  * Frames on both sides of every change: cuts, shot starts, morph middles and ends, clip edges,
- * transition window edges.
+ * transition window edges, keys and the middle between two keys.
  */
 export function edgeFrames(
 	program: Pick<ResolvedProgram, 'cuts' | 'shots' | 'clips' | 'transitions'>
 ): number[] {
+	const keyFrames = [...program.shots, ...program.clips].flatMap((item) =>
+		item.keys.flatMap((k, i) =>
+			i ? [k.frame, Math.floor((item.keys[i - 1].frame + k.frame) / 2)] : [k.frame]
+		)
+	);
 	const edges = [
+		...keyFrames,
 		...program.cuts.map((c) => c.startFrame),
 		...program.shots.flatMap((s) => [
 			s.startFrame,

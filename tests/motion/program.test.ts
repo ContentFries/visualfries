@@ -205,9 +205,9 @@ describe('shots, clips, keys and events', () => {
 		const punch = p.shots.find((s) => s.id === 'punch')!;
 		expect(punch.morphFrames).toBe(6);
 		expect(punch.keys).toEqual([
-			{ frame: 96, values: { scale: 1 }, ease: null, mix: 'oklch' },
+			{ frame: 96, values: { scale: 1 }, ease: 'power2.inOut', mix: 'oklch' },
 			{ frame: 126, values: { scale: 1.2 }, ease: 'power2.out', mix: 'oklch' },
-			{ frame: 126, values: { x: '5%' }, ease: null, mix: 'oklch' }
+			{ frame: 126, values: { x: '5%' }, ease: 'power2.inOut', mix: 'oklch' }
 		]);
 		const price = p.clips[0];
 		expect(price.keys[0]).toMatchObject({ frame: price.startFrame + price.cues.slow.frame });

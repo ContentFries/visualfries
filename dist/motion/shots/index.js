@@ -2,6 +2,8 @@ import { full } from './full.js';
 import { punch } from './punch.js';
 import { strip } from './strip.js';
 import { easeOf } from '../ease.js';
+import { keyTracks } from '../keys.js';
+import { facePoint, roundRect } from './layout.js';
 export { facePoint, frameOnHead } from './layout.js';
 export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
 /**
@@ -60,16 +62,51 @@ export function shotsDuring(shots, span) {
     const on = (s) => s.startFrame < endOf(span) && span.startFrame < endOf(s);
     return shots.filter((s, i) => on(s) || (i + 1 < shots.length && on(shots[i + 1])));
 }
-/** The layout of one shot, alone. Shots not built yet are framed `full`. */
-export function shotLayout(shot, input) {
-    return (shotModule(shot.shot) ?? full).layout({ ...input, params: shot.params });
+/**
+ * The layout of one shot, alone. Shots not built yet are framed `full`. With program frame `f`
+ * the shot's keys at that frame move its camera (see `keyCamera`).
+ */
+export function shotLayout(shot, input, f) {
+    const layout = (shotModule(shot.shot) ?? full).layout({ ...input, params: shot.params });
+    if (f === undefined || !shot.keys?.length)
+        return layout;
+    const placement = keyTracks(shot.keys, { size: input.size }).placement;
+    return placement ? keyCamera(layout, placement(f), input.subject) : layout;
 }
-/** The layout on screen at program frame `f` (see `shotAt`). */
+/**
+ * The layout on screen at program frame `f` (see `shotAt`), keys included: inside a morph both
+ * shots' keys apply at `f` (a shot's keys hold their last value after its last key).
+ */
 export function shotLayoutAt(shots, f, input) {
     const { shot, prev, p } = shotAt(shots, f);
-    const to = shotLayout(shot, input);
-    return prev ? mixLayouts(shotLayout(prev, input), to, p) : to;
+    const to = shotLayout(shot, input, f);
+    return prev ? mixLayouts(shotLayout(prev, input, f), to, p) : to;
 }
+/**
+ * Shot keys composed on the camera: the footage scaled by `scale` about the face (the subject's
+ * head, else the point a shot frames when there is no matte), moved by `x`/`y`, turned by
+ * `rotation` about the face and drawn at `opacity`. The camera window stays where the shot put
+ * it, so a key moves the picture inside it like a camera operator would.
+ */
+export function keyCamera(layout, key, subject) {
+    const { camera } = layout;
+    const face = facePoint(subject);
+    const fx = camera.x + face.x * camera.width;
+    const fy = camera.y + face.y * camera.height;
+    const moved = roundRect({
+        x: fx - (fx - camera.x) * key.scale + key.x,
+        y: fy - (fy - camera.y) * key.scale + key.y,
+        width: camera.width * key.scale,
+        height: camera.height * key.scale
+    });
+    const out = { ...layout, camera: moved };
+    if (key.rotation)
+        out.turn = { rotation: key.rotation, pivot: { x: px(fx + key.x), y: px(fy + key.y) } };
+    if (key.opacity !== 1)
+        out.opacity = key.opacity;
+    return out;
+}
+const px = (v) => Math.round(v * 100) / 100;
 const mix = (a, b, t) => Math.round((a + (b - a) * t) * 100) / 100;
 const mixRect = (a, b, t) => ({
     x: mix(a.x, b.x, t),
@@ -93,7 +130,7 @@ export function mixLayouts(a, b, t) {
         if (shut)
             closed[name] = shut;
     }
-    return {
+    const out = {
         camera: mixRect(a.camera, b.camera, t),
         clip: mixRect(a.clip, b.clip, t),
         radius: mix(a.radius, b.radius, t),
@@ -101,4 +138,15 @@ export function mixLayouts(a, b, t) {
         closed,
         fill: a.fill ?? b.fill
     };
+    // Keyed turns and fades blend like the rectangles; an unkeyed side counts as still.
+    if (a.turn || b.turn) {
+        const pivot = (l) => l.turn?.pivot ?? (a.turn ?? b.turn).pivot;
+        out.turn = {
+            rotation: mix(a.turn?.rotation ?? 0, b.turn?.rotation ?? 0, t),
+            pivot: { x: mix(pivot(a).x, pivot(b).x, t), y: mix(pivot(a).y, pivot(b).y, t) }
+        };
+    }
+    if (a.opacity !== undefined || b.opacity !== undefined)
+        out.opacity = mix(a.opacity ?? 1, b.opacity ?? 1, t);
+    return out;
 }

@@ -231,9 +231,10 @@ describe('gradients', () => {
 			interpolate('gradient', from, to, 1),
 			'linear-gradient(90deg, rgb(255 255 255 / 1) 0%, rgb(0 255 0 / 1) 50%, rgb(0 0 0 / 1) 100%)'
 		);
-		const mid = stopsOf(interpolate('gradient', from, to, 0.5));
+		// OKLab here: purple and lime sit almost opposite on the hue circle.
+		const mid = stopsOf(interpolate('gradient', from, to, 0.5, { space: 'oklab' }));
 		expect(mid[1][0]).toBe(
-			formatColor(mixColors(parseColor('rgb(127.5 0 127.5)'), parseColor('lime'), 0.5))
+			formatColor(mixColors(parseColor('rgb(127.5 0 127.5)'), parseColor('lime'), 0.5, 'oklab'))
 		);
 	});
 

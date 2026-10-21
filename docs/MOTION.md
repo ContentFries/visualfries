@@ -176,7 +176,10 @@ visualfries matte talk.mp4 --output talk.matte.mp4               # subject matte
 ```
 
 `check` mounts every block and runs it across the clip: unknown cues, bad eases, maps that go
-back in time, CSS animations running on wall-clock time, and with `--determinism` frames
+back in time, `NaN`/`undefined`/`Infinity` in SVG geometry, transforms and raw `style` attributes
+(broken math renders nothing and throws nothing — e.g. a shadowed variable in a `points`
+formula; styles set through Svelte drop invalid values silently and are not seen), CSS
+animations running on wall-clock time, and with `--determinism` frames
 that differ between seek orders. Run it after every edit; it takes seconds.
 
 `manifest.json` lists every clip's program start frame for placing it on an NLE timeline and

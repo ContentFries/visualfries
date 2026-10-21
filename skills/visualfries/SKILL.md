@@ -326,6 +326,8 @@ Start with the built-in block `"block": "@visualfries/speaker-depth"`: the words
 8. `visualfries check --determinism`, then `visualfries still … --output sheet.png` (start, every cue, end) and look at it: words clipped by the frame edge, unreadable words, matte errors around hands and microphone.
 9. `visualfries render project.vf.json --output out/` → `out/<clip>.mp4` with sound (or `--clip <id> --output reel.mp4` for one file).
 
+For outlined or hollow text in a block, use `use:outline={{ width, color, mode }}` from `visualfries/motion`, never `-webkit-text-stroke` alone: with variable fonts and many serifs a stroke draws the letters' inner contours.
+
 Never use a `<video>` element in a block: it plays on wall-clock time. Animate on cues (`useTimeline` + `at('cue')`), keep randomness frame-keyed (`noise(frame, n)`).
 
 ## Music-driven edits (beats)
@@ -356,6 +358,13 @@ In a motion block, give elements named moves with one line instead of writing GS
 - `use:motion` owns transform (and transform-box/-origin), opacity, filter, clip-path, visibility, display, stroke-dash\* and background-\*/box-decoration-break of its element: do not animate those from markup or `useTimeline` on the same element; nest a wrapper instead. Keep moving elements mounted (no `{#if}`).
 - Every move records events (`pop`, `slam`, `whoosh`, `type`, `tick` …) in `clip.events()` for sound effects; add your own with `clip.event(name, at)`.
 - Run `visualfries check --determinism` after adding motion. Example: `static/demo/motion`; reference: the Motion primitives docs page.
+
+## Brand, style and safe zones (motion projects)
+
+- `"brand": "brand.json"` (colours `primary accent background surface text muted` + `extra`, fonts `heading body mono` with files, optional logo and `radius`). In blocks use the tokens, never literal colours or font names: `var(--brand-accent)`, `var(--brand-font-heading)`, `var(--brand-radius)`, `var(--brand-on-accent)` for text on the accent, or `clip.brand` in JS. Built-in blocks and `<Captions>` follow the brand on their own. `check` warns about hard-coded colours in custom blocks of a branded project.
+- `"style": "kinetic"` (built-ins `solid glass clean editorial kinetic depth brutal`), a style file, or inline `{ "extends": "styles/mine.json", "energy": "calm" }` for per-project overrides. Read `clip.style.energy` (`calm | balanced | punchy`) to scale durations and overshoot.
+- Keep text, logos and captions inside the safe insets: `var(--safe-top|right|bottom|left)` (all platforms by default, `"safeZone": "tiktok"` for one), `clip.format.class` (`landscape | square | portrait`) for layout. On 9:16 faces and titles may use `--safe-right-upper` above `--safe-notch-y`.
+- `render` writes the brand and style hashes into `manifest.json`. Details: `docs/MOTION.md` → Brand, style and format.
 
 ## Agent Output Contract
 

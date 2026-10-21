@@ -2,6 +2,8 @@ import { findBadValues } from './badvalues.js';
 import { flushSync, mount, unmount } from 'svelte';
 import { Clip, MOTION_CONTEXT_KEY, registerClipRoot } from './runtime.svelte.js';
 import { seekTimeline } from './seek.js';
+import { brandTokens, NEUTRAL_BRAND } from './brand.js';
+import { formatTokens, resolveFormat } from './format.js';
 /**
  * Browser side of motion rendering. Everything that decides pixels lives here so
  * preview, local export and server export run the same code.
@@ -70,6 +72,14 @@ export function createMotionStage(options) {
         const root = document.createElement('div');
         root.className = 'vf-clip';
         root.style.cssText = 'position:absolute;inset:0';
+        // Brand tokens and safe insets for every block; custom properties alone change no pixels.
+        const format = data.format ?? resolveFormat(data.size);
+        root.dataset.format = format.class;
+        for (const [name, value] of Object.entries({
+            ...brandTokens(data.brand ?? NEUTRAL_BRAND),
+            ...formatTokens(format)
+        }))
+            root.style.setProperty(name, value);
         stage.appendChild(root);
         const controller = {
             clip: new Clip(data),

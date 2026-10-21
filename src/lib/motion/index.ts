@@ -36,3 +36,24 @@ export type {
 export { default as Footage } from './Footage.svelte';
 export { default as Captions } from './Captions.svelte';
 export { footageFrameUrl, subjectBox, type FootageLayer } from './footage.js';
+export {
+	outline,
+	outlineFilter,
+	outlineFilterId,
+	outlineFilterMarkup,
+	outlineStyle,
+	type OutlineMode,
+	type OutlineOptions
+} from './outline.js';
+export {
+	NEUTRAL_BRAND,
+	contrast,
+	readableOn,
+	solidColor,
+	toHex,
+	type ResolvedBrand
+} from './brand.js';
+export { BUILTIN_STYLES, type ResolvedStyle } from './style.js';
+export { SAFE_ZONES, SAFE_ZONES_CHECKED } from './safe-zones.js';
+export { resolveFormat, type FormatClass, type ResolvedFormat, type SafeInsets } from './format.js';
+export type { Brand, Style } from './project.js';

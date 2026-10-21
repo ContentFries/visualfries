@@ -346,6 +346,170 @@ VisualFries; their `props` replace a hand-written block. In your own blocks, `<C
 `bold`, `karaoke`, `pill`, `punch` and `neon`, and `clip.subject('talk')` returns where the
 speaker is (box and top of the head, from the matte). See the Captions and Footage docs pages.
 
+For outlined or hollow text, use the `outline` action instead of `-webkit-text-stroke`, which
+draws the inner contours that variable fonts and many serifs keep inside their letters:
+
+```svelte
+<span style="display:inline-block" use:outline={{ width: '0.02em', color: '#fff' }}>AI</span>
+<span use:outline={{ width: 4, color: '#000', mode: 'filled' }}>{word}</span>
+```
+
+`width` is the line's thickness outside the letters (px or a CSS length). `hollow` (default)
+sets the element's text colours and a CSS `filter`, so put it on the text element itself (never
+on an ancestor of a canvas) and animate blur on a parent. `filled` keeps the text colour.
+
+## Brand, style and format
+
+A project may name a **brand** (who the creator is: colours, fonts, logo, corner radius) and a
+**style** (how the edit moves) independently. Both are plain files next to the project or in a
+shared folder, referenced by path; nothing comes from user-global settings. A project that names
+neither renders exactly as before.
+
+```json
+{ "size": [1080, 1920], "fps": 30, "brand": "../brand/brand.json", "style": "kinetic", "clips": […] }
+```
+
+### Brand file
+
+```json
+{
+	"name": "Acme",
+	"colors": {
+		"primary": "#0f62fe",
+		"accent": "#ffb000",
+		"background": "#0b0d12",
+		"surface": "#161a22",
+		"text": "#f5f7fa",
+		"muted": "#9aa3b2",
+		"extra": { "sunset": "linear-gradient(135deg, #ff6f00, #ff2d55)" }
+	},
+	"fonts": {
+		"heading": { "family": "Anton", "src": "fonts/Anton-Regular.ttf" },
+		"body": { "family": "Inter", "src": "fonts/Inter.ttf", "weight": "100 900" },
+		"mono": { "family": "JetBrains Mono", "src": "fonts/JetBrainsMono.ttf" }
+	},
+	"logo": {
+		"full": { "light": "logo/full-on-light.svg", "dark": "logo/full-on-dark.svg" },
+		"mark": { "light": "logo/mark-on-light.svg", "dark": "logo/mark-on-dark.svg" }
+	},
+	"radius": 12
+}
+```
+
+- The six colour roles are required, so every built-in block can place colours with any brand.
+  `extra` holds any further named colours. A value may be any CSS colour or a gradient.
+  `onPrimary` / `onAccent` (readable text on those colours) are optional; left out, the one of
+  `text` and `background` with more contrast is used (black or white if neither reaches 4.5:1).
+- `heading` and `body` are required, `mono` is optional. Each font is a file loaded like the
+  project's `fonts`; paths are relative to the brand file.
+- Logos are optional; `light` is the variant for light backgrounds, `dark` for dark ones.
+- `radius`: px as a number, or a CSS length.
+- `"brand"` may also be the object itself (paths then relative to the project). Unknown keys
+  are errors, so a typo never goes unnoticed.
+
+Every block's root element carries the brand as CSS custom properties, and `clip.brand` has
+the same values in JS:
+
+| CSS                                                                        | `clip.brand`                   |
+| -------------------------------------------------------------------------- | ------------------------------ |
+| `--brand-primary`, `-accent`, `-background`, `-surface`, `-text`, `-muted` | `colors.primary` …             |
+| `--brand-on-primary`, `--brand-on-accent`                                  | `colors.onPrimary`, `onAccent` |
+| `--brand-extra-<name>`                                                     | `colors.extra.<name>`          |
+| `--brand-font-heading`, `-body`, `-mono` (font-family values)              | `fonts.heading` …              |
+| `--brand-radius`                                                           | `radius`                       |
+| `--brand-logo-full-light` … (`url(…)`, only for logos the brand has)       | `logo.full.light` … (URL/null) |
+
+```svelte
+<div class="card"><h1>{clip.props.title}</h1></div>
+
+<style>
+	.card {
+		background: var(--brand-surface);
+		color: var(--brand-text);
+		border-radius: var(--brand-radius);
+		font-family: var(--brand-font-body);
+	}
+	h1 {
+		font-family: var(--brand-font-heading);
+		color: var(--brand-accent);
+	}
+</style>
+```
+
+Without a brand, the tokens hold the **neutral brand**: the look of the built-in blocks (yellow
+accent `#fbc42d`, rose primary `#f43f5e`, near-black `#08090c`, white text, Anton headings, Inter
+body) and `clip.brand.neutral` is `true`. Built-in blocks and `<Captions>` take their colours and
+fonts from the brand (captions: body font, text, accent, readable text on the accent); with the
+neutral brand they keep their exact original pixels. Props still override everything.
+
+A brand change applies to every project that references it on its next render, on purpose:
+re-rendering an old video in a refreshed brand is a feature, and the exported video is the
+frozen copy. To freeze a project, copy the brand next to it. `check` warns when a project with a
+brand uses a custom block that hard-codes colours (hex, `rgb()`, `hsl()`; black, white and
+`var(--x, fallback)` fallbacks are ignored), because a brand change would not reach them.
+
+### Style
+
+`"style"` is a built-in name, a style file, or an inline style. A style file changes only what
+differs from what it `extends` (a built-in name or another style file, relative to the file):
+
+```json
+{ "name": "mine", "extends": "kinetic", "energy": "balanced", "captions": { "preset": "pill" } }
+```
+
+Layers: built-in, then each `extends` file, then the project. A project overrides its style by
+writing it inline: `"style": { "extends": "styles/mine.json", "energy": "calm" }`. Later layers
+win; objects merge key by key; arrays (such as a transition set) replace whole.
+
+- `energy`: `calm`, `balanced` (default) or `punchy`; `clip.style.energy` in blocks.
+- `transitions`, `shots`, `captions`, `sounds`, `emphasis`, `overlays`: reserved sections, kept
+  in `clip.style` but not read by VisualFries yet.
+- Built-in styles (examples, not a fixed set): `solid`, `glass`, `depth` (balanced); `clean`,
+  `editorial` (calm); `kinetic`, `brutal` (punchy). Only their energy is filled in so far.
+
+`clip.style.layers` lists the layers, base first. Stills ignore what does not apply to them.
+
+### Format and safe insets
+
+`clip.format.class` is `landscape`, `square` or `portrait` from the project size (4:5 and 3:4
+are portrait). The clip root has `data-format="portrait"` (etc.) for CSS, and safe insets in px:
+
+| CSS                                        | `clip.format.safe` |                                                    |
+| ------------------------------------------ | ------------------ | -------------------------------------------------- |
+| `--safe-top`, `-right`, `-bottom`, `-left` | `top`, `right` …   | a rectangle no platform UI covers on any row       |
+| `--safe-notch-y`                           | `notchY`           | from this y down the right inset is `--safe-right` |
+| `--safe-right-upper`                       | `rightUpper`       | right inset above the notch (wider room for faces) |
+
+The default zone is `all`: safe on TikTok, Instagram/Facebook (Meta) and YouTube at once. At
+1080×1920 that is top 288, bottom 672, left 120, right 300 (192 above y 840, where TikTok's
+button column starts). 1:1 is 106/236/501/101, 16:9 184/424/386/200 and 4:5 68/65/68/65
+(top/right/bottom/left). Other sizes scale from the nearest reference of their class (1440×2560
+gets ×4/3). `"safeZone": "tiktok" | "meta" | "youtube"` uses one platform's zone; where a
+platform publishes none for the ratio, `all` is used and `clips`/`check` warn. The figures are
+one dated table (`SAFE_ZONES`, checked 2026-10-20, from the platforms' ad safe-zone specs).
+
+```css
+.title {
+	position: absolute;
+	top: var(--safe-top);
+	left: var(--safe-left);
+	right: var(--safe-right-upper);
+}
+.lower-third {
+	position: absolute;
+	bottom: var(--safe-bottom);
+	left: var(--safe-left);
+	right: var(--safe-right);
+}
+```
+
+### Hashes
+
+`render` records the brand and style it used: `brand` and `style` hashes (12 hex characters, or
+`null` when the project names none) in `manifest.json` and on every rendered clip. The brand hash
+covers its values and the contents of its font and logo files, not where they are. Re-rendering
+some clips with another brand or style warns about the clips left from before.
+
 ## CLI
 
 ```bash

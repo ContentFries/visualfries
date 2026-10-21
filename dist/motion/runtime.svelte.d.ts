@@ -1,6 +1,9 @@
 import type { FootageFrames, MotionWordRef, ResolvedClip, ResolvedCue, SubjectBox } from './resolve.js';
 import { type MotionBeatRef } from './beat-grid.js';
 import { type Energy } from './energy.js';
+import { type ResolvedBrand } from './brand.js';
+import { type ResolvedStyle } from './style.js';
+import { type ResolvedFormat } from './format.js';
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
  * a cue with an offset ("extra+0.4", "extra.end-0.2"), the built-in "start"/"end",
@@ -61,6 +64,18 @@ export declare class Clip {
      * `balanced` or `punchy`, else `balanced` (other values belong to the block).
      */
     readonly energy: Energy;
+    /**
+     * The project's brand: colours by role, fonts, logo URLs, radius. Also on the clip's root
+     * element as `--brand-*` CSS custom properties. `neutral` when the project names no brand.
+     */
+    readonly brand: ResolvedBrand;
+    /** The project's style after layering; `energy` is `calm`, `balanced` or `punchy`. */
+    readonly style: ResolvedStyle;
+    /**
+     * `class` (`landscape`, `square`, `portrait`) and safe insets in px for the project size, also
+     * as `--safe-top|right|bottom|left` and a `data-format` attribute on the clip's root.
+     */
+    readonly format: ResolvedFormat;
     constructor(data: ResolvedClip);
     /**
      * Record an event at moment `at`, e.g. one per stagger item: `clip.event('pop', 'list+0.2')`.

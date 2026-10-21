@@ -105,6 +105,97 @@ export declare const MotionClipShape: z.ZodObject<{
     music: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 export type MotionClip = z.infer<typeof MotionClipShape>;
+/**
+ * A creator's identity: colours in fixed roles, fonts, logo, corner radius. Blocks read it as
+ * `--brand-*` CSS custom properties and as `clip.brand`. Any colour may be a CSS gradient. File
+ * paths are relative to the brand file (or to the project for an inline brand).
+ */
+export declare const BrandShape: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    colors: z.ZodObject<{
+        primary: z.ZodString;
+        accent: z.ZodString;
+        background: z.ZodString;
+        surface: z.ZodString;
+        text: z.ZodString;
+        muted: z.ZodString;
+        onPrimary: z.ZodOptional<z.ZodString>;
+        onAccent: z.ZodOptional<z.ZodString>;
+        extra: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.core.$strict>;
+    fonts: z.ZodObject<{
+        heading: z.ZodObject<{
+            family: z.ZodString;
+            src: z.ZodString;
+            weight: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+            style: z.ZodOptional<z.ZodEnum<{
+                normal: "normal";
+                italic: "italic";
+            }>>;
+        }, z.core.$strip>;
+        body: z.ZodObject<{
+            family: z.ZodString;
+            src: z.ZodString;
+            weight: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+            style: z.ZodOptional<z.ZodEnum<{
+                normal: "normal";
+                italic: "italic";
+            }>>;
+        }, z.core.$strip>;
+        mono: z.ZodOptional<z.ZodObject<{
+            family: z.ZodString;
+            src: z.ZodString;
+            weight: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+            style: z.ZodOptional<z.ZodEnum<{
+                normal: "normal";
+                italic: "italic";
+            }>>;
+        }, z.core.$strip>>;
+    }, z.core.$strict>;
+    logo: z.ZodOptional<z.ZodObject<{
+        full: z.ZodOptional<z.ZodObject<{
+            light: z.ZodOptional<z.ZodString>;
+            dark: z.ZodOptional<z.ZodString>;
+        }, z.core.$strict>>;
+        mark: z.ZodOptional<z.ZodObject<{
+            light: z.ZodOptional<z.ZodString>;
+            dark: z.ZodOptional<z.ZodString>;
+        }, z.core.$strict>>;
+    }, z.core.$strict>>;
+    radius: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+}, z.core.$strict>;
+export type Brand = z.infer<typeof BrandShape>;
+export declare const ENERGIES: readonly ["calm", "balanced", "punchy"];
+export type Energy = (typeof ENERGIES)[number];
+/**
+ * A creator's editing grammar. `extends` names a built-in style or a style file (relative to
+ * the file that names it); this layer then changes only what differs. Later layers win; arrays
+ * replace whole, objects merge key by key. Only `energy` is read today; the other sections are
+ * reserved so style files can already carry them.
+ */
+export declare const StyleShape: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    extends: z.ZodOptional<z.ZodString>;
+    energy: z.ZodOptional<z.ZodEnum<{
+        calm: "calm";
+        balanced: "balanced";
+        punchy: "punchy";
+    }>>;
+    transitions: z.ZodOptional<z.ZodUnknown>;
+    shots: z.ZodOptional<z.ZodUnknown>;
+    captions: z.ZodOptional<z.ZodUnknown>;
+    sounds: z.ZodOptional<z.ZodUnknown>;
+    emphasis: z.ZodOptional<z.ZodUnknown>;
+    overlays: z.ZodOptional<z.ZodUnknown>;
+}, z.core.$strict>;
+export type Style = z.infer<typeof StyleShape>;
+/** Where the project's safe insets come from: every platform at once, or one platform. */
+export declare const SafeZoneShape: z.ZodEnum<{
+    meta: "meta";
+    all: "all";
+    tiktok: "tiktok";
+    youtube: "youtube";
+}>;
 export declare const MotionProjectShape: z.ZodObject<{
     size: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
     fps: z.ZodNumber;
@@ -139,6 +230,81 @@ export declare const MotionProjectShape: z.ZodObject<{
             half: "half";
         }>>;
     }, z.core.$strip>>>;
+    brand: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        colors: z.ZodObject<{
+            primary: z.ZodString;
+            accent: z.ZodString;
+            background: z.ZodString;
+            surface: z.ZodString;
+            text: z.ZodString;
+            muted: z.ZodString;
+            onPrimary: z.ZodOptional<z.ZodString>;
+            onAccent: z.ZodOptional<z.ZodString>;
+            extra: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+        }, z.core.$strict>;
+        fonts: z.ZodObject<{
+            heading: z.ZodObject<{
+                family: z.ZodString;
+                src: z.ZodString;
+                weight: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+                style: z.ZodOptional<z.ZodEnum<{
+                    normal: "normal";
+                    italic: "italic";
+                }>>;
+            }, z.core.$strip>;
+            body: z.ZodObject<{
+                family: z.ZodString;
+                src: z.ZodString;
+                weight: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+                style: z.ZodOptional<z.ZodEnum<{
+                    normal: "normal";
+                    italic: "italic";
+                }>>;
+            }, z.core.$strip>;
+            mono: z.ZodOptional<z.ZodObject<{
+                family: z.ZodString;
+                src: z.ZodString;
+                weight: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+                style: z.ZodOptional<z.ZodEnum<{
+                    normal: "normal";
+                    italic: "italic";
+                }>>;
+            }, z.core.$strip>>;
+        }, z.core.$strict>;
+        logo: z.ZodOptional<z.ZodObject<{
+            full: z.ZodOptional<z.ZodObject<{
+                light: z.ZodOptional<z.ZodString>;
+                dark: z.ZodOptional<z.ZodString>;
+            }, z.core.$strict>>;
+            mark: z.ZodOptional<z.ZodObject<{
+                light: z.ZodOptional<z.ZodString>;
+                dark: z.ZodOptional<z.ZodString>;
+            }, z.core.$strict>>;
+        }, z.core.$strict>>;
+        radius: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    }, z.core.$strict>]>>;
+    style: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        extends: z.ZodOptional<z.ZodString>;
+        energy: z.ZodOptional<z.ZodEnum<{
+            calm: "calm";
+            balanced: "balanced";
+            punchy: "punchy";
+        }>>;
+        transitions: z.ZodOptional<z.ZodUnknown>;
+        shots: z.ZodOptional<z.ZodUnknown>;
+        captions: z.ZodOptional<z.ZodUnknown>;
+        sounds: z.ZodOptional<z.ZodUnknown>;
+        emphasis: z.ZodOptional<z.ZodUnknown>;
+        overlays: z.ZodOptional<z.ZodUnknown>;
+    }, z.core.$strict>]>>;
+    safeZone: z.ZodOptional<z.ZodEnum<{
+        meta: "meta";
+        all: "all";
+        tiktok: "tiktok";
+        youtube: "youtube";
+    }>>;
     clips: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         block: z.ZodString;

@@ -4,6 +4,9 @@ import { resolveMoment } from './moment.js';
 import { subjectBox } from './footage.js';
 import { NO_MUSIC_BEATS, beatPhase } from './beat-grid.js';
 import { clipEnergy } from './energy.js';
+import { NEUTRAL_BRAND } from './brand.js';
+import { NEUTRAL_STYLE } from './style.js';
+import { resolveFormat } from './format.js';
 const CONTEXT_KEY = Symbol.for('visualfries.motion.clip');
 export class Clip {
     /** Clip-local time in seconds. Reactive: use it directly in markup. */
@@ -39,6 +42,18 @@ export class Clip {
      */
     energy;
     #events = [];
+    /**
+     * The project's brand: colours by role, fonts, logo URLs, radius. Also on the clip's root
+     * element as `--brand-*` CSS custom properties. `neutral` when the project names no brand.
+     */
+    brand;
+    /** The project's style after layering; `energy` is `calm`, `balanced` or `punchy`. */
+    style;
+    /**
+     * `class` (`landscape`, `square`, `portrait`) and safe insets in px for the project size, also
+     * as `--safe-top|right|bottom|left` and a `data-format` attribute on the clip's root.
+     */
+    format;
     constructor(data) {
         this.id = data.id;
         this.fps = data.fps;
@@ -60,6 +75,9 @@ export class Clip {
             beat: b.beat
         }));
         this.energy = clipEnergy(data);
+        this.brand = data.brand ?? NEUTRAL_BRAND;
+        this.style = data.style ?? NEUTRAL_STYLE;
+        this.format = data.format ?? resolveFormat(data.size);
     }
     /**
      * Record an event at moment `at`, e.g. one per stagger item: `clip.event('pop', 'list+0.2')`.

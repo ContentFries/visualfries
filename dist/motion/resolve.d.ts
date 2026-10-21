@@ -1,6 +1,9 @@
 import { type MotionClip, type MotionProject } from './project.js';
 import { type MotionWord } from './transcript.js';
 import { type MotionBeatRef, type MusicBeats } from './beat-grid.js';
+import { type ResolvedBrand } from './brand.js';
+import { type ResolvedStyle } from './style.js';
+import { type ResolvedFormat } from './format.js';
 export type MotionWordRef = MotionWord & {
     /** Seconds relative to the clip start. */
     localStart: number;
@@ -39,6 +42,12 @@ export type ResolvedClip = {
      */
     beats?: MotionBeatRef[];
     noBeats?: string;
+    /** The project's brand (the neutral brand when it names none). */
+    brand: ResolvedBrand;
+    /** The project's style after layering. */
+    style: ResolvedStyle;
+    /** Format class and safe insets of the project size. */
+    format: ResolvedFormat;
     /** Frames of the project's footage, filled in by the node tooling before a page loads. */
     footage?: Record<string, FootageFrames>;
 };
@@ -84,6 +93,13 @@ export type ResolvedProject = {
     clips: ResolvedClip[];
     diagnostics: MotionDiagnostic[];
 };
-export declare function resolveMotionClip(clip: MotionClip, project: Pick<MotionProject, 'fps' | 'size' | 'background'>, words: MotionWord[] | null, diagnostics: MotionDiagnostic[], music?: MusicBeats[]): ResolvedClip | null;
+/** Brand and style resolved from their files (node side); neutral when the project names none. */
+export type ProjectLook = {
+    brand?: ResolvedBrand;
+    style?: ResolvedStyle;
+};
+export declare function resolveMotionClip(clip: MotionClip, project: Pick<MotionProject, 'fps' | 'size' | 'background' | 'safeZone'>, words: MotionWord[] | null, diagnostics: MotionDiagnostic[], music?: MusicBeats[], look?: ProjectLook & {
+    format?: ResolvedFormat;
+}): ResolvedClip | null;
 /** `music`: beats of the project's music items, placed in the program (see `programBeats`). */
-export declare function resolveMotionProject(project: MotionProject, words: MotionWord[] | null, music?: MusicBeats[]): ResolvedProject;
+export declare function resolveMotionProject(project: MotionProject, words: MotionWord[] | null, music?: MusicBeats[], look?: ProjectLook): ResolvedProject;

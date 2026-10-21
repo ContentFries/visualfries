@@ -8,6 +8,8 @@ import {
 } from './runtime.svelte.js';
 import type { ResolvedClip } from './resolve.js';
 import { seekTimeline } from './seek.js';
+import { brandTokens, NEUTRAL_BRAND } from './brand.js';
+import { formatTokens, resolveFormat } from './format.js';
 
 export type StageFont = { family: string; url: string; weight?: string | number; style?: string };
 export type StageOptions = {
@@ -115,6 +117,14 @@ export function createMotionStage(options: StageOptions) {
 		const root = document.createElement('div');
 		root.className = 'vf-clip';
 		root.style.cssText = 'position:absolute;inset:0';
+		// Brand tokens and safe insets for every block; custom properties alone change no pixels.
+		const format = data.format ?? resolveFormat(data.size);
+		root.dataset.format = format.class;
+		for (const [name, value] of Object.entries({
+			...brandTokens(data.brand ?? NEUTRAL_BRAND),
+			...formatTokens(format)
+		}))
+			root.style.setProperty(name, value);
 		stage.appendChild(root);
 		const controller: ClipController = {
 			clip: new Clip(data),

@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -7,7 +7,15 @@ import { once } from 'node:events';
 import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { MotionProjectShape, type MotionMusic, type MotionProject } from './project.js';
+import {
+	BrandShape,
+	MotionProjectShape,
+	type MotionFont,
+	type MotionMusic,
+	type MotionProject
+} from './project.js';
+import { NEUTRAL_BRAND, resolveBrand, type ResolvedBrand } from './brand.js';
+import { BUILTIN_STYLES, NEUTRAL_STYLE, resolveStyle, type ResolvedStyle } from './style.js';
 import { parseTranscriptWords, type MotionWord } from './transcript.js';
 import { resolveMotionProject, type ResolvedClip, type ResolvedProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
@@ -49,6 +57,8 @@ export type LoadedMotionProject = {
 	 * `tempo`); null without music beats. Beat-anchored clips move when it changes.
 	 */
 	musicHash: string | null;
+	brand: LoadedBrand;
+	style: LoadedStyle;
 	resolved: ResolvedProject;
 };
 
@@ -122,6 +132,99 @@ async function loadMusic(project: MotionProject, dir: string): Promise<LoadedMus
 	return loaded;
 }
 
+export type LoadedBrand = {
+	resolved: ResolvedBrand;
+	/** Short hash of the brand's values and the contents of its font and logo files; null without a brand. */
+	hash: string | null;
+	/** The brand file, null for an inline brand or none. */
+	file: string | null;
+	/** Font faces to load, with absolute paths. */
+	fonts: MotionFont[];
+	/** Absolute paths of every file the brand references (fonts, logos), served to the page. */
+	assets: string[];
+};
+
+export type LoadedStyle = {
+	resolved: ResolvedStyle;
+	/** Short hash of the layered style; null without a style. */
+	hash: string | null;
+};
+
+const shortHash = (data: string | Buffer) =>
+	createHash('sha1').update(data).digest('hex').slice(0, 12);
+
+/** JSON with sorted keys, so equal values always hash the same. */
+function canonical(value: unknown): string {
+	if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+	if (value && typeof value === 'object')
+		return `{${Object.keys(value)
+			.sort()
+			.filter((k) => (value as Record<string, unknown>)[k] !== undefined)
+			.map((k) => `${JSON.stringify(k)}:${canonical((value as Record<string, unknown>)[k])}`)
+			.join(',')}}`;
+	return JSON.stringify(value);
+}
+
+const issues = (error: { issues: { path: PropertyKey[]; message: string }[] }) =>
+	error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ');
+
+/** Read and resolve the project's brand: a file next to the project or an inline object. */
+export async function loadBrand(project: MotionProject, dir: string): Promise<LoadedBrand> {
+	if (project.brand === undefined)
+		return { resolved: NEUTRAL_BRAND, hash: null, file: null, fonts: [], assets: [] };
+	let file: string | null = null;
+	let data: unknown = project.brand;
+	if (typeof project.brand === 'string') {
+		file = path.resolve(dir, project.brand);
+		if (!existsSync(file)) throw new Error(`Brand file not found: ${file}`);
+		try {
+			data = JSON.parse(await fs.readFile(file, 'utf8'));
+		} catch (error) {
+			throw new Error(`Brand file ${file}: ${(error as Error).message}`);
+		}
+	}
+	const parsed = BrandShape.safeParse(data);
+	if (!parsed.success) throw new Error(`Brand ${file ?? '(inline)'}: ${issues(parsed.error)}`);
+	const brand = parsed.data;
+	const base = file ? path.dirname(file) : dir;
+	const assets: string[] = [];
+	const absolute = (ref: string) => {
+		const abs = path.resolve(base, ref);
+		if (!existsSync(abs)) throw new Error(`Brand ${file ?? '(inline)'}: file not found: ${abs}`);
+		if (!assets.includes(abs)) assets.push(abs);
+		return abs;
+	};
+	const fonts = (['heading', 'body', 'mono'] as const).flatMap((role) => {
+		const font = brand.fonts[role];
+		return font ? [{ ...font, src: absolute(font.src) }] : [];
+	});
+	const resolved = resolveBrand(brand, (ref) => originUrl(absolute(ref)));
+	// The hash covers what decides pixels: the values and the files' contents, wherever they are.
+	const contents: Record<string, string> = {};
+	for (const abs of assets) contents[path.relative(base, abs)] = shortHash(await fs.readFile(abs));
+	const hash = shortHash(canonical({ brand, files: contents }));
+	return { resolved, hash, file, fonts, assets };
+}
+
+/** Resolve the project's style through its `extends` chain (built-ins, style files, inline). */
+export function loadStyle(project: MotionProject, dir: string): LoadedStyle {
+	if (project.style === undefined) return { resolved: NEUTRAL_STYLE, hash: null };
+	const resolved = resolveStyle(project.style, (ref, from) => {
+		const abs = path.resolve(from ? path.dirname(from) : dir, ref);
+		if (!existsSync(abs))
+			throw new Error(
+				`Unknown style "${ref}": not a built-in style (${Object.keys(BUILTIN_STYLES).join(', ')}) and no file at ${abs}.`
+			);
+		try {
+			return { id: abs, data: JSON.parse(readFileSync(abs, 'utf8')) };
+		} catch (error) {
+			throw new Error(`Style file ${abs}: ${(error as Error).message}`);
+		}
+	});
+	const { layers: _layers, neutral: _neutral, ...values } = resolved;
+	return { resolved, hash: shortHash(canonical(values)) };
+}
+
 /** `transcript` overrides the project's transcript (e.g. a re-recorded voiceover); relative to cwd. */
 export async function loadMotionProject(
 	file: string,
@@ -139,10 +242,7 @@ export async function loadMotionProject(
 		? parseTranscriptWords(JSON.parse(await fs.readFile(transcriptPath, 'utf8')))
 		: null;
 	const transcriptHash = words
-		? createHash('sha1')
-				.update(JSON.stringify(words.map((w) => [w.raw, w.start, w.end])))
-				.digest('hex')
-				.slice(0, 12)
+		? shortHash(JSON.stringify(words.map((w) => [w.raw, w.start, w.end])))
 		: null;
 	const music = await loadMusic(project, dir);
 	const musicBeats = music.map((m) => m.beats).filter((b): b is MusicBeats => !!b);
@@ -161,6 +261,8 @@ export async function loadMotionProject(
 	const musicHash = timing.length
 		? createHash('sha256').update(JSON.stringify(timing)).digest('hex').slice(0, 12)
 		: null;
+	const brand = await loadBrand(project, dir);
+	const style = loadStyle(project, dir);
 	return {
 		file: abs,
 		dir,
@@ -169,7 +271,12 @@ export async function loadMotionProject(
 		transcriptHash,
 		music,
 		musicHash,
-		resolved: resolveMotionProject(project, words, musicBeats)
+		brand,
+		style,
+		resolved: resolveMotionProject(project, words, musicBeats, {
+			brand: brand.resolved,
+			style: style.resolved
+		})
 	};
 }
 
@@ -348,11 +455,22 @@ export async function bundleMotionProject(
 
 	const roots = [outDir];
 	const files: string[] = [];
-	const fonts = (loaded.project.fonts ?? []).map((f) => {
-		const abs = path.resolve(loaded.dir, f.src);
-		files.push(abs);
-		return { family: f.family, url: originUrl(abs), weight: f.weight, style: f.style };
+	// Project fonts, then the brand's (already absolute); the same face twice is loaded once.
+	const faces = [
+		...(loaded.project.fonts ?? []).map((f) => ({ ...f, src: path.resolve(loaded.dir, f.src) })),
+		...loaded.brand.fonts
+	].filter(
+		(f, i, all) =>
+			all.findIndex(
+				(g) =>
+					g.family === f.family && g.src === f.src && g.weight === f.weight && g.style === f.style
+			) === i
+	);
+	const fonts = faces.map((f) => {
+		files.push(f.src);
+		return { family: f.family, url: originUrl(f.src), weight: f.weight, style: f.style };
 	});
+	files.push(...loaded.brand.assets);
 	let css = '';
 	for (const file of loaded.project.styles ?? []) {
 		const abs = path.resolve(loaded.dir, file);
@@ -1040,6 +1158,22 @@ export async function checkMotionProject(
 				.map((d) => ({ message: `${d.field}: ${d.message}` }))
 		};
 	});
+	if (loaded.project.brand !== undefined) {
+		// A brand change reaches a block only through tokens; colours written into it stay put.
+		const found = new Map<string, string[]>();
+		for (const clip of loaded.project.clips) {
+			if (clip.block.startsWith(BUILTIN_PREFIX)) continue;
+			const file = blockFile(loaded.dir, clip.block);
+			if (!found.has(file))
+				found.set(file, existsSync(file) ? hardCodedColors(await fs.readFile(file, 'utf8')) : []);
+			const colors = found.get(file)!;
+			const result = results.find((r) => r.id === clip.id);
+			if (colors.length && result)
+				result.warnings.push({
+					message: `${clip.block} hard-codes ${colors.length} colour${colors.length > 1 ? 's' : ''} (${colors.slice(0, 4).join(', ')}${colors.length > 4 ? ', …' : ''}); a brand change will not reach ${colors.length > 1 ? 'them' : 'it'}. Use var(--brand-…) tokens or clip.brand.`
+				});
+		}
+	}
 	for (const r of results) {
 		if (r.errors.length || loaded.resolved.clips.some((c) => c.id === r.id)) continue;
 		r.errors.push({
@@ -1102,6 +1236,28 @@ export async function checkMotionProject(
 	}
 	for (const r of results) r.ok = r.errors.length === 0;
 	return results;
+}
+
+/**
+ * Colour literals in a block's source (hex, rgb(), hsl()), each listed once. Black, white and
+ * their transparent shades (shadows, scrims) and fallbacks inside `var(--x, …)` are left out.
+ */
+export function hardCodedColors(source: string): string[] {
+	const stripped = source
+		.replace(/&#x?[0-9a-f]+;/gi, '')
+		.replace(/<!--[\s\S]*?-->/g, '')
+		.replace(/\/\*[\s\S]*?\*\//g, '')
+		.replace(/var\(\s*--[\w-]+\s*,[^()]*(?:\([^()]*\)[^()]*)*\)/g, '');
+	const neutral =
+		/^(#(?:0{3,4}|0{6}(?:[0-9a-f]{2})?|f{3,4}|f{6}(?:[0-9a-f]{2})?)|(?:rgba?)\(\s*(?:0\s*[, ]\s*0\s*[, ]\s*0|255\s*[, ]\s*255\s*[, ]\s*255)\b.*)$/i;
+	const found = new Set<string>();
+	for (const m of stripped.matchAll(
+		/#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b|(?:rgba?|hsla?)\([^)]*\)/g
+	)) {
+		const literal = m[0].replace(/\s+/g, ' ');
+		if (!neutral.test(literal)) found.add(literal.toLowerCase());
+	}
+	return [...found];
 }
 
 /** Moments worth checking: start, each cue + 0.6 s settle, end. */
@@ -1217,6 +1373,10 @@ export type RenderedClip = {
 	transcript: string | null;
 	/** Music beats and corrections the clip was timed against (`musicHash`); absent without music. */
 	music?: string;
+	/** Hash of the brand the clip was rendered with (null: no brand). */
+	brand: string | null;
+	/** Hash of the layered style the clip was rendered with (null: no style). */
+	style: string | null;
 	/** Set when the clip was rendered against another transcript or music beats than the newest render. */
 	stale?: boolean;
 };
@@ -1481,6 +1641,10 @@ export async function renderMotionClips(
 				`Clip "${clip.id}": size ${clip.size.join('×')} must be even for H.264. Use even dimensions or "alpha": true.`
 			);
 	}
+	if (loaded.brand.hash || loaded.style.hash)
+		opts.onProgress?.(
+			`Brand ${loaded.brand.hash ?? 'none'}${loaded.brand.file ? ` (${path.relative(process.cwd(), loaded.brand.file)})` : ''}, style ${loaded.style.hash ?? 'none'}${loaded.style.resolved.layers.length ? ` (${loaded.style.resolved.layers.join(' → ')})` : ''}`
+		);
 	const browser = await launch();
 	const jobs = opts.jobs ?? Math.min(6, os.cpus().length);
 	const results: RenderedClip[] = [];
@@ -1567,7 +1731,9 @@ export async function renderMotionClips(
 				mode,
 				seconds: (Date.now() - t0) / 1000,
 				transcript: loaded.transcriptHash,
-				...(loaded.musicHash ? { music: loaded.musicHash } : {})
+				...(loaded.musicHash ? { music: loaded.musicHash } : {}),
+				brand: loaded.brand.hash,
+				style: loaded.style.hash
 			};
 			results.push(r);
 			opts.onProgress?.(`${clip.id}: ${clip.frames} frames in ${r.seconds.toFixed(1)} s (${mode})`);
@@ -1602,6 +1768,17 @@ export async function renderMotionClips(
 			`Warning: ${stale.join(', ')} were rendered against another transcript or other music beats; their placement may be off. Re-render them.`
 		);
 	}
+	// Entries written before brands existed have no hashes; they count as "no brand, no style".
+	const otherLook = kept
+		.filter(
+			(c) => (c.brand ?? null) !== loaded.brand.hash || (c.style ?? null) !== loaded.style.hash
+		)
+		.map((c) => c.id);
+	if (otherLook.length) {
+		opts.onProgress?.(
+			`Warning: ${otherLook.join(', ')} were rendered with another brand or style. Re-render them to match.`
+		);
+	}
 	const merged = [...kept, ...results].sort((a, b) => a.programStartFrame - b.programStartFrame);
 	await fs.writeFile(
 		manifestPath,
@@ -1611,6 +1788,8 @@ export async function renderMotionClips(
 				size: loaded.project.size,
 				transcript: loaded.transcriptHash,
 				...(loaded.musicHash ? { music: loaded.musicHash } : {}),
+				brand: loaded.brand.hash,
+				style: loaded.style.hash,
 				clips: merged
 			},
 			null,

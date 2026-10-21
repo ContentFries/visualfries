@@ -10,6 +10,8 @@
 	  neon     glowing type; spoken words light up
 
 	Place it anywhere in a block: it covers the clip and centres the lines at `y` (0–1).
+	Font, colours and the pill's corners come from the project's brand (body font, text, accent,
+	readable text on the accent, radius) unless the props set them.
 -->
 <script lang="ts" module>
 	export type CaptionPreset = 'bold' | 'karaoke' | 'pill' | 'punch' | 'neon';
@@ -18,6 +20,10 @@
 <script lang="ts">
 	import { useClip } from './runtime.svelte.js';
 	import type { MotionWordRef } from './resolve.js';
+	import { toHex } from './brand.js';
+
+	const clip = useClip();
+	const brand = clip.brand;
 
 	let {
 		words,
@@ -25,10 +31,10 @@
 		y = 0.75,
 		width = 0.86,
 		size,
-		font = 'Inter, system-ui, sans-serif',
+		font = brand.fonts.body,
 		weight,
-		color = '#ffffff',
-		accent = '#fbc42d',
+		color = toHex(brand.colors.text),
+		accent = toHex(brand.colors.accent),
 		maxWords,
 		maxChars,
 		emphasis = [],
@@ -59,7 +65,10 @@
 		hold?: number;
 	} = $props();
 
-	const clip = useClip();
+	// Text on the accent pill; the neutral brand keeps the original near-black.
+	const onAccent = toHex(brand.colors.onAccent);
+	// The neutral brand keeps the pill's corners proportional to the type (0.24em).
+	const radius = brand.neutral ? undefined : brand.radius;
 
 	const per = maxWords ?? (preset === 'punch' ? 1 : 3);
 	const chars = maxChars ?? 18;
@@ -140,7 +149,7 @@
 			}
 			case 'pill': {
 				const k = on ? easeOutBack(hit) : 0;
-				return `--k:${k};color:${on ? '#111' : em ? accent : color}`;
+				return `--k:${k};color:${on ? onAccent : em ? accent : color}`;
 			}
 			case 'punch': {
 				const k = easeOutBack(hit);
@@ -174,6 +183,7 @@
 		style:font-size="{fit}px"
 		style:text-transform={upper ? 'uppercase' : 'none'}
 		style:--accent={accent}
+		style:--vf-cap-radius={radius}
 		style:opacity={preset === 'punch' ? 1 : pop}
 		style:transform="translateY(-50%) translateY({preset === 'punch' ? 0 : (1 - pop) * 0.3 * fit}px)
 		scale({preset === 'punch' ? 1 : 0.9 + 0.1 * pop})"
@@ -218,7 +228,7 @@
 		position: absolute;
 		inset: 0;
 		z-index: -1;
-		border-radius: 0.24em;
+		border-radius: var(--vf-cap-radius, 0.24em);
 		background: var(--accent);
 		transform: scale(var(--k)) rotate(calc((1 - var(--k)) * -6deg));
 		box-shadow: 0 0.12em 0.4em rgba(0, 0, 0, 0.35);

@@ -145,6 +145,81 @@ export const MotionClipShape = z.object({
      */
     music: musicId.optional()
 });
+// ---------------------------------------------------------------- brand and style
+const colorValue = z.string().min(1);
+const logoVariants = z
+    .object({
+    /** The logo for light backgrounds. */
+    light: z.string().min(1).optional(),
+    /** The logo for dark backgrounds. */
+    dark: z.string().min(1).optional()
+})
+    .strict();
+/**
+ * A creator's identity: colours in fixed roles, fonts, logo, corner radius. Blocks read it as
+ * `--brand-*` CSS custom properties and as `clip.brand`. Any colour may be a CSS gradient. File
+ * paths are relative to the brand file (or to the project for an inline brand).
+ */
+export const BrandShape = z
+    .object({
+    name: z.string().optional(),
+    colors: z
+        .object({
+        primary: colorValue,
+        accent: colorValue,
+        background: colorValue,
+        surface: colorValue,
+        text: colorValue,
+        muted: colorValue,
+        /** Readable text on `primary`; derived from the brand when left out. */
+        onPrimary: colorValue.optional(),
+        /** Readable text on `accent`; derived from the brand when left out. */
+        onAccent: colorValue.optional(),
+        extra: z
+            .record(z
+            .string()
+            .regex(/^[a-z][a-z0-9-]*$/, 'extra colour name: lowercase letters, digits, dash'), colorValue)
+            .optional()
+    })
+        .strict(),
+    fonts: z
+        .object({
+        heading: MotionFontShape,
+        body: MotionFontShape,
+        mono: MotionFontShape.optional()
+    })
+        .strict(),
+    logo: z
+        .object({ full: logoVariants.optional(), mark: logoVariants.optional() })
+        .strict()
+        .optional(),
+    /** Corner radius: px as a number, or any CSS length. */
+    radius: z.union([z.number().min(0), z.string().min(1)]).optional()
+})
+    .strict();
+export const ENERGIES = ['calm', 'balanced', 'punchy'];
+/**
+ * A creator's editing grammar. `extends` names a built-in style or a style file (relative to
+ * the file that names it); this layer then changes only what differs. Later layers win; arrays
+ * replace whole, objects merge key by key. Only `energy` is read today; the other sections are
+ * reserved so style files can already carry them.
+ */
+export const StyleShape = z
+    .object({
+    name: z.string().optional(),
+    extends: z.string().min(1).optional(),
+    /** Durations, eases, overshoot and stagger of built-in motion. */
+    energy: z.enum(ENERGIES).optional(),
+    transitions: z.unknown().optional(),
+    shots: z.unknown().optional(),
+    captions: z.unknown().optional(),
+    sounds: z.unknown().optional(),
+    emphasis: z.unknown().optional(),
+    overlays: z.unknown().optional()
+})
+    .strict();
+/** Where the project's safe insets come from: every platform at once, or one platform. */
+export const SafeZoneShape = z.enum(['all', 'tiktok', 'meta', 'youtube']);
 export const MotionProjectShape = z.object({
     size: z.tuple([z.number().int().positive(), z.number().int().positive()]),
     fps: z.number().positive(),
@@ -154,6 +229,15 @@ export const MotionProjectShape = z.object({
     background: z.string().optional(),
     footage: z.record(footageName, MotionFootageShape).optional(),
     music: z.array(MotionMusicShape).optional(),
+    /** A brand file (path relative to the project) or an inline brand. */
+    brand: z.union([z.string().min(1), BrandShape]).optional(),
+    /**
+     * A built-in style name, a style file, or an inline style; inline, it is the project's own
+     * layer on top of what it `extends`.
+     */
+    style: z.union([z.string().min(1), StyleShape]).optional(),
+    /** Safe insets for blocks: `all` (default) or one platform. */
+    safeZone: SafeZoneShape.optional(),
     clips: z.array(MotionClipShape).min(1)
 });
 export function isMotionProject(value) {

@@ -108,10 +108,24 @@ export const MotionMusicShape = z
     src: z.string().min(1),
     /** Beats file next to the music (`music.beats.json`), relative to the project. */
     beats: z.string().min(1).optional(),
-    /** Program seconds at which the music file's first sample plays. Default 0. */
-    from: z.number().optional(),
-    /** Program seconds at which the music stops; beats after it do not exist. */
-    until: z.number().optional(),
+    /**
+     * Where the music starts in the program: seconds, a frame, a phrase or a beat of another
+     * music item. Default 0. A negative number starts inside the file.
+     */
+    from: MotionAnchorShape.optional(),
+    /** Seconds into the music file that play at `from`. Default 0. */
+    in: z.number().min(0).optional(),
+    /**
+     * Where the music stops (any anchor; its own beats by default); later beats do not exist.
+     * Default: the program end. The end then snaps to a bar end (see `snap`).
+     */
+    until: MotionAnchorShape.optional(),
+    /**
+     * `"bar"`: the music ends (its fade-out done) on the bar end nearest to `until` or the
+     * program end, never after the program end. Default when its beats have downbeats; `false`
+     * keeps the exact end.
+     */
+    snap: z.union([z.literal('bar'), z.literal(false)]).optional(),
     /** Seconds added to every beat. */
     shift: z.number().optional(),
     /** Which beat of the bar is really beat 1 (counted after `tempo`). */

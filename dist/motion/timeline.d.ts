@@ -21,6 +21,64 @@ export declare const SourceTimeShape: z.ZodUnion<readonly [z.ZodNumber, z.ZodStr
     offset: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>]>;
 export type SourceTime = z.infer<typeof SourceTimeShape>;
+/**
+ * A cut's `out` on the music, in program time: the cut ends (and the next one starts) on the
+ * frame nearest that beat. `{ bar, beat? }` and `{ beat: n }` name a beat; `{ downbeat | beat:
+ * "after" | "before", at }` take the nearest one to `at`, a point in the cut's own source.
+ */
+export declare const CutBeatShape: z.ZodUnion<readonly [z.ZodObject<{
+    bar: z.ZodNumber;
+    beat: z.ZodOptional<z.ZodNumber>;
+    music: z.ZodOptional<z.ZodString>;
+    offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+}, z.core.$strict>, z.ZodObject<{
+    beat: z.ZodNumber;
+    music: z.ZodOptional<z.ZodString>;
+    offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+}, z.core.$strict>, z.ZodObject<{
+    downbeat: z.ZodEnum<{
+        after: "after";
+        before: "before";
+    }>;
+    at: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+        say: z.ZodString;
+        edge: z.ZodOptional<z.ZodEnum<{
+            start: "start";
+            end: "end";
+            last: "last";
+        }>>;
+        occurrence: z.ZodOptional<z.ZodNumber>;
+        offset: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        frame: z.ZodNumber;
+        offset: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>]>;
+    music: z.ZodOptional<z.ZodString>;
+    offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+}, z.core.$strict>, z.ZodObject<{
+    beat: z.ZodEnum<{
+        after: "after";
+        before: "before";
+    }>;
+    at: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+        say: z.ZodString;
+        edge: z.ZodOptional<z.ZodEnum<{
+            start: "start";
+            end: "end";
+            last: "last";
+        }>>;
+        occurrence: z.ZodOptional<z.ZodNumber>;
+        offset: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        frame: z.ZodNumber;
+        offset: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>]>;
+    music: z.ZodOptional<z.ZodString>;
+    offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+}, z.core.$strict>]>;
+export type CutBeat = z.infer<typeof CutBeatShape>;
+/** A cut point on the music rather than in the source. */
+export declare const isCutBeat: (point: SourceTime | CutBeat | undefined) => point is CutBeat;
 /** A moment of the item itself ("start", "end", "mid", "2.5s", "f12", a cue of a clip). */
 export declare const MomentAnchorShape: z.ZodObject<{
     moment: z.ZodString;
@@ -97,7 +155,56 @@ export declare const CutShape: z.ZodObject<{
     }, z.core.$strip>, z.ZodObject<{
         frame: z.ZodNumber;
         offset: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>]>>;
+    }, z.core.$strip>, z.ZodObject<{
+        bar: z.ZodNumber;
+        beat: z.ZodOptional<z.ZodNumber>;
+        music: z.ZodOptional<z.ZodString>;
+        offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    }, z.core.$strict>, z.ZodObject<{
+        beat: z.ZodNumber;
+        music: z.ZodOptional<z.ZodString>;
+        offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    }, z.core.$strict>, z.ZodObject<{
+        downbeat: z.ZodEnum<{
+            after: "after";
+            before: "before";
+        }>;
+        at: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+            say: z.ZodString;
+            edge: z.ZodOptional<z.ZodEnum<{
+                start: "start";
+                end: "end";
+                last: "last";
+            }>>;
+            occurrence: z.ZodOptional<z.ZodNumber>;
+            offset: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            frame: z.ZodNumber;
+            offset: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>]>;
+        music: z.ZodOptional<z.ZodString>;
+        offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    }, z.core.$strict>, z.ZodObject<{
+        beat: z.ZodEnum<{
+            after: "after";
+            before: "before";
+        }>;
+        at: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+            say: z.ZodString;
+            edge: z.ZodOptional<z.ZodEnum<{
+                start: "start";
+                end: "end";
+                last: "last";
+            }>>;
+            occurrence: z.ZodOptional<z.ZodNumber>;
+            offset: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            frame: z.ZodNumber;
+            offset: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>]>;
+        music: z.ZodOptional<z.ZodString>;
+        offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    }, z.core.$strict>]>>;
     out: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
         say: z.ZodString;
         edge: z.ZodOptional<z.ZodEnum<{
@@ -110,7 +217,56 @@ export declare const CutShape: z.ZodObject<{
     }, z.core.$strip>, z.ZodObject<{
         frame: z.ZodNumber;
         offset: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>]>>;
+    }, z.core.$strip>, z.ZodObject<{
+        bar: z.ZodNumber;
+        beat: z.ZodOptional<z.ZodNumber>;
+        music: z.ZodOptional<z.ZodString>;
+        offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    }, z.core.$strict>, z.ZodObject<{
+        beat: z.ZodNumber;
+        music: z.ZodOptional<z.ZodString>;
+        offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    }, z.core.$strict>, z.ZodObject<{
+        downbeat: z.ZodEnum<{
+            after: "after";
+            before: "before";
+        }>;
+        at: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+            say: z.ZodString;
+            edge: z.ZodOptional<z.ZodEnum<{
+                start: "start";
+                end: "end";
+                last: "last";
+            }>>;
+            occurrence: z.ZodOptional<z.ZodNumber>;
+            offset: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            frame: z.ZodNumber;
+            offset: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>]>;
+        music: z.ZodOptional<z.ZodString>;
+        offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    }, z.core.$strict>, z.ZodObject<{
+        beat: z.ZodEnum<{
+            after: "after";
+            before: "before";
+        }>;
+        at: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+            say: z.ZodString;
+            edge: z.ZodOptional<z.ZodEnum<{
+                start: "start";
+                end: "end";
+                last: "last";
+            }>>;
+            occurrence: z.ZodOptional<z.ZodNumber>;
+            offset: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            frame: z.ZodNumber;
+            offset: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>]>;
+        music: z.ZodOptional<z.ZodString>;
+        offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    }, z.core.$strict>]>>;
     transition: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
         type: z.ZodString;
         duration: z.ZodOptional<z.ZodNumber>;

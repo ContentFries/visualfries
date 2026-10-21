@@ -116,12 +116,17 @@ export type MusicBeats = {
         energy: number | null;
     })[];
 };
-/** Corrects a beats file and places it at `from` in the program, cut at `until`. */
+/**
+ * Corrects a beats file and places it in the program: file second `in` (default 0) plays at
+ * program second `from`, and beats after `until` are gone. Numbers only; projects whose music
+ * starts on a phrase or a beat are placed by `placeMusic` (music.ts).
+ */
 export declare function programBeats(file: BeatsFile, music: BeatCorrections & {
     id?: string;
     src: string;
-    from?: number;
-    until?: number;
+    from?: unknown;
+    until?: unknown;
+    in?: number;
 }): MusicBeats;
 /**
  * The music whose beats an anchor uses: the one named `id`, else the only music with beats.

@@ -1,5 +1,6 @@
-import { isProgramProject } from './timeline.js';
+import { isCutBeat, isProgramProject } from './timeline.js';
 import { resolveAnchor } from './anchors.js';
+import { placeMusic } from './music.js';
 /** Seconds of sound a probed source has; Infinity when it was not probed. */
 export const soundLength = (info) => info ? (info.audioDuration ?? info.duration) : Infinity;
 /** Audio times are kept to the microsecond (a 48 kHz sample is ~21 µs): no float noise in files. */
@@ -75,6 +76,52 @@ export function resolveCutList(project, inputs) {
     const fps = project.fps;
     checkTranscripts(project, diagnostics);
     const written = cutsOf(project, diagnostics);
+    // Cut points on beats read the music placed without words (the cut list decides the words).
+    let musicForCuts = null;
+    const cutBeats = () => (musicForCuts ??= inputs.tracks
+        ? (() => {
+            const placed = placeMusic(project, {
+                tracks: inputs.tracks,
+                words: null,
+                sounds: inputs.sounds,
+                stage: 'cuts'
+            });
+            return {
+                beats: { music: placed.beats, clip: undefined },
+                deferred: placed.deferred,
+                failed: placed.failed
+            };
+        })()
+        : { beats: { music: inputs.music ?? [], clip: undefined }, deferred: [], failed: [] });
+    /**
+     * The program frame of a beat a cut ends on. `at` is a point in the cut's own source, mapped
+     * to program time through where the cut starts (`start`, a program frame).
+     */
+    const beatFrame = (point, ctx, inSec, srcIn, start) => {
+        let anchor = point;
+        if ('at' in point) {
+            const src = resolveAnchor(point.at, { ...ctx, window: { from: inSec, to: Infinity }, scope: 'cut' }, 'end').time;
+            anchor = { ...point, at: micro((start - srcIn) / fps + src) };
+        }
+        const { beats, deferred, failed } = cutBeats();
+        // The music the anchor reads: the one it names, else the only one with beats.
+        const named = point.music;
+        if (named === undefined && deferred.length && beats.music.length)
+            throw new Error(`Several music items have beats (${[...beats.music.map((m) => m.name), ...deferred].join(', ')}); say which with "music": "<id>".`);
+        try {
+            const time = resolveAnchor(anchor, { words: null, fps, window: null, localBase: null, beats }, 'end').time;
+            return Math.round(time * fps);
+        }
+        catch (error) {
+            if (named !== undefined && failed.includes(named))
+                throw new Error(`Music "${named}" could not be placed; see its error.`);
+            const waits = named === undefined ? !beats.music.length && deferred.length : deferred.includes(named);
+            if (!waits)
+                throw error;
+            const which = named ?? deferred[0];
+            throw new Error(`Music "${which}" is placed by a phrase (its own "from", or that of the music it starts on), and the cut list decides where phrases play, so cut points cannot read its beats. Start it in seconds or on the beats of other music, or end the cut on a phrase.`);
+        }
+    };
     const cuts = [];
     let at = 0;
     written.forEach((cut, index) => {
@@ -94,6 +141,10 @@ export function resolveCutList(project, inputs) {
             scope: 'source',
             needs: `set "transcript" on footage "${cut.source}"`
         };
+        if (isCutBeat(cut.in)) {
+            fail('in', `${cutName(index)}: "in" is a point in the source; a cut starts where the one before it ends. Put the beat on the "out" of ${index ? cutName(index - 1) : 'the cut before'}.`);
+            return;
+        }
         let inSec;
         let outSec;
         try {
@@ -103,8 +154,20 @@ export function resolveCutList(project, inputs) {
             fail('in', `${cutName(index)}: ${error.message}`);
             return;
         }
+        const srcIn = Math.round(inSec * fps);
+        /** Source frame after the last, when the cut ends on a beat. */
+        let beatOut = null;
         try {
-            if (cut.out !== undefined)
+            if (isCutBeat(cut.out)) {
+                const frame = beatFrame(cut.out, ctx, inSec, srcIn, at);
+                if (frame <= at) {
+                    fail('out', `${cutName(index)}: "out" on the music lands at ${(frame / fps).toFixed(2)} s, not after the cut starts (${(at / fps).toFixed(2)} s).`);
+                    return;
+                }
+                beatOut = srcIn + frame - at;
+                outSec = beatOut / fps;
+            }
+            else if (cut.out !== undefined)
                 outSec = resolveAnchor(cut.out, { ...ctx, window: { from: inSec, to: Infinity }, scope: 'cut' }, 'end').time;
             else if (info)
                 outSec = info.frames / fps;
@@ -117,10 +180,10 @@ export function resolveCutList(project, inputs) {
             fail('out', `${cutName(index)}: ${error.message}`);
             return;
         }
-        const srcIn = Math.round(inSec * fps);
         // The end edge rounds up, so the frame holding the last word's end stays in the cut; a
-        // word ending inside the source's last frame keeps the source end.
-        const srcOut = Math.min(Math.ceil(outSec * fps - 1e-6), Math.max(Math.round(outSec * fps), info?.frames ?? Infinity));
+        // word ending inside the source's last frame keeps the source end. A beat is a frame.
+        const srcOut = beatOut ??
+            Math.min(Math.ceil(outSec * fps - 1e-6), Math.max(Math.round(outSec * fps), info?.frames ?? Infinity));
         if (srcIn < 0) {
             fail('in', `${cutName(index)}: "in" lands before the source starts (${inSec.toFixed(2)} s).`);
             return;

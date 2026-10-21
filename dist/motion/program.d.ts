@@ -154,6 +154,11 @@ export type AudioPiece = {
         at: number;
         gain: number;
     }[];
+    /** Music only: the end of bar `bar`, the nearest to `target` (where it would end unsnapped). */
+    snap?: {
+        bar: number;
+        target: number;
+    };
 };
 export type ProgramSegment = {
     id: string;
@@ -235,7 +240,7 @@ export declare const compareText: (a: string, b: string) => 0 | 1 | -1;
  * transition windows with handles and held frames, keys, events, audio pieces and segments.
  * Pure: the same project and inputs give the same JSON, in Node and in the browser.
  */
-export declare function resolveProgram(project: MotionProject, inputs: ProgramInputs & {
+export declare function resolveProgram(project: MotionProject, given: ProgramInputs & {
     hashes?: ProgramHashes;
 }, opts?: {
     format?: string;

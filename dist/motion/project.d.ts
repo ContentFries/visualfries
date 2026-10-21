@@ -87,8 +87,10 @@ export declare const MotionMusicShape: z.ZodObject<{
     id: z.ZodOptional<z.ZodString>;
     src: z.ZodString;
     beats: z.ZodOptional<z.ZodString>;
-    from: z.ZodOptional<z.ZodNumber>;
-    until: z.ZodOptional<z.ZodNumber>;
+    from: z.ZodOptional<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
+    in: z.ZodOptional<z.ZodNumber>;
+    until: z.ZodOptional<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
+    snap: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<"bar">, z.ZodLiteral<false>]>>;
     shift: z.ZodOptional<z.ZodNumber>;
     downbeat: z.ZodOptional<z.ZodNumber>;
     tempo: z.ZodOptional<z.ZodEnum<{
@@ -301,8 +303,10 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         id: z.ZodOptional<z.ZodString>;
         src: z.ZodString;
         beats: z.ZodOptional<z.ZodString>;
-        from: z.ZodOptional<z.ZodNumber>;
-        until: z.ZodOptional<z.ZodNumber>;
+        from: z.ZodOptional<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
+        in: z.ZodOptional<z.ZodNumber>;
+        until: z.ZodOptional<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
+        snap: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<"bar">, z.ZodLiteral<false>]>>;
         shift: z.ZodOptional<z.ZodNumber>;
         downbeat: z.ZodOptional<z.ZodNumber>;
         tempo: z.ZodOptional<z.ZodEnum<{
@@ -475,7 +479,56 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             frame: z.ZodNumber;
             offset: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>]>>;
+        }, z.core.$strip>, z.ZodObject<{
+            bar: z.ZodNumber;
+            beat: z.ZodOptional<z.ZodNumber>;
+            music: z.ZodOptional<z.ZodString>;
+            offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        }, z.core.$strict>, z.ZodObject<{
+            beat: z.ZodNumber;
+            music: z.ZodOptional<z.ZodString>;
+            offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        }, z.core.$strict>, z.ZodObject<{
+            downbeat: z.ZodEnum<{
+                after: "after";
+                before: "before";
+            }>;
+            at: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+                say: z.ZodString;
+                edge: z.ZodOptional<z.ZodEnum<{
+                    start: "start";
+                    end: "end";
+                    last: "last";
+                }>>;
+                occurrence: z.ZodOptional<z.ZodNumber>;
+                offset: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>, z.ZodObject<{
+                frame: z.ZodNumber;
+                offset: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>]>;
+            music: z.ZodOptional<z.ZodString>;
+            offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        }, z.core.$strict>, z.ZodObject<{
+            beat: z.ZodEnum<{
+                after: "after";
+                before: "before";
+            }>;
+            at: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+                say: z.ZodString;
+                edge: z.ZodOptional<z.ZodEnum<{
+                    start: "start";
+                    end: "end";
+                    last: "last";
+                }>>;
+                occurrence: z.ZodOptional<z.ZodNumber>;
+                offset: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>, z.ZodObject<{
+                frame: z.ZodNumber;
+                offset: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>]>;
+            music: z.ZodOptional<z.ZodString>;
+            offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        }, z.core.$strict>]>>;
         out: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
             say: z.ZodString;
             edge: z.ZodOptional<z.ZodEnum<{
@@ -488,7 +541,56 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             frame: z.ZodNumber;
             offset: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>]>>;
+        }, z.core.$strip>, z.ZodObject<{
+            bar: z.ZodNumber;
+            beat: z.ZodOptional<z.ZodNumber>;
+            music: z.ZodOptional<z.ZodString>;
+            offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        }, z.core.$strict>, z.ZodObject<{
+            beat: z.ZodNumber;
+            music: z.ZodOptional<z.ZodString>;
+            offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        }, z.core.$strict>, z.ZodObject<{
+            downbeat: z.ZodEnum<{
+                after: "after";
+                before: "before";
+            }>;
+            at: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+                say: z.ZodString;
+                edge: z.ZodOptional<z.ZodEnum<{
+                    start: "start";
+                    end: "end";
+                    last: "last";
+                }>>;
+                occurrence: z.ZodOptional<z.ZodNumber>;
+                offset: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>, z.ZodObject<{
+                frame: z.ZodNumber;
+                offset: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>]>;
+            music: z.ZodOptional<z.ZodString>;
+            offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        }, z.core.$strict>, z.ZodObject<{
+            beat: z.ZodEnum<{
+                after: "after";
+                before: "before";
+            }>;
+            at: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+                say: z.ZodString;
+                edge: z.ZodOptional<z.ZodEnum<{
+                    start: "start";
+                    end: "end";
+                    last: "last";
+                }>>;
+                occurrence: z.ZodOptional<z.ZodNumber>;
+                offset: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>, z.ZodObject<{
+                frame: z.ZodNumber;
+                offset: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>]>;
+            music: z.ZodOptional<z.ZodString>;
+            offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        }, z.core.$strict>]>>;
         transition: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
             type: z.ZodString;
             duration: z.ZodOptional<z.ZodNumber>;
@@ -667,8 +769,10 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         src: string;
         id?: string | undefined;
         beats?: string | undefined;
-        from?: number | undefined;
-        until?: number | undefined;
+        from?: MotionAnchor | undefined;
+        in?: number | undefined;
+        until?: MotionAnchor | undefined;
+        snap?: false | "bar" | undefined;
         shift?: number | undefined;
         downbeat?: number | undefined;
         tempo?: "double" | "half" | undefined;
@@ -757,6 +861,41 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         } | {
             frame: number;
             offset?: number | undefined;
+        } | {
+            bar: number;
+            beat?: number | undefined;
+            music?: string | undefined;
+            offset?: string | number | undefined;
+        } | {
+            beat: number;
+            music?: string | undefined;
+            offset?: string | number | undefined;
+        } | {
+            downbeat: "after" | "before";
+            at: string | number | {
+                say: string;
+                edge?: "start" | "end" | "last" | undefined;
+                occurrence?: number | undefined;
+                offset?: number | undefined;
+            } | {
+                frame: number;
+                offset?: number | undefined;
+            };
+            music?: string | undefined;
+            offset?: string | number | undefined;
+        } | {
+            beat: "after" | "before";
+            at: string | number | {
+                say: string;
+                edge?: "start" | "end" | "last" | undefined;
+                occurrence?: number | undefined;
+                offset?: number | undefined;
+            } | {
+                frame: number;
+                offset?: number | undefined;
+            };
+            music?: string | undefined;
+            offset?: string | number | undefined;
         } | undefined;
         out?: string | number | {
             say: string;
@@ -766,6 +905,41 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         } | {
             frame: number;
             offset?: number | undefined;
+        } | {
+            bar: number;
+            beat?: number | undefined;
+            music?: string | undefined;
+            offset?: string | number | undefined;
+        } | {
+            beat: number;
+            music?: string | undefined;
+            offset?: string | number | undefined;
+        } | {
+            downbeat: "after" | "before";
+            at: string | number | {
+                say: string;
+                edge?: "start" | "end" | "last" | undefined;
+                occurrence?: number | undefined;
+                offset?: number | undefined;
+            } | {
+                frame: number;
+                offset?: number | undefined;
+            };
+            music?: string | undefined;
+            offset?: string | number | undefined;
+        } | {
+            beat: "after" | "before";
+            at: string | number | {
+                say: string;
+                edge?: "start" | "end" | "last" | undefined;
+                occurrence?: number | undefined;
+                offset?: number | undefined;
+            } | {
+                frame: number;
+                offset?: number | undefined;
+            };
+            music?: string | undefined;
+            offset?: string | number | undefined;
         } | undefined;
         transition?: string | {
             type: string;
@@ -917,8 +1091,10 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         src: string;
         id?: string | undefined;
         beats?: string | undefined;
-        from?: number | undefined;
-        until?: number | undefined;
+        from?: MotionAnchor | undefined;
+        in?: number | undefined;
+        until?: MotionAnchor | undefined;
+        snap?: false | "bar" | undefined;
         shift?: number | undefined;
         downbeat?: number | undefined;
         tempo?: "double" | "half" | undefined;
@@ -1007,6 +1183,41 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         } | {
             frame: number;
             offset?: number | undefined;
+        } | {
+            bar: number;
+            beat?: number | undefined;
+            music?: string | undefined;
+            offset?: string | number | undefined;
+        } | {
+            beat: number;
+            music?: string | undefined;
+            offset?: string | number | undefined;
+        } | {
+            downbeat: "after" | "before";
+            at: string | number | {
+                say: string;
+                edge?: "start" | "end" | "last" | undefined;
+                occurrence?: number | undefined;
+                offset?: number | undefined;
+            } | {
+                frame: number;
+                offset?: number | undefined;
+            };
+            music?: string | undefined;
+            offset?: string | number | undefined;
+        } | {
+            beat: "after" | "before";
+            at: string | number | {
+                say: string;
+                edge?: "start" | "end" | "last" | undefined;
+                occurrence?: number | undefined;
+                offset?: number | undefined;
+            } | {
+                frame: number;
+                offset?: number | undefined;
+            };
+            music?: string | undefined;
+            offset?: string | number | undefined;
         } | undefined;
         out?: string | number | {
             say: string;
@@ -1016,6 +1227,41 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         } | {
             frame: number;
             offset?: number | undefined;
+        } | {
+            bar: number;
+            beat?: number | undefined;
+            music?: string | undefined;
+            offset?: string | number | undefined;
+        } | {
+            beat: number;
+            music?: string | undefined;
+            offset?: string | number | undefined;
+        } | {
+            downbeat: "after" | "before";
+            at: string | number | {
+                say: string;
+                edge?: "start" | "end" | "last" | undefined;
+                occurrence?: number | undefined;
+                offset?: number | undefined;
+            } | {
+                frame: number;
+                offset?: number | undefined;
+            };
+            music?: string | undefined;
+            offset?: string | number | undefined;
+        } | {
+            beat: "after" | "before";
+            at: string | number | {
+                say: string;
+                edge?: "start" | "end" | "last" | undefined;
+                occurrence?: number | undefined;
+                offset?: number | undefined;
+            } | {
+                frame: number;
+                offset?: number | undefined;
+            };
+            music?: string | undefined;
+            offset?: string | number | undefined;
         } | undefined;
         transition?: string | {
             type: string;

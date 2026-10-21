@@ -163,7 +163,7 @@ export function nearBeat(grid, time, kind, direction, label) {
         ? pool.find((b) => b.time >= time - eps)
         : [...pool].reverse().find((b) => b.time <= time + eps);
     if (!hit)
-        throw new BeatError(`No ${kind} ${direction} ${time.toFixed(2)}s: ${label} ${direction === 'after' ? 'ends' : 'starts'} before that.`);
+        throw new BeatError(`No ${kind} ${direction} ${time.toFixed(2)}s: ${label} ${direction === 'after' ? 'ends before' : 'starts after'} that.`);
     return hit;
 }
 /**
@@ -258,12 +258,23 @@ export function formatBarGrid(rows, firstBeats = 4) {
     }
     return lines.join('\n');
 }
-/** Corrects a beats file and places it at `from` in the program, cut at `until`. */
+/**
+ * Corrects a beats file and places it in the program: file second `in` (default 0) plays at
+ * program second `from`, and beats after `until` are gone. Numbers only; projects whose music
+ * starts on a phrase or a beat are placed by `placeMusic` (music.ts).
+ */
 export function programBeats(file, music) {
-    const from = music.from ?? 0;
+    const seconds = (value, name) => {
+        if (value === undefined || typeof value === 'number')
+            return value;
+        throw new BeatError(`programBeats takes "${name}" in seconds; use placeMusic for anchors.`);
+    };
+    const from = seconds(music.from, 'from') ?? 0;
+    const until = seconds(music.until, 'until');
+    const offset = music.in ?? 0;
     const grid = correctBeats(file, music)
-        .map((b) => ({ ...b, time: Math.round((from + b.time) * 1e6) / 1e6 }))
-        .filter((b) => music.until === undefined || b.time <= music.until + 1e-6);
+        .map((b) => ({ ...b, time: Math.round((from + (b.time - offset)) * 1e6) / 1e6 }))
+        .filter((b) => until === undefined || b.time <= until + 1e-6);
     return { id: music.id ?? null, name: music.id ?? music.src, grid };
 }
 /**

@@ -31,7 +31,7 @@
 		"bin",
 		"dist",
 		"skills",
-		"scripts",
+		"scripts/rvm-matte.py",
 		"docs",
 		"!dist/**/*.test.*",
 		"!dist/**/*.spec.*",

@@ -3,7 +3,7 @@
 usage: python rvm-matte.py <input video> <output matte.mp4> [threads]
 
 Used by `visualfries matte --provider rvm` (runs through `uv`, which brings torch, torchvision and
-numpy). The model is fetched once by torch.hub from github.com/PeterL1n/RobustVideoMatting.
+numpy). The model is fetched once by torch.hub from github.com/PeterL1n/RobustVideoMatting, pinned to v1.0.0.
 Temporally stable, hair edges about as good as BiRefNet, ~3 fps at 1080p and ~16 fps at 540p
 on a 12-core CPU. Output: H.264 grey (yuv420p, CRF 12), same size and frame rate as the input.
 """
@@ -16,7 +16,7 @@ import torch
 
 inp, out = sys.argv[1], sys.argv[2]
 torch.set_num_threads(int(sys.argv[3]) if len(sys.argv) > 3 else 6)
-model = torch.hub.load("PeterL1n/RobustVideoMatting", "mobilenetv3", trust_repo=True).eval()
+model = torch.hub.load("PeterL1n/RobustVideoMatting:v1.0.0", "mobilenetv3", trust_repo=True).eval()
 
 
 def probe(entry):

@@ -151,9 +151,34 @@ export function rvmMatte(opts = {}) {
     const script = opts.script ?? bundledScript('rvm-matte.py');
     const threads = Math.max(1, Math.round(opts.threads ?? Math.min(10, os.cpus().length)));
     const uv = opts.uv ?? 'uv';
-    const provider = commandMatte(`${uv} run -q --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match ` +
-        `--with torch --with torchvision --with numpy python "${script}" {input} {output} ${threads}`, { maxFrames: opts.maxFrames ?? 480, parallel: 1, output: 'luma' });
-    return { ...provider, name: `rvm (local CPU, ${threads} threads)` };
+    return {
+        name: `rvm (local CPU, ${threads} threads)`,
+        maxFrames: opts.maxFrames ?? 480,
+        parallel: 1,
+        output: 'luma',
+        async segment(chunk) {
+            // No shell: the script path and the chunk paths are passed as plain arguments.
+            await run(uv, [
+                'run',
+                '-q',
+                '--index',
+                'https://download.pytorch.org/whl/cpu',
+                '--index-strategy',
+                'unsafe-best-match',
+                '--with',
+                'torch',
+                '--with',
+                'torchvision',
+                '--with',
+                'numpy',
+                'python',
+                script,
+                chunk.input,
+                chunk.output,
+                String(threads)
+            ], 'RVM matte');
+        }
+    };
 }
 /** Frame ranges `[first, last]` that cover `frames` in pieces of at most `size` (≤ `max`). */
 export function planMatteChunks(frames, size, max = Number.POSITIVE_INFINITY) {

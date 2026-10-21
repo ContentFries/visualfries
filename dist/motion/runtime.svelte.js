@@ -1,7 +1,8 @@
 import { getContext, onMount } from 'svelte';
 import { gsap } from 'gsap';
 import { resolveMoment } from './moment.js';
-import { subjectBox } from './footage.js';
+import { sourceSubjectBox, subjectBox } from './footage.js';
+import { sourceFrameAt } from './footage-map.js';
 import { NO_MUSIC_BEATS, beatPhase } from './beat-grid.js';
 import { clipEnergy } from './energy.js';
 import { NEUTRAL_BRAND } from './brand.js';
@@ -55,6 +56,8 @@ export class Clip {
      * as `--safe-top|right|bottom|left` and a `data-format` attribute on the clip's root.
      */
     format;
+    /** With a cut list: which source frame the program shows when; null in inserts mode. */
+    footageMap;
     constructor(data) {
         this.id = data.id;
         this.fps = data.fps;
@@ -79,6 +82,7 @@ export class Clip {
         this.brand = data.brand ?? NEUTRAL_BRAND;
         this.style = data.style ?? NEUTRAL_STYLE;
         this.format = data.format ?? resolveFormat(data.size);
+        this.footageMap = data.footageMap ?? null;
     }
     /**
      * Record an event at moment `at`, e.g. one per stagger item: `clip.event('pop', 'list+0.2')`.
@@ -101,13 +105,18 @@ export class Clip {
     /**
      * Where the subject of footage `name` is at clip frame `frame` (default: the current frame),
      * from its matte, in 0–1 fractions of the footage frame. Smoothed over `smooth` seconds on
-     * each side. Null without a matte or with the subject out of frame.
+     * each side. Null without a matte or with the subject out of frame; with a cut list also
+     * while the program does not show that footage.
      */
     subject(name, frame = this.frame, smooth = 0.15) {
         const footage = this.footage[name];
         if (!footage)
             throw new Error(`Unknown footage "${name}".`);
-        return subjectBox(footage, this.programStartFrame + frame, Math.round(smooth * this.fps));
+        const around = Math.round(smooth * this.fps);
+        if (!this.footageMap)
+            return subjectBox(footage, this.programStartFrame + frame, around);
+        const shown = sourceFrameAt(this.footageMap, name, this.programStartFrame + frame);
+        return shown ? sourceSubjectBox(footage, shown.frame, around) : null;
     }
     /**
      * Resolve an `At` to clip-local seconds. Besides project cues, `start` (0) and `end`

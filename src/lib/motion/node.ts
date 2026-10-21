@@ -7,16 +7,13 @@ import { once } from 'node:events';
 import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import {
-	BrandShape,
-	MotionProjectShape,
-	type MotionFont,
-	type MotionMusic,
-	type MotionProject
-} from './project.js';
+import { BrandShape, type MotionFont, type MotionMusic, type MotionProject } from './project.js';
 import { NEUTRAL_BRAND, resolveBrand, type ResolvedBrand } from './brand.js';
 import { BUILTIN_STYLES, NEUTRAL_STYLE, resolveStyle, type ResolvedStyle } from './style.js';
+import { isProgramProject, parseMotionProject } from './timeline.js';
 import { parseTranscriptWords, type MotionWord } from './transcript.js';
+import { resolveCutList, type CutList, type ProgramInputs, type SourceInfo } from './cutlist.js';
+import { resolveProgram, type ProgramHashes, type ResolvedProgram } from './program.js';
 import { resolveMotionProject, type ResolvedClip, type ResolvedProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
@@ -30,7 +27,8 @@ import {
 	type MusicBeats
 } from './beat-grid.js';
 import { fileSha256 } from './beats.js';
-import type { FootageFrames, SubjectBox } from './resolve.js';
+import { footageMap, footageRanges, type FootageMap, type FrameRange } from './footage-map.js';
+import type { FootageFrames, FootageRange, SubjectBox } from './resolve.js';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -47,6 +45,7 @@ export type LoadedMotionProject = {
 	file: string;
 	dir: string;
 	project: MotionProject;
+	/** Program-time words the clips resolve against (the program transcript in program mode). */
 	words: MotionWord[] | null;
 	/** Short hash of the transcript's words and times; changes with every re-take. */
 	transcriptHash: string | null;
@@ -60,6 +59,23 @@ export type LoadedMotionProject = {
 	brand: LoadedBrand;
 	style: LoadedStyle;
 	resolved: ResolvedProject;
+	/**
+	 * What the program resolves from: the project-level transcript, transcripts of single footage
+	 * sources (`footage.<name>.transcript`, source time) and, in program mode only, the probed
+	 * footage files whose lengths the cut list needs.
+	 */
+	inputs: ProgramInputs;
+	/**
+	 * Short hashes: project file, transcripts by source, footage picture files (video and matte,
+	 * size and time; the sound is mixed fresh on every render).
+	 */
+	hashes: {
+		project: string;
+		transcript: string | null;
+		transcripts: Record<string, string>;
+		sources: Record<string, string>;
+	};
+	cutList: CutList;
 };
 
 export type LoadedMusic = {
@@ -225,6 +241,42 @@ export function loadStyle(project: MotionProject, dir: string): LoadedStyle {
 	return { resolved, hash: shortHash(canonical(values)) };
 }
 
+const wordsHash = (words: MotionWord[]) =>
+	shortHash(JSON.stringify(words.map((w) => [w.raw, w.start, w.end])));
+
+/** Seconds of the first sound track of a file; null without one. */
+async function probeSound(file: string): Promise<number | null> {
+	const info = await ffprobeJson(file, [
+		'-select_streams',
+		'a:0',
+		'-show_entries',
+		'stream=index,duration:format=duration'
+	]);
+	if (!info.streams?.length) return null;
+	const seconds = Number(info.streams[0].duration ?? info.format?.duration);
+	return Number.isFinite(seconds) ? seconds : null;
+}
+
+/**
+ * Size, frame count and sound of a footage file, with frames counted at the project rate. With
+ * `audio` (the footage's separate sound file) the sound and its length come from that file.
+ */
+async function probeSource(file: string, fps: number, audio?: string): Promise<SourceInfo> {
+	const info = await probeVideo(file);
+	const sound = await probeSound(audio ?? file).catch(() => null);
+	// Counted like prepareFootage counts them, so cut lengths and extracted frames agree.
+	const direct = info.constant && Math.abs(info.fps - fps) < 0.01;
+	return {
+		frames: direct ? info.frames : Math.round(info.duration * fps),
+		duration: info.duration,
+		width: info.width,
+		height: info.height,
+		fps: info.fps,
+		audio: sound !== null,
+		...(sound !== null ? { audioDuration: sound } : {})
+	};
+}
+
 /** `transcript` overrides the project's transcript (e.g. a re-recorded voiceover); relative to cwd. */
 export async function loadMotionProject(
 	file: string,
@@ -232,7 +284,14 @@ export async function loadMotionProject(
 ): Promise<LoadedMotionProject> {
 	const abs = path.resolve(file);
 	const dir = path.dirname(abs);
-	const project = MotionProjectShape.parse(JSON.parse(await fs.readFile(abs, 'utf8')));
+	const project = parseMotionProject(
+		JSON.parse(await fs.readFile(abs, 'utf8')),
+		path.basename(abs)
+	);
+	if (opts.transcript && isProgramProject(project))
+		throw new Error(
+			`--transcript cannot replace the words of ${path.basename(abs)}: it has "cuts" or "shots", so its words come from the footage transcripts ("footage.<name>.transcript", source time) through the cut list. Point those at the new transcript instead.`
+		);
 	const transcriptPath = opts.transcript
 		? path.resolve(opts.transcript)
 		: project.transcript
@@ -240,9 +299,6 @@ export async function loadMotionProject(
 			: null;
 	const words = transcriptPath
 		? parseTranscriptWords(JSON.parse(await fs.readFile(transcriptPath, 'utf8')))
-		: null;
-	const transcriptHash = words
-		? shortHash(JSON.stringify(words.map((w) => [w.raw, w.start, w.end])))
 		: null;
 	const music = await loadMusic(project, dir);
 	const musicBeats = music.map((m) => m.beats).filter((b): b is MusicBeats => !!b);
@@ -263,20 +319,64 @@ export async function loadMotionProject(
 		: null;
 	const brand = await loadBrand(project, dir);
 	const style = loadStyle(project, dir);
+	const transcripts: Record<string, MotionWord[]> = {};
+	const sources: Record<string, SourceInfo> = {};
+	const hashes: LoadedMotionProject['hashes'] = {
+		project: shortHash(await fs.readFile(abs)),
+		transcript: words ? wordsHash(words) : null,
+		transcripts: {},
+		sources: {}
+	};
+	for (const [name, footage] of Object.entries(project.footage ?? {})) {
+		if (footage.transcript) {
+			const file = path.resolve(dir, footage.transcript);
+			transcripts[name] = parseTranscriptWords(JSON.parse(await fs.readFile(file, 'utf8')));
+			hashes.transcripts[name] = wordsHash(transcripts[name]);
+		}
+		const files = [footage.src, footage.matte]
+			.filter((f): f is string => !!f)
+			.map((f) => path.resolve(dir, f));
+		const stats = await Promise.all(files.map((f) => fs.stat(f).catch(() => null)));
+		hashes.sources[name] = shortHash(
+			JSON.stringify(stats.map((st, i) => [path.relative(dir, files[i]), st?.size, st?.mtimeMs]))
+		);
+		if (isProgramProject(project) && stats[0]) {
+			const audio = typeof footage.audio === 'string' ? path.resolve(dir, footage.audio) : null;
+			const info = await probeSource(files[0], project.fps, audio ?? undefined);
+			if (footage.audio === false) {
+				info.audio = false;
+				delete info.audioDuration;
+			} else if (audio) info.audio = true;
+			sources[name] = info;
+		}
+	}
+	const look = { brand: brand.resolved, style: style.resolved };
+	const inputs: ProgramInputs = { words, transcripts, sources, music: musicBeats, look };
+	const common = { file: abs, dir, project, music, musicHash, brand, style, inputs, hashes };
+	const cutList = resolveCutList(project, inputs);
+	if (cutList.mode === 'inserts') {
+		return {
+			...common,
+			words,
+			transcriptHash: hashes.transcript,
+			resolved: resolveMotionProject(project, words, musicBeats, look),
+			cutList
+		};
+	}
+	// Program mode: clips resolve against the program transcript, and a broken cut list is an
+	// error of the project (program time is undefined without it).
+	const resolved = resolveMotionProject(project, cutList.words, musicBeats, look);
+	resolved.diagnostics.unshift(
+		...cutList.diagnostics
+			.filter((d) => d.level !== 'info')
+			.map((d) => ({ level: d.level as 'error' | 'warning', field: d.field, message: d.message }))
+	);
 	return {
-		file: abs,
-		dir,
-		project,
-		words,
-		transcriptHash,
-		music,
-		musicHash,
-		brand,
-		style,
-		resolved: resolveMotionProject(project, words, musicBeats, {
-			brand: brand.resolved,
-			style: style.resolved
-		})
+		...common,
+		words: cutList.words,
+		transcriptHash: cutList.words ? wordsHash(cutList.words) : null,
+		resolved,
+		cutList
 	};
 }
 
@@ -311,6 +411,56 @@ export function describeMusicGrid(loaded: LoadedMotionProject): string {
 		);
 	}
 	return parts.join('\n\n');
+}
+
+/** Short content hashes of the files a program's pixels depend on besides footage. */
+async function assetHashes(loaded: LoadedMotionProject): Promise<Record<string, string>> {
+	const { project, dir } = loaded;
+	const custom = (name: string, ext: RegExp) => (ext.test(name) ? [name] : []);
+	const names = new Set([
+		...project.clips.map((c) => c.block),
+		...(project.shots ?? []).flatMap((s) => custom(s.shot, /\.(ts|js)$/)),
+		...[...(project.cuts ?? []), ...(project.shots ?? []), ...project.clips].flatMap((item) =>
+			item.transition
+				? custom(
+						typeof item.transition === 'string' ? item.transition : item.transition.type,
+						/\.svelte$/
+					)
+				: []
+		),
+		...(project.fonts ?? []).map((f) => f.src),
+		...(project.css ?? [])
+	]);
+	const out: Record<string, string> = {};
+	for (const name of [...names].sort()) {
+		const file = name.startsWith(BUILTIN_PREFIX) ? blockFile(dir, name) : path.resolve(dir, name);
+		const content = await fs.readFile(file).catch(() => null);
+		if (content) out[name] = shortHash(content);
+	}
+	return out;
+}
+
+/**
+ * The resolved program for one format (see `resolveProgram`), with the hashes of the files
+ * behind it. `write` also saves it as `.visualfries/program/<format>.json` next to the project.
+ */
+export async function motionProgram(
+	loaded: LoadedMotionProject,
+	opts: { format?: string; write?: boolean } = {}
+): Promise<{ program: ResolvedProgram; file: string | null }> {
+	const hashes: ProgramHashes = {
+		...loaded.hashes,
+		assets: await assetHashes(loaded),
+		music: loaded.musicHash,
+		brand: loaded.brand.hash,
+		style: loaded.style.hash
+	};
+	const program = resolveProgram(loaded.project, { ...loaded.inputs, hashes }, opts);
+	if (!opts.write) return { program, file: null };
+	const file = path.join(loaded.dir, '.visualfries', 'program', `${program.format.name}.json`);
+	await fs.mkdir(path.dirname(file), { recursive: true });
+	await fs.writeFile(file, JSON.stringify(program, null, 2) + '\n');
+	return { program, file };
 }
 
 /** Throws when a requested clip id does not exist in the project. */
@@ -882,18 +1032,58 @@ function edgeFrame(clips: ResolvedClip[], startFrame: number, total: number) {
 }
 
 /**
+ * Cache key of one extracted range: source, matte, their sizes and times, frame rate and range.
+ * Inserts mode has always used it for its one range, so existing caches stay valid.
+ */
+export function footageCacheKey(input: {
+	src: string;
+	matte: string | null;
+	sizes: ([number, number] | null)[];
+	fps: number;
+	range: FrameRange;
+}): string {
+	const { src, matte, sizes, fps, range } = input;
+	return createHash('sha1')
+		.update(JSON.stringify({ src, matte, sizes, fps, range, boxes: 1 }))
+		.digest('hex')
+		.slice(0, 12);
+}
+
+type FootageSource = {
+	name: string;
+	src: string;
+	matte: string | null;
+	info: VideoInfo;
+	sizes: ([number, number] | null)[];
+	/** Same constant frame rate as the project: footage frames are program frames. */
+	direct: boolean;
+	total: number;
+};
+
+/**
  * Extracts the footage frames the given clips need (with a margin) into
  * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
- * Frames are cached by source, matte, frame rate and range.
+ * Inserts mode extracts one range per footage around the clips. Program mode extracts every
+ * range of every source the program shows (cuts, the handles their transitions need, shots with
+ * a source) plus the margin around what the clips show, each range on its own, and attaches the
+ * footage map that turns program frames into source frames. Each range is cached by source,
+ * matte, frame rate and range.
  */
 export async function prepareFootage(
 	loaded: LoadedMotionProject,
 	clips: ResolvedClip[]
 ): Promise<string[]> {
+	return (await extractFootage(loaded, clips)).roots;
+}
+
+/** `prepareFootage`, also returning the extracted frames and the footage map. */
+async function extractFootage(
+	loaded: LoadedMotionProject,
+	clips: ResolvedClip[]
+): Promise<{ roots: string[]; frames: Record<string, FootageFrames>; map: FootageMap | null }> {
 	const footage = loaded.project.footage ?? {};
 	const fps = loaded.project.fps;
-	const roots: string[] = [];
-	const frames: Record<string, FootageFrames> = {};
+	const sources: FootageSource[] = [];
 	for (const [name, spec] of Object.entries(footage)) {
 		const src = path.resolve(loaded.dir, spec.src);
 		const matte = spec.matte ? path.resolve(loaded.dir, spec.matte) : null;
@@ -913,125 +1103,173 @@ export async function prepareFootage(
 		// phase whatever range is extracted.
 		const direct = info.constant && Math.abs(info.fps - fps) < 0.01;
 		const total = direct ? info.frames : Math.round(info.duration * fps);
-		const startFrame = Math.round((spec.start ?? 0) * fps);
-		const margin =
-			spec.margin === 'all' ? total : Math.round((spec.margin ?? FOOTAGE_MARGIN_SECONDS) * fps);
-		// Clips that never overlap the footage hold its nearest edge frame; "all" extracts every frame.
-		const range =
-			spec.margin === 'all'
-				? { first: 0, last: Math.max(0, total - 1) }
-				: (footageFrameRange(clips, startFrame, total, margin) ??
-					edgeFrame(clips, startFrame, total));
 		const stats = await Promise.all([src, matte].map((f) => (f ? fs.stat(f) : null)));
-		const key = createHash('sha1')
-			.update(
-				JSON.stringify({
-					src,
-					matte,
-					sizes: stats.map((st) => st && [st.size, st.mtimeMs]),
-					fps,
-					range,
-					boxes: 1
-				})
-			)
-			.digest('hex')
-			.slice(0, 12);
-		const dir = path.join(loaded.dir, '.visualfries', 'footage', `${name}-${key}`);
-		if (!existsSync(path.join(dir, 'done.json'))) {
-			const tmp = `${dir}.tmp-${process.pid}-${randomUUID()}`;
-			await fs.mkdir(path.join(tmp, 'plate'), { recursive: true });
-			try {
-				const count = range.last - range.first + 1;
-				const seek = direct ? ['-ss', (range.first / fps).toFixed(6)] : [];
-				const pick = direct
-					? `fps=${fps}`
-					: `fps=${fps},trim=start_frame=${range.first}:end_frame=${range.last + 1},setpts=PTS-STARTPTS`;
+		const sizes = stats.map((st) => (st ? ([st.size, st.mtimeMs] as [number, number]) : null));
+		sources.push({ name, src, matte, info, sizes, direct, total });
+	}
+
+	const roots: string[] = [];
+	const frames: Record<string, FootageFrames> = {};
+	const extract = async (source: FootageSource, range: FrameRange) => {
+		const extracted = await extractFootageRange(loaded.dir, source, fps, range);
+		roots.push(extracted.dir);
+		return extracted.range;
+	};
+	const attach = (source: FootageSource, startFrame: number, ranges: FootageRange[]) => {
+		frames[source.name] = {
+			url: ranges[0]?.url ?? '',
+			first: ranges[0]?.first ?? 0,
+			last: ranges[0]?.last ?? -1,
+			ranges,
+			total: source.total,
+			width: source.info.width,
+			height: source.info.height,
+			startFrame,
+			subject: !!source.matte,
+			boxes: ranges[0]?.boxes
+		};
+	};
+
+	if (loaded.cutList.mode === 'inserts') {
+		for (const source of sources) {
+			const spec = footage[source.name];
+			const startFrame = Math.round((spec.start ?? 0) * fps);
+			const margin =
+				spec.margin === 'all'
+					? source.total
+					: Math.round((spec.margin ?? FOOTAGE_MARGIN_SECONDS) * fps);
+			// Clips that never overlap the footage hold its nearest edge frame; "all" extracts every frame.
+			const range =
+				spec.margin === 'all'
+					? { first: 0, last: Math.max(0, source.total - 1) }
+					: (footageFrameRange(clips, startFrame, source.total, margin) ??
+						edgeFrame(clips, startFrame, source.total));
+			attach(source, startFrame, [await extract(source, range)]);
+		}
+		for (const clip of clips) clip.footage = frames;
+		return { roots, frames, map: null };
+	}
+
+	// Items that fail to resolve are left out; `check` and `program` report them.
+	const program = resolveProgram(loaded.project, loaded.inputs);
+	const map = footageMap(program, Object.fromEntries(sources.map((s) => [s.name, s.total])));
+	const margins = Object.fromEntries(
+		sources.map((s) => {
+			const margin = footage[s.name].margin;
+			return [
+				s.name,
+				margin === 'all' ? s.total : Math.round((margin ?? FOOTAGE_MARGIN_SECONDS) * fps)
+			];
+		})
+	);
+	// Ranges less than a second apart are extracted as one: fewer decoder runs, few extra frames.
+	const wanted = footageRanges(map, clips, margins, Math.round(fps));
+	for (const source of sources) {
+		const ranges: FootageRange[] = [];
+		for (const range of wanted[source.name] ?? []) ranges.push(await extract(source, range));
+		attach(source, 0, ranges);
+	}
+	for (const clip of clips) {
+		clip.footage = frames;
+		clip.footageMap = map;
+	}
+	return { roots, frames, map };
+}
+
+/** Extracts one range of a footage (plate, subject and boxes), or reuses the cached one. */
+async function extractFootageRange(
+	projectDir: string,
+	source: FootageSource,
+	fps: number,
+	range: FrameRange
+): Promise<{ dir: string; range: FootageRange }> {
+	const { name, src, matte, info, direct, total } = source;
+	const key = footageCacheKey({ src, matte, sizes: source.sizes, fps, range });
+	const dir = path.join(projectDir, '.visualfries', 'footage', `${name}-${key}`);
+	if (!existsSync(path.join(dir, 'done.json'))) {
+		const tmp = `${dir}.tmp-${process.pid}-${randomUUID()}`;
+		await fs.mkdir(path.join(tmp, 'plate'), { recursive: true });
+		try {
+			const count = range.last - range.first + 1;
+			const seek = direct ? ['-ss', (range.first / fps).toFixed(6)] : [];
+			const pick = direct
+				? `fps=${fps}`
+				: `fps=${fps},trim=start_frame=${range.first}:end_frame=${range.last + 1},setpts=PTS-STARTPTS`;
+			await ffmpeg([
+				'-y',
+				...seek,
+				'-i',
+				src,
+				'-vf',
+				pick,
+				'-frames:v',
+				String(count),
+				'-start_number',
+				String(range.first),
+				'-q:v',
+				'2',
+				path.join(tmp, 'plate', '%06d.jpg')
+			]);
+			if (matte) {
+				await fs.mkdir(path.join(tmp, 'subject'), { recursive: true });
 				await ffmpeg([
 					'-y',
 					...seek,
 					'-i',
 					src,
-					'-vf',
-					pick,
+					'-i',
+					matte,
+					'-filter_complex',
+					// The matte is padded before it is cut to the range, so a matte a frame or two
+					// short holds its last frame even when only the end of the footage is extracted.
+					`[0:v]${pick}[c];[1:v]fps=${fps},scale=${info.width}:${info.height},format=gray,tpad=stop_mode=clone:stop_duration=2,trim=start_frame=${range.first}:end_frame=${range.last + 1},setpts=PTS-STARTPTS[m];[c][m]alphamerge,format=rgba`,
 					'-frames:v',
 					String(count),
 					'-start_number',
 					String(range.first),
-					'-q:v',
-					'2',
-					path.join(tmp, 'plate', '%06d.jpg')
+					'-compression_level',
+					'1',
+					path.join(tmp, 'subject', '%06d.png')
 				]);
-				if (matte) {
-					await fs.mkdir(path.join(tmp, 'subject'), { recursive: true });
-					await ffmpeg([
-						'-y',
-						...seek,
-						'-i',
-						src,
-						'-i',
-						matte,
-						'-filter_complex',
-						// The matte is padded before it is cut to the range, so a matte a frame or two
-						// short holds its last frame even when only the end of the footage is extracted.
-						`[0:v]${pick}[c];[1:v]fps=${fps},scale=${info.width}:${info.height},format=gray,tpad=stop_mode=clone:stop_duration=2,trim=start_frame=${range.first}:end_frame=${range.last + 1},setpts=PTS-STARTPTS[m];[c][m]alphamerge,format=rgba`,
-						'-frames:v',
-						String(count),
-						'-start_number',
-						String(range.first),
-						'-compression_level',
-						'1',
-						path.join(tmp, 'subject', '%06d.png')
-					]);
-				}
-				const written = (await fs.readdir(path.join(tmp, 'plate'))).length;
-				let boxes: (SubjectBox | null)[] | undefined;
-				if (matte) {
-					const cutOuts = (await fs.readdir(path.join(tmp, 'subject'))).length;
-					if (cutOuts !== written)
-						throw new Error(
-							`Footage "${name}": ${cutOuts} subject frames for ${written} picture frames; the matte does not cover the clips.`
-						);
-					boxes = await matteBoxes(matte, info, fps, range, written);
-				}
-				await fs.writeFile(
-					path.join(tmp, 'done.json'),
-					JSON.stringify({
-						name,
-						src,
-						matte,
-						first: range.first,
-						last: range.first + written - 1,
-						total,
-						width: info.width,
-						height: info.height,
-						boxes
-					})
-				);
-				// Publish atomically. If another run published the same frames first, keep theirs:
-				// never delete a published folder another page may be reading.
-				await fs.rename(tmp, dir).catch(async (error) => {
-					if (!existsSync(path.join(dir, 'done.json'))) throw error;
-				});
-			} finally {
-				await fs.rm(tmp, { recursive: true, force: true });
 			}
+			const written = (await fs.readdir(path.join(tmp, 'plate'))).length;
+			let boxes: (SubjectBox | null)[] | undefined;
+			if (matte) {
+				const cutOuts = (await fs.readdir(path.join(tmp, 'subject'))).length;
+				if (cutOuts !== written)
+					throw new Error(
+						`Footage "${name}": ${cutOuts} subject frames for ${written} picture frames; the matte does not cover the clips.`
+					);
+				boxes = await matteBoxes(matte, info, fps, range, written);
+			}
+			await fs.writeFile(
+				path.join(tmp, 'done.json'),
+				JSON.stringify({
+					name,
+					src,
+					matte,
+					first: range.first,
+					last: range.first + written - 1,
+					total,
+					width: info.width,
+					height: info.height,
+					boxes
+				})
+			);
+			// Publish atomically. If another run published the same frames first, keep theirs:
+			// never delete a published folder another page may be reading.
+			await fs.rename(tmp, dir).catch(async (error) => {
+				if (!existsSync(path.join(dir, 'done.json'))) throw error;
+			});
+		} finally {
+			await fs.rm(tmp, { recursive: true, force: true });
 		}
-		const done = JSON.parse(await fs.readFile(path.join(dir, 'done.json'), 'utf8'));
-		frames[name] = {
-			url: originUrl(dir) + '/',
-			first: done.first,
-			last: done.last,
-			total: done.total,
-			width: done.width,
-			height: done.height,
-			startFrame,
-			subject: !!matte,
-			boxes: done.boxes
-		};
-		roots.push(dir);
 	}
-	for (const clip of clips) clip.footage = frames;
-	return roots;
+	const done = JSON.parse(await fs.readFile(path.join(dir, 'done.json'), 'utf8'));
+	return {
+		dir,
+		range: { url: originUrl(dir) + '/', first: done.first, last: done.last, boxes: done.boxes }
+	};
 }
 
 /** Width of the downscaled matte the subject boxes are measured on. */

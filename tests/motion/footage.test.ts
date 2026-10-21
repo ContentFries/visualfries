@@ -9,10 +9,12 @@ import { planMatteChunks } from '../../src/lib/motion/matte.js';
 import { MotionProjectShape } from '../../src/lib/motion/project.js';
 import { resolveMotionProject } from '../../src/lib/motion/resolve.js';
 
+const url = 'http://visualfries.local/@fs/p/.visualfries/footage/talk-1/';
 const frames = {
-	url: 'http://visualfries.local/@fs/p/.visualfries/footage/talk-1/',
+	url,
 	first: 30,
 	last: 120,
+	ranges: [{ url, first: 30, last: 120 }],
 	total: 121,
 	width: 1000,
 	height: 1080,
@@ -28,9 +30,20 @@ describe('footageFrameUrl', () => {
 
 	it('holds the last frame after the footage ends', () => {
 		expect(footageFrameUrl(frames, 500, 'plate')).toBe(`${frames.url}plate/000120.jpg`);
-		expect(footageFrameUrl({ ...frames, first: 0 }, 0, 'plate')).toBe(
+		expect(footageFrameUrl({ ...frames, ranges: [{ url, first: 0, last: 120 }] }, 0, 'plate')).toBe(
 			`${frames.url}plate/000000.jpg`
 		);
+	});
+
+	it('reads frames without "ranges" from the single range in url, first and last', () => {
+		const { ranges: _ranges, ...single } = frames;
+		expect(footageFrameUrl(single, 60, 'plate')).toBe(`${url}plate/000045.jpg`);
+		expect(() => footageFrameUrl(single, 20, 'plate')).toThrow(/frames 30–120/);
+		const box = { x: 0.1, y: 0.2, width: 0.3, height: 0.4, headX: 0.25, headY: 0.2 };
+		const boxed = { ...single, first: 30, last: 31, boxes: [box, { ...box, x: 0.3 }] };
+		expect(subjectBox(boxed, 15 + 31)?.x).toBe(0.3);
+		// Frame 29 was not extracted: the edge frame 30 holds.
+		expect(subjectBox(boxed, 15 + 30, 1)?.x).toBeCloseTo((0.1 + 0.1 + 0.3) / 3);
 	});
 
 	it('refuses a frame inside the footage that was not extracted', () => {
@@ -132,12 +145,8 @@ describe('subject boxes', () => {
 			headX: x + 0.25,
 			headY: 0.2
 		});
-		const withBoxes = {
-			...frames,
-			first: 30,
-			last: 33,
-			boxes: [box(0.1), box(0.2), null, box(0.3)]
-		};
+		const boxes = [box(0.1), box(0.2), null, box(0.3)];
+		const withBoxes = { ...frames, ranges: [{ url, first: 30, last: 33, boxes }] };
 		expect(subjectBox(withBoxes, 15 + 31)?.x).toBe(0.2);
 		expect(subjectBox(withBoxes, 15 + 31, 1)?.x).toBeCloseTo(0.15);
 		// Missing frames are skipped; frames outside the extracted range hold the edge.
@@ -190,6 +199,9 @@ describe('prepareFootage subject boxes', () => {
 		await prepareFootage(loaded, loaded.resolved.clips);
 		const frames = loaded.resolved.clips[0].footage!.talk;
 		expect(frames.boxes).toHaveLength(frames.last - frames.first + 1);
+		expect(frames.ranges).toEqual([
+			{ url: frames.url, first: frames.first, last: frames.last, boxes: frames.boxes }
+		]);
 		const box = subjectBox(frames, 5)!;
 		expect(box.x).toBeCloseTo(0.25, 1);
 		expect(box.width).toBeCloseTo(0.5, 1);

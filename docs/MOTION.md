@@ -199,6 +199,32 @@ in seconds. A clip's `audio` muxes that footage's sound into the rendered clip. 
 extracted once into `.visualfries/footage/` (JPEG plates, PNG cut-outs) and loaded before each
 frame is captured, so footage is frame-accurate in any seek order.
 
+A project can also describe the whole program. `cuts` lists ranges of raw footage in order,
+`{ "source": "talk", "in": "today we fix", "out": "the slow export" }`: `in` and `out` are
+seconds of that file or words of its own transcript (`footage.talk.transcript`), and every
+other second, frame or phrase in the project then means program time. The program transcript
+comes from the cut list, so a re-take that keeps the words keeps every cue; for a new take,
+point `footage.<name>.transcript` at its transcript (`--transcript` only replaces the transcript
+of a project without `cuts` or `shots`). `in` rounds to the nearest frame and `out` up to the
+next, so the last word is never clipped. A cut's `transition` belongs to the incoming range and
+never changes program time or sound; `audio: { split }` makes a J or L cut, and `check` warns
+about a word an audio edit point cuts through. `visualfries program` resolves cuts, program words,
+shots, clips, transitions, audio pieces and segments into `.visualfries/program/<format>.json`,
+and `check` reports what is wrong with them (a phrase that moved, a transition longer than its
+neighbour, missing handles).
+
+With a cut list (`cuts`), the cut list decides which source frame plays at each program frame,
+including the handles a transition shows; where a source runs out its edge frame holds.
+`<Footage name="talk">` then draws that source while a cut or shot shows it (anything else is an
+error), `<Footage program>` draws whatever is on screen, `offset` shifts inside the source, and
+`clip.subject('talk')` follows the same mapping. Only the source ranges the program shows are
+extracted, plus each footage's `margin` (default 2 s) around what the clips show, each range
+cached on its own.
+
+For now `still`, `check` and `render` work clip by clip: each clip in program time, over the
+footage the cut list shows. Shots and transitions are resolved into the program file but not
+drawn yet.
+
 `visualfries matte talk.mp4 --output talk.matte.mp4` makes the matte: BiRefNet v2 on fal.ai
 (`FAL_KEY`) by default; `--provider rvm` runs RobustVideoMatting locally on the CPU with no key
 (needs `uv`; about 3 fps at 1080p on 12 cores); any local tool works with
@@ -530,6 +556,7 @@ visualfries still video.vf.json --clip B --output b.png            # sheet: star
 visualfries still video.vf.json --clip B --at extra --at extra.end+0.5 --output b.png
 visualfries render video.vf.json --output out/ [--clip B] [--jobs 6]   # MP4 / MOV + manifest.json
 visualfries render video.vf.json --clip B --output b.mp4               # one clip straight to a file
+visualfries program program.vf.json [--format 1080x1920]                # the resolved program of a cut list
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover
 visualfries matte talk.mp4 --output talk.matte.mp4 --provider rvm   # subject matte (rvm local, fal.ai or --command)
 visualfries beats music.mp3                                      # music.beats.json (beat_this or --command)

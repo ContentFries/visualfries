@@ -1,6 +1,7 @@
 import { type FootageLayer } from './footage.js';
 type $$ComponentProps = {
-    name: string;
+    name?: string;
+    program?: boolean;
     layer?: FootageLayer;
     offset?: number;
     class?: string;

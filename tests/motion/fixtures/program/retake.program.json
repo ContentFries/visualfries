@@ -1,0 +1,822 @@
+{
+	"version": 1,
+	"mode": "program",
+	"format": {
+		"name": "1080x1920",
+		"size": [1080, 1920],
+		"class": "portrait",
+		"aspect": "9:16",
+		"width": 1080,
+		"height": 1920,
+		"zone": "all",
+		"safe": {
+			"top": 288,
+			"right": 300,
+			"bottom": 672,
+			"left": 120,
+			"notchY": 840,
+			"rightUpper": 192
+		}
+	},
+	"fps": 30,
+	"frames": 189,
+	"background": null,
+	"hashes": {
+		"project": "project-hash",
+		"transcript": null,
+		"transcripts": {
+			"talk": "talk-transcript-hash"
+		},
+		"sources": {
+			"talk": "talk-file-hash",
+			"broll": "broll-file-hash"
+		},
+		"assets": {
+			"blocks/Word.svelte": "word-block-hash",
+			"blocks/Title.svelte": "title-block-hash"
+		},
+		"music": null,
+		"brand": null,
+		"style": null
+	},
+	"sources": {
+		"talk": {
+			"src": "talk.mp4",
+			"matte": null,
+			"frames": 400,
+			"width": 1920,
+			"height": 1080,
+			"fps": 30,
+			"audio": "talk.mp4"
+		}
+	},
+	"cuts": [
+		{
+			"id": "cut1",
+			"index": 0,
+			"source": "talk",
+			"startFrame": 0,
+			"frames": 39,
+			"srcIn": 15,
+			"srcOut": 54,
+			"handles": {
+				"before": 15,
+				"after": 346
+			},
+			"transition": null,
+			"audio": {
+				"edit": 0,
+				"split": 0,
+				"crossfade": 0.01,
+				"gain": 0,
+				"mute": false
+			},
+			"native": null
+		},
+		{
+			"id": "cut2",
+			"index": 1,
+			"source": "talk",
+			"startFrame": 39,
+			"frames": 60,
+			"srcIn": 90,
+			"srcOut": 150,
+			"handles": {
+				"before": 90,
+				"after": 250
+			},
+			"transition": null,
+			"audio": {
+				"edit": 1.3,
+				"split": 0,
+				"crossfade": 0.01,
+				"gain": 0,
+				"mute": false
+			},
+			"native": null
+		},
+		{
+			"id": "cut3",
+			"index": 2,
+			"source": "talk",
+			"startFrame": 99,
+			"frames": 48,
+			"srcIn": 240,
+			"srcOut": 288,
+			"handles": {
+				"before": 240,
+				"after": 112
+			},
+			"transition": "cut3.transition",
+			"audio": {
+				"edit": 3.3,
+				"split": 0,
+				"crossfade": 0.01,
+				"gain": 0,
+				"mute": false
+			},
+			"native": null
+		},
+		{
+			"id": "cut4",
+			"index": 3,
+			"source": "talk",
+			"startFrame": 147,
+			"frames": 42,
+			"srcIn": 315,
+			"srcOut": 357,
+			"handles": {
+				"before": 315,
+				"after": 43
+			},
+			"transition": null,
+			"audio": {
+				"edit": 4.9,
+				"split": 0,
+				"crossfade": 0.01,
+				"gain": 0,
+				"mute": false
+			},
+			"native": null
+		}
+	],
+	"shots": [
+		{
+			"id": "full-0",
+			"shot": "full",
+			"implicit": true,
+			"startFrame": 0,
+			"frames": 39,
+			"source": null,
+			"params": {},
+			"morphFrames": 0,
+			"morphEase": "none",
+			"transition": null,
+			"keys": [],
+			"native": null
+		},
+		{
+			"id": "punch1",
+			"shot": "punch",
+			"implicit": false,
+			"startFrame": 39,
+			"frames": 60,
+			"source": null,
+			"params": {},
+			"morphFrames": 6,
+			"morphEase": "none",
+			"transition": null,
+			"keys": [
+				{
+					"frame": 69,
+					"values": {
+						"scale": 1.15
+					},
+					"ease": null,
+					"mix": "oklch"
+				}
+			],
+			"native": null
+		},
+		{
+			"id": "full-99",
+			"shot": "full",
+			"implicit": true,
+			"startFrame": 99,
+			"frames": 90,
+			"source": null,
+			"params": {},
+			"morphFrames": 0,
+			"morphEase": "none",
+			"transition": null,
+			"keys": [],
+			"native": null
+		}
+	],
+	"clips": [
+		{
+			"id": "title",
+			"block": "blocks/Title.svelte",
+			"fps": 30,
+			"size": [1080, 1920],
+			"start": 1.3,
+			"end": 3.3,
+			"startFrame": 39,
+			"frames": 60,
+			"duration": 1.9999999999999998,
+			"cues": {
+				"slow": {
+					"start": 0.9999999999999998,
+					"end": 1.4000000000000001,
+					"frame": 30,
+					"words": [
+						{
+							"id": "w8",
+							"index": 8,
+							"text": "slow",
+							"raw": "slow",
+							"start": 2.3,
+							"end": 2.7,
+							"source": "talk",
+							"sourceIndex": 9,
+							"cut": 1,
+							"sourceStart": 4,
+							"sourceEnd": 4.4,
+							"localStart": 0.9999999999999998,
+							"localEnd": 1.4000000000000001
+						}
+					]
+				}
+			},
+			"words": {},
+			"props": {},
+			"alpha": false,
+			"background": null,
+			"audio": null,
+			"brand": {
+				"neutral": true,
+				"name": null,
+				"colors": {
+					"primary": "#f43f5e",
+					"accent": "#fbc42d",
+					"background": "#08090c",
+					"surface": "#12141b",
+					"text": "#ffffff",
+					"muted": "#c9ced8",
+					"onPrimary": "#ffffff",
+					"onAccent": "#111111",
+					"extra": {}
+				},
+				"fonts": {
+					"heading": "Anton, Impact, sans-serif",
+					"body": "Inter, system-ui, sans-serif",
+					"mono": "ui-monospace, Menlo, Consolas, monospace"
+				},
+				"logo": {
+					"full": {
+						"light": null,
+						"dark": null
+					},
+					"mark": {
+						"light": null,
+						"dark": null
+					}
+				},
+				"radius": "12px"
+			},
+			"style": {
+				"neutral": true,
+				"energy": "balanced",
+				"layers": []
+			},
+			"format": {
+				"class": "portrait",
+				"aspect": "9:16",
+				"width": 1080,
+				"height": 1920,
+				"zone": "all",
+				"safe": {
+					"top": 288,
+					"right": 300,
+					"bottom": 672,
+					"left": 120,
+					"notchY": 840,
+					"rightUpper": 192
+				}
+			},
+			"slot": null,
+			"layer": "front",
+			"transition": null,
+			"keys": [],
+			"z": 0,
+			"native": null
+		},
+		{
+			"id": "codec",
+			"block": "blocks/Title.svelte",
+			"fps": 30,
+			"size": [1080, 1920],
+			"start": 3.3,
+			"end": 6.3,
+			"startFrame": 99,
+			"frames": 90,
+			"duration": 3,
+			"cues": {
+				"codec": {
+					"start": 0.6500000000000004,
+					"end": 1.5999999999999996,
+					"frame": 20,
+					"words": [
+						{
+							"id": "w13",
+							"index": 13,
+							"text": "faster",
+							"raw": "faster",
+							"start": 3.95,
+							"end": 4.3,
+							"source": "talk",
+							"sourceIndex": 18,
+							"cut": 2,
+							"sourceStart": 8.65,
+							"sourceEnd": 9,
+							"localStart": 0.6500000000000004,
+							"localEnd": 1
+						},
+						{
+							"id": "w14",
+							"index": 14,
+							"text": "codec",
+							"raw": "codec.",
+							"start": 4.3500000000000005,
+							"end": 4.8999999999999995,
+							"source": "talk",
+							"sourceIndex": 19,
+							"cut": 2,
+							"sourceStart": 9.05,
+							"sourceEnd": 9.6,
+							"localStart": 1.0500000000000007,
+							"localEnd": 1.5999999999999996
+						}
+					]
+				}
+			},
+			"words": {},
+			"props": {},
+			"alpha": false,
+			"background": null,
+			"audio": null,
+			"brand": {
+				"neutral": true,
+				"name": null,
+				"colors": {
+					"primary": "#f43f5e",
+					"accent": "#fbc42d",
+					"background": "#08090c",
+					"surface": "#12141b",
+					"text": "#ffffff",
+					"muted": "#c9ced8",
+					"onPrimary": "#ffffff",
+					"onAccent": "#111111",
+					"extra": {}
+				},
+				"fonts": {
+					"heading": "Anton, Impact, sans-serif",
+					"body": "Inter, system-ui, sans-serif",
+					"mono": "ui-monospace, Menlo, Consolas, monospace"
+				},
+				"logo": {
+					"full": {
+						"light": null,
+						"dark": null
+					},
+					"mark": {
+						"light": null,
+						"dark": null
+					}
+				},
+				"radius": "12px"
+			},
+			"style": {
+				"neutral": true,
+				"energy": "balanced",
+				"layers": []
+			},
+			"format": {
+				"class": "portrait",
+				"aspect": "9:16",
+				"width": 1080,
+				"height": 1920,
+				"zone": "all",
+				"safe": {
+					"top": 288,
+					"right": 300,
+					"bottom": 672,
+					"left": 120,
+					"notchY": 840,
+					"rightUpper": 192
+				}
+			},
+			"slot": "panel",
+			"layer": "front",
+			"transition": "codec.transition",
+			"keys": [],
+			"z": 1,
+			"native": null
+		}
+	],
+	"transitions": [
+		{
+			"id": "cut3.transition",
+			"owner": "cut3",
+			"kind": "cut",
+			"outgoing": "cut2",
+			"type": "push",
+			"startFrame": 92,
+			"frames": 15,
+			"cutFrame": 99,
+			"align": "center",
+			"direction": null,
+			"ease": null,
+			"params": {},
+			"sound": null,
+			"native": null,
+			"held": {
+				"out": 0,
+				"in": 0
+			}
+		},
+		{
+			"id": "codec.transition",
+			"owner": "codec",
+			"kind": "clip",
+			"outgoing": null,
+			"type": "wipe",
+			"startFrame": 93,
+			"frames": 12,
+			"cutFrame": 99,
+			"align": "center",
+			"direction": null,
+			"ease": null,
+			"params": {},
+			"sound": null,
+			"native": null,
+			"held": {
+				"out": 0,
+				"in": 6
+			}
+		}
+	],
+	"words": [
+		{
+			"id": "w0",
+			"index": 0,
+			"text": "Hello",
+			"raw": "Hello",
+			"start": 0,
+			"end": 0.30000000000000004,
+			"source": "talk",
+			"sourceIndex": 0,
+			"cut": 0,
+			"sourceStart": 0.5,
+			"sourceEnd": 0.8
+		},
+		{
+			"id": "w1",
+			"index": 1,
+			"text": "and",
+			"raw": "and",
+			"start": 0.35,
+			"end": 0.44999999999999996,
+			"source": "talk",
+			"sourceIndex": 1,
+			"cut": 0,
+			"sourceStart": 0.85,
+			"sourceEnd": 0.95
+		},
+		{
+			"id": "w2",
+			"index": 2,
+			"text": "welcome",
+			"raw": "welcome",
+			"start": 0.5,
+			"end": 0.8999999999999999,
+			"source": "talk",
+			"sourceIndex": 2,
+			"cut": 0,
+			"sourceStart": 1,
+			"sourceEnd": 1.4
+		},
+		{
+			"id": "w3",
+			"index": 3,
+			"text": "back",
+			"raw": "back.",
+			"start": 0.95,
+			"end": 1.3,
+			"source": "talk",
+			"sourceIndex": 3,
+			"cut": 0,
+			"sourceStart": 1.45,
+			"sourceEnd": 1.8
+		},
+		{
+			"id": "w4",
+			"index": 4,
+			"text": "today",
+			"raw": "today",
+			"start": 1.3,
+			"end": 1.5999999999999999,
+			"source": "talk",
+			"sourceIndex": 5,
+			"cut": 1,
+			"sourceStart": 3,
+			"sourceEnd": 3.3
+		},
+		{
+			"id": "w5",
+			"index": 5,
+			"text": "we",
+			"raw": "we",
+			"start": 1.6500000000000001,
+			"end": 1.7500000000000002,
+			"source": "talk",
+			"sourceIndex": 6,
+			"cut": 1,
+			"sourceStart": 3.35,
+			"sourceEnd": 3.45
+		},
+		{
+			"id": "w6",
+			"index": 6,
+			"text": "fix",
+			"raw": "fix",
+			"start": 1.8,
+			"end": 2.0999999999999996,
+			"source": "talk",
+			"sourceIndex": 7,
+			"cut": 1,
+			"sourceStart": 3.5,
+			"sourceEnd": 3.8
+		},
+		{
+			"id": "w7",
+			"index": 7,
+			"text": "the",
+			"raw": "the",
+			"start": 2.1500000000000004,
+			"end": 2.25,
+			"source": "talk",
+			"sourceIndex": 8,
+			"cut": 1,
+			"sourceStart": 3.85,
+			"sourceEnd": 3.95
+		},
+		{
+			"id": "w8",
+			"index": 8,
+			"text": "slow",
+			"raw": "slow",
+			"start": 2.3,
+			"end": 2.7,
+			"source": "talk",
+			"sourceIndex": 9,
+			"cut": 1,
+			"sourceStart": 4,
+			"sourceEnd": 4.4
+		},
+		{
+			"id": "w9",
+			"index": 9,
+			"text": "export",
+			"raw": "export.",
+			"start": 2.75,
+			"end": 3.3,
+			"source": "talk",
+			"sourceIndex": 10,
+			"cut": 1,
+			"sourceStart": 4.45,
+			"sourceEnd": 5
+		},
+		{
+			"id": "w10",
+			"index": 10,
+			"text": "Then",
+			"raw": "Then",
+			"start": 3.3,
+			"end": 3.499999999999999,
+			"source": "talk",
+			"sourceIndex": 15,
+			"cut": 2,
+			"sourceStart": 8,
+			"sourceEnd": 8.2
+		},
+		{
+			"id": "w11",
+			"index": 11,
+			"text": "pick",
+			"raw": "pick",
+			"start": 3.55,
+			"end": 3.8,
+			"source": "talk",
+			"sourceIndex": 16,
+			"cut": 2,
+			"sourceStart": 8.25,
+			"sourceEnd": 8.5
+		},
+		{
+			"id": "w12",
+			"index": 12,
+			"text": "a",
+			"raw": "a",
+			"start": 3.8500000000000005,
+			"end": 3.8999999999999995,
+			"source": "talk",
+			"sourceIndex": 17,
+			"cut": 2,
+			"sourceStart": 8.55,
+			"sourceEnd": 8.6
+		},
+		{
+			"id": "w13",
+			"index": 13,
+			"text": "faster",
+			"raw": "faster",
+			"start": 3.95,
+			"end": 4.3,
+			"source": "talk",
+			"sourceIndex": 18,
+			"cut": 2,
+			"sourceStart": 8.65,
+			"sourceEnd": 9
+		},
+		{
+			"id": "w14",
+			"index": 14,
+			"text": "codec",
+			"raw": "codec.",
+			"start": 4.3500000000000005,
+			"end": 4.8999999999999995,
+			"source": "talk",
+			"sourceIndex": 19,
+			"cut": 2,
+			"sourceStart": 9.05,
+			"sourceEnd": 9.6
+		},
+		{
+			"id": "w15",
+			"index": 15,
+			"text": "That",
+			"raw": "That",
+			"start": 4.9,
+			"end": 5.1,
+			"source": "talk",
+			"sourceIndex": 20,
+			"cut": 3,
+			"sourceStart": 10.5,
+			"sourceEnd": 10.7
+		},
+		{
+			"id": "w16",
+			"index": 16,
+			"text": "is",
+			"raw": "is",
+			"start": 5.15,
+			"end": 5.25,
+			"source": "talk",
+			"sourceIndex": 21,
+			"cut": 3,
+			"sourceStart": 10.75,
+			"sourceEnd": 10.85
+		},
+		{
+			"id": "w17",
+			"index": 17,
+			"text": "all",
+			"raw": "all",
+			"start": 5.300000000000001,
+			"end": 5.5,
+			"source": "talk",
+			"sourceIndex": 22,
+			"cut": 3,
+			"sourceStart": 10.9,
+			"sourceEnd": 11.1
+		},
+		{
+			"id": "w18",
+			"index": 18,
+			"text": "for",
+			"raw": "for",
+			"start": 5.550000000000001,
+			"end": 5.700000000000001,
+			"source": "talk",
+			"sourceIndex": 23,
+			"cut": 3,
+			"sourceStart": 11.15,
+			"sourceEnd": 11.3
+		},
+		{
+			"id": "w19",
+			"index": 19,
+			"text": "today",
+			"raw": "today.",
+			"start": 5.75,
+			"end": 6.3,
+			"source": "talk",
+			"sourceIndex": 24,
+			"cut": 3,
+			"sourceStart": 11.35,
+			"sourceEnd": 11.9
+		}
+	],
+	"events": [
+		{
+			"kind": "shot",
+			"frame": 39,
+			"owner": "punch1"
+		},
+		{
+			"kind": "transition",
+			"frame": 99,
+			"owner": "codec.transition"
+		},
+		{
+			"kind": "transition",
+			"frame": 99,
+			"owner": "cut3.transition"
+		}
+	],
+	"audio": {
+		"speech": [
+			{
+				"owner": "cut1",
+				"file": "talk.mp4",
+				"srcIn": 0.5,
+				"dur": 1.305,
+				"at": 0,
+				"fadeIn": 0,
+				"fadeOut": 0.01,
+				"gain": 0
+			},
+			{
+				"owner": "cut2",
+				"file": "talk.mp4",
+				"srcIn": 2.995,
+				"dur": 2.01,
+				"at": 1.295,
+				"fadeIn": 0.01,
+				"fadeOut": 0.01,
+				"gain": 0
+			},
+			{
+				"owner": "cut3",
+				"file": "talk.mp4",
+				"srcIn": 7.995,
+				"dur": 1.61,
+				"at": 3.295,
+				"fadeIn": 0.01,
+				"fadeOut": 0.01,
+				"gain": 0
+			},
+			{
+				"owner": "cut4",
+				"file": "talk.mp4",
+				"srcIn": 10.495,
+				"dur": 1.405,
+				"at": 4.895,
+				"fadeIn": 0.01,
+				"fadeOut": 0,
+				"gain": 0
+			}
+		],
+		"sfx": [
+			{
+				"owner": "sfx1",
+				"file": "pop",
+				"srcIn": 0,
+				"dur": null,
+				"at": 3.966667,
+				"fadeIn": 0,
+				"fadeOut": 0,
+				"gain": 0
+			}
+		],
+		"music": [],
+		"master": {
+			"lufs": -14,
+			"truePeak": -1
+		}
+	},
+	"segments": [
+		{
+			"id": "seg1",
+			"startFrame": 0,
+			"frames": 39,
+			"items": ["cut1", "full-0"],
+			"hash": "1a9c60fbd4592989404e389656c028092f784d43"
+		},
+		{
+			"id": "seg2",
+			"startFrame": 39,
+			"frames": 108,
+			"items": [
+				"cut2",
+				"cut3",
+				"punch1",
+				"full-99",
+				"title",
+				"codec",
+				"cut3.transition",
+				"codec.transition"
+			],
+			"hash": "f8db2db84f88e1fe0363e83b9716284b068bd461"
+		},
+		{
+			"id": "seg3",
+			"startFrame": 147,
+			"frames": 42,
+			"items": ["cut4", "full-99", "codec"],
+			"hash": "a51649cc568c5974a30ff38a08b6be3a984a736b"
+		}
+	],
+	"diagnostics": []
+}

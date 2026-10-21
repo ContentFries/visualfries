@@ -1,0 +1,21 @@
+{
+	"words": [
+		{ "text": "Intro", "startMs": 1020, "endMs": 1300 },
+		{ "text": "words", "startMs": 1500, "endMs": 1700 },
+		{ "text": "that", "startMs": 1800, "endMs": 1900 },
+		{ "text": "repeat,", "startMs": 2000, "endMs": 2400 },
+		{ "text": "–", "startMs": 2400, "endMs": 2450 },
+		{ "text": "words", "startMs": 2600, "endMs": 2800 },
+		{ "text": "that", "startMs": 2900, "endMs": 3000 },
+		{ "text": "duplicate.", "startMs": 3100, "endMs": 3700 },
+		{ "text": "The", "startMs": 4000, "endMs": 4100 },
+		{ "text": "price", "startMs": 4150, "endMs": 4500 },
+		{ "text": "dropped", "startMs": 4550, "endMs": 4900 },
+		{ "text": "by", "startMs": 4950, "endMs": 5050 },
+		{ "text": "half", "startMs": 5100, "endMs": 5500 },
+		{ "text": "overnight.", "startMs": 5550, "endMs": 6200 },
+		{ "text": "Thanks", "startMs": 6800, "endMs": 7100 },
+		{ "text": "for", "startMs": 7150, "endMs": 7250 },
+		{ "text": "watching.", "startMs": 7300, "endMs": 7900 }
+	]
+}

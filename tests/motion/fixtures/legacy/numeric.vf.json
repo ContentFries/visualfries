@@ -1,0 +1,22 @@
+{
+	"size": [100, 100],
+	"fps": 24,
+	"clips": [
+		{ "id": "a", "block": "B.svelte", "from": 0, "until": 1 },
+		{
+			"id": "b",
+			"block": "B.svelte",
+			"from": 0.51,
+			"until": 2.49,
+			"tail": -0.2,
+			"cues": { "x": 0.3, "f": { "frame": 7, "offset": 0.01 } }
+		},
+		{
+			"id": "c",
+			"block": "B.svelte",
+			"from": { "frame": 48 },
+			"until": 3,
+			"words": { "w": "clip" }
+		}
+	]
+}

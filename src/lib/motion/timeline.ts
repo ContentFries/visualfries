@@ -1,0 +1,227 @@
+import { z } from 'zod';
+import {
+	MotionAnchorShape,
+	MotionProjectShape,
+	footageName,
+	type MotionProject
+} from './project.js';
+
+// project.ts builds its project shape from these shapes and these read its anchor shape: the
+// references go through z.lazy so either module may load first.
+const anchor = z.lazy(() => MotionAnchorShape);
+const footage = z.lazy(() => footageName);
+
+const itemId = z
+	.string()
+	.regex(/^[A-Za-z0-9._-]+$/, 'item id: letters, digits, dot, dash, underscore');
+
+/**
+ * A point in a source's own time (cut `in`/`out`, a shot's source `in`).
+ * - number: seconds in the raw file
+ * - "phrase": words of that source's transcript
+ * - { say, edge?, occurrence?, offset? }: explicit phrase anchor
+ * - { frame }: frame of the raw file at the project frame rate
+ */
+export const SourceTimeShape = z.union([
+	z.number().min(0),
+	z.string().min(1),
+	z.object({
+		say: z.string().min(1),
+		edge: z.enum(['start', 'last', 'end']).optional(),
+		occurrence: z.number().int().min(1).optional(),
+		offset: z.number().optional()
+	}),
+	z.object({ frame: z.number().int().min(0), offset: z.number().optional() })
+]);
+export type SourceTime = z.infer<typeof SourceTimeShape>;
+
+/** A moment of the item itself ("start", "end", "mid", "2.5s", "f12", a cue of a clip). */
+export const MomentAnchorShape = z.object({ moment: z.string().min(1) });
+
+/**
+ * Anchor inside an item (keys): numbers are item-local seconds, `{ frame }` an item-local frame,
+ * phrases are searched inside the item, `{ moment }` uses the moment grammar.
+ */
+export const ItemAnchorShape = z.union([anchor, MomentAnchorShape]);
+export type ItemAnchor = z.infer<typeof ItemAnchorShape>;
+
+/** Built-in transitions; a path ("transitions/My.svelte") names a custom one. */
+export const TRANSITIONS = [
+	'wipe',
+	'push',
+	'zoom-through',
+	'shape-mask',
+	'blinds',
+	'card'
+] as const;
+/** Built-in shots; a path ("shots/My.ts") names a custom one. */
+export const SHOTS = ['full', 'punch', 'strip', 'window', 'behind', 'whip'] as const;
+
+/**
+ * The handoff into the item that carries it. A name ("push") or the full form. It never changes
+ * program time and never touches audio.
+ */
+export const TransitionShape = z.union([
+	z.string().min(1),
+	z.object({
+		/** Built-in name or "transitions/My.svelte". */
+		type: z.string().min(1),
+		/** Seconds. Default: the transition's own, then the style's energy. */
+		duration: z.number().positive().optional(),
+		/** Where the window sits on the cut. Default center. */
+		align: z.enum(['center', 'start', 'end']).optional(),
+		direction: z.enum(['forward', 'back', 'left', 'right', 'up', 'down']).optional(),
+		ease: z.string().optional(),
+		params: z.record(z.string(), z.unknown()).optional(),
+		/** false: silent; a name: this sound instead of the style's. */
+		sound: z.union([z.literal(false), z.string()]).optional(),
+		native: z.boolean().optional()
+	})
+]);
+export type Transition = z.infer<typeof TransitionShape>;
+
+/** Pixels of the format frame, or a percentage of it ("12.5%"). */
+const Length = z.union([z.number(), z.string().regex(/^-?\d*\.?\d+%$/, 'length: number or "12%"')]);
+
+/** A keyframe of an item's placement or of the props its block marks animatable. */
+export const KeyShape = z.object({
+	at: ItemAnchorShape,
+	x: Length.optional(),
+	y: Length.optional(),
+	scale: z.number().positive().optional(),
+	rotation: z.number().optional(),
+	opacity: z.number().min(0).max(1).optional(),
+	/** Only props the block marks animatable. */
+	props: z.record(z.string(), z.unknown()).optional(),
+	/** Ease of the segment arriving at this key. */
+	ease: z.string().optional(),
+	/** Colour space colours mix in. Default oklch (keeps the midpoint saturated). */
+	mix: z.enum(['oklab', 'oklch']).optional()
+});
+export type Key = z.infer<typeof KeyShape>;
+
+/** One range of a raw source in the cut list. `in`/`out` are source time. */
+export const CutShape = z.object({
+	id: itemId.optional(),
+	source: footage,
+	/** Default 0; a phrase starts at its first word ("start"). */
+	in: SourceTimeShape.optional(),
+	/** Default the end of the source; a phrase ends after its last word ("end"), searched from `in`. */
+	out: SourceTimeShape.optional(),
+	transition: TransitionShape.optional(),
+	audio: z
+		.object({
+			/** Seconds the audio edit point moves: negative is a J cut (audio leads), positive an L cut. */
+			split: z.number().optional(),
+			/** Anti-click crossfade in seconds, equal power. Default 0.01. */
+			crossfade: z.number().min(0).max(0.5).optional(),
+			/** dB. */
+			gain: z.number().optional(),
+			mute: z.boolean().optional()
+		})
+		.optional(),
+	native: z.boolean().optional()
+});
+export type Cut = z.infer<typeof CutShape>;
+
+/** How footage is framed from `from` until `until` (program time). */
+export const ShotShape = z.object({
+	id: itemId.optional(),
+	/** full | punch | strip | window | behind | whip | "shots/My.ts" */
+	shot: z.string().min(1),
+	from: anchor,
+	until: anchor,
+	/** Footage to frame instead of what the cut list shows; `in` is its source time at `from`. */
+	source: z
+		.union([footage, z.object({ name: footage, in: SourceTimeShape.optional() })])
+		.optional(),
+	params: z.record(z.string(), z.unknown()).optional(),
+	/** Seconds the layout moves from the previous shot; 0 = hard. */
+	morph: z.number().min(0).optional(),
+	transition: TransitionShape.optional(),
+	keys: z.array(KeyShape).optional(),
+	native: z.boolean().optional()
+});
+export type Shot = z.infer<typeof ShotShape>;
+
+/** Where generated material came from (provider, model, prompt, seed …). */
+export const ProvenanceShape = z.looseObject({
+	provider: z.string().min(1),
+	model: z.string().optional(),
+	prompt: z.string().optional(),
+	seed: z.union([z.number(), z.string()]).optional()
+});
+export type Provenance = z.infer<typeof ProvenanceShape>;
+
+export const SfxShape = z.object({
+	id: itemId.optional(),
+	at: anchor,
+	sound: z.string().min(1),
+	/** dB on top of the global SFX level. */
+	gain: z.number().optional()
+});
+export type Sfx = z.infer<typeof SfxShape>;
+
+/** Program mode: the project describes the whole program (a cut list or a shots track). */
+export function isProgramProject(project: Pick<MotionProject, 'cuts' | 'shots'>): boolean {
+	return !!(project.cuts?.length || project.shots?.length);
+}
+
+type Issue = z.core.$ZodIssue;
+
+function issuePath(base: PropertyKey[], path: PropertyKey[]): string {
+	return [...base, ...path]
+		.map((p, i) => (typeof p === 'number' ? `[${p}]` : i ? `.${String(p)}` : String(p)))
+		.join('');
+}
+
+/**
+ * One line per problem. For alternatives (an anchor is a number, a phrase, `{ say }` or
+ * `{ frame }`) the alternative that got furthest is reported, not every alternative's complaint.
+ */
+function describeIssues(issues: Issue[], base: PropertyKey[] = []): string[] {
+	const lines: string[] = [];
+	for (const issue of issues) {
+		const at = [...base, ...issue.path];
+		if (issue.code === 'invalid_union' && issue.errors.length) {
+			const depth = (branch: Issue[]) => Math.max(...branch.map((i) => i.path.length));
+			const deep = issue.errors.filter((branch) => depth(branch) > 0);
+			if (deep.length) {
+				const best = [...deep].sort((a, b) => depth(b) - depth(a) || a.length - b.length)[0];
+				lines.push(...describeIssues(best, at));
+			} else {
+				const expected = [
+					...new Set(
+						issue.errors.flatMap((branch) =>
+							branch.map((i) => (i.code === 'invalid_type' ? i.expected : i.message))
+						)
+					)
+				];
+				const list =
+					expected.length > 1
+						? `${expected.slice(0, -1).join(', ')} or ${expected[expected.length - 1]}`
+						: expected[0];
+				lines.push(`${issuePath(at, []) || '(project)'}: expected ${list}.`);
+			}
+			continue;
+		}
+		if ((issue.code === 'invalid_key' || issue.code === 'invalid_element') && issue.issues.length) {
+			// A record key that breaks the key's rule (e.g. a footage name with a space).
+			for (const line of describeIssues(issue.issues))
+				lines.push(`${issuePath(at, []) || '(project)'}: ${line.replace(/^\(project\): /, '')}`);
+			continue;
+		}
+		lines.push(`${issuePath(at, []) || '(project)'}: ${issue.message}`);
+	}
+	return lines;
+}
+
+/** Parses a project file's JSON, with one readable line per problem instead of zod's dump. */
+export function parseMotionProject(value: unknown, file = 'Project'): MotionProject {
+	const parsed = MotionProjectShape.safeParse(value);
+	if (parsed.success) return parsed.data;
+	throw new Error(
+		`${file} is not a valid motion project:\n` +
+			[...new Set(describeIssues(parsed.error.issues))].map((l) => `  ${l}`).join('\n')
+	);
+}

@@ -1,0 +1,46 @@
+import { type MotionAnchor } from './project.js';
+import { type MotionWord } from './transcript.js';
+import { type MusicBeats } from './beat-grid.js';
+export declare class AnchorError extends Error {
+}
+export type Window = {
+    from: number;
+    to: number;
+};
+/** The music beat anchors may use, and the item's choice among several (a clip's `music`). */
+export type BeatContext = {
+    music: MusicBeats[];
+    clip: string | undefined;
+};
+/** No music: beat anchors and beat offsets fail with "add music". */
+export declare const NO_BEATS: BeatContext;
+/**
+ * Where an anchor is resolved. Program contexts search program words; item-local contexts
+ * (cues, keys) search inside the item window and read numbers relative to `localBase`; cut
+ * points search the transcript of their source.
+ */
+export type AnchorContext = {
+    words: MotionWord[] | null;
+    fps: number;
+    /** Phrases are searched only here; null: everywhere. */
+    window: Window | null;
+    /** Numbers and `{ frame }` are relative to this; null: absolute. */
+    localBase: number | null;
+    /** What the window is called in messages. Default "clip". */
+    scope?: string;
+    /** How to get a transcript when there is none. Default: set "transcript" in the project. */
+    needs?: string;
+    /** Music beats for beat anchors and `"-1b"` offsets (program time). Default: none. */
+    beats?: BeatContext;
+};
+export declare function resolvePhrase(say: string, ctx: AnchorContext, occurrence: number | undefined): {
+    start: number;
+    end: number;
+    words: MotionWord[];
+};
+/** Returns seconds: absolute, or relative to `ctx.localBase` for numeric anchors when it is set. */
+export declare function resolveAnchor(anchor: MotionAnchor, ctx: AnchorContext, defaultEdge: 'start' | 'last' | 'end'): {
+    time: number;
+    end: number;
+    words: MotionWord[];
+};

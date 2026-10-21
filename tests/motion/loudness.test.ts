@@ -87,6 +87,10 @@ describe('true-peak limiter and normalisation', () => {
 		expect(result.truePeak).toBeLessThanOrEqual(-1);
 		expect(result.reduction).toBeLessThan(-1);
 		expect(integratedLoudness(result.samples)).toBe(result.lufs);
+		// The reported gain and limiter curve are exactly what made the output (stems rely on it).
+		const g = Math.pow(10, result.gain / 20);
+		for (const i of [1000, 48000, 2 * Math.round(0.5 * RATE), 300001])
+			expect(result.samples[i]).toBeCloseTo(signal[i] * g * (result.limiter?.[i >> 1] ?? 1), 6);
 	});
 
 	it('gives the same bytes twice', () => {

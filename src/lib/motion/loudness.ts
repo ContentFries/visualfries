@@ -284,7 +284,8 @@ export function normalizeLoudness(
 		limiter = limiterGain(out, ceiling - CEILING_MARGIN);
 		if (limiter) applyGain(out, limiter);
 		lufs = integratedLoudness(out);
-		if (Math.abs(lufs - target) < 0.05) break;
+		// The last round keeps its gain: `gain` must stay the one `out` was made with.
+		if (Math.abs(lufs - target) < 0.05 || round === 3) break;
 		gain += target - lufs;
 	}
 	let reduction = 0;

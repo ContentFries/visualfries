@@ -76,11 +76,13 @@ export async function renderProgramVideo(loaded, opts) {
             await fs.rm(bundle.dir, { recursive: true, force: true });
         }
     }
-    const t1 = Date.now();
+    const tMix = Date.now();
     const mixed = await mixProgram(program, { dir: loaded.dir, stems: opts.stems });
     if (mixed)
-        log(`mix: speech ${mixed.report.speech ?? '–'} LUFS, ${mixed.report.lufs} LUFS and ${mixed.report.truePeak} dBTP after ${mixed.report.gain} dB${mixed.report.limiter ? ` (limiter ${mixed.report.limiter} dB)` : ''}`);
+        log(`mix in ${((Date.now() - tMix) / 1000).toFixed(1)} s: speech ${mixed.report.speech ?? '–'} LUFS, ${mixed.report.lufs} LUFS and ${mixed.report.truePeak} dBTP after ${mixed.report.gain} dB${mixed.report.limiter ? ` (limiter ${mixed.report.limiter} dB)` : ''}`);
+    const t1 = Date.now();
     await joinAndEncode(program, segments, file, mixed?.samples ?? null);
+    const encodeSeconds = (Date.now() - t1) / 1000;
     let stems = null;
     if (mixed?.stems) {
         stems = {};
@@ -89,7 +91,6 @@ export async function renderProgramVideo(loaded, opts) {
             await writeWav(stems[stem], mixed.stems[stem]);
         }
     }
-    const encodeSeconds = (Date.now() - t1) / 1000;
     await fs.writeFile(sidecar, resolved);
     await pruneSegments(cacheDir, loaded, program.format.name, segments, t0);
     log(`final encode: ${program.frames} frames in ${encodeSeconds.toFixed(1)} s${mixed ? '' : ' (silent)'}`);

@@ -25,6 +25,8 @@ updated: 2026-09-27
 | `clip.cue.name`                                           | object    | `start`, `end`, `frame` of a project cue in clip time, plus its `words`. The built-in `start`/`end` are moments, not entries here.                                                                                                                                      |
 | `clip.words.name`                                         | word list | A word binding. Each word has program `start`/`end` and clip-local `localStart`/`localEnd`.                                                                                                                                                                             |
 | `clip.props`                                              | object    | The clip's `props`.                                                                                                                                                                                                                                                     |
+| `clip.pulse(on = 'beat')`                                 | 0 → 1     | Phase within the current beat of the music (`'bar'`: within the bar): 0 on the beat, rising to 1 before the next. The frame nearest a beat is 0. Needs music with beats.                                                                                                |
+| `clip.beats`                                              | list      | Every beat of the clip's music: `index`, program `time`, clip-local `local`, `bar`, `beat` (1 = downbeat).                                                                                                                                                              |
 | `clip.programStart`                                       | seconds   | Where the clip starts in the program.                                                                                                                                                                                                                                   |
 | `clip.subject(name, frame?, smooth = 0.15)`               | box       | Where the subject of footage `name` is, from its matte: `{ x, y, width, height, headX, headY }` in 0–1 fractions of the footage frame, smoothed over `smooth` seconds. `null` without a matte or with nobody in frame. See [Footage](/docs/footage#follow-the-subject). |
 
@@ -32,14 +34,17 @@ updated: 2026-09-27
 
 Everywhere a moment is expected (`p`, `after`, `map`, `at`, and the CLI's `--at`) the same grammar applies:
 
-| Moment                             | Meaning                                               |
-| ---------------------------------- | ----------------------------------------------------- |
-| `'extra'`                          | When cue `extra` starts.                              |
-| `'extra.end'`                      | When the words of cue `extra` end.                    |
-| `'extra+0.4'`, `'extra.end - 0.2'` | Offsets in seconds.                                   |
-| `'start'`, `'end'`, `'end-0.3'`    | Built-in cues: the clip's first frame and its length. |
-| `'2.5s'`, `'f120'`, `'mid'`        | Clip seconds, a clip frame, the middle of the clip.   |
-| `1.5`                              | A number is clip seconds (in code).                   |
+| Moment                               | Meaning                                                |
+| ------------------------------------ | ------------------------------------------------------ |
+| `'extra'`                            | When cue `extra` starts.                               |
+| `'extra.end'`                        | When the words of cue `extra` end.                     |
+| `'extra+0.4'`, `'extra.end - 0.2'`   | Offsets in seconds.                                    |
+| `'start'`, `'end'`, `'end-0.3'`      | Built-in cues: the clip's first frame and its length.  |
+| `'2.5s'`, `'f120'`, `'mid'`          | Clip seconds, a clip frame, the middle of the clip.    |
+| `'bar 5'`, `'bar 5.3'`, `'beat 17'`  | Music beats: a downbeat, beat 3 of bar 5, a beat.      |
+| `'downbeat > extra'`, `'beat < end'` | First downbeat at or after a moment; last beat before. |
+| `'extra.end - 1b'`, `'bar 5 + 0.5b'` | Offsets in beats of the music.                         |
+| `1.5`                                | A number is clip seconds (in code).                    |
 
 Because `end` follows the clip, an exit written as `clip.out('end-0.5')` still lands correctly when a slower voiceover makes the clip longer.
 

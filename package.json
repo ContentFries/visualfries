@@ -80,6 +80,10 @@
 		"./motion/matte": {
 			"types": "./dist/motion/matte.d.ts",
 			"default": "./dist/motion/matte.js"
+		},
+		"./motion/beats": {
+			"types": "./dist/motion/beats.d.ts",
+			"default": "./dist/motion/beats.js"
 		}
 	},
 	"peerDependencies": {

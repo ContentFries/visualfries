@@ -1,0 +1,39 @@
+{
+	"version": 1,
+	"source": {
+		"file": "music.wav",
+		"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+		"duration": 9.5
+	},
+	"analyzer": {
+		"name": "fixture",
+		"version": "1.0.0"
+	},
+	"tempo": 120,
+	"beatsPerBar": 4,
+	"beats": [
+		{ "time": 0.5, "bar": 0, "beat": 4, "energy": -30 },
+		{ "time": 1, "bar": 1, "beat": 1, "energy": -20 },
+		{ "time": 1.5, "bar": 1, "beat": 2, "energy": -20 },
+		{ "time": 2, "bar": 1, "beat": 3, "energy": -20 },
+		{ "time": 2.5, "bar": 1, "beat": 4, "energy": -20 },
+		{ "time": 3, "bar": 2, "beat": 1, "energy": -20 },
+		{ "time": 3.5, "bar": 2, "beat": 2, "energy": -20 },
+		{ "time": 4, "bar": 2, "beat": 3, "energy": -20 },
+		{ "time": 4.5, "bar": 2, "beat": 4, "energy": -20 },
+		{ "time": 5, "bar": 3, "beat": 1, "energy": -12 },
+		{ "time": 5.5, "bar": 3, "beat": 2, "energy": -12 },
+		{ "time": 6, "bar": 3, "beat": 3, "energy": -12 },
+		{ "time": 6.5, "bar": 3, "beat": 4, "energy": -12 },
+		{ "time": 7, "bar": 4, "beat": 1, "energy": -12 },
+		{ "time": 7.5, "bar": 4, "beat": 2, "energy": -12 },
+		{ "time": 8, "bar": 4, "beat": 3, "energy": -12 },
+		{ "time": 8.5, "bar": 4, "beat": 4, "energy": -12 }
+	],
+	"bars": [
+		{ "bar": 1, "start": 1, "energy": -20 },
+		{ "bar": 2, "start": 3, "energy": -20 },
+		{ "bar": 3, "start": 5, "energy": -12 },
+		{ "bar": 4, "start": 7, "energy": -12 }
+	]
+}

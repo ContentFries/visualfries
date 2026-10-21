@@ -1,5 +1,6 @@
 import type { MotionClip, MotionProject } from './project.js';
 import { type MotionWord } from './transcript.js';
+import { type MotionBeatRef, type MusicBeats } from './beat-grid.js';
 export type MotionWordRef = MotionWord & {
     /** Seconds relative to the clip start. */
     localStart: number;
@@ -31,6 +32,12 @@ export type ResolvedClip = {
     background: string | null;
     /** Footage whose sound the render muxes into this clip. */
     audio: string | null;
+    /**
+     * Every beat of the clip's music (also those outside the clip), for beat moments,
+     * `clip.beats` and `clip.pulse()`. Empty without music; `noBeats` then says why.
+     */
+    beats: MotionBeatRef[];
+    noBeats?: string;
     /** Frames of the project's footage, filled in by the node tooling before a page loads. */
     footage?: Record<string, FootageFrames>;
 };
@@ -76,5 +83,6 @@ export type ResolvedProject = {
     clips: ResolvedClip[];
     diagnostics: MotionDiagnostic[];
 };
-export declare function resolveMotionClip(clip: MotionClip, project: Pick<MotionProject, 'fps' | 'size' | 'background'>, words: MotionWord[] | null, diagnostics: MotionDiagnostic[]): ResolvedClip | null;
-export declare function resolveMotionProject(project: MotionProject, words: MotionWord[] | null): ResolvedProject;
+export declare function resolveMotionClip(clip: MotionClip, project: Pick<MotionProject, 'fps' | 'size' | 'background'>, words: MotionWord[] | null, diagnostics: MotionDiagnostic[], music?: MusicBeats[]): ResolvedClip | null;
+/** `music`: beats of the project's music items, placed in the program (see `programBeats`). */
+export declare function resolveMotionProject(project: MotionProject, words: MotionWord[] | null, music?: MusicBeats[]): ResolvedProject;

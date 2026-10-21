@@ -12,6 +12,7 @@ export {
 	type At,
 	type Ease
 } from './runtime.svelte.js';
+export type { MotionBeatRef } from './beat-grid.js';
 export type {
 	FootageFrames,
 	MotionWordRef,

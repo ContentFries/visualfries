@@ -1,6 +1,6 @@
 ---
 name: visualfries
-description: Create and validate VisualFries scene JSON, caption videos from transcripts, prepare agent-friendly video overlays, build transcript-timed motion projects (including speaker-depth edits with type behind a talking head), and hand off render-ready scenes without opening the ContentFries UI.
+description: Create and validate VisualFries scene JSON, caption videos from transcripts, prepare agent-friendly video overlays, build transcript- and beat-timed motion projects (including speaker-depth edits with type behind a talking head, and edits cut to music beats), and hand off render-ready scenes without opening the ContentFries UI.
 ---
 
 # VisualFries
@@ -327,6 +327,15 @@ Start with the built-in block `"block": "@visualfries/speaker-depth"`: the words
 9. `visualfries render project.vf.json --output out/` → `out/<clip>.mp4` with sound (or `--clip <id> --output reel.mp4` for one file).
 
 Never use a `<video>` element in a block: it plays on wall-clock time. Animate on cues (`useTimeline` + `at('cue')`), keep randomness frame-keyed (`noise(frame, n)`).
+
+## Music-driven edits (beats)
+
+Time motion-project clips to a music track like to words (`docs/MOTION.md`, "Music and beats"):
+
+1. `visualfries beats music.mp3` once → `music.beats.json` (beat_this, an optional install: `VISUALFRIES_BEAT_THIS=<venv>/bin/beat_this`; or `--command "tool {input} {output}"`). Never re-analyse at render time.
+2. Declare `"music": [{ "src": "music.mp3", "beats": "music.beats.json" }]`.
+3. Anchor with `{ "bar": 5 }`, `{ "beat": 17 }`, `{ "bar": 5, "beat": 3 }`, `{ "downbeat": "after", "at": "the drop" }`, `"offset": "-1b"`; in blocks `'bar 5'`, `'downbeat > extra'`, `'extra.end - 1b'` and `clip.pulse()` (0 on each beat → 1) for on-beat motion.
+4. Run `visualfries check` and read the bar grid before anything else. If the BPM column is twice (or half) the tempo of the music, set `"tempo": "half"` (or `"double"`) on the music item; if bars start on the wrong hit, `"downbeat": n`; a constant offset, `"shift": seconds`. Never edit the beats file to fix this.
 
 ## Agent Output Contract
 

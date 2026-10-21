@@ -1,13 +1,16 @@
 import type { FootageFrames, MotionWordRef, ResolvedClip, ResolvedCue, SubjectBox } from './resolve.js';
+import { type MotionBeatRef } from './beat-grid.js';
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
  * a cue with an offset ("extra+0.4", "extra.end-0.2"), the built-in "start"/"end",
- * "2.5s", "f120", "mid", or clip-local seconds as a number (1.5).
+ * "2.5s", "f120", "mid", music beats ("bar 5", "beat 17", "downbeat > extra",
+ * "extra.end - 1b"), or clip-local seconds as a number (1.5).
  */
 export type At = string | number;
 export type Ease = string | ((x: number) => number);
 declare const CONTEXT_KEY: unique symbol;
 export declare class Clip {
+    #private;
     /** Clip-local time in seconds. Reactive: use it directly in markup. */
     t: number;
     /** Clip-local frame. Reactive. */
@@ -27,6 +30,11 @@ export declare class Clip {
     readonly programStartFrame: number;
     /** Frames of the project's footage (see `<Footage>`). */
     readonly footage: Record<string, FootageFrames>;
+    /**
+     * Every beat of the clip's music, also outside the clip: `index` (1-based), program `time`,
+     * clip-local `local`, `bar` and `beat` (1 = downbeat). Empty without music.
+     */
+    readonly beats: MotionBeatRef[];
     constructor(data: ResolvedClip);
     /**
      * Where the subject of footage `name` is at clip frame `frame` (default: the current frame),
@@ -39,6 +47,13 @@ export declare class Clip {
      * (clip length) always exist, so exits follow the clip when a new voiceover stretches it.
      */
     at(at: At): number;
+    /**
+     * Phase within the current beat: 0 on the beat, rising to 1 just before the next one
+     * (`'bar'`: within the current bar). The frame nearest a beat is 0 even when the beat falls
+     * up to half a frame after it. Depends only on time, so it is seek-safe:
+     * `scale: 1 + 0.1 * (1 - clip.pulse())` bumps on every beat.
+     */
+    pulse(on?: 'beat' | 'bar'): number;
     /** Eased 0→1 progress starting at `at`, lasting `duration` seconds. */
     p(at: At, duration?: number, ease?: Ease): number;
     /** Eased 1→0 (for exits). */

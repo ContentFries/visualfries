@@ -1,6 +1,7 @@
-import { type MotionProject } from './project.js';
+import { type MotionMusic, type MotionProject } from './project.js';
 import { type MotionWord } from './transcript.js';
 import { type ResolvedClip, type ResolvedProject } from './resolve.js';
+import { type BarRow, type BeatsFile, type MusicBeats } from './beat-grid.js';
 import type { SubjectBox } from './resolve.js';
 export type LoadedMotionProject = {
     file: string;
@@ -9,12 +10,36 @@ export type LoadedMotionProject = {
     words: MotionWord[] | null;
     /** Short hash of the transcript's words and times; changes with every re-take. */
     transcriptHash: string | null;
+    /** The project's music items with their beats (corrected and placed in the program). */
+    music: LoadedMusic[];
+    /**
+     * Short hash of every beats file and its corrections (`from`, `until`, `shift`, `downbeat`,
+     * `tempo`); null without music beats. Beat-anchored clips move when it changes.
+     */
+    musicHash: string | null;
     resolved: ResolvedProject;
+};
+export type LoadedMusic = {
+    music: MotionMusic;
+    /** Absolute path of the beats file; null when the item has none. */
+    beatsFile: string | null;
+    analysis: BeatsFile | null;
+    /** SHA-256 of the beats file as read; null when the item has none. */
+    beatsHash: string | null;
+    beats: MusicBeats | null;
+    /** Bars in program seconds, for the `check` grid. */
+    bars: BarRow[];
 };
 /** `transcript` overrides the project's transcript (e.g. a re-recorded voiceover); relative to cwd. */
 export declare function loadMotionProject(file: string, opts?: {
     transcript?: string;
 }): Promise<LoadedMotionProject>;
+/**
+ * The bar grid of each music item with beats, as text for `check`: one line per bar with its
+ * program time, tempo, energy and first beats. A BPM column at twice (or half) the tempo you
+ * hear means the analyzer chose the wrong level: set `"tempo": "half"` (or `"double"`).
+ */
+export declare function describeMusicGrid(loaded: LoadedMotionProject): string;
 /** Throws when a requested clip id does not exist in the project. */
 export declare function assertKnownClips(loaded: LoadedMotionProject, clipIds?: string[]): void;
 /** Throws on errors of the given clips (all clips when omitted), including clips that failed to resolve. */
@@ -163,7 +188,9 @@ export type RenderedClip = {
     seconds: number;
     /** Transcript the clip was timed against. */
     transcript: string | null;
-    /** Set when the clip was rendered against another transcript than the newest render. */
+    /** Music beats and corrections the clip was timed against (`musicHash`); absent without music. */
+    music?: string;
+    /** Set when the clip was rendered against another transcript or music beats than the newest render. */
     stale?: boolean;
 };
 /** The encoder went away while frames were being piped; the frames themselves were fine. */

@@ -20,7 +20,7 @@ Resolves every clip and cue against the transcript and prints program times, fra
 npx visualfries check project.vf.json [--clip <id>]... [--determinism] [--json]
 ```
 
-Mounts every block and runs it at every fifth frame and around each cue, without rendering video. Finds resolution errors, runtime errors (unknown cues, bad eases, `map()` going back in time) and CSS animations on wall-clock time. `--determinism` also captures about a dozen sampled frames forward and backward and fails when they differ. An unknown `--clip` id is an error. The 16 clips of the CF004 example check in about six seconds.
+With music beats in the project, it first prints each music item's bar grid (bar, start, BPM, energy, first beats): a BPM column at twice the tempo you hear calls for `"tempo": "half"` on the music item. Then it mounts every block and runs it at every fifth frame and around each cue, without rendering video. Finds resolution errors, runtime errors (unknown cues, bad eases, `map()` going back in time) and CSS animations on wall-clock time. `--determinism` also captures about a dozen sampled frames forward and backward and fails when they differ. An unknown `--clip` id is an error. The 16 clips of the CF004 example check in about six seconds.
 
 ## still
 
@@ -90,6 +90,15 @@ Makes a greyscale matte (white = subject) for a [footage](/docs/footage). Visual
 | `command`       | Your tool. Placeholders: `{input}`, `{output}` (paths, passed through environment variables so any character is safe), `{fps}`, `{width}`, `{height}`, `{frames}`. The tool writes greyscale with white = subject, or with `--command-output alpha` a video with transparency (ProRes 4444 `.mov` by default; `--command-ext .webm` for VP9 with alpha). A mask without an alpha channel is rejected. |
 
 In Node, pass any object with `name`, `maxFrames` and `segment(piece)` as `provider` to `createSubjectMatte` from `visualfries/motion/matte` ([example](/docs/footage#make-a-matte)).
+
+## beats
+
+```bash
+npx visualfries beats music.mp3 [--output music.beats.json] [--model final0|small0] [--threads 4]
+npx visualfries beats music.mp3 --command "tool {input} {output}" [--analyzer-name n] [--analyzer-version v]
+```
+
+Analyses a music file once and writes `music.beats.json`: beats with bar and beat-in-bar, tempo, energy per beat and per bar, the analyzer's name and version, and the music file's SHA-256. Beat anchors, `check` and `render` only read that file; a changed music file is an error until it is analysed again. The default analyzer is beat_this, an optional install (`VISUALFRIES_BEAT_THIS` points to its executable). With `--command`, `{input}` is the decoded mono WAV and the tool writes `time [position-in-bar]` lines or JSON to `{output}`.
 
 ## Node API
 

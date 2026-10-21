@@ -9,11 +9,13 @@ import type {
 } from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { subjectBox } from './footage.js';
+import { NO_MUSIC_BEATS, beatPhase, type GridBeat, type MotionBeatRef } from './beat-grid.js';
 
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
  * a cue with an offset ("extra+0.4", "extra.end-0.2"), the built-in "start"/"end",
- * "2.5s", "f120", "mid", or clip-local seconds as a number (1.5).
+ * "2.5s", "f120", "mid", music beats ("bar 5", "beat 17", "downbeat > extra",
+ * "extra.end - 1b"), or clip-local seconds as a number (1.5).
  */
 export type At = string | number;
 export type Ease = string | ((x: number) => number);
@@ -40,6 +42,14 @@ export class Clip {
 	readonly programStartFrame: number;
 	/** Frames of the project's footage (see `<Footage>`). */
 	readonly footage: Record<string, FootageFrames>;
+	/**
+	 * Every beat of the clip's music, also outside the clip: `index` (1-based), program `time`,
+	 * clip-local `local`, `bar` and `beat` (1 = downbeat). Empty without music.
+	 */
+	readonly beats: MotionBeatRef[];
+	readonly #noBeats: string | undefined;
+	/** The beats in clip-local seconds, for moments and `pulse`. */
+	readonly #grid: GridBeat[];
 
 	constructor(data: ResolvedClip) {
 		this.id = data.id;
@@ -53,6 +63,14 @@ export class Clip {
 		this.programStart = data.start;
 		this.programStartFrame = data.startFrame;
 		this.footage = data.footage ?? {};
+		this.beats = data.beats ?? [];
+		this.#noBeats = data.noBeats;
+		this.#grid = this.beats.map((b) => ({
+			index: b.index,
+			time: b.local,
+			bar: b.bar,
+			beat: b.beat
+		}));
 	}
 
 	/**
@@ -75,8 +93,24 @@ export class Clip {
 			id: this.id,
 			cues: this.cue,
 			duration: this.duration,
-			fps: this.fps
+			fps: this.fps,
+			beats: this.#grid,
+			noBeats: this.#noBeats
 		});
+	}
+
+	/**
+	 * Phase within the current beat: 0 on the beat, rising to 1 just before the next one
+	 * (`'bar'`: within the current bar). The frame nearest a beat is 0 even when the beat falls
+	 * up to half a frame after it. Depends only on time, so it is seek-safe:
+	 * `scale: 1 + 0.1 * (1 - clip.pulse())` bumps on every beat.
+	 */
+	pulse(on: 'beat' | 'bar' = 'beat'): number {
+		if (!this.#grid.length)
+			throw new Error(
+				`Clip "${this.id}": pulse() needs music beats. ${this.#noBeats ?? NO_MUSIC_BEATS}`
+			);
+		return beatPhase(this.#grid, this.t, on, `the music of clip "${this.id}"`, 0.5 / this.fps);
 	}
 
 	/** Eased 0→1 progress starting at `at`, lasting `duration` seconds. */

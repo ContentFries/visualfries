@@ -7,11 +7,21 @@ import { once } from 'node:events';
 import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { MotionProjectShape, type MotionProject } from './project.js';
+import { MotionProjectShape, type MotionMusic, type MotionProject } from './project.js';
 import { parseTranscriptWords, type MotionWord } from './transcript.js';
 import { resolveMotionProject, type ResolvedClip, type ResolvedProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
+import {
+	BeatsFileShape,
+	barRows,
+	formatBarGrid,
+	programBeats,
+	type BarRow,
+	type BeatsFile,
+	type MusicBeats
+} from './beat-grid.js';
+import { fileSha256 } from './beats.js';
 import type { FootageFrames, SubjectBox } from './resolve.js';
 
 const require = createRequire(import.meta.url);
@@ -32,8 +42,85 @@ export type LoadedMotionProject = {
 	words: MotionWord[] | null;
 	/** Short hash of the transcript's words and times; changes with every re-take. */
 	transcriptHash: string | null;
+	/** The project's music items with their beats (corrected and placed in the program). */
+	music: LoadedMusic[];
+	/**
+	 * Short hash of every beats file and its corrections (`from`, `until`, `shift`, `downbeat`,
+	 * `tempo`); null without music beats. Beat-anchored clips move when it changes.
+	 */
+	musicHash: string | null;
 	resolved: ResolvedProject;
 };
+
+export type LoadedMusic = {
+	music: MotionMusic;
+	/** Absolute path of the beats file; null when the item has none. */
+	beatsFile: string | null;
+	analysis: BeatsFile | null;
+	/** SHA-256 of the beats file as read; null when the item has none. */
+	beatsHash: string | null;
+	beats: MusicBeats | null;
+	/** Bars in program seconds, for the `check` grid. */
+	bars: BarRow[];
+};
+
+/**
+ * Reads each music item's beats file. A beats file made from another version of the music
+ * (its SHA-256 differs) is an error, like a word cue after a re-take; nothing is re-analysed.
+ */
+async function loadMusic(project: MotionProject, dir: string): Promise<LoadedMusic[]> {
+	const loaded: LoadedMusic[] = [];
+	for (const music of project.music ?? []) {
+		if (!music.beats) {
+			loaded.push({
+				music,
+				beatsFile: null,
+				analysis: null,
+				beatsHash: null,
+				beats: null,
+				bars: []
+			});
+			continue;
+		}
+		const beatsFile = path.resolve(dir, music.beats);
+		const src = path.resolve(dir, music.src);
+		let analysis: BeatsFile;
+		let beatsHash: string;
+		try {
+			const text = await fs.readFile(beatsFile, 'utf8');
+			beatsHash = createHash('sha256').update(text).digest('hex');
+			analysis = BeatsFileShape.parse(JSON.parse(text));
+		} catch (error) {
+			throw new Error(
+				`Music "${music.id ?? music.src}": cannot read ${music.beats} (${(error as Error).message.split('\n')[0]}). Make it with: visualfries beats ${music.src} --output ${music.beats}`
+			);
+		}
+		if (!existsSync(src)) throw new Error(`Music "${music.id ?? music.src}": ${src} not found.`);
+		if ((await fileSha256(src)) !== analysis.source.sha256)
+			throw new Error(
+				`${music.src} changed since ${music.beats} was made. Run: visualfries beats ${music.src} --output ${music.beats}`
+			);
+		let beats: MusicBeats;
+		try {
+			beats = programBeats(analysis, music);
+		} catch (error) {
+			throw new Error(`Music "${music.id ?? music.src}": ${(error as Error).message}`);
+		}
+		const corrected = music.tempo !== undefined || music.downbeat !== undefined;
+		loaded.push({
+			music,
+			beatsFile,
+			analysis,
+			beatsHash,
+			beats,
+			bars: barRows(beats.grid, analysis.bars, corrected)
+		});
+	}
+	const ids = loaded.map((m) => m.music.id).filter(Boolean);
+	const twice = ids.find((id, i) => ids.indexOf(id) !== i);
+	if (twice) throw new Error(`Two music items have the id "${twice}".`);
+	return loaded;
+}
 
 /** `transcript` overrides the project's transcript (e.g. a re-recorded voiceover); relative to cwd. */
 export async function loadMotionProject(
@@ -57,14 +144,66 @@ export async function loadMotionProject(
 				.digest('hex')
 				.slice(0, 12)
 		: null;
+	const music = await loadMusic(project, dir);
+	const musicBeats = music.map((m) => m.beats).filter((b): b is MusicBeats => !!b);
+	const timing = music
+		.filter((m) => m.beatsHash)
+		.map(({ music: m, beatsHash }) => [
+			beatsHash,
+			m.id ?? null,
+			m.src,
+			m.from ?? null,
+			m.until ?? null,
+			m.shift ?? null,
+			m.downbeat ?? null,
+			m.tempo ?? null
+		]);
+	const musicHash = timing.length
+		? createHash('sha256').update(JSON.stringify(timing)).digest('hex').slice(0, 12)
+		: null;
 	return {
 		file: abs,
 		dir,
 		project,
 		words,
 		transcriptHash,
-		resolved: resolveMotionProject(project, words)
+		music,
+		musicHash,
+		resolved: resolveMotionProject(project, words, musicBeats)
 	};
+}
+
+/**
+ * The bar grid of each music item with beats, as text for `check`: one line per bar with its
+ * program time, tempo, energy and first beats. A BPM column at twice (or half) the tempo you
+ * hear means the analyzer chose the wrong level: set `"tempo": "half"` (or `"double"`).
+ */
+export function describeMusicGrid(loaded: LoadedMotionProject): string {
+	const parts: string[] = [];
+	for (const m of loaded.music) {
+		if (!m.analysis || !m.beats) continue;
+		const { music, analysis } = m;
+		const factor = music.tempo === 'double' ? 2 : music.tempo === 'half' ? 0.5 : 1;
+		const by = [analysis.analyzer.name, analysis.analyzer.version, analysis.analyzer.model]
+			.filter(Boolean)
+			.join(' ');
+		const corrections = [
+			music.tempo && `tempo ${music.tempo}`,
+			music.downbeat !== undefined && `downbeat ${music.downbeat}`,
+			music.shift !== undefined && `shift ${music.shift}s`
+		].filter(Boolean);
+		const bars = m.bars.filter((b) => b.bar > 0).length;
+		parts.push(
+			[
+				`music ${music.id ? `"${music.id}" ` : ''}${music.src} · ${music.beats} (${by}) · from ${music.from ?? 0}s${music.until !== undefined ? ` until ${music.until}s` : ''}`,
+				`  ${(analysis.tempo * factor).toFixed(1)} BPM · ${analysis.beatsPerBar ?? '?'} beats per bar · ${m.beats.grid.length} beats · ${bars} bars${corrections.length ? ` · corrections: ${corrections.join(', ')}` : ''}`,
+				m.bars.length
+					? formatBarGrid(m.bars)
+					: '  no downbeats: bar anchors are not available, beat anchors are'
+			].join('\n')
+		);
+	}
+	return parts.join('\n\n');
 }
 
 /** Throws when a requested clip id does not exist in the project. */
@@ -860,7 +999,9 @@ export function frameForAt(clip: ResolvedClip, at: string): number {
 		id: clip.id,
 		cues: clip.cues,
 		duration: clip.duration,
-		fps: clip.fps
+		fps: clip.fps,
+		beats: clip.beats?.map((b) => ({ index: b.index, time: b.local, bar: b.bar, beat: b.beat })),
+		noBeats: clip.noBeats
 	});
 	return Math.max(0, Math.min(clip.frames - 1, Math.round(seconds * clip.fps)));
 }
@@ -1074,7 +1215,9 @@ export type RenderedClip = {
 	seconds: number;
 	/** Transcript the clip was timed against. */
 	transcript: string | null;
-	/** Set when the clip was rendered against another transcript than the newest render. */
+	/** Music beats and corrections the clip was timed against (`musicHash`); absent without music. */
+	music?: string;
+	/** Set when the clip was rendered against another transcript or music beats than the newest render. */
 	stale?: boolean;
 };
 
@@ -1423,7 +1566,8 @@ export async function renderMotionClips(
 				alpha: clip.alpha,
 				mode,
 				seconds: (Date.now() - t0) / 1000,
-				transcript: loaded.transcriptHash
+				transcript: loaded.transcriptHash,
+				...(loaded.musicHash ? { music: loaded.musicHash } : {})
 			};
 			results.push(r);
 			opts.onProgress?.(`${clip.id}: ${clip.frames} frames in ${r.seconds.toFixed(1)} s (${mode})`);
@@ -1445,11 +1589,17 @@ export async function renderMotionClips(
 	const current = new Set(loaded.project.clips.map((c) => c.id));
 	const kept = previous
 		.filter((c) => !rendered.has(c.id) && current.has(c.id))
-		.map((c) => ({ ...c, stale: c.transcript !== loaded.transcriptHash || undefined }));
+		.map((c) => ({
+			...c,
+			stale:
+				c.transcript !== loaded.transcriptHash ||
+				(c.music ?? null) !== loaded.musicHash ||
+				undefined
+		}));
 	const stale = kept.filter((c) => c.stale).map((c) => c.id);
 	if (stale.length) {
 		opts.onProgress?.(
-			`Warning: ${stale.join(', ')} were rendered against another transcript; their placement may be off. Re-render them.`
+			`Warning: ${stale.join(', ')} were rendered against another transcript or other music beats; their placement may be off. Re-render them.`
 		);
 	}
 	const merged = [...kept, ...results].sort((a, b) => a.programStartFrame - b.programStartFrame);
@@ -1460,6 +1610,7 @@ export async function renderMotionClips(
 				fps: loaded.project.fps,
 				size: loaded.project.size,
 				transcript: loaded.transcriptHash,
+				...(loaded.musicHash ? { music: loaded.musicHash } : {}),
 				clips: merged
 			},
 			null,

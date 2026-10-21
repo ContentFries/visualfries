@@ -62,11 +62,19 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     --command "tool --in {input} --out {output}" [--command-output luma|alpha]
                     [--command-ext .webm] [--max-frames n]. Long videos are split, checked
                     and joined frame-exact.
+  visualfries beats <music> [--output <music.beats.json>] [--model final0|small0] [--threads 4]
+                    beats, downbeats, tempo and energy per bar of a music file, analysed once;
+                    beat anchors, check and render read only this file. Default analyzer:
+                    beat_this (optional install; VISUALFRIES_BEAT_THIS = its executable). Any
+                    tool: --command "tool {input} {output}" [--analyzer-name n]
+                    [--analyzer-version v]; {input} is a mono 44.1 kHz WAV, the tool writes
+                    "time [position-in-bar]" lines or JSON to {output}.
 
   --transcript <file>  resolve cues against another transcript (new voiceover)
 
-  <moment>: cue name ("extra"), cue edge/offset ("extra.end+0.3"), seconds ("2.5s"),
-            frame ("f120"), "mid" or "end". Several --at (or none: every cue) produce
+  <moment>: cue name ("extra"), cue edge/offset ("extra.end+0.3"), seconds ("2.5s" or 2.5),
+            frame ("f120"), "mid" or "end"; with music beats also "bar 5", "beat 17",
+            "downbeat > extra", "extra.end - 1b". Several --at (or none: every cue) produce
             one labelled contact sheet.
 
 caption-scene options:
@@ -1629,8 +1637,10 @@ async function motionCheckCommand(args) {
 		throw new Error(
 			'Usage: visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]'
 		);
-	const { loadMotionProject, checkMotionProject } = await motionModule();
+	const { loadMotionProject, checkMotionProject, describeMusicGrid } = await motionModule();
 	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const grid = describeMusicGrid(loaded);
+	if (grid && !hasFlag(args, '--json')) console.log(`${grid}\n`);
 	const results = await checkMotionProject(loaded, {
 		clips: readAllFlags(args, '--clip'),
 		determinism: hasFlag(args, '--determinism')
@@ -1764,7 +1774,9 @@ async function matteCommand(args) {
 		throw new Error(
 			'Usage: visualfries matte <video> --output <matte.mp4> [--provider fal|rvm|command] [--threads n] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs 3]'
 		);
-	const { createSubjectMatte, falBiRefNet, commandMatte, rvmMatte } = await import('../dist/motion/matte.js');
+	const { createSubjectMatte, falBiRefNet, commandMatte, rvmMatte } = await import(
+		'../dist/motion/matte.js'
+	);
 	const command = readFlag(args, '--command');
 	const providerName = readFlag(args, '--provider', command ? 'command' : 'fal');
 	let provider;
@@ -1782,7 +1794,10 @@ async function matteCommand(args) {
 			parallel: numberFlag(args, '--jobs')
 		});
 	} else if (providerName === 'rvm') {
-		provider = rvmMatte({ threads: numberFlag(args, '--threads'), maxFrames: numberFlag(args, '--max-frames') });
+		provider = rvmMatte({
+			threads: numberFlag(args, '--threads'),
+			maxFrames: numberFlag(args, '--max-frames')
+		});
 	} else {
 		throw new Error(`Unknown matte provider "${providerName}". Use fal, rvm or command.`);
 	}
@@ -1791,6 +1806,28 @@ async function matteCommand(args) {
 		provider,
 		chunkFrames: numberFlag(args, '--chunk-frames'),
 		jobs: numberFlag(args, '--jobs'),
+		onProgress: (msg) => console.error(msg)
+	});
+	console.log(JSON.stringify(result, null, 2));
+}
+
+async function beatsCommand(args) {
+	const input = args[0];
+	if (!input || input.startsWith('--'))
+		throw new Error(
+			'Usage: visualfries beats <music> [--output <music.beats.json>] [--model final0|small0] [--threads 4] [--command "tool {input} {output}"] [--analyzer-name n] [--analyzer-version v]'
+		);
+	const { analyzeBeats, beatThis, commandBeats } = await import('../dist/motion/beats.js');
+	const command = readFlag(args, '--command');
+	const analyzer = command
+		? commandBeats(command, {
+				name: readFlag(args, '--analyzer-name'),
+				version: readFlag(args, '--analyzer-version')
+			})
+		: beatThis({ model: readFlag(args, '--model'), threads: numberFlag(args, '--threads') });
+	const result = await analyzeBeats(input, {
+		output: readFlag(args, '--output'),
+		analyzer,
 		onProgress: (msg) => console.error(msg)
 	});
 	console.log(JSON.stringify(result, null, 2));
@@ -1874,6 +1911,7 @@ async function main() {
 	if (command === 'check') return motionCheckCommand(args);
 	if (command === 'matte') return matteCommand(args);
 	if (command === 'cache') return cacheCommand(args);
+	if (command === 'beats') return beatsCommand(args);
 	if (command === 'render' && args[0] && (await isMotionProjectFile(args[0])))
 		return motionRenderCommand(args);
 	if (command === 'render') return renderCommand(args);

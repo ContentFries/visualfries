@@ -40,7 +40,7 @@ my-video/
   or `{ "say": "…", "edge": "start"|"last"|"end", "occurrence": 2, "offset": -0.1 }`
   (`last` = when the phrase's last word starts).
 - **`cues`** are named moments inside the clip. Names may use any language and inner spaces
-  (`"nových odberateľov": "nových odberateľov"`), but not start with a digit or contain `+ - .`. Phrases are searched only inside the clip;
+  (`"nových odberateľov": "nových odberateľov"`), but not start with a digit or contain `+ - .`, and `bar 5` / `beat 17` read as music beats. Phrases are searched only inside the clip;
   numbers and `{ "frame": n }` are clip-local. `start` and `end` are built in and cannot be
   redefined. A missing phrase suggests the closest spoken ones ("Did you mean …"); an
   ambiguous phrase lists every occurrence with its time. Nothing is ever matched silently.
@@ -82,10 +82,12 @@ Transcripts: Soniox-style `{ "words": [{ "text", "startMs", "endMs" }] }` or
 | `clip.has('extra', word)`                       | word is in the `extra` binding                       |
 | `clip.cue.extra`                                | `{ start, end, frame, words }`                       |
 | `clip.words.row`, `clip.props`                  | bound words, props from the project                  |
+| `clip.pulse(on = 'beat')`, `clip.beats`         | phase in the beat (or `'bar'`), the music's beats    |
 
 `at` uses the same grammar everywhere (blocks and `still --at`): a cue (`'extra'`), a cue
 edge (`'extra.end'`), a cue with offset (`'extra+0.4'`, `'extra.end-0.2'`), `'2.5s'` or `'2.5'`, `'f120'`,
-`'mid'`, or clip-local seconds as a number. `start` and `end` always exist, so an exit written
+`'mid'`, music beats (`'bar 5'`, `'beat 17'`, `'downbeat > extra'`, `'extra.end - 1b'`, see
+[Music and beats](#music-and-beats)), or clip-local seconds as a number. `start` and `end` always exist, so an exit written
 as `'end-0.3'` follows the clip when a new voiceover makes it longer. Eases are GSAP names or
 functions; an unknown name is an error, never a silent linear ease.
 
@@ -167,6 +169,144 @@ frame is captured, so footage is frame-accurate in any seek order.
 `--command "tool {input} {output}"`, and any `MatteProvider` in Node. It splits, checks and joins the pieces frame-exact. Worked example:
 `static/demo/speaker-depth`.
 
+## Music and beats
+
+A music-driven edit times clips to the beats of a track the way a talking-head edit times them
+to words. Analyse the music once; everything else reads the result:
+
+```bash
+visualfries beats music.mp3            # writes music.beats.json next to it
+```
+
+```json
+"music": [
+	{ "src": "music.mp3", "beats": "music.beats.json", "from": 0 }
+],
+"clips": [
+	{
+		"id": "hook",
+		"block": "blocks/Hook.svelte",
+		"from": { "bar": 2 },
+		"until": { "downbeat": "after", "at": "that is the trick" },
+		"cues": { "hit": { "bar": 5, "offset": "-1b" }, "fill": { "bar": 4, "beat": 3 } }
+	}
+]
+```
+
+**Beat anchors** work wherever word anchors do (`from`, `until`, `cues`, `words` ranges) and
+mix with them:
+
+| Anchor                                    | Means                                                                                     |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `{ "beat": 17 }`                          | the 17th beat of the music (1-based from its first beat, counted after corrections)       |
+| `{ "bar": 5 }`, `{ "bar": 5, "beat": 3 }` | the downbeat of bar 5; its 3rd beat. Bar 0 holds pickup beats before the first downbeat   |
+| `{ "downbeat": "after", "at": … }`        | the first downbeat at or after another anchor (seconds, a phrase, a frame, a beat anchor) |
+| `{ "beat": "before", "at": … }`           | the last beat at or before it (`"after"`/`"before"` work for both)                        |
+| `"offset": -0.03` / `"offset": "-1b"`     | on any object anchor: seconds, or beats along the grid (`"0.5b"` = half a beat)           |
+
+Beats are numbered after the corrections below: with `"tempo": "double"`, `{ "beat": 17 }` is
+the 17th beat of the doubled grid. A phrase in `at` takes the edge of the field it sits in: in
+`until` it is the phrase's end, so `"until": { "downbeat": "after", "at": "that is the trick" }`
+never cuts the phrase short; in `from` and `cues` it is the start. `{ "say": …, "edge": … }`
+picks another edge. `bar` does not mix with `at`: `{ "bar": 2, "beat": "after", "at": … }` is an
+error.
+
+As with words, numbers inside `cues` (also in `at`) are clip-local; beats themselves are
+absolute, so `{ "bar": 5 }` is bar 5 wherever the clip is. A bar that does not exist, a beat
+after the music's `until` or a missing beats file is an error that names the valid range,
+never a silent guess. With several music items with beats, give each an `id` and pick one per
+anchor (`"music": "bed"`) or per clip (`"music": "bed"` on the clip).
+
+In blocks and `--at`, the same as strings: `'bar 5'`, `'bar 5.3'` (beat 3 of bar 5), `'beat 17'`,
+`'downbeat > extra'` (first downbeat at or after a moment), `'beat < end'` (last beat at or
+before), and a beat offset on any moment: `'extra.end - 1b'`, `'bar 5 + 0.5b'`. After `>` or `<`
+the rest is the moment it searches from: `'downbeat > extra - 1b'` is the first downbeat after
+one beat before `extra`. A beat outside the clip still resolves.
+
+```svelte
+<!-- a bump on every beat, a flash on every bar: seek-safe, they depend only on time -->
+<div style:transform="scale({1 + 0.15 * (1 - clip.pulse())})"></div>
+<div style:opacity={1 - clip.pulse('bar')}></div>
+```
+
+`clip.pulse()` is the phase within the current beat: 0 on the beat, rising to 1 just before
+the next (`'bar'`: within the bar). The frame nearest a beat counts as the beat, even when the
+beat falls a few milliseconds after it. `clip.beats` lists every beat of the music with
+`index`, program `time`, clip-local `local`, `bar` and `beat` (1 = downbeat).
+
+**The music item:** `src`, `beats`, `from` (program second at which the music file starts,
+default 0) and `until` (program second at which it stops; later beats do not exist). For now
+music only times things: render does not mix it into the clips yet.
+
+**Corrections.** Beat trackers are reliable within a frame, but they can pick the wrong
+level: half or double the tempo you hear, or the wrong beat as the downbeat. Fix it on the music
+item; the beats file stays as analysed, so re-analysis keeps the fix:
+
+- `"tempo": "double"` (the analyzer found half the tempo: beats are added between beats) or
+  `"half"` (every second beat is dropped);
+- `"downbeat": 3`: the 3rd beat of each bar is really beat 1 (counted after `tempo`);
+- `"shift": -0.02`: seconds added to every beat.
+
+`visualfries check` prints the bar grid of every music item before checking the clips. A BPM
+column at twice the tempo you tap along to means `"tempo": "half"`; bars that start on the
+wrong hit mean `"downbeat"`:
+
+```
+music music.mp3 · music.beats.json (beat_this 1.1.0 final0) · from 0s
+  127.9 BPM · 4 beats per bar · 48 beats · 12 bars
+   bar      start    bpm   energy  first beats
+     1     0.600s  127.7  -18.6dB  0.600 1.080 1.540 2.020
+     2     2.480s  129.0  -19.5dB  2.480 2.940 3.420 3.880
+     6     9.980s  127.7  -21.7dB  9.980 10.460 10.920 11.400
+```
+
+**The beats file** (`music.beats.json`), in seconds of the music file:
+
+```json
+{
+	"version": 1,
+	"source": { "file": "music.mp3", "sha256": "5d0c84…", "duration": 25.1 },
+	"analyzer": { "name": "beat_this", "version": "1.1.0", "model": "final0" },
+	"tempo": 127.9,
+	"beatsPerBar": 4,
+	"beats": [
+		{ "time": 0.6, "bar": 1, "beat": 1, "energy": -15.7 },
+		{ "time": 1.08, "bar": 1, "beat": 2, "energy": -21 }
+	],
+	"bars": [{ "bar": 1, "start": 0.6, "energy": -18.6 }]
+}
+```
+
+Downbeats are the beats with `beat: 1`; `bars` repeats them with the bar's energy (RMS dBFS).
+`energy` per beat lets `check` measure bars after a correction. When the music file changes
+(its SHA-256 differs), loading the project fails and asks to run `visualfries beats` again;
+nothing is ever re-analysed at render time. Beats the tracker placed in silence before or
+after the music are left out.
+
+**The analyzer.** `visualfries beats` decodes the music once (mono 44.1 kHz WAV), runs the
+analyzer, measures energy and writes the file. The default analyzer is
+[beat_this](https://github.com/CPJKU/beat_this) (MIT code and weights, beats and downbeats). It
+needs PyTorch (about 800 MB), so it is an optional install. Keep it in its own virtual
+environment under a cache directory, never in the system Python:
+
+```bash
+python3 -m venv ~/.cache/visualfries/beat_this
+~/.cache/visualfries/beat_this/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+~/.cache/visualfries/beat_this/bin/pip install https://github.com/CPJKU/beat_this/archive/main.zip
+export VISUALFRIES_BEAT_THIS=~/.cache/visualfries/beat_this/bin/beat_this
+```
+
+The model checkpoint (`final0`, about 80 MB; `--model small0` is about 8 MB and twice as fast)
+downloads on first use into PyTorch's cache (`TORCH_HOME`). Threads are capped at 4
+(`--threads n`): results are identical for any thread count, and a busy machine is much faster
+with fewer. A 2-minute track takes a few seconds on a CPU.
+
+Any other tracker plugs in with `--command "tool {input} {output}"`: `{input}` is the decoded
+WAV, and the tool writes either lines of `time [position-in-bar]` (1 = downbeat) or JSON
+(`{ "beats": [0.5, …], "downbeats": [...] }`). Name it with `--analyzer-name` and
+`--analyzer-version`. In Node, `analyzeBeats(music, { analyzer })` from `visualfries/motion/beats`
+takes `beatThis()`, `commandBeats(template)` or any `BeatAnalyzer`.
+
 ## Built-in blocks and captions
 
 `"block": "@visualfries/captions"` and `"block": "@visualfries/speaker-depth"` ship with
@@ -186,9 +326,10 @@ visualfries render video.vf.json --output out/ [--clip B] [--jobs 6]   # MP4 / M
 visualfries render video.vf.json --clip B --output b.mp4               # one clip straight to a file
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover
 visualfries matte talk.mp4 --output talk.matte.mp4 --provider rvm   # subject matte (rvm local, fal.ai or --command)
+visualfries beats music.mp3                                      # music.beats.json (beat_this or --command)
 ```
 
-`check` mounts every block and runs it across the clip: unknown cues, bad eases, maps that go
+`check` prints the bar grid of the project's music, then mounts every block and runs it across the clip: unknown cues, bad eases, maps that go
 back in time, `NaN`/`undefined`/`Infinity` in SVG geometry, transforms and raw `style` attributes
 (broken math renders nothing and throws nothing — e.g. a shadowed variable in a `points`
 formula; styles set through Svelte drop invalid values silently and are not seen), CSS

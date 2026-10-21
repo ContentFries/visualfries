@@ -2,6 +2,7 @@ import { getContext, onMount } from 'svelte';
 import { gsap } from 'gsap';
 import { resolveMoment } from './moment.js';
 import { subjectBox } from './footage.js';
+import { NO_MUSIC_BEATS, beatPhase } from './beat-grid.js';
 const CONTEXT_KEY = Symbol.for('visualfries.motion.clip');
 export class Clip {
     /** Clip-local time in seconds. Reactive: use it directly in markup. */
@@ -23,6 +24,14 @@ export class Clip {
     programStartFrame;
     /** Frames of the project's footage (see `<Footage>`). */
     footage;
+    /**
+     * Every beat of the clip's music, also outside the clip: `index` (1-based), program `time`,
+     * clip-local `local`, `bar` and `beat` (1 = downbeat). Empty without music.
+     */
+    beats;
+    #noBeats;
+    /** The beats in clip-local seconds, for moments and `pulse`. */
+    #grid;
     constructor(data) {
         this.id = data.id;
         this.fps = data.fps;
@@ -35,6 +44,14 @@ export class Clip {
         this.programStart = data.start;
         this.programStartFrame = data.startFrame;
         this.footage = data.footage ?? {};
+        this.beats = data.beats ?? [];
+        this.#noBeats = data.noBeats;
+        this.#grid = this.beats.map((b) => ({
+            index: b.index,
+            time: b.local,
+            bar: b.bar,
+            beat: b.beat
+        }));
     }
     /**
      * Where the subject of footage `name` is at clip frame `frame` (default: the current frame),
@@ -56,8 +73,21 @@ export class Clip {
             id: this.id,
             cues: this.cue,
             duration: this.duration,
-            fps: this.fps
+            fps: this.fps,
+            beats: this.#grid,
+            noBeats: this.#noBeats
         });
+    }
+    /**
+     * Phase within the current beat: 0 on the beat, rising to 1 just before the next one
+     * (`'bar'`: within the current bar). The frame nearest a beat is 0 even when the beat falls
+     * up to half a frame after it. Depends only on time, so it is seek-safe:
+     * `scale: 1 + 0.1 * (1 - clip.pulse())` bumps on every beat.
+     */
+    pulse(on = 'beat') {
+        if (!this.#grid.length)
+            throw new Error(`Clip "${this.id}": pulse() needs music beats. ${this.#noBeats ?? NO_MUSIC_BEATS}`);
+        return beatPhase(this.#grid, this.t, on, `the music of clip "${this.id}"`, 0.5 / this.fps);
     }
     /** Eased 0→1 progress starting at `at`, lasting `duration` seconds. */
     p(at, duration = 0.6, ease = 'power2.out') {

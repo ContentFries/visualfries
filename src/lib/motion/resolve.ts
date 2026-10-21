@@ -1,5 +1,21 @@
-import type { MotionAnchor, MotionClip, MotionProject, MotionWords } from './project.js';
+import {
+	AMBIGUOUS_BAR_ANCHOR,
+	type MotionAnchor,
+	type MotionClip,
+	type MotionProject,
+	type MotionWords
+} from './project.js';
 import { describeWords, findPhrase, suggestPhrases, type MotionWord } from './transcript.js';
+import {
+	BEAT_OFFSET,
+	findBarBeat,
+	findBeat,
+	nearBeat,
+	pickMusic,
+	shiftByBeats,
+	type MotionBeatRef,
+	type MusicBeats
+} from './beat-grid.js';
 
 export type MotionWordRef = MotionWord & {
 	/** Seconds relative to the clip start. */
@@ -34,6 +50,13 @@ export type ResolvedClip = {
 	background: string | null;
 	/** Footage whose sound the render muxes into this clip. */
 	audio: string | null;
+	/**
+	 * Every beat of the clip's music (also those outside the clip), for beat moments,
+	 * `clip.beats` and `clip.pulse()`. Absent when the project has no music with beats, so
+	 * such projects resolve exactly as before; `noBeats` says why a clip with music has none.
+	 */
+	beats?: MotionBeatRef[];
+	noBeats?: string;
 	/** Frames of the project's footage, filled in by the node tooling before a page loads. */
 	footage?: Record<string, FootageFrames>;
 };
@@ -132,6 +155,28 @@ function resolvePhrase(
 	return hits[0];
 }
 
+/** The music beat anchors may use, and the clip's choice among several. */
+type BeatContext = { music: MusicBeats[]; clip: string | undefined };
+
+function musicFor(beats: BeatContext, id: string | undefined): MusicBeats {
+	return pickMusic(beats.music, id ?? beats.clip);
+}
+
+/** Adds seconds, or moves along the beat grid for `"-1b"`. */
+function applyOffset(
+	time: number,
+	offset: number | string | undefined,
+	beats: BeatContext,
+	id?: string
+): number {
+	if (offset === undefined) return time;
+	if (typeof offset === 'number') return time + offset;
+	const m = BEAT_OFFSET.exec(offset);
+	if (!m) throw new AnchorError(`Offset "${offset}" must be seconds (-0.2) or beats ("-1b").`);
+	const music = musicFor(beats, id);
+	return shiftByBeats(music.grid, time, Number(m[1]), music.name);
+}
+
 /** Returns program seconds (or clip-local when `localBase` is given for numeric anchors). */
 function resolveAnchor(
 	anchor: MotionAnchor,
@@ -139,7 +184,8 @@ function resolveAnchor(
 	fps: number,
 	window: Window | null,
 	defaultEdge: 'start' | 'last' | 'end',
-	localBase: number | null
+	localBase: number | null,
+	beats: BeatContext
 ): { time: number; end: number; words: MotionWord[] } {
 	if (typeof anchor === 'number') {
 		const time = localBase === null ? anchor : localBase + anchor;
@@ -148,7 +194,35 @@ function resolveAnchor(
 	if (typeof anchor === 'string') anchor = { say: anchor };
 	if ('frame' in anchor) {
 		// Program frame for clip ranges, clip-local frame for cues (like numbers).
-		const time = (localBase ?? 0) + anchor.frame / fps + (anchor.offset ?? 0);
+		const time = applyOffset((localBase ?? 0) + anchor.frame / fps, anchor.offset, beats);
+		return { time, end: time, words: [] };
+	}
+	if ('bar' in anchor || 'downbeat' in anchor || 'beat' in anchor) {
+		if (
+			'bar' in anchor &&
+			('at' in anchor || 'downbeat' in anchor || typeof anchor.beat === 'string')
+		)
+			throw new AnchorError(AMBIGUOUS_BAR_ANCHOR);
+		// Beats are absolute: bar 5 is bar 5 wherever the clip is.
+		const music = musicFor(beats, anchor.music);
+		let base: number;
+		if ('bar' in anchor)
+			base = findBarBeat(music.grid, anchor.bar, anchor.beat ?? 1, music.name).time;
+		else if ('downbeat' in anchor || typeof anchor.beat === 'string') {
+			const direction =
+				'downbeat' in anchor ? anchor.downbeat : (anchor.beat as 'after' | 'before');
+			// `at` keeps the caller's edge: in `until` a phrase means its end, so the downbeat after
+			// it never cuts the phrase short. `{ say, edge }` still picks another edge.
+			const at = resolveAnchor(anchor.at, words, fps, window, defaultEdge, localBase, beats).time;
+			base = nearBeat(
+				music.grid,
+				at,
+				'downbeat' in anchor ? 'downbeat' : 'beat',
+				direction,
+				music.name
+			).time;
+		} else base = findBeat(music.grid, anchor.beat, music.name).time;
+		const time = applyOffset(base, anchor.offset, beats, anchor.music);
 		return { time, end: time, words: [] };
 	}
 	const hit = resolvePhrase(words, anchor.say, window, anchor.occurrence);
@@ -159,7 +233,7 @@ function resolveAnchor(
 			: edge === 'last'
 				? hit.words[hit.words.length - 1].start
 				: hit.end;
-	const time = base + (anchor.offset ?? 0);
+	const time = applyOffset(base, anchor.offset, beats);
 	return { time, end: hit.end, words: hit.words };
 }
 
@@ -172,14 +246,15 @@ function resolveWords(
 	words: MotionWord[] | null,
 	fps: number,
 	window: Window,
-	clipStart: number
+	clipStart: number,
+	beats: BeatContext
 ): MotionWord[] {
 	if (!words)
 		throw new AnchorError('Word bindings need a transcript; set "transcript" in the project.');
 	if (spec === 'clip') return words.filter((w) => w.start >= window.from && w.start < window.to);
 	if (typeof spec === 'string') return resolvePhrase(words, spec, window, undefined).words;
-	const a = resolveAnchor(spec.from, words, fps, window, 'start', clipStart);
-	const b = resolveAnchor(spec.until, words, fps, window, 'end', clipStart);
+	const a = resolveAnchor(spec.from, words, fps, window, 'start', clipStart, beats);
+	const b = resolveAnchor(spec.until, words, fps, window, 'end', clipStart, beats);
 	return words.filter((w) => w.start >= a.time - 1e-6 && w.start < b.time);
 }
 
@@ -187,16 +262,18 @@ export function resolveMotionClip(
 	clip: MotionClip,
 	project: Pick<MotionProject, 'fps' | 'size' | 'background'>,
 	words: MotionWord[] | null,
-	diagnostics: MotionDiagnostic[]
+	diagnostics: MotionDiagnostic[],
+	music: MusicBeats[] = []
 ): ResolvedClip | null {
 	const fps = project.fps;
+	const beats: BeatContext = { music, clip: clip.music };
 	const fail = (field: string, error: unknown) => {
 		diagnostics.push({ level: 'error', clip: clip.id, field, message: (error as Error).message });
 	};
 	let startSec: number;
 	let endSec: number;
 	try {
-		startSec = resolveAnchor(clip.from, words, fps, null, 'start', null).time;
+		startSec = resolveAnchor(clip.from, words, fps, null, 'start', null, beats).time;
 	} catch (error) {
 		fail('from', error);
 		return null;
@@ -208,7 +285,8 @@ export function resolveMotionClip(
 			fps,
 			{ from: startSec, to: Infinity },
 			'end',
-			null
+			null,
+			beats
 		).time;
 	} catch (error) {
 		fail('until', error);
@@ -250,7 +328,7 @@ export function resolveMotionClip(
 	const cues: Record<string, ResolvedCue> = {};
 	for (const [name, anchor] of Object.entries(clip.cues ?? {})) {
 		try {
-			const hit = resolveAnchor(anchor, words, fps, window, 'start', start);
+			const hit = resolveAnchor(anchor, words, fps, window, 'start', start, beats);
 			const local = hit.time - start;
 			if (local < -1 / fps || local >= end - start) {
 				diagnostics.push({
@@ -274,7 +352,9 @@ export function resolveMotionClip(
 	const bound: Record<string, MotionWordRef[]> = {};
 	for (const [name, spec] of Object.entries(clip.words ?? {})) {
 		try {
-			bound[name] = resolveWords(spec, words, fps, window, start).map((w) => toRef(w, start));
+			bound[name] = resolveWords(spec, words, fps, window, start, beats).map((w) =>
+				toRef(w, start)
+			);
 			if (!bound[name].length) {
 				diagnostics.push({
 					level: 'warning',
@@ -285,6 +365,24 @@ export function resolveMotionClip(
 			}
 		} catch (error) {
 			fail(`words.${name}`, error);
+		}
+	}
+
+	// Without music the clip gets no beat fields at all, so it resolves exactly as before.
+	let musicFields: { beats: MotionBeatRef[] } | { noBeats: string } | null = null;
+	if (music.length) {
+		try {
+			musicFields = {
+				beats: musicFor(beats, undefined).grid.map(({ index, time, bar, beat }) => ({
+					index,
+					time,
+					local: time - start,
+					bar,
+					beat
+				}))
+			};
+		} catch (error) {
+			musicFields = { noBeats: (error as Error).message };
 		}
 	}
 
@@ -303,13 +401,16 @@ export function resolveMotionClip(
 		props: clip.props ?? {},
 		alpha: clip.alpha ?? false,
 		background: clip.alpha ? null : (clip.background ?? project.background ?? null),
-		audio: clip.audio ?? null
+		audio: clip.audio ?? null,
+		...musicFields
 	};
 }
 
+/** `music`: beats of the project's music items, placed in the program (see `programBeats`). */
 export function resolveMotionProject(
 	project: MotionProject,
-	words: MotionWord[] | null
+	words: MotionWord[] | null,
+	music: MusicBeats[] = []
 ): ResolvedProject {
 	const diagnostics: MotionDiagnostic[] = [];
 	const ids = new Set<string>();
@@ -333,7 +434,15 @@ export function resolveMotionProject(
 				message: `Unknown footage "${clip.audio}". Footage: ${Object.keys(project.footage ?? {}).join(', ') || 'none'}`
 			});
 		}
-		const resolved = resolveMotionClip(clip, project, words, diagnostics);
+		if (clip.music && !music.some((m) => m.id === clip.music)) {
+			diagnostics.push({
+				level: 'error',
+				clip: clip.id,
+				field: 'music',
+				message: `Unknown music "${clip.music}". Music with beats: ${music.map((m) => m.id ?? m.name).join(', ') || 'none'}`
+			});
+		}
+		const resolved = resolveMotionClip(clip, project, words, diagnostics, music);
 		if (resolved) clips.push(resolved);
 	}
 	return { fps: project.fps, size: project.size, clips, diagnostics };

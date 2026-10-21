@@ -5,49 +5,45 @@ import { z } from 'zod';
  * - "phrase": transcript phrase, start of its first word
  * - { say, edge?, occurrence?, offset? }: explicit phrase anchor
  * - { frame }: absolute program frame
+ * - { beat: 17 }: the 17th beat of the music; { bar: 5 } its downbeat, { bar: 5, beat: 3 }
+ * - { downbeat: "after", at }, { beat: "before", at }: nearest (down)beat to another anchor
+ * `offset` is seconds or beats ("-1b").
  */
-export declare const MotionAnchorShape: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-    say: z.ZodString;
-    edge: z.ZodOptional<z.ZodEnum<{
-        start: "start";
-        end: "end";
-        last: "last";
-    }>>;
-    occurrence: z.ZodOptional<z.ZodNumber>;
-    offset: z.ZodOptional<z.ZodNumber>;
-}, z.core.$strip>, z.ZodObject<{
-    frame: z.ZodNumber;
-    offset: z.ZodOptional<z.ZodNumber>;
-}, z.core.$strip>]>;
-export type MotionAnchor = z.infer<typeof MotionAnchorShape>;
+export type MotionAnchor = number | string | {
+    say: string;
+    edge?: 'start' | 'last' | 'end';
+    occurrence?: number;
+    offset?: number | string;
+} | {
+    frame: number;
+    offset?: number | string;
+} | {
+    bar: number;
+    beat?: number;
+    music?: string;
+    offset?: number | string;
+} | {
+    beat: number;
+    music?: string;
+    offset?: number | string;
+} | {
+    downbeat: 'after' | 'before';
+    at: MotionAnchor;
+    music?: string;
+    offset?: number | string;
+} | {
+    beat: 'after' | 'before';
+    at: MotionAnchor;
+    music?: string;
+    offset?: number | string;
+};
+/** `{ bar, beat: "after", at }` would silently lose `bar`; such anchors are refused. */
+export declare const AMBIGUOUS_BAR_ANCHOR = "An anchor with \"bar\" cannot also have \"at\", \"downbeat\" or \"beat\": \"after\"/\"before\". Use { \"bar\": 5, \"beat\": 3 } for a beat in a bar, or { \"beat\": \"after\", \"at\": \u2026 } for the beat after a moment.";
+export declare const MotionAnchorShape: z.ZodType<MotionAnchor>;
 /** Words pulled from the transcript: a phrase, a range, or every word in the clip. */
 export declare const MotionWordsShape: z.ZodUnion<readonly [z.ZodLiteral<"clip">, z.ZodString, z.ZodObject<{
-    from: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-        say: z.ZodString;
-        edge: z.ZodOptional<z.ZodEnum<{
-            start: "start";
-            end: "end";
-            last: "last";
-        }>>;
-        occurrence: z.ZodOptional<z.ZodNumber>;
-        offset: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>, z.ZodObject<{
-        frame: z.ZodNumber;
-        offset: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>]>;
-    until: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-        say: z.ZodString;
-        edge: z.ZodOptional<z.ZodEnum<{
-            start: "start";
-            end: "end";
-            last: "last";
-        }>>;
-        occurrence: z.ZodOptional<z.ZodNumber>;
-        offset: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>, z.ZodObject<{
-        frame: z.ZodNumber;
-        offset: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>]>;
+    from: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
+    until: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
 }, z.core.$strip>]>;
 export type MotionWords = z.infer<typeof MotionWordsShape>;
 export declare const MotionFontShape: z.ZodObject<{
@@ -72,81 +68,41 @@ export declare const MotionFootageShape: z.ZodObject<{
     margin: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodLiteral<"all">]>>;
 }, z.core.$strip>;
 export type MotionFootage = z.infer<typeof MotionFootageShape>;
+/**
+ * A music item. For now it only times things: beat anchors read its beats file (made by
+ * `visualfries beats`); render does not mix it yet. Corrections fix what the analyzer got wrong
+ * without touching the beats file, so re-analysis keeps them.
+ */
+export declare const MotionMusicShape: z.ZodObject<{
+    id: z.ZodOptional<z.ZodString>;
+    src: z.ZodString;
+    beats: z.ZodOptional<z.ZodString>;
+    from: z.ZodOptional<z.ZodNumber>;
+    until: z.ZodOptional<z.ZodNumber>;
+    shift: z.ZodOptional<z.ZodNumber>;
+    downbeat: z.ZodOptional<z.ZodNumber>;
+    tempo: z.ZodOptional<z.ZodEnum<{
+        double: "double";
+        half: "half";
+    }>>;
+}, z.core.$strip>;
+export type MotionMusic = z.infer<typeof MotionMusicShape>;
 export declare const MotionClipShape: z.ZodObject<{
     id: z.ZodString;
     block: z.ZodString;
-    from: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-        say: z.ZodString;
-        edge: z.ZodOptional<z.ZodEnum<{
-            start: "start";
-            end: "end";
-            last: "last";
-        }>>;
-        occurrence: z.ZodOptional<z.ZodNumber>;
-        offset: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>, z.ZodObject<{
-        frame: z.ZodNumber;
-        offset: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>]>;
-    until: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-        say: z.ZodString;
-        edge: z.ZodOptional<z.ZodEnum<{
-            start: "start";
-            end: "end";
-            last: "last";
-        }>>;
-        occurrence: z.ZodOptional<z.ZodNumber>;
-        offset: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>, z.ZodObject<{
-        frame: z.ZodNumber;
-        offset: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>]>;
+    from: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
+    until: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
     tail: z.ZodOptional<z.ZodNumber>;
-    cues: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-        say: z.ZodString;
-        edge: z.ZodOptional<z.ZodEnum<{
-            start: "start";
-            end: "end";
-            last: "last";
-        }>>;
-        occurrence: z.ZodOptional<z.ZodNumber>;
-        offset: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>, z.ZodObject<{
-        frame: z.ZodNumber;
-        offset: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>]>>>;
+    cues: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>>;
     words: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnion<readonly [z.ZodLiteral<"clip">, z.ZodString, z.ZodObject<{
-        from: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-            say: z.ZodString;
-            edge: z.ZodOptional<z.ZodEnum<{
-                start: "start";
-                end: "end";
-                last: "last";
-            }>>;
-            occurrence: z.ZodOptional<z.ZodNumber>;
-            offset: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>, z.ZodObject<{
-            frame: z.ZodNumber;
-            offset: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>]>;
-        until: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-            say: z.ZodString;
-            edge: z.ZodOptional<z.ZodEnum<{
-                start: "start";
-                end: "end";
-                last: "last";
-            }>>;
-            occurrence: z.ZodOptional<z.ZodNumber>;
-            offset: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>, z.ZodObject<{
-            frame: z.ZodNumber;
-            offset: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>]>;
+        from: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
+        until: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
     }, z.core.$strip>]>>>;
     props: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     alpha: z.ZodOptional<z.ZodBoolean>;
     background: z.ZodOptional<z.ZodString>;
     audio: z.ZodOptional<z.ZodString>;
+    music: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 export type MotionClip = z.infer<typeof MotionClipShape>;
 export declare const MotionProjectShape: z.ZodObject<{
@@ -170,81 +126,35 @@ export declare const MotionProjectShape: z.ZodObject<{
         start: z.ZodOptional<z.ZodNumber>;
         margin: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodLiteral<"all">]>>;
     }, z.core.$strip>>>;
+    music: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        id: z.ZodOptional<z.ZodString>;
+        src: z.ZodString;
+        beats: z.ZodOptional<z.ZodString>;
+        from: z.ZodOptional<z.ZodNumber>;
+        until: z.ZodOptional<z.ZodNumber>;
+        shift: z.ZodOptional<z.ZodNumber>;
+        downbeat: z.ZodOptional<z.ZodNumber>;
+        tempo: z.ZodOptional<z.ZodEnum<{
+            double: "double";
+            half: "half";
+        }>>;
+    }, z.core.$strip>>>;
     clips: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         block: z.ZodString;
-        from: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-            say: z.ZodString;
-            edge: z.ZodOptional<z.ZodEnum<{
-                start: "start";
-                end: "end";
-                last: "last";
-            }>>;
-            occurrence: z.ZodOptional<z.ZodNumber>;
-            offset: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>, z.ZodObject<{
-            frame: z.ZodNumber;
-            offset: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>]>;
-        until: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-            say: z.ZodString;
-            edge: z.ZodOptional<z.ZodEnum<{
-                start: "start";
-                end: "end";
-                last: "last";
-            }>>;
-            occurrence: z.ZodOptional<z.ZodNumber>;
-            offset: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>, z.ZodObject<{
-            frame: z.ZodNumber;
-            offset: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>]>;
+        from: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
+        until: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
         tail: z.ZodOptional<z.ZodNumber>;
-        cues: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-            say: z.ZodString;
-            edge: z.ZodOptional<z.ZodEnum<{
-                start: "start";
-                end: "end";
-                last: "last";
-            }>>;
-            occurrence: z.ZodOptional<z.ZodNumber>;
-            offset: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>, z.ZodObject<{
-            frame: z.ZodNumber;
-            offset: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>]>>>;
+        cues: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>>;
         words: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnion<readonly [z.ZodLiteral<"clip">, z.ZodString, z.ZodObject<{
-            from: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-                say: z.ZodString;
-                edge: z.ZodOptional<z.ZodEnum<{
-                    start: "start";
-                    end: "end";
-                    last: "last";
-                }>>;
-                occurrence: z.ZodOptional<z.ZodNumber>;
-                offset: z.ZodOptional<z.ZodNumber>;
-            }, z.core.$strip>, z.ZodObject<{
-                frame: z.ZodNumber;
-                offset: z.ZodOptional<z.ZodNumber>;
-            }, z.core.$strip>]>;
-            until: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
-                say: z.ZodString;
-                edge: z.ZodOptional<z.ZodEnum<{
-                    start: "start";
-                    end: "end";
-                    last: "last";
-                }>>;
-                occurrence: z.ZodOptional<z.ZodNumber>;
-                offset: z.ZodOptional<z.ZodNumber>;
-            }, z.core.$strip>, z.ZodObject<{
-                frame: z.ZodNumber;
-                offset: z.ZodOptional<z.ZodNumber>;
-            }, z.core.$strip>]>;
+            from: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
+            until: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
         }, z.core.$strip>]>>>;
         props: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
         alpha: z.ZodOptional<z.ZodBoolean>;
         background: z.ZodOptional<z.ZodString>;
         audio: z.ZodOptional<z.ZodString>;
+        music: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export type MotionProject = z.infer<typeof MotionProjectShape>;

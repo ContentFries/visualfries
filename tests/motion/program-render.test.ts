@@ -307,6 +307,21 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		await fs.writeFile(file, programJson('ONE'));
 	}, 150_000);
 
+	it('keeps an unused intermediate written as a render starts, as file times lag the clock', async () => {
+		const cacheDir = path.join(dir, '.visualfries', 'segments');
+		const name = (c: string) => path.join(cacheDir, `${c.repeat(40)}-${c.repeat(12)}.mkv`);
+		// Another render's fresh intermediate (its record not written yet), stamped by the coarse
+		// kernel clock a few milliseconds before this render's start; and a stale one.
+		await fs.writeFile(name('a'), 'x');
+		await fs.writeFile(name('b'), 'x');
+		await fs.utimes(name('b'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
+		await fs.utimes(name('a'), new Date(Date.now() - 4), new Date(Date.now() - 4));
+		await renderProgramVideo(await loadMotionProject(file), { output: out('again.mp4') });
+		expect(existsSync(name('a'))).toBe(true);
+		expect(existsSync(name('b'))).toBe(false);
+		await fs.rm(name('a'));
+	}, 150_000);
+
 	it('draws again the segment of a block whose imported helper changed', async () => {
 		const tinted = `<script>
 	import { useClip } from 'visualfries/motion';

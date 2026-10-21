@@ -22,7 +22,10 @@ export class Clip {
     height;
     cue;
     words;
-    props;
+    /** The clip's props. Reactive: what changes them during the clip (keys) redraws the block. */
+    props = $state({});
+    /** Program mode: the area of the frame this clip fills (`slot` in the project); else null. */
+    slot;
     /** Program time of the clip start, for showing transcript timestamps. */
     programStart;
     /** Program frame of the clip start; `programStartFrame + frame` is the program frame. */
@@ -67,6 +70,7 @@ export class Clip {
         this.cue = data.cues;
         this.words = data.words;
         this.props = data.props;
+        this.slot = data.slot ?? null;
         this.programStart = data.start;
         this.programStartFrame = data.startFrame;
         this.footage = data.footage ?? {};

@@ -10,6 +10,8 @@ import type { ResolvedClip } from './resolve.js';
 import { seekTimeline } from './seek.js';
 import { brandTokens, NEUTRAL_BRAND } from './brand.js';
 import { formatTokens, resolveFormat } from './format.js';
+import { createProgramScene, type ProgramScene } from './program-stage.js';
+import type { StageSegment } from './segments.js';
 
 export type StageFont = { family: string; url: string; weight?: string | number; style?: string };
 export type StageOptions = {
@@ -68,6 +70,8 @@ export function createMotionStage(options: StageOptions) {
 		instance: ReturnType<typeof mount>;
 		data: ResolvedClip;
 	} | null = null;
+	/** Program mode: the segment on the stage (see `loadSegment`). */
+	let segment: ProgramScene | null = null;
 	let seeks = 0;
 	/** `<canvas layoutsubtree>` elements the block nests in the stage, as of the last seek. */
 	let nested: HTMLCanvasElement[] = [];
@@ -82,14 +86,37 @@ export function createMotionStage(options: StageOptions) {
 		}
 	}
 
-	async function mountClip(data: ResolvedClip) {
+	/**
+	 * Program mode: a range of the program (or all of it) on one stage, with the footage the cut
+	 * list shows and every clip on screen in it. `frame(n)` then takes program frames.
+	 */
+	async function loadSegment(data: StageSegment) {
+		try {
+			return await mountSegment(data);
+		} catch (error) {
+			unload();
+			throw error;
+		}
+	}
+
+	async function mountSegment(data: StageSegment) {
 		unload();
-		const [width, height] = data.size;
+		createStage(data.size, data.background);
+		await loadFonts();
+		segment = createProgramScene(stage!, data, options.blocks);
+		findNestedCanvases();
+		assertNoEffectOverNestedCanvas();
+		await Promise.all(segment.ready);
+		await document.fonts.ready;
+		return { mode, frames: data.frames, fps: data.fps, startFrame: data.startFrame };
+	}
+
+	function createStage([width, height]: [number, number], background: string | null) {
 		stage = document.createElement('div');
 		stage.id = 'vf-stage';
 		stage.style.width = `${width}px`;
 		stage.style.height = `${height}px`;
-		stage.style.background = data.background ?? 'transparent';
+		stage.style.background = background ?? 'transparent';
 		if (mode === 'html-in-canvas') {
 			canvas = document.createElement('canvas') as CanvasWithElements;
 			canvas.setAttribute('layoutsubtree', '');
@@ -103,15 +130,22 @@ export function createMotionStage(options: StageOptions) {
 		} else {
 			document.body.appendChild(stage);
 		}
+	}
 
-		// Fonts first: blocks and engines measure text when they mount.
+	/** Fonts first: blocks and engines measure text when they mount. */
+	async function loadFonts() {
 		const query = (f: StageFont) =>
 			`${f.style ?? 'normal'} ${String(f.weight ?? 400).split(/\s+/)[0]} 32px ${JSON.stringify(f.family)}`;
 		await Promise.all((options.fonts ?? []).map((f) => document.fonts.load(query(f))));
 		const missing = (options.fonts ?? []).filter((f) => !document.fonts.check(query(f)));
 		if (missing.length)
 			throw new Error(`Fonts failed to load: ${missing.map((f) => f.family).join(', ')}`);
+	}
 
+	async function mountClip(data: ResolvedClip) {
+		unload();
+		createStage(data.size, data.background);
+		await loadFonts();
 		const Block = options.blocks[data.block];
 		if (!Block) throw new Error(`Block "${data.block}" is not in the bundle.`);
 		const root = document.createElement('div');
@@ -125,7 +159,7 @@ export function createMotionStage(options: StageOptions) {
 			...formatTokens(format)
 		}))
 			root.style.setProperty(name, value);
-		stage.appendChild(root);
+		stage!.appendChild(root);
 		const controller: ClipController = {
 			clip: new Clip(data),
 			root,
@@ -150,6 +184,13 @@ export function createMotionStage(options: StageOptions) {
 
 	/** Sets clip time and runs the clip's logic; resolves once every `useFrame` promise settles. */
 	async function applyTime(frame: number) {
+		if (segment) {
+			segment.seek(frame);
+			findNestedCanvases();
+			assertNoEffectOverNestedCanvas();
+			await segment.draw(frame);
+			return frame / segment.fps;
+		}
 		if (!active) throw new Error('No clip loaded.');
 		const { controller, data } = active;
 		const t = frame / data.fps;
@@ -259,6 +300,8 @@ export function createMotionStage(options: StageOptions) {
 	}
 
 	function unload() {
+		segment?.destroy();
+		segment = null;
 		if (active) {
 			unmount(active.instance);
 			active = null;
@@ -288,9 +331,11 @@ export function createMotionStage(options: StageOptions) {
 			} catch (error) {
 				const message = (error as Error).message;
 				if (!errors.some((e) => e.message === message)) errors.push({ frame: n, message });
-				if (!active) break; // unloaded to keep the page alive
+				if (!active && !segment) break; // unloaded to keep the page alive
 				continue;
 			}
+			for (const message of segment?.warnings(n) ?? [])
+				if (!warnings.some((w) => w.message === message)) warnings.push({ frame: n, message });
 			// broken math renders nothing and throws nothing: NaN/undefined in styles and SVG geometry
 			if (stage && seen.size < 5) {
 				for (const bad of findBadValues(stage)) {
@@ -332,7 +377,7 @@ export function createMotionStage(options: StageOptions) {
 		return active?.controller.clip.events() ?? [];
 	}
 
-	return { mode, load, frame, check, unload, events };
+	return { mode, load, loadSegment, frame, check, unload, events };
 }
 
 function describe(el: Element): string {

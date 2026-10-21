@@ -200,7 +200,7 @@
 			"source": null,
 			"params": {},
 			"morphFrames": 6,
-			"morphEase": "none",
+			"morphEase": "power4.out",
 			"transition": null,
 			"keys": [
 				{
@@ -252,8 +252,8 @@
 			"frames": 42,
 			"source": null,
 			"params": {},
-			"morphFrames": 0,
-			"morphEase": "none",
+			"morphFrames": 21,
+			"morphEase": "expo.inOut",
 			"transition": null,
 			"keys": [],
 			"native": null
@@ -387,7 +387,7 @@
 			"cutFrame": 39,
 			"align": "center",
 			"direction": "left",
-			"ease": null,
+			"ease": "expo.inOut",
 			"params": {},
 			"sound": null,
 			"native": null,
@@ -406,8 +406,8 @@
 			"frames": 12,
 			"cutFrame": 156,
 			"align": "center",
-			"direction": null,
-			"ease": null,
+			"direction": "left",
+			"ease": "none",
 			"params": {},
 			"sound": null,
 			"native": null,
@@ -719,7 +719,7 @@
 			"owner": "broll.transition"
 		},
 		{
-			"kind": "shot",
+			"kind": "punch",
 			"frame": 96,
 			"owner": "punch"
 		},
@@ -737,6 +737,11 @@
 			"kind": "transition",
 			"frame": 204,
 			"owner": "cut5.transition"
+		},
+		{
+			"kind": "shot",
+			"frame": 214,
+			"owner": "full-204"
 		}
 	],
 	"audio": {
@@ -827,7 +832,7 @@
 			"startFrame": 0,
 			"frames": 96,
 			"items": ["cut1", "broll", "full-0", "broll.transition"],
-			"hash": "7a9c7e03e30226e1a66ed6650284e4de4df6c81f"
+			"hash": "a5507e16665424e17f60c8fe2d3e030e3af4b02a"
 		},
 		{
 			"id": "seg2",
@@ -844,7 +849,7 @@
 				"whip.transition",
 				"cut5.transition"
 			],
-			"hash": "f9f3449be25fe0c0f2469dda4df87173a1031ae6"
+			"hash": "b9d357a1aef9b401652ed07f2a5b12ffb0fd969d"
 		}
 	],
 	"diagnostics": [
@@ -868,6 +873,12 @@
 		},
 		{
 			"level": "warning",
+			"item": "whip",
+			"field": "shots[1].shot",
+			"message": "The \"whip\" shot is not drawn yet; it is framed full."
+		},
+		{
+			"level": "warning",
 			"clip": "price",
 			"field": "keys[1].at",
 			"message": "Key at 12.20 s is outside the clip (3.20–5.20 s)."
@@ -877,6 +888,12 @@
 			"item": "broll",
 			"field": "cuts[1].transition",
 			"message": "cut 2: push needs 0.23 s of incoming handle, 0.10 s available; the first frame holds 4 frames."
+		},
+		{
+			"level": "warning",
+			"item": "cut5",
+			"field": "cuts[4].transition",
+			"message": "The \"card\" transition is not drawn yet; it cuts on the cut."
 		}
 	]
 }

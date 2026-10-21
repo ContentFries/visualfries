@@ -192,7 +192,8 @@ white = subject) for cutting the subject out:
 
 Frames are extracted around the clips that use a footage (2 s margin); a block that jumps far
 into it (video tiles with big `offset`s) sets `"margin": 12` or `"margin": "all"`. The cache lives in
-`.visualfries/`; `visualfries cache <project>` shows its size and `--clear` drops the footage frames.
+`.visualfries/`; `visualfries cache <project>` shows its size and `--clear` drops the footage
+frames and rendered program segments.
 
 `start` is the program second at which the footage's first frame plays; `offset` shifts a layer
 in seconds. A clip's `audio` muxes that footage's sound into the rendered clip. Frames are
@@ -221,15 +222,60 @@ error), `<Footage program>` draws whatever is on screen, `offset` shifts inside 
 extracted, plus each footage's `margin` (default 2 s) around what the clips show, each range
 cached on its own.
 
-For now `still`, `check` and `render` work clip by clip: each clip in program time, over the
-footage the cut list shows. Shots and transitions are resolved into the program file but not
-drawn yet.
+In program mode `still` and `check` draw the whole program on one stage: the footage the cut
+list shows, clips with `"layer": "behind"` between the footage and the speaker cut out by the
+matte, then the other clips in project order. Each page holds one segment of the program (a
+range between hard cuts) with every clip on screen in it; a clip is hidden and not run outside
+its window, and inside a transition window it holds its first or last frame. `still` takes
+program moments (`--at 2.5s`, `--at f120`) or, with `--clip`, that clip's moments, and
+`check --determinism` compares every segment forward, backward, scrambled and against a page
+holding the whole program.
+
+`shots` frame the footage over time: `{ "shot": "punch", "from": "today we fix", "until": "slow export" }`.
+Gaps between shots are `full`. Each shot lays out per format class (landscape, square, portrait):
+
+- `full`: the footage fills the frame; when its aspect differs from the format's it is cropped
+  around the speaker's head (from the matte, smoothed). Portrait footage in a landscape frame
+  stands in a full-height window over the style's surface.
+- `punch`: `full`, `params.scale` (default 1.45) times closer, toward the head.
+- `strip`: the camera narrows into a strip and a `panel` slot opens beside it: camera left and
+  panel right in landscape and square, camera on top and panel below in portrait.
+  `params.side: "right"` swaps them; `params.size` is the camera's share of the frame.
+
+The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full` and
+`strip`, 0.16 s into `punch`, 0.45 s out of a punch; none under a shot `transition`). A clip with
+`"slot": "panel"` fills that slot and moves with it; while no shot frees its slot it is hidden
+and `check` warns. Shots add `shot` and `punch` events to the program. `window`, `behind` and
+`whip` are framed `full` until they are built.
+
+A `transition` on a cut, a shot or a clip hands the frame over inside a window around the cut:
+`{ "type": "push", "duration": 0.5, "align": "center", "ease": "expo.inOut", "direction":
+"left", "params": { … } }`, or just the type as a string. `align` puts the window's middle
+(`center`), start or end on the cut; `duration` and `ease` default per type. A transition never
+changes program time or sound; where a side runs out of handle its edge frame holds. Drawn so
+far:
+
+- `push` (0.55 s, `expo.inOut`): the incoming picture pushes the outgoing one off the frame,
+  with a blur along the travel that peaks halfway. `direction` is `left`, `right`, `up` or
+  `down`, or `forward`/`back` (left/right in landscape and square, up/down in portrait;
+  default `forward`). `params.blur` is the peak blur in pixels of a 1920 px travel (default 50;
+  0 for none). On a clip everything below it is pushed out, so the clip should cover the frame:
+  `check` warns about a push on a slotted clip, a clip behind the subject, or a clip that leaves
+  part of the frame empty.
+- `wipe` (0.8 s, `none`): slanted bars in the brand's primary, accent and a third colour sweep
+  across along `direction` (as for `push`); the picture changes halfway, while the last bar
+  covers the frame, and the bars sweep on out in reverse order. `params.colors` replaces the bar
+  colours (a list of CSS colours, first bar first). On a clip only the clip appears; the layers
+  below it stay.
+
+`zoom-through`, `shape-mask`, `blinds`, `card` and custom `.svelte` transitions resolve into the
+program but cut on the cut for now; `check` warns about them.
 
 `visualfries matte talk.mp4 --output talk.matte.mp4` makes the matte: BiRefNet v2 on fal.ai
 (`FAL_KEY`) by default; `--provider rvm` runs RobustVideoMatting locally on the CPU with no key
 (needs `uv`; about 3 fps at 1080p on 12 cores); any local tool works with
-`--command "tool {input} {output}"`, and any `MatteProvider` in Node. It splits, checks and joins the pieces frame-exact. Worked example:
-`static/demo/speaker-depth`.
+`--command "tool {input} {output}"`, and any `MatteProvider` in Node. It splits, checks and
+joins the pieces frame-exact. Worked example: `static/demo/speaker-depth`.
 
 ## Music and beats
 
@@ -556,7 +602,7 @@ visualfries still video.vf.json --clip B --output b.png            # sheet: star
 visualfries still video.vf.json --clip B --at extra --at extra.end+0.5 --output b.png
 visualfries render video.vf.json --output out/ [--clip B] [--jobs 6]   # MP4 / MOV + manifest.json
 visualfries render video.vf.json --clip B --output b.mp4               # one clip straight to a file
-visualfries program program.vf.json [--format 1080x1920]                # the resolved program of a cut list
+visualfries render program.vf.json --output out/ [--format 1080x1920]   # a cut list or shots: one video
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover
 visualfries matte talk.mp4 --output talk.matte.mp4 --provider rvm   # subject matte (rvm local, fal.ai or --command)
 visualfries beats music.mp3                                      # music.beats.json (beat_this or --command)
@@ -572,6 +618,23 @@ that differ between seek orders. Run it after every edit; it takes seconds.
 `manifest.json` lists every clip's program start frame for placing it on an NLE timeline and
 the transcript it was timed against. Re-rendering some clips keeps the others; clips timed
 against an older transcript are marked `stale`.
+
+With `cuts` or `shots`, `render` makes the whole program one video (`--export video`, the
+default there; `--export inserts` renders the clips one by one as without a cut list).
+`--format WxH` renders another frame size from the same project; `--output` is an `.mp4` or a
+directory that gets `<project>[.<format>].mp4`. Each segment (the range between two hard cuts)
+is drawn on its own pages and stored losslessly in `.visualfries/segments/<hash>-<engine>.mkv`;
+the segments are joined without re-encoding and encoded once with the clip settings. A
+segment's hash covers what is on screen in it, including every file its blocks import, the
+files project CSS points to and project files named in clip props, so editing one clip or one
+helper draws only the segments it is on screen in (`--no-cache` draws everything again). After
+a render the folder keeps only the intermediates the latest render of each project and format
+there uses; an interrupted render removes its partial files, and the next render removes those
+of a render that was killed. With at least as many segments to draw as `--jobs` and none much
+longer than its share, each page takes whole segments; otherwise a segment's frames are spread
+over the pages. The resolved program is saved beside the video as `<name>.program.json`.
+Sound: for now the speech of the cut list, each cut's sound placed at its program time with
+short equal-power fades at the edit points; no music, effects or loudness normalisation yet.
 
 A re-take that changes words (not just timing) makes the affected cues fail with a suggestion,
 e.g. `"extra" not found … Did you mean "spare" at 59.80s?`. Update the phrase in the JSON;

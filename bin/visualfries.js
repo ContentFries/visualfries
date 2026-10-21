@@ -55,9 +55,18 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     resolve the whole program (cuts, shots, clips, transitions, audio,
                     segments) and save it as .visualfries/program/<format>.json
   visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
+                    with "cuts" or "shots" the still shows the whole program (footage and
+                    every clip on screen); --clip is then optional and --at takes program
+                    moments ("2.5s", "f120", "end"); check runs per segment of the program
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
+                    with "cuts" or "shots" renders the whole program as one video
+                    (--export video, the default there; --export inserts renders clips):
+                    [--format <WxH>] [--no-cache]; segments are cached losslessly in
+                    .visualfries/segments/ and only changed segments are drawn again;
+                    <name>.program.json is saved beside the video
   visualfries cache <project.vf.json> [--clear]
-                    size of the project's .visualfries/ cache; --clear drops extracted footage frames
+                    size of the project's .visualfries/ cache; --clear drops extracted footage
+                    frames and rendered program segments
   visualfries matte <video> --output <matte.mp4> [--provider fal|rvm|command] [options]
                     subject matte (white = subject) for "footage". Default provider: BiRefNet v2
                     on fal.ai (FAL_KEY; --model Matting, --resolution 1024x1024). Local, no key:
@@ -1572,6 +1581,11 @@ async function motionModule() {
 	return import('../dist/motion/node.js');
 }
 
+/** Program mode (a cut list or shots): pages that draw segments of the whole program. */
+async function programModule() {
+	return import('../dist/motion/program-node.js');
+}
+
 async function isMotionProjectFile(file) {
 	if (file.endsWith('.vf.json')) return true;
 	try {
@@ -1657,9 +1671,11 @@ async function motionCheckCommand(args) {
 	const { program } = await motionProgram(loaded);
 	const programMode = program.mode === 'program';
 	const key = (d) => JSON.stringify([d.clip, d.field, d.message]);
-	// Printed above (project-wide warnings) or with each clip.
+	// Printed above (project-wide) or, in inserts mode, with each clip; program mode checks segments.
 	const shown = new Set(
-		loaded.resolved.diagnostics.filter((d) => d.clip || d.level === 'warning').map(key)
+		loaded.resolved.diagnostics
+			.filter((d) => (d.clip ? !programMode : d.level === 'warning'))
+			.map(key)
 	);
 	const diagnostics = program.diagnostics.filter((d) => !shown.has(key(d)));
 	if (!json && diagnostics.length) {
@@ -1671,14 +1687,20 @@ async function motionCheckCommand(args) {
 		clips: readAllFlags(args, '--clip'),
 		determinism: hasFlag(args, '--determinism')
 	};
-	const results = await checkMotionProject(loaded, checkOptions);
+	const results = programMode
+		? await (await programModule()).checkProgram(loaded, checkOptions)
+		: await checkMotionProject(loaded, checkOptions);
+	const kind = programMode ? 'segments' : 'clips';
+	const segment = (id) => program.segments.find((s) => s.id === id);
 	if (json) {
 		console.log(
 			JSON.stringify(programMode ? { program: diagnostics, clips: results } : results, null, 2)
 		);
 	} else {
 		for (const r of results) {
-			console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.id}${r.mode ? `  (${r.mode})` : ''}`);
+			const seg = programMode ? segment(r.id) : null;
+			const span = seg ? `  frames ${seg.startFrame}–${seg.startFrame + seg.frames - 1}` : '';
+			console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.id}${span}${r.mode ? `  (${r.mode})` : ''}`);
 			for (const e of r.errors)
 				console.log(
 					`  error${e.frame !== undefined && e.frame >= 0 ? ` @f${e.frame}` : ''}: ${e.message}`
@@ -1688,12 +1710,17 @@ async function motionCheckCommand(args) {
 		const failed = results.filter((r) => !r.ok).length;
 		console.log(
 			failed
-				? `${failed} of ${results.length} clips need attention.`
-				: `All ${results.length} clips pass.`
+				? `${failed} of ${results.length} ${kind} need attention.`
+				: `All ${results.length} ${kind} pass.`
 		);
 	}
 	if (results.some((r) => !r.ok) || diagnostics.some((d) => d.level === 'error'))
 		process.exitCode = 1;
+}
+
+async function loadedProgram(loaded) {
+	const { motionProgram } = await motionModule();
+	return motionProgram(loaded);
 }
 
 const frameTime = (frame, fps) => `${(frame / fps).toFixed(2)}s`;
@@ -1746,21 +1773,41 @@ async function motionStillCommand(args) {
 	const file = args[0];
 	const clip = readFlag(args, '--clip');
 	const output = readFlag(args, '--output');
-	if (!file || !clip || !output) {
+	const { loadMotionProject, renderStills, composeSheet, defaultMoments } = await motionModule();
+	const loaded = file
+		? await loadMotionProject(file, { transcript: readFlag(args, '--transcript') })
+		: null;
+	// Program mode draws the whole program (footage and every clip); --clip only times moments.
+	const programMode = loaded?.cutList.mode === 'program';
+	if (!loaded || !output || (!clip && !programMode)) {
 		throw new Error(
-			'Usage: visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>'
+			'Usage: visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>\n' +
+				'       (with "cuts" or "shots", --clip is optional: moments are program moments)'
 		);
 	}
-	const { loadMotionProject, renderStills, composeSheet, defaultMoments } = await motionModule();
-	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
-	const resolved = loaded.resolved.clips.find((c) => c.id === clip);
+	const resolved = clip ? loaded.resolved.clips.find((c) => c.id === clip) : null;
 	let moments = readAllFlags(args, '--at');
-	if (!moments.length && resolved) moments = defaultMoments(resolved);
-	const stills = await renderStills(
-		loaded,
-		moments.map((at) => ({ clip, at })),
-		{ invalidate: readFlag(args, '--invalidate') }
-	);
+	let stills;
+	if (programMode) {
+		const program = await programModule();
+		if (!moments.length) {
+			moments = resolved
+				? defaultMoments(resolved)
+				: program.defaultProgramMoments((await loadedProgram(loaded)).program);
+		}
+		stills = await program.renderProgramStills(
+			loaded,
+			moments.map((at) => ({ clip: clip ?? undefined, at })),
+			{ invalidate: readFlag(args, '--invalidate') }
+		);
+	} else {
+		if (!moments.length && resolved) moments = defaultMoments(resolved);
+		stills = await renderStills(
+			loaded,
+			moments.map((at) => ({ clip, at })),
+			{ invalidate: readFlag(args, '--invalidate') }
+		);
+	}
 	const png =
 		stills.length === 1
 			? stills[0].png
@@ -1776,14 +1823,17 @@ async function motionStillCommand(args) {
 	console.log(
 		JSON.stringify({
 			output,
-			clip,
+			...(clip ? { clip } : {}),
 			mode: stills[0]?.mode,
 			stills: stills.map((s) => ({ at: s.at, frame: s.frame }))
 		})
 	);
 }
 
-/** Size of a project's `.visualfries/` cache (footage frames), and `--clear` to drop the footage frames. */
+/**
+ * Size of a project's `.visualfries/` cache (footage frames, program segments), and `--clear` to
+ * drop them.
+ */
 async function cacheCommand(args) {
 	const file = args[0];
 	if (!file) throw new Error('Usage: visualfries cache <project.vf.json> [--clear]');
@@ -1806,22 +1856,22 @@ async function cacheCommand(args) {
 	};
 	const gb = (n) => `${(n / 1e9).toFixed(2)} GB`;
 	const footage = path.join(dir, 'footage');
-	let folders = [];
-	try {
-		folders = await fs.readdir(footage);
-	} catch {
-		folders = [];
-	}
+	const segmentsDir = path.join(dir, 'segments');
+	const list = async (p) => fs.readdir(p).catch(() => []);
+	const folders = await list(footage);
+	const segments = (await list(segmentsDir)).filter((n) => n.endsWith('.mkv'));
 	const before = await size(dir);
 	if (hasFlag(args, '--clear')) {
 		await fs.rm(footage, { recursive: true, force: true });
+		await fs.rm(segmentsDir, { recursive: true, force: true });
 		console.log(
 			JSON.stringify(
 				{
 					cache: dir,
 					before: gb(before),
 					after: gb(await size(dir)),
-					removedFootageExtractions: folders.length
+					removedFootageExtractions: folders.length,
+					removedSegments: segments.length
 				},
 				null,
 				2
@@ -1834,7 +1884,10 @@ async function cacheCommand(args) {
 					cache: dir,
 					size: gb(before),
 					footageExtractions: folders.length,
-					hint: 'visualfries cache <project> --clear removes the footage frames; the next render extracts what it needs again.'
+					footageSize: gb(await size(footage)),
+					segments: segments.length,
+					segmentsSize: gb(await size(segmentsDir)),
+					hint: 'visualfries cache <project> --clear removes the footage frames and program segments; the next render extracts and draws what it needs again.'
 				},
 				null,
 				2
@@ -1914,10 +1967,34 @@ async function motionRenderCommand(args) {
 	const output = readFlag(args, '--output');
 	if (!output)
 		throw new Error(
-			'Usage: visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]'
+			'Usage: visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]\n' +
+				'       visualfries render <program.vf.json> --output <dir|video.mp4> [--export video] [--format <WxH>] [--jobs <n>] [--no-cache]'
 		);
 	const { loadMotionProject, renderMotionClips } = await motionModule();
 	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const programMode = loaded.cutList.mode === 'program';
+	const exportAs = readFlag(args, '--export', programMode ? 'video' : 'inserts');
+	if (!['video', 'inserts'].includes(exportAs))
+		throw new Error(`--export must be video or inserts, got "${exportAs}".`);
+	if (exportAs === 'video') {
+		if (!programMode)
+			throw new Error(
+				'--export video renders a whole program; this project has no "cuts" or "shots". Render its clips (the default), or add a cut list.'
+			);
+		if (readAllFlags(args, '--clip').length)
+			throw new Error('--clip picks clips to render one by one; add --export inserts.');
+		const { renderProgramVideo } = await import('../dist/motion/program-render.js');
+		const result = await renderProgramVideo(loaded, {
+			output,
+			format: readFlag(args, '--format'),
+			jobs: numberFlag(args, '--jobs'),
+			invalidate: readFlag(args, '--invalidate'),
+			fresh: hasFlag(args, '--no-cache'),
+			onProgress: (msg) => console.error(msg)
+		});
+		console.log(JSON.stringify(result, null, 2));
+		return;
+	}
 	const results = await renderMotionClips(loaded, {
 		output,
 		clips: readAllFlags(args, '--clip'),

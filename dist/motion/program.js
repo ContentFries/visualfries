@@ -6,7 +6,9 @@ import { resolveMoment } from './moment.js';
 import { resolveMotionProject } from './resolve.js';
 import { micro, resolveCutList, soundLength } from './cutlist.js';
 import { sha1 } from './sha1.js';
+import { defaultMorph, SHOT_MODULES, shotAt, shotEvents, shotLayout, shotModule, shotsDuring } from './shots/index.js';
 import { parseEase } from './ease.js';
+import { screenDirection, transitionEvents, transitionModule } from './transitions/index.js';
 /** Seconds a transition not drawn yet lasts when the project does not say. */
 export const DEFAULT_TRANSITION_SECONDS = 0.5;
 /** Loudness of finished videos. */
@@ -108,10 +110,12 @@ export function resolveProgram(project, inputs, opts = {}) {
     });
     if (program)
         checkBehind(clips, cuts, shots, project, diagnostics);
+    if (program)
+        checkSlots(clips, shots, format, fps, diagnostics);
     if (program && cuts.length)
         checkHardCuts(shots, cutList.cuts, diagnostics);
     const transitions = program
-        ? resolveTransitions(project, cutList.cuts, cuts, shots, clips, fps, warn)
+        ? resolveTransitions(project, cutList.cuts, cuts, shots, clips, fps, format.class, warn)
         : [];
     const events = resolveEvents(shots, transitions);
     const audio = {
@@ -236,6 +240,18 @@ function resolveShots(project, inputs, words, cuts, frames, at, diagnostics) {
             fail('shot', `Unknown shot "${shot.shot}". Built in: ${SHOTS.join(', ')}; or a file such as "shots/My.ts".`);
             return;
         }
+        const module = shotModule(shot.shot);
+        for (const message of module?.check?.(shot.params ?? {}) ?? [])
+            fail('params', message);
+        if (!module)
+            diagnostics.push({
+                level: 'warning',
+                item: id,
+                field: `shots[${i}].shot`,
+                message: isCustom(shot.shot, CUSTOM_SHOT)
+                    ? `Custom shot files are not drawn yet; "${shot.shot}" is framed full.`
+                    : `The "${shot.shot}" shot is not drawn yet; it is framed full.`
+            });
         let start;
         let end;
         try {
@@ -355,15 +371,27 @@ function resolveShots(project, inputs, words, cuts, frames, at, diagnostics) {
     gap(frames);
     return morphs(out, asked, fps);
 }
+/** The shot before shot `i`: the one ending where it starts, `full` across a gap, else null. */
+function previousShot(shots, i) {
+    const before = shots[i - 1];
+    if (before && endOf(before) === shots[i].startFrame)
+        return before.shot;
+    return shots[i].startFrame > 0 ? 'full' : null;
+}
 /**
- * Fills in each shot's morph: the project's `morph` in frames, never longer than the shot. The
- * shot engine adds default morphs and their eases.
+ * Fills in each shot's morph from the shot before it (`full` across a gap): the project's
+ * `morph`, else none under a shot transition, else the shots' defaults (see `defaultMorph`).
+ * The first shot of the program has nothing to morph from. A morph never outlasts its shot.
  */
 function morphs(shots, asked, fps) {
-    for (const shot of shots) {
-        shot.morphFrames = Math.min(shot.frames, Math.round((asked.get(shot)?.morph ?? 0) * fps));
-        shot.morphEase = 'none';
-    }
+    shots.forEach((shot, i) => {
+        const prev = previousShot(shots, i);
+        const morph = defaultMorph(prev ?? 'full', shot.shot);
+        const wish = asked.get(shot);
+        const seconds = wish?.morph ?? (prev === null || wish?.transition ? 0 : morph.seconds);
+        shot.morphFrames = Math.min(shot.frames, Math.round(seconds * fps));
+        shot.morphEase = shot.morphFrames > 0 ? morph.ease : 'none';
+    });
     return shots;
 }
 /** A clip behind the subject needs a matte on every footage on screen with it. */
@@ -387,6 +415,45 @@ function checkBehind(clips, cuts, shots, project, diagnostics) {
             });
     }
 }
+/**
+ * A slotted clip shows only while the shot on screen frees its slot (or a morph slides the slot
+ * in or out); elsewhere it is hidden, which is worth a warning.
+ */
+function checkSlots(clips, shots, format, fps, diagnostics) {
+    const names = new Map();
+    const slotsOf = (shot) => {
+        const key = JSON.stringify([shot.shot, shot.params]);
+        let found = names.get(key);
+        if (!found) {
+            const input = { cls: format.class, size: format.size, footage: null, subject: null };
+            found = new Set(Object.keys(shotLayout(shot, input).slots));
+            names.set(key, found);
+        }
+        return found;
+    };
+    for (const clip of clips) {
+        if (!clip.slot)
+            continue;
+        const hidden = [];
+        for (let f = clip.startFrame; f < endOf(clip); f++) {
+            const { shot, prev } = shotAt(shots, f);
+            if (!slotsOf(shot).has(clip.slot) && !(prev && slotsOf(prev).has(clip.slot)))
+                hidden.push(f);
+        }
+        if (!hidden.length)
+            continue;
+        const offering = Object.values(SHOT_MODULES)
+            .filter((m) => slotsOf({ shot: m.name, params: {} }).has(clip.slot))
+            .map((m) => m.name);
+        const from = (hidden[0] / fps).toFixed(2);
+        diagnostics.push({
+            level: 'warning',
+            clip: clip.id,
+            field: 'slot',
+            message: `No shot frees the "${clip.slot}" slot for ${hidden.length} of the clip's ${clip.frames} frames (first at ${from} s); the clip is hidden there. ${offering.length ? `Shots with a "${clip.slot}" slot: ${offering.join(', ')}.` : `No built-in shot has a "${clip.slot}" slot.`}`
+        });
+    }
+}
 /** A written shot that runs across a hard cut keeps framing new footage with the old layout. */
 function checkHardCuts(shots, cuts, diagnostics) {
     for (const shot of shots) {
@@ -403,7 +470,7 @@ function checkHardCuts(shots, cuts, diagnostics) {
     }
 }
 const normalizeTransition = (t) => (typeof t === 'string' ? { type: t } : t);
-function resolveTransitions(project, resolvedCuts, cuts, shots, clips, fps, warn) {
+function resolveTransitions(project, resolvedCuts, cuts, shots, clips, fps, cls, warn) {
     const out = [];
     const window = (owner, kind, field, spec, cutFrame, outgoing) => {
         const t = normalizeTransition(spec);
@@ -412,11 +479,19 @@ function resolveTransitions(project, resolvedCuts, cuts, shots, clips, fps, warn
             warn('error', owner, field, `Unknown transition "${t.type}". Built in: ${TRANSITIONS.join(', ')}; or a file such as "transitions/My.svelte".`);
             return null;
         }
+        // Built-in modules give the defaults and check params, ease and direction; the rest cut.
+        const module = transitionModule(t.type);
+        if (!module)
+            warn('warning', owner, field, isCustom(t.type, CUSTOM_TRANSITION)
+                ? `Custom transition files are not drawn yet; "${t.type}" cuts on the cut.`
+                : `The "${t.type}" transition is not drawn yet; it cuts on the cut.`);
+        for (const message of module?.check?.(t.params ?? {}) ?? [])
+            warn('error', owner, `${field}.params`, message);
         if (t.ease !== undefined && !parseEase(t.ease)) {
             warn('error', owner, `${field}.ease`, `Unknown ease "${t.ease}". Use a GSAP ease such as "expo.inOut", "power3.out" or "none".`);
             return null;
         }
-        const duration = t.duration ?? DEFAULT_TRANSITION_SECONDS;
+        const duration = t.duration ?? module?.defaultDuration ?? DEFAULT_TRANSITION_SECONDS;
         const frames = Math.max(1, Math.round(duration * fps));
         const align = t.align ?? 'center';
         const before = align === 'center' ? Math.floor(frames / 2) : align === 'start' ? 0 : frames;
@@ -430,8 +505,11 @@ function resolveTransitions(project, resolvedCuts, cuts, shots, clips, fps, warn
             frames,
             cutFrame,
             align,
-            direction: t.direction ?? null,
-            ease: t.ease ?? null,
+            // Directional modules take a screen direction for this format's class.
+            direction: module?.directional
+                ? screenDirection(t.direction ?? null, cls)
+                : (t.direction ?? null),
+            ease: t.ease ?? module?.ease ?? null,
             params: t.params ?? {},
             sound: t.sound ?? null,
             native: t.native ?? null,
@@ -503,6 +581,12 @@ function resolveTransitions(project, resolvedCuts, cuts, shots, clips, fps, warn
             warn('error', clip.id, 'transition', `The ${t.type} window starts before the program.`);
             continue;
         }
+        // A push slides everything below the clip off the frame (the footage plate, for a clip
+        // behind the subject); `check` measures whether a front clip covers the frame.
+        if (t.type === 'push' && (clip.layer === 'behind' || clip.slot))
+            warn('warning', clip.id, 'transition', clip.layer === 'behind'
+                ? 'A push on a clip behind the subject slides the footage plate off the frame while the speaker stays: the empty stage shows around the speaker. Use wipe, or put the clip in front.'
+                : `A push on a slotted clip slides everything below it off the frame, but the clip fills only its "${clip.slot}" slot: the empty stage shows around it. Use wipe, or a clip that covers the frame.`);
         // Before its first frame the clip holds that frame.
         t.held.in = t.cutFrame - t.startFrame;
         clip.transition = t.id;
@@ -515,17 +599,10 @@ function resolveTransitions(project, resolvedCuts, cuts, shots, clips, fps, warn
             warn('error', staged[i].owner, 'transition', `The ${staged[i].type} window into ${staged[i].owner} overlaps the ${staged[i - 1].type} window into ${staged[i - 1].owner}.`);
     return out.sort((a, b) => a.startFrame - b.startFrame || a.cutFrame - b.cutFrame);
 }
-/** A `shot` (or `whip`) event where each written shot starts, a `transition` on each cut. */
 function resolveEvents(shots, transitions) {
     const events = [
-        ...shots
-            .filter((s) => !s.implicit)
-            .map((s) => ({
-            kind: s.shot === 'whip' ? 'whip' : 'shot',
-            frame: s.startFrame,
-            owner: s.id
-        })),
-        ...transitions.map((t) => ({ kind: 'transition', frame: t.cutFrame, owner: t.id }))
+        ...shots.flatMap((s, i) => shotEvents(s, previousShot(shots, i)).map((e) => ({ ...e, owner: s.id }))),
+        ...transitions.flatMap((t) => transitionEvents(t).map((e) => ({ ...e, owner: t.id })))
     ];
     return events.sort((a, b) => a.frame - b.frame || a.owner.localeCompare(b.owner));
 }
@@ -641,6 +718,24 @@ function checkIds(project, cuts, shots, clips, diagnostics) {
             seen.set(id, kind);
     }
 }
+/** Strings in clip props that may name a project file (no URLs, data or colours). */
+export function propFiles(props) {
+    const found = new Set();
+    const walk = (value) => {
+        if (typeof value === 'string') {
+            if (value.length < 512 &&
+                /\.[a-z0-9]{1,5}$/i.test(value) &&
+                !/^([a-z][a-z0-9+.-]*:|#|\/\/)/i.test(value))
+                found.add(value);
+        }
+        else if (Array.isArray(value))
+            value.forEach(walk);
+        else if (value && typeof value === 'object')
+            Object.values(value).forEach(walk);
+    };
+    props.forEach(walk);
+    return [...found].sort();
+}
 /**
  * Segments split the program at cuts without a transition, never inside a transition window.
  * A segment's hash covers what is on screen in it (resolved data, source files, blocks, custom
@@ -674,7 +769,9 @@ function resolveSegments(program, project) {
                 ...shots.map((s) => s.shot).filter((s) => isCustom(s, CUSTOM_SHOT)),
                 ...transitions.map((t) => t.type).filter((t) => isCustom(t, CUSTOM_TRANSITION)),
                 ...(project.fonts ?? []).map((f) => f.src),
-                ...(project.css ?? [])
+                ...(project.css ?? []),
+                // Project files a clip names in its props (hashed when they exist).
+                ...propFiles(clips.map((c) => c.props)).filter((f) => f in program.hashes.assets)
             ])
         ];
         const hash = sha1(JSON.stringify({
@@ -712,9 +809,4 @@ function resolveSegments(program, project) {
 function picture(item) {
     const { audio: _audio, sound: _sound, ...rest } = item;
     return rest;
-}
-/** The shots overlapping `span`, and the shot the first of them morphs from. */
-function shotsDuring(shots, span) {
-    const on = (s) => s.startFrame < endOf(span) && span.startFrame < endOf(s);
-    return shots.filter((s, i) => on(s) || (i + 1 < shots.length && on(shots[i + 1])));
 }

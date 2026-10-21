@@ -13,7 +13,7 @@ import { BUILTIN_STYLES, NEUTRAL_STYLE, resolveStyle, type ResolvedStyle } from 
 import { isProgramProject, parseMotionProject } from './timeline.js';
 import { parseTranscriptWords, type MotionWord } from './transcript.js';
 import { resolveCutList, type CutList, type ProgramInputs, type SourceInfo } from './cutlist.js';
-import { resolveProgram, type ProgramHashes, type ResolvedProgram } from './program.js';
+import { propFiles, resolveProgram, type ProgramHashes, type ResolvedProgram } from './program.js';
 import { resolveMotionProject, type ResolvedClip, type ResolvedProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
@@ -413,11 +413,17 @@ export function describeMusicGrid(loaded: LoadedMotionProject): string {
 	return parts.join('\n\n');
 }
 
-/** Short content hashes of the files a program's pixels depend on besides footage. */
+/**
+ * Short hashes of the files a program's pixels depend on besides footage, by the name the
+ * project gives them. A block, custom shot or transition covers every file its bundle reads (the
+ * helpers it imports, their imports, images loaded through them), a CSS file the files its
+ * `url()`s point to, and a clip prop naming a project file that file; fonts their contents.
+ * Each segment hashes only the names on screen in it, so an edit invalidates only its segments.
+ */
 async function assetHashes(loaded: LoadedMotionProject): Promise<Record<string, string>> {
 	const { project, dir } = loaded;
 	const custom = (name: string, ext: RegExp) => (ext.test(name) ? [name] : []);
-	const names = new Set([
+	const code = new Set([
 		...project.clips.map((c) => c.block),
 		...(project.shots ?? []).flatMap((s) => custom(s.shot, /\.(ts|js)$/)),
 		...[...(project.cuts ?? []), ...(project.shots ?? []), ...project.clips].flatMap((item) =>
@@ -427,16 +433,95 @@ async function assetHashes(loaded: LoadedMotionProject): Promise<Record<string, 
 						/\.svelte$/
 					)
 				: []
-		),
-		...(project.fonts ?? []).map((f) => f.src),
-		...(project.css ?? [])
+		)
 	]);
+	const css = new Set(project.css ?? []);
+	const fonts = new Set((project.fonts ?? []).map((f) => f.src));
 	const out: Record<string, string> = {};
-	for (const name of [...names].sort()) {
-		const file = name.startsWith(BUILTIN_PREFIX) ? blockFile(dir, name) : path.resolve(dir, name);
-		const content = await fs.readFile(file).catch(() => null);
-		if (content) out[name] = shortHash(content);
+	/** Content hashes of files read so far, by absolute path (null: missing). */
+	const seen = new Map<string, string | null>();
+	const contentOf = async (abs: string) => {
+		if (!seen.has(abs)) {
+			const content = await fs.readFile(abs).catch(() => null);
+			seen.set(abs, content ? shortHash(content) : null);
+		}
+		return seen.get(abs)!;
+	};
+	/** One hash over files: their paths (relative to the project) and contents. */
+	const hashFiles = async (files: string[]) =>
+		shortHash(
+			JSON.stringify(
+				await Promise.all(
+					[...new Set(files)].sort().map(async (f) => [path.relative(dir, f), await contentOf(f)])
+				)
+			)
+		);
+	const inputs = await bundleInputs(
+		loaded,
+		[...code].map((name) => blockFile(dir, name))
+	);
+	for (const name of [...code].sort()) {
+		const file = blockFile(dir, name);
+		if (!(await contentOf(file))) continue;
+		out[name] = await hashFiles(inputs.get(file) ?? [file]);
 	}
+	for (const name of [...css].sort()) {
+		const file = path.resolve(dir, name);
+		const text = await fs.readFile(file, 'utf8').catch(() => null);
+		if (text === null) continue;
+		const targets: string[] = [];
+		rebaseCssUrls(text, path.dirname(file), targets);
+		out[name] = await hashFiles([file, ...targets]);
+	}
+	for (const name of [...fonts].sort()) {
+		const hash = await contentOf(path.resolve(dir, name));
+		if (hash) out[name] = hash;
+	}
+	for (const name of propFiles(project.clips.map((c) => c.props))) {
+		if (name in out) continue;
+		const file = path.resolve(dir, name);
+		const st = await fs.stat(file).catch(() => null);
+		const hash = st?.isFile() ? await contentOf(file) : null;
+		if (hash) out[name] = hash;
+	}
+	return out;
+}
+
+/**
+ * Every file each entry's bundle reads (esbuild's metafile), by entry. An entry that does not
+ * build is left out: its own file stands for it, and rendering reports the error.
+ */
+async function bundleInputs(
+	loaded: LoadedMotionProject,
+	entries: string[]
+): Promise<Map<string, string[]>> {
+	const out = new Map<string, string[]>();
+	if (!entries.length) return out;
+	const { esbuild, options } = await bundleOptions();
+	await Promise.all(
+		[...new Set(entries)].map(async (entry) => {
+			if (!existsSync(entry)) return;
+			try {
+				const result = await esbuild.build({
+					...options,
+					entryPoints: [entry],
+					absWorkingDir: loaded.dir,
+					format: 'esm',
+					write: false,
+					metafile: true,
+					outdir: path.join(os.tmpdir(), 'vf-inputs')
+				});
+				out.set(
+					entry,
+					Object.keys(result.metafile!.inputs)
+						.filter((key) => !/^[a-z-]+:/.test(key))
+						.map((key) => path.resolve(loaded.dir, key))
+				);
+			} catch {
+				// Not buildable now: hashed by its own contents.
+			}
+		})
+	);
 	return out;
 }
 
@@ -503,7 +588,16 @@ export function assertNoErrors(loaded: LoadedMotionProject, clipIds?: string[]) 
  * What the page may read: whole `roots` (the bundle and extracted footage) and single `files`
  * (declared fonts and assets the project CSS points to). Nothing else in the project is served.
  */
-type BundleResult = { dir: string; html: string; roots: string[]; files: string[] };
+export type BundleResult = {
+	dir: string;
+	html: string;
+	roots: string[];
+	files: string[];
+	/** Extracted footage and, in program mode, the map from program to source frames. */
+	footage: { frames: Record<string, FootageFrames>; map: FootageMap | null };
+	/** The project's brand; the program stage sets its tokens on the whole stage. */
+	brand: ResolvedBrand;
+};
 
 const BUILTIN_PREFIX = '@visualfries/';
 /** Blocks that ship with VisualFries; a clip names them as `"block": "@visualfries/captions"`. */
@@ -518,28 +612,76 @@ function blockFile(dir: string, block: string): string {
 	return file ? path.join(HERE, 'blocks', file) : path.join(HERE, 'blocks', '__missing__');
 }
 
-/** Compile the project's blocks together with the stage runtime into one page. */
-export async function bundleMotionProject(
-	loaded: LoadedMotionProject,
-	clips: ResolvedClip[]
-): Promise<BundleResult> {
+/** The package ships .js; tests bundle straight from the TypeScript source. */
+const ownModule = (name: string) =>
+	existsSync(path.join(HERE, `${name}.js`))
+		? path.join(HERE, `${name}.js`)
+		: path.join(HERE, `${name}.ts`);
+
+/**
+ * esbuild with the settings blocks are bundled with: Svelte components and `.svelte.js`
+ * modules compiled for the browser, `visualfries/motion` resolved to this package, and the
+ * packages VisualFries depends on (svelte, gsap) found without the project's own node_modules.
+ */
+async function bundleOptions() {
 	const esbuild = await import('esbuild');
 	const { compile, compileModule } = await import('svelte/compiler');
-	const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-motion-'));
-	// The package ships .js; tests bundle straight from the TypeScript source.
-	const own = (name: string) =>
-		existsSync(path.join(HERE, `${name}.js`))
-			? path.join(HERE, `${name}.js`)
-			: path.join(HERE, `${name}.ts`);
-	const stageModule = own('stage');
-	const motionIndex = own('index');
-	// Blocks may import anything VisualFries depends on (svelte, gsap) without their own node_modules.
+	const motionIndex = ownModule('index');
 	const packageRoot = path.resolve(HERE, '..', '..');
 	const nodePaths = [
 		path.join(packageRoot, 'node_modules'),
 		path.resolve(path.dirname(require.resolve('svelte/package.json')), '..'),
 		path.resolve(path.dirname(require.resolve('gsap/package.json')), '..')
 	];
+	const plugin: import('esbuild').Plugin = {
+		name: 'visualfries-motion',
+		setup(build) {
+			build.onResolve({ filter: /^visualfries\/motion$/ }, () => ({ path: motionIndex }));
+			build.onLoad({ filter: /\.svelte$/ }, async (args) => {
+				const source = await fs.readFile(args.path, 'utf8');
+				const out = compile(source, {
+					filename: args.path,
+					generate: 'client',
+					css: 'injected',
+					dev: false
+				});
+				return { contents: out.js.code, loader: 'js', resolveDir: path.dirname(args.path) };
+			});
+			build.onLoad({ filter: /\.svelte\.(js|ts)$/ }, async (args) => {
+				let source = await fs.readFile(args.path, 'utf8');
+				if (args.path.endsWith('.ts'))
+					source = (await esbuild.transform(source, { loader: 'ts' })).code;
+				const out = compileModule(source, {
+					filename: args.path,
+					generate: 'client',
+					dev: false
+				});
+				return { contents: out.js.code, loader: 'js', resolveDir: path.dirname(args.path) };
+			});
+		}
+	};
+	return {
+		esbuild,
+		options: {
+			bundle: true,
+			nodePaths,
+			conditions: ['svelte', 'browser'],
+			mainFields: ['svelte', 'browser', 'module', 'main'],
+			logLevel: 'silent' as const,
+			loader: { '.png': 'dataurl' as const, '.jpg': 'dataurl' as const, '.svg': 'text' as const },
+			plugins: [plugin]
+		}
+	};
+}
+
+/** Compile the project's blocks together with the stage runtime into one page. */
+export async function bundleMotionProject(
+	loaded: LoadedMotionProject,
+	clips: ResolvedClip[]
+): Promise<BundleResult> {
+	const { esbuild, options } = await bundleOptions();
+	const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-motion-'));
+	const stageModule = ownModule('stage');
 
 	const blocks = [...new Set(clips.map((c) => c.block))];
 	for (const block of blocks) {
@@ -563,44 +705,10 @@ export async function bundleMotionProject(
 	].join('\n');
 
 	await esbuild.build({
+		...options,
 		stdin: { contents: entry, resolveDir: loaded.dir, sourcefile: 'motion-entry.js', loader: 'js' },
-		bundle: true,
 		format: 'iife',
-		outfile: path.join(outDir, 'bundle.js'),
-		nodePaths,
-		conditions: ['svelte', 'browser'],
-		mainFields: ['svelte', 'browser', 'module', 'main'],
-		logLevel: 'silent',
-		loader: { '.png': 'dataurl', '.jpg': 'dataurl', '.svg': 'text' },
-		plugins: [
-			{
-				name: 'visualfries-motion',
-				setup(build) {
-					build.onResolve({ filter: /^visualfries\/motion$/ }, () => ({ path: motionIndex }));
-					build.onLoad({ filter: /\.svelte$/ }, async (args) => {
-						const source = await fs.readFile(args.path, 'utf8');
-						const out = compile(source, {
-							filename: args.path,
-							generate: 'client',
-							css: 'injected',
-							dev: false
-						});
-						return { contents: out.js.code, loader: 'js', resolveDir: path.dirname(args.path) };
-					});
-					build.onLoad({ filter: /\.svelte\.(js|ts)$/ }, async (args) => {
-						let source = await fs.readFile(args.path, 'utf8');
-						if (args.path.endsWith('.ts'))
-							source = (await esbuild.transform(source, { loader: 'ts' })).code;
-						const out = compileModule(source, {
-							filename: args.path,
-							generate: 'client',
-							dev: false
-						});
-						return { contents: out.js.code, loader: 'js', resolveDir: path.dirname(args.path) };
-					});
-				}
-			}
-		]
+		outfile: path.join(outDir, 'bundle.js')
 	});
 
 	const roots = [outDir];
@@ -626,7 +734,8 @@ export async function bundleMotionProject(
 		const abs = path.resolve(loaded.dir, file);
 		css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs), files) + '\n';
 	}
-	roots.push(...(await prepareFootage(loaded, clips)));
+	const footage = await extractFootage(loaded, clips);
+	roots.push(...footage.roots);
 	const cssBundle = path.join(outDir, 'bundle.css');
 	const cssLink = existsSync(cssBundle) ? '<link rel="stylesheet" href="bundle.css">' : '';
 	const html = path.join(outDir, 'index.html');
@@ -636,7 +745,14 @@ export async function bundleMotionProject(
 			css
 		)};window.__vfInvalidate=new URLSearchParams(location.search).get('invalidate')||undefined;</script><body><script src="bundle.js"></script></body>`
 	);
-	return { dir: outDir, html, roots, files };
+	return {
+		dir: outDir,
+		html,
+		roots,
+		files,
+		footage: { frames: footage.frames, map: footage.map },
+		brand: loaded.brand.resolved
+	};
 }
 
 /** Project CSS is inlined into a page elsewhere; make its relative url(...) absolute. */
@@ -687,9 +803,25 @@ type PageLike = {
 	on(event: 'pageerror' | 'console' | 'crash', fn: (e: any) => void): void;
 	close(): Promise<void>;
 };
-type BrowserLike = { newPage(opts: object): Promise<PageLike>; close(): Promise<void> };
+export type BrowserLike = { newPage(opts: object): Promise<PageLike>; close(): Promise<void> };
 
-async function launch(): Promise<BrowserLike> {
+/**
+ * The Chromium binary `launch` starts: the one `findChromium` finds, else Playwright's own
+ * build; null without either.
+ */
+export async function chromiumExecutable(): Promise<string | null> {
+	const found = findChromium();
+	if (found) return found;
+	try {
+		const { chromium } = await import('playwright');
+		const own = chromium.executablePath();
+		return own && existsSync(own) ? own : null;
+	} catch {
+		return null;
+	}
+}
+
+export async function launch(): Promise<BrowserLike> {
 	let chromium: { launch(opts: object): Promise<unknown> };
 	try {
 		({ chromium } = await import('playwright'));
@@ -726,19 +858,45 @@ function pageMessage(error: unknown): string {
 	return (error as Error).message.replace(/^page\.evaluate: (Error: )?/, '').split('\n    at ')[0];
 }
 
-/**
- * One page with one clip loaded. Every call fails as soon as the page crashes or stops
- * answering: Playwright leaves a call to a crashed page pending forever, so without this a
- * renderer crash would hang `render` instead of failing it. Exported for tests.
- */
+/** One page with one clip loaded (see `openStagePage`). Exported for tests. */
 export async function openClip(
 	browser: BrowserLike,
-	bundle: BundleResult,
+	bundle: Pick<BundleResult, 'html' | 'roots' | 'files'>,
 	clip: ResolvedClip,
 	opts: { invalidate?: string; timeout?: number } = {}
 ): Promise<MotionPage> {
+	return openStagePage(
+		browser,
+		bundle,
+		{ name: `Clip "${clip.id}"`, size: clip.size, alpha: clip.alpha, load: 'load', data: clip },
+		opts
+	);
+}
+
+/** What a page loads: one clip (`load`) or a segment of the program (`loadSegment`). */
+export type StageTarget = {
+	/** How errors name it: `Clip "intro"`, `Segment "seg2"`. */
+	name: string;
+	size: [number, number];
+	alpha: boolean;
+	load: 'load' | 'loadSegment';
+	data: unknown;
+};
+
+/**
+ * One page with a clip or a segment loaded. Every call fails as soon as the page crashes or
+ * stops answering: Playwright leaves a call to a crashed page pending forever, so without this a
+ * renderer crash would hang `render` instead of failing it.
+ */
+export async function openStagePage(
+	browser: BrowserLike,
+	bundle: Pick<BundleResult, 'html' | 'roots' | 'files'>,
+	target: StageTarget,
+	opts: { invalidate?: string; timeout?: number } = {}
+): Promise<MotionPage> {
+	const { name } = target;
 	const page = await browser.newPage({
-		viewport: { width: clip.size[0], height: clip.size[1] },
+		viewport: { width: target.size[0], height: target.size[1] },
 		deviceScaleFactor: 1
 	});
 	const errors: string[] = [];
@@ -754,7 +912,7 @@ export async function openClip(
 	/** `prefix: message`, unless `settle` already named the clip in it. */
 	const named = (prefix: string, error: unknown) => {
 		const message = pageMessage(error);
-		return message.startsWith(`Clip "${clip.id}"`) ? message : `${prefix}: ${message}`;
+		return message.startsWith(name) ? message : `${prefix}: ${message}`;
 	};
 	/** `work`, or an error as soon as the page crashes or `ms` pass. One call at a time. */
 	async function settle<T>(what: string, work: Promise<T>, ms = timeout): Promise<T> {
@@ -763,7 +921,7 @@ export async function openClip(
 			const crash = () =>
 				reject(
 					new Error(
-						`Clip "${clip.id}": the browser page crashed during ${what} (Chromium's renderer process died).`
+						`${name}: the browser page crashed during ${what} (Chromium's renderer process died).`
 					)
 				);
 			if (crashed) return crash();
@@ -772,7 +930,7 @@ export async function openClip(
 				() =>
 					reject(
 						new Error(
-							`Clip "${clip.id}": ${what} did not finish within ${ms / 1000} s; the page stopped responding (a useFrame or useReady promise that never settles, or an endless loop).`
+							`${name}: ${what} did not finish within ${ms / 1000} s; the page stopped responding (a useFrame or useReady promise that never settles, or an endless loop).`
 						)
 					),
 				ms
@@ -795,15 +953,18 @@ export async function openClip(
 	try {
 		info = await settle(
 			'loading',
-			page.evaluate((data) => (window as any).__vfMotionStage.load(data), clip)
+			page.evaluate(({ load, data }) => (window as any).__vfMotionStage[load](data), {
+				load: target.load,
+				data: target.data
+			})
 		);
 	} catch (error) {
-		throw new Error([named(`Clip "${clip.id}" failed to load`, error), ...errors].join('\n'));
+		throw new Error([named(`${name} failed to load`, error), ...errors].join('\n'));
 	}
 	return {
 		mode: info.mode,
 		async capture(frame) {
-			if (errors.length) throw new Error(`Clip "${clip.id}" page errors:\n${errors.join('\n')}`);
+			if (errors.length) throw new Error(`${name} page errors:\n${errors.join('\n')}`);
 			let r: { image?: string };
 			try {
 				r = await settle(
@@ -814,12 +975,12 @@ export async function openClip(
 					)
 				);
 			} catch (error) {
-				throw new Error(named(`Clip "${clip.id}", frame ${frame}`, error));
+				throw new Error(named(`${name}, frame ${frame}`, error));
 			}
 			if (r.image) return Buffer.from(r.image.slice(r.image.indexOf(',') + 1), 'base64');
 			return settle(
 				`frame ${frame}`,
-				page.locator('#vf-stage').screenshot({ omitBackground: clip.alpha, type: 'png' })
+				page.locator('#vf-stage').screenshot({ omitBackground: target.alpha, type: 'png' })
 			);
 		},
 		async check(frames) {
@@ -1653,6 +1814,20 @@ function ffmpeg(args: string[], input?: NodeJS.ReadableStream): Promise<void> {
 	});
 }
 
+/** Video settings of every finished H.264 file: clips, and programs after their one final encode. */
+export const H264_FINAL = [
+	'-c:v',
+	'libx264',
+	'-crf',
+	'14',
+	'-preset',
+	'medium',
+	'-pix_fmt',
+	'yuv420p',
+	'-movflags',
+	'+faststart'
+];
+
 /** The encoder went away while frames were being piped; the frames themselves were fine. */
 export class FramePipeError extends Error {}
 
@@ -1736,7 +1911,8 @@ export async function pipeFrames(
 	frames: number,
 	jobs: number,
 	open: () => Promise<Pick<MotionPage, 'capture' | 'close'>>,
-	sink: FrameSink
+	sink: FrameSink,
+	opts: { signal?: AbortSignal } = {}
 ) {
 	const ahead = jobs * 2;
 	const ready = new Map<number, Buffer>();
@@ -1768,6 +1944,8 @@ export async function pipeFrames(
 			for (let f = j; f < frames; f += jobs) {
 				while (f - next >= ahead && !failed) await new Promise<void>((r) => wake.push(r));
 				if (failed) return;
+				// Another render this one is part of failed: stop at the next frame.
+				opts.signal?.throwIfAborted();
 				ready.set(f, await page.capture(f));
 				notify();
 			}
@@ -1901,18 +2079,7 @@ export async function renderMotionClips(
 						'-alpha_bits',
 						'16'
 					]
-				: [
-						'-c:v',
-						'libx264',
-						'-crf',
-						'14',
-						'-preset',
-						'medium',
-						'-pix_fmt',
-						'yuv420p',
-						'-movflags',
-						'+faststart'
-					];
+				: H264_FINAL;
 			// ffmpeg truncates its output as soon as it opens it, and the piped encode opens it before
 			// the first frame. Encode next to the target and replace it only on success, so a failed
 			// render keeps the last good file.

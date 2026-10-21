@@ -61,7 +61,10 @@ export class Clip {
 	readonly height: number;
 	readonly cue: Record<string, ResolvedCue>;
 	readonly words: Record<string, MotionWordRef[]>;
-	readonly props: Record<string, unknown>;
+	/** The clip's props. Reactive: what changes them during the clip (keys) redraws the block. */
+	props: Record<string, unknown> = $state({});
+	/** Program mode: the area of the frame this clip fills (`slot` in the project); else null. */
+	readonly slot: string | null;
 	/** Program time of the clip start, for showing transcript timestamps. */
 	readonly programStart: number;
 	/** Program frame of the clip start; `programStartFrame + frame` is the program frame. */
@@ -107,6 +110,7 @@ export class Clip {
 		this.cue = data.cues;
 		this.words = data.words;
 		this.props = data.props;
+		this.slot = data.slot ?? null;
 		this.programStart = data.start;
 		this.programStartFrame = data.startFrame;
 		this.footage = data.footage ?? {};

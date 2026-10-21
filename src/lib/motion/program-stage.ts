@@ -198,10 +198,15 @@ const CHOKE = 2;
  *   (the colours at the edge average the image alone, so the frame edge never darkens);
  * - `streak`: a blur along one axis that smears into transparency, for motion.
  */
+let scenes = 0;
+
 function shotFilters(stage: HTMLElement) {
+	// Ids unique per scene: two stages on one page never use each other's filters.
+	const scope = ++scenes;
 	let svg: SVGSVGElement | null = null;
 	const built = new Map<string, Record<string, SVGElement>>();
-	function get(id: string, build: (filter: SVGFilterElement) => Record<string, SVGElement>) {
+	function get(name: string, build: (filter: SVGFilterElement) => Record<string, SVGElement>) {
+		const id = `${name}-${scope}`;
 		let parts = built.get(id);
 		if (!parts) {
 			svg ??= svgEl(stage, 'svg', {
@@ -213,14 +218,16 @@ function shotFilters(stage: HTMLElement) {
 			parts = build(filter);
 			built.set(id, parts);
 		}
-		return parts;
+		return { id, parts };
 	}
 	return {
+		dispose() {
+			svg?.remove();
+		},
 		/** `filter` value for a room `dim`med and `blur`red; '' when it is untouched. */
 		room(side: 'a' | 'b', room: { dim: number; blur: number } | undefined): string {
 			if (!room || (room.dim <= 0 && room.blur < BLUR_MIN)) return '';
-			const id = `vf-room-${side}`;
-			const parts = get(id, (filter) => {
+			const { id, parts } = get(`vf-room-${side}`, (filter) => {
 				for (const [k, v] of Object.entries({ x: '0', y: '0', width: '100%', height: '100%' }))
 					filter.setAttribute(k, v);
 				const saturate = svgEl(filter, 'feColorMatrix', { type: 'saturate', values: '1' });
@@ -245,8 +252,7 @@ function shotFilters(stage: HTMLElement) {
 		 * it, so the matte's fringe of undimmed room does not outline the speaker in a dim room.
 		 */
 		choke(side: 'a' | 'b', radius: number): string {
-			const id = `vf-choke-${side}`;
-			const parts = get(id, (filter) => {
+			const { id, parts } = get(`vf-choke-${side}`, (filter) => {
 				const erode = svgEl(filter, 'feMorphology', {
 					in: 'SourceAlpha',
 					operator: 'erode',
@@ -268,8 +274,7 @@ function shotFilters(stage: HTMLElement) {
 		/** `filter` value for a motion blur of `amount` (px per axis); '' below the visible. */
 		streak(name: string, amount: { x: number; y: number } | null | undefined): string {
 			if (!amount || (amount.x < BLUR_MIN && amount.y < BLUR_MIN)) return '';
-			const id = `vf-streak-${name}`;
-			const parts = get(id, (filter) => {
+			const { id, parts } = get(`vf-streak-${name}`, (filter) => {
 				// Room to smear past the box along the move.
 				for (const [k, v] of Object.entries({
 					x: '-30%',
@@ -690,6 +695,7 @@ export function createProgramScene(
 		destroy() {
 			for (const m of mounted) unmount(m.instance);
 			mounted.length = 0;
+			filters.dispose();
 		}
 	};
 }

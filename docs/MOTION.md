@@ -153,8 +153,9 @@ Entrances `fade`, `pop`, `slide`, `scale`, `rise`, `drop`, `reveal` (mask from a
 `end`). Emphasis `pulse`, `shake`, `wiggle`, `punch`, `highlight`, `underline`, `strike`, `glow`
 (a name, `{ move, at }` or a list). Text splits by `words`, `chars` or `lines` with `stagger`.
 Also `duration`, `direction`, `intensity`, `color`, `ease`. Defaults scale with the clip's
-energy, `"props": { "energy": "calm" | "balanced" | "punchy" }` (default `balanced`; other
-values are left to the block).
+energy, `"props": { "energy": "calm" | "balanced" | "punchy" }`, else the project style's energy
+(`"style": "kinetic"` is punchy), else `balanced`; other values of `props.energy` are left to
+the block.
 
 Each frame is computed from clip time alone; the first start state is applied when the element
 mounts. `use:motion` owns its element's transform (with transform-box/-origin), opacity,
@@ -465,7 +466,8 @@ Layers: built-in, then each `extends` file, then the project. A project override
 writing it inline: `"style": { "extends": "styles/mine.json", "energy": "calm" }`. Later layers
 win; objects merge key by key; arrays (such as a transition set) replace whole.
 
-- `energy`: `calm`, `balanced` (default) or `punchy`; `clip.style.energy` in blocks.
+- `energy`: `calm`, `balanced` (default) or `punchy`; `clip.style.energy` in blocks, and the
+  default energy of `use:motion` in every clip (a clip's `props.energy` still wins).
 - `transitions`, `shots`, `captions`, `sounds`, `emphasis`, `overlays`: reserved sections, kept
   in `clip.style` but not read by VisualFries yet.
 - Built-in styles (examples, not a fixed set): `solid`, `glass`, `depth` (balanced); `clean`,

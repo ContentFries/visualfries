@@ -354,7 +354,7 @@ In a motion block, give elements named moves with one line instead of writing GS
 ```
 
 - Entrances (exits mirror them): `fade`, `pop`, `slide`, `scale`, `rise`, `drop`, `reveal`, `blur-in`, `spring`, `typewriter`, `draw` (SVG strokes). Emphasis: `pulse`, `shake`, `wiggle`, `punch`, `highlight`, `underline`, `strike`, `glow`. Options: `at`, `until`, `duration`, `direction`, `split: words|chars|lines`, `stagger`, `intensity`, `count`, `color`.
-- Defaults scale with the clip's energy: `"props": { "energy": "calm" | "balanced" | "punchy" }` (other values are ignored, default `balanced`).
+- Defaults scale with the clip's energy: `"props": { "energy": "calm" | "balanced" | "punchy" }` (other values are ignored), else the project style's energy (`"style": "kinetic"` → punchy), else `balanced`.
 - `use:motion` owns transform (and transform-box/-origin), opacity, filter, clip-path, visibility, display, stroke-dash\* and background-\*/box-decoration-break of its element: do not animate those from markup or `useTimeline` on the same element; nest a wrapper instead. Keep moving elements mounted (no `{#if}`).
 - Every move records events (`pop`, `slam`, `whoosh`, `type`, `tick` …) in `clip.events()` for sound effects; add your own with `clip.event(name, at)`.
 - Run `visualfries check --determinism` after adding motion. Example: `static/demo/motion`; reference: the Motion primitives docs page.

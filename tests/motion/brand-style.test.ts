@@ -17,6 +17,7 @@ import { formatClass, formatTokens, mergeZones, resolveFormat } from '$lib/motio
 import { SAFE_ZONES } from '$lib/motion/safe-zones.js';
 import { resolveMotionProject } from '$lib/motion/resolve.js';
 import { Clip } from '$lib/motion/runtime.svelte.js';
+import { planMotion } from '$lib/motion/primitives.js';
 import { hardCodedColors, loadMotionProject } from '../../src/lib/motion/node.js';
 
 const brandFile = {
@@ -343,6 +344,16 @@ describe('loading brand and style files', () => {
 		expect(again.style.hash).toBe(loaded.style.hash);
 		await fs.writeFile(path.join(b.dir, 'brand/fonts/Text.ttf'), 'text v2');
 		expect((await loadMotionProject(b.file)).brand.hash).not.toBe(loaded.brand.hash);
+	});
+
+	it('gives use:motion the energy of the project style', async () => {
+		const kinetic = await loadMotionProject((await project({ style: 'kinetic' })).file);
+		const clip = new Clip(kinetic.resolved.clips[0]);
+		expect(clip.style.energy).toBe('punchy');
+		expect(clip.energy).toBe('punchy');
+		expect(planMotion(clip, { enter: 'pop' }, 1).energy).toBe('punchy');
+		const plain = await loadMotionProject((await project({})).file);
+		expect(new Clip(plain.resolved.clips[0]).energy).toBe('balanced');
 	});
 
 	it('has no hashes without brand and style', async () => {

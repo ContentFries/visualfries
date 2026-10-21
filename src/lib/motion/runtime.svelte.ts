@@ -77,7 +77,8 @@ export class Clip {
 	readonly #grid: GridBeat[];
 	/**
 	 * Motion energy for `use:motion` defaults: the clip's `props.energy` when it is `calm`,
-	 * `balanced` or `punchy`, else `balanced` (other values belong to the block).
+	 * `balanced` or `punchy` (other values belong to the block), else the project style's
+	 * energy, else `balanced`.
 	 */
 	readonly energy: Energy;
 	#events: ClipEvent[] = [];

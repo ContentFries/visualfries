@@ -165,8 +165,6 @@ export declare const BrandShape: z.ZodObject<{
     radius: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
 }, z.core.$strict>;
 export type Brand = z.infer<typeof BrandShape>;
-export declare const ENERGIES: readonly ["calm", "balanced", "punchy"];
-export type Energy = (typeof ENERGIES)[number];
 /**
  * A creator's editing grammar. `extends` names a built-in style or a style file (relative to
  * the file that names it); this layer then changes only what differs. Later layers win; arrays

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ENERGIES } from './energy.js';
 /** Seconds (`-0.1`) or beats of the music (`"-1b"`, `"0.5b"`) added to an anchor. */
 const AnchorOffsetShape = z.union([
     z.number(),
@@ -197,7 +198,6 @@ export const BrandShape = z
     radius: z.union([z.number().min(0), z.string().min(1)]).optional()
 })
     .strict();
-export const ENERGIES = ['calm', 'balanced', 'punchy'];
 /**
  * A creator's editing grammar. `extends` names a built-in style or a style file (relative to
  * the file that names it); this layer then changes only what differs. Later layers win; arrays

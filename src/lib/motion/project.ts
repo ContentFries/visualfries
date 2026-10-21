@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ENERGIES } from './energy.js';
 
 /** Seconds (`-0.1`) or beats of the music (`"-1b"`, `"0.5b"`) added to an anchor. */
 const AnchorOffsetShape = z.union([
@@ -269,9 +270,6 @@ export const BrandShape = z
 	})
 	.strict();
 export type Brand = z.infer<typeof BrandShape>;
-
-export const ENERGIES = ['calm', 'balanced', 'punchy'] as const;
-export type Energy = (typeof ENERGIES)[number];
 
 /**
  * A creator's editing grammar. `extends` names a built-in style or a style file (relative to

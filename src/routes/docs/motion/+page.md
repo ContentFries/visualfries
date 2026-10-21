@@ -51,7 +51,7 @@ Unknown names are errors listing the valid ones, never a silent default.
 
 ## Energy
 
-Defaults come from the clip's energy: `"props": { "energy": "punchy" }` in the project file, `balanced` when it is not set. Any other value of `props.energy` (say a block's own `0.8`) is left to the block and counts as `balanced`. One table (`ENERGY`, exported from `visualfries/motion`) holds every number energy changes:
+Defaults come from the clip's energy: `"props": { "energy": "punchy" }` in the project file, else the energy of the project's style (`"style": "kinetic"` is punchy), else `balanced`. Any other value of `props.energy` (say a block's own `0.8`) is left to the block and counts as `balanced`. One table (`ENERGY`, exported from `visualfries/motion`) holds every number energy changes:
 
 | Energy     | Entrance | Word stagger | Amount | Ease         |
 | ---------- | -------- | ------------ | ------ | ------------ |

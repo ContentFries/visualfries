@@ -1,5 +1,6 @@
 // Style layering. The style file schema (`StyleShape`) lives in project.ts.
-import { StyleShape, type Energy, type Style } from './project.js';
+import { StyleShape, type Style } from './project.js';
+import type { Energy } from './energy.js';
 
 /**
  * Built-in styles. Each is an example of a good style, not a fixed set; for now they fill only

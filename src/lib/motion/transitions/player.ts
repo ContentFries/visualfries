@@ -1,6 +1,11 @@
 import type { FormatClass, ProgramTransition } from '../program.js';
 import { easeOf } from '../ease.js';
-import type { ScreenDirection, TransitionModule, TransitionSides } from './contract.js';
+import type {
+	ScreenDirection,
+	TransitionFrame,
+	TransitionModule,
+	TransitionSides
+} from './contract.js';
 import { inWindow, transitionModule, transitionProgress } from './index.js';
 
 /**
@@ -24,7 +29,12 @@ export type TransitionPlayer = {
 	/** Drawn transitions whose window holds program frame `f`. */
 	at(f: number): ProgramTransition[];
 	/** Releases every transition, then applies those on screen at `f` to the sides given. */
-	seek(f: number, sides: (t: ProgramTransition) => Pick<TransitionSides, 'out' | 'in'>): void;
+	seek(
+		f: number,
+		sides: (
+			t: ProgramTransition
+		) => Pick<TransitionSides, 'out' | 'in'> & Pick<TransitionFrame, 'focus'>
+	): void;
 };
 
 /** Whether the stage draws `t` (a built-in module exists); others cut on their cut frame. */
@@ -67,7 +77,7 @@ export function createTransitionPlayer(
 			}
 			for (const e of entries) {
 				if (!inWindow(e.t, f)) continue;
-				const { out, in: incoming } = sides(e.t);
+				const { out, in: incoming, focus } = sides(e.t);
 				const touched: TransitionSides = {
 					out,
 					in: incoming,
@@ -82,7 +92,8 @@ export function createTransitionPlayer(
 					eased: e.ease(p),
 					direction: e.direction,
 					params: e.t.params,
-					kind: e.t.kind
+					kind: e.t.kind,
+					focus
 				});
 				e.touched = touched;
 			}

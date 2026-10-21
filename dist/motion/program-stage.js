@@ -7,7 +7,7 @@ import { programFootageAt, transitionSidesAt } from './footage-map.js';
 import { sourceFrameUrl, sourceSubjectBox } from './footage.js';
 import { clipFrameAt } from './segments.js';
 import { shotLayout, shotLayoutAt, shotModule } from './shots/index.js';
-import { SUBJECT_SMOOTH } from './shots/layout.js';
+import { facePoint, SUBJECT_SMOOTH } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
 import { keyTracks, placementTransform } from './keys.js';
 /**
@@ -292,6 +292,12 @@ function clipError(id, error) {
     return new Error(message.startsWith(`Clip "${id}"`) ? message : `Clip "${id}": ${message}`);
 }
 const endOf = (s) => s.startFrame + s.frames;
+/**
+ * The eyes below the top of the head the matte gives, in fractions of the footage height
+ * (measured 0.21 and 0.24 on a medium and a close shot; the shots' face point, 0.1 down, is the
+ * forehead).
+ */
+const EYES_DROP = 0.2;
 const FULL = { shot: 'full', params: {} };
 /**
  * Builds the layer tree in `stage` and mounts every clip of the segment. `animatable` holds what
@@ -472,6 +478,32 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                     s.behind.appendChild(el);
         }
     }
+    /**
+     * The eyes on screen in a side (where its camera puts them), inside the camera window: what a
+     * transition centres on. Without a matte, the frame centre slightly high (see `facePoint`).
+     */
+    function faceOf(side) {
+        const frames = framesOf(side.view);
+        if (!frames || !side.view)
+            return null;
+        const subject = sourceSubjectBox(frames, side.view.frame, Math.round(SUBJECT_SMOOTH * seg.fps));
+        const face = subject
+            ? { x: subject.headX, y: Math.min(1, subject.headY + EYES_DROP) }
+            : facePoint(null);
+        const { camera, clip } = side.layout;
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+        return {
+            x: clamp(camera.x + face.x * camera.width, clip.x, clip.x + clip.width),
+            y: clamp(camera.y + face.y * camera.height, clip.y, clip.y + clip.height)
+        };
+    }
+    /** The eyes on each side of transition `t` at the planned frame (under a clip: on both). */
+    function focusOf(now, t) {
+        if (t.kind !== 'clip')
+            return { out: faceOf(now.a), in: now.b ? faceOf(now.b) : null };
+        const under = faceOf(now.b && now.f >= t.cutFrame ? now.b : now.a);
+        return { out: under, in: under };
+    }
     /** The elements leaving and arriving in transition `t` at the planned frame. */
     function sidesOf(now, t) {
         const onScreen = (m, i) => now.clips[i].local !== null;
@@ -579,7 +611,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                     throw clipError(m.data.id, error);
                 }
             }
-            player.seek(f, (t) => sidesOf(now, t));
+            player.seek(f, (t) => ({ ...sidesOf(now, t), focus: focusOf(now, t) }));
         },
         async draw(f) {
             const pending = [];

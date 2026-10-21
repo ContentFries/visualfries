@@ -287,8 +287,8 @@ A `transition` on a cut, a shot or a clip hands the frame over inside a window a
 `{ "type": "push", "duration": 0.5, "align": "center", "ease": "expo.inOut", "direction":
 "left", "params": { … } }`, or just the type as a string. `align` puts the window's middle
 (`center`), start or end on the cut; `duration` and `ease` default per type. A transition never
-changes program time or sound; where a side runs out of handle its edge frame holds. Drawn so
-far:
+changes program time or sound; where a side runs out of handle its edge frame holds (`check`
+counts only the frames a transition shows of each side). Built in:
 
 - `push` (0.55 s, `expo.inOut`): the incoming picture pushes the outgoing one off the frame,
   with a blur along the travel that peaks halfway. `direction` is `left`, `right`, `up` or
@@ -303,8 +303,38 @@ far:
   colours (a list of CSS colours, first bar first). On a clip only the clip appears; the layers
   below it stay.
 
-`zoom-through`, `shape-mask`, `blinds`, `card` and custom `.svelte` transitions resolve into the
-program but cut on the cut for now; `check` warns about them.
+- `zoom-through` (0.6 s, `none`): the camera rushes into the outgoing picture, toward the
+  speaker's eyes, and comes out of the incoming one as it settles back to full frame, with a zoom
+  blur and a soft flash on the change. `params.at` is `"face"` (the default: the eyes, from the
+  matte; the frame centre slightly high without one), `"center"` or `[x, y]` in fractions of the
+  frame; `zoom` (2.4) is the scale at the change, `blur` (18) the streak length in percent of the
+  distance to that point (0: none), `flash` (0.25) the flash's peak opacity and `color` its colour
+  (white). Both sides only scale up, so the frame stays covered; it needs about a frame of handle
+  on each side. On a clip only the clip zooms in; the layers below it stay.
+- `shape-mask` (0.7 s, `power3.inOut`): the incoming picture shows through a circle that grows
+  from the outgoing speaker's eyes until it covers the frame, a ring in the brand's accent riding
+  its edge; the outgoing picture drifts a little closer behind it. `params.shape` is `"circle"`
+  or `"rect"` (rounded corners, `radius` 64 px of a 1080 px frame, squaring off as it reaches the
+  frame's), `at` as for zoom-through, `ring` its width (10 px of a 1080 px frame; 0: none) and
+  `color` its colour. Clips leaving with the outgoing side are cut out where the shape is.
+- `blinds` (0.8 s, `none`): slats in the brand's primary (every other one a shade darker) close
+  over the outgoing picture one after another along `direction`, the picture changes while they
+  cover the frame, and they open the same way: columns that drop for `left`/`right`, rows that
+  sweep across for `up`/`down` (`forward`: left in landscape and square, up in portrait).
+  `params.count` (8 in landscape, 6 in square, 7 in portrait), `colors` (used in turn) and
+  `stagger` (0.4: share of each half spent starting the slats one after another). It needs no
+  handle. On a clip only the clip appears.
+- `card` (0.9 s, `none`): the incoming picture arrives as a card (62 % of the frame, rounded
+  corners, a shadow) that slides in along `direction` (as for `push`) or flips in
+  (`params.motion: "flip"`), lands in the middle while the outgoing picture dims, and grows to
+  fill the frame. `params.side: "out"` plays it backwards: the outgoing picture shrinks into the
+  card and slides or flips away over the incoming one. `scale`, `radius` (44 px of a 1080 px
+  frame), `shadow` (0.4) and `dim` (0.45) shape it. Clips riding the side under the card are cut
+  where the card is. On a clip the clip arrives as the card; the layers below it stay.
+
+Every built-in's sound event is halfway through its window, on the cut of a centred window.
+Custom `.svelte` transitions resolve into the program but cut on the cut for now; `check` warns
+about them.
 
 ### Keys
 
@@ -838,8 +868,8 @@ the cache or transitions, and the same project gives the same samples on every r
   same gain) meet without a fade, so splitting a take leaves its sound unchanged.
   `footage.<name>.audio` names a separate sound file (the microphone) or `false`.
 - **Effects:** `sfx` items play a sound file (relative to the project) at any program anchor,
-  rounded to a frame. A transition with `"sound"` plays it on its event (the middle of `push`
-  and `wipe`). When a sound library's `sounds.json` (`{ "sounds": [{ "file", "hitMs" }] }`, in
+  rounded to a frame. A transition with `"sound"` plays it on its event (the middle of every
+  built-in transition). When a sound library's `sounds.json` (`{ "sounds": [{ "file", "hitMs" }] }`, in
   the sound's folder or up to three folders above) lists the file, its hit lands on the moment
   instead of its first sample (a manifest that cannot be read, or a `hitMs` outside the sound,
   is a warning and the file start is used). Each effect's loudest 100 ms sits `mix.sfx` dB (default −10)

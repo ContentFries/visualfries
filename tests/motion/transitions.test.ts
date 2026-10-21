@@ -72,10 +72,10 @@ describe('transition progress and events', () => {
 			expect(frameAtProgress(t, 0.5), `${frames} frames`).toBe(t.cutFrame);
 			expect(transitionEvents(t)).toEqual([{ kind: 'transition', frame: t.cutFrame }]);
 		}
-		// A transition not drawn yet keeps one event on its cut.
-		expect(transitionEvents(transition({ type: 'card', cutFrame: 11 }))).toEqual([
-			{ kind: 'transition', frame: 11 }
-		]);
+		// A transition not drawn yet (a custom file) keeps one event on its cut.
+		expect(
+			transitionEvents(transition({ type: 'transitions/Fancy.svelte', cutFrame: 11 }))
+		).toEqual([{ kind: 'transition', frame: 11 }]);
 		// Events stay inside the window.
 		const t = transition({});
 		expect(frameAtProgress(t, 0)).toBe(t.startFrame);
@@ -124,22 +124,33 @@ describe('transitions in the resolved program', () => {
 			direction: 'down',
 			ease: 'power3.inOut'
 		});
-		// A transition not drawn yet keeps what was written and says it cuts.
+		// Every built-in is drawn: the card takes its module's direction and ease.
 		const card = land.transitions.find((t) => t.type === 'card')!;
-		expect(card).toMatchObject({ direction: null, ease: null, frames: 9 });
-		expect(land.diagnostics).toContainEqual({
+		expect(card).toMatchObject({ direction: 'left', ease: 'none', frames: 9 });
+		expect(land.diagnostics.filter((d) => d.item === 'cut5')).toEqual([]);
+		// A transition not drawn yet keeps what was written and says it cuts.
+		const custom = json();
+		custom.cuts[4].transition = { type: 'transitions/Fancy.svelte', align: 'end', duration: 0.3 };
+		const fancy = program(custom).transitions.find((t) => t.owner === 'cut5')!;
+		expect(fancy).toMatchObject({ direction: null, ease: null, frames: 9 });
+		expect(program(custom).diagnostics).toContainEqual({
 			level: 'warning',
 			item: 'cut5',
 			field: 'cuts[4].transition',
-			message: 'The "card" transition is not drawn yet; it cuts on the cut.'
+			message:
+				'Custom transition files are not drawn yet; "transitions/Fancy.svelte" cuts on the cut.'
 		});
 	});
 
 	it('emits the transition events of the modules', () => {
 		const p = program(json());
 		const events = p.events.filter((e) => e.kind === 'transition');
-		for (const t of p.transitions)
-			expect(events.find((e) => e.owner === t.id)!.frame, t.id).toBe(t.cutFrame);
+		// Every built-in's event is halfway: on the cut of a centred window.
+		for (const t of p.transitions) {
+			const frame = events.find((e) => e.owner === t.id)!.frame;
+			expect(frame, t.id).toBe(frameAtProgress(t, 0.5));
+			if (t.align === 'center') expect(frame, t.id).toBe(t.cutFrame);
+		}
 	});
 
 	it('rejects unknown eases and params', () => {
@@ -182,9 +193,14 @@ describe('transitions in the resolved program', () => {
 
 	it('holds no clip for a transition that is not drawn', () => {
 		const clip = { id: 'c', startFrame: 20, frames: 10 };
-		const card = transition({ type: 'card', startFrame: 16, frames: 8, cutFrame: 20 });
-		expect(clipShowRange(clip, [card])).toEqual({ from: 20, until: 30 });
-		expect(clipShowRange(clip, [{ ...card, type: 'push' }])).toEqual({ from: 16, until: 30 });
+		const fancy = transition({
+			type: 'transitions/Fancy.svelte',
+			startFrame: 16,
+			frames: 8,
+			cutFrame: 20
+		});
+		expect(clipShowRange(clip, [fancy])).toEqual({ from: 20, until: 30 });
+		expect(clipShowRange(clip, [{ ...fancy, type: 'push' }])).toEqual({ from: 16, until: 30 });
 	});
 
 	it('gives each side its footage through the window, holding edge frames', () => {

@@ -240,7 +240,8 @@ describe('shots, clips, keys and events', () => {
 			{ kind: 'punch', frame: 96, owner: 'punch' },
 			{ kind: 'whip', frame: 156, owner: 'whip' },
 			{ kind: 'transition', frame: 156, owner: 'whip.transition' },
-			{ kind: 'transition', frame: 204, owner: 'cut5.transition' },
+			// The card's window ends on its cut (204); it lands halfway through.
+			{ kind: 'transition', frame: 199, owner: 'cut5.transition' },
 			// The whip back to full, halfway through its morph (0.42 s).
 			{ kind: 'whip', frame: 210, owner: 'full-204' }
 		]);

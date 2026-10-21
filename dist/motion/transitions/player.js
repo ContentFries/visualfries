@@ -37,7 +37,7 @@ export function createTransitionPlayer(layer, transitions, stage) {
             for (const e of entries) {
                 if (!inWindow(e.t, f))
                     continue;
-                const { out, in: incoming } = sides(e.t);
+                const { out, in: incoming, focus } = sides(e.t);
                 const touched = {
                     out,
                     in: incoming,
@@ -52,7 +52,8 @@ export function createTransitionPlayer(layer, transitions, stage) {
                     eased: e.ease(p),
                     direction: e.direction,
                     params: e.t.params,
-                    kind: e.t.kind
+                    kind: e.t.kind,
+                    focus
                 });
                 e.touched = touched;
             }

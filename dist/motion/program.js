@@ -12,7 +12,7 @@ import { parseEase } from './ease.js';
 import { NEUTRAL_BRAND } from './brand.js';
 import { clipEnergy } from './energy.js';
 import { compileKeyTracks, KEY_EASE, PLACEMENT, substituteBrand } from './keys.js';
-import { screenDirection, transitionEvents, transitionModule } from './transitions/index.js';
+import { screenDirection, transitionEvents, transitionHandles, transitionModule } from './transitions/index.js';
 /** Seconds a transition not drawn yet lasts when the project does not say. */
 export const DEFAULT_TRANSITION_SECONDS = 0.5;
 /**
@@ -729,9 +729,9 @@ function resolveTransitions(project, resolvedCuts, cuts, shots, clips, fps, cls,
         if (!t || !fits(t, cuts[i - 1], cuts[i], field, name))
             return;
         // The incoming side starts early (handle before its "in"), the outgoing side runs on past
-        // its "out"; without enough source the edge frame holds.
-        const needIn = t.cutFrame - t.startFrame;
-        const needOut = endOf(t) - t.cutFrame;
+        // its "out", as far as the transition shows them; without enough source the edge frame
+        // holds.
+        const { in: needIn, out: needOut } = transitionHandles(t);
         const haveIn = cuts[i].handles.before;
         const haveOut = cuts[i - 1].handles.after;
         t.held.in = Math.max(0, needIn - haveIn);

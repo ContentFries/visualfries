@@ -41,6 +41,11 @@ export type TransitionSetup = {
     direction: ScreenDirection | null;
     params: Record<string, unknown>;
 };
+/** Stage pixels, origin top left. */
+export type Point = {
+    x: number;
+    y: number;
+};
 export type TransitionFrame = TransitionSides & {
     /** Linear progress through the window, strictly between 0 and 1. */
     p: number;
@@ -50,6 +55,15 @@ export type TransitionFrame = TransitionSides & {
     params: Record<string, unknown>;
     /** What carries the transition: a cut, a shot or a clip. */
     kind: 'cut' | 'shot' | 'clip';
+    /**
+     * Where the speaker's eyes are on screen on each side (from the matte, smoothed), for
+     * transitions that centre on them; null where a side has no footage. A clip transition gives
+     * the eyes under the clip on both.
+     */
+    focus?: {
+        out: Point | null;
+        in: Point | null;
+    };
 };
 export type TransitionModule = {
     name: string;
@@ -60,6 +74,15 @@ export type TransitionModule = {
     /** Takes `direction` (`forward`/`back` mapped per format class). */
     directional: boolean;
     events: TransitionEvent[];
+    /**
+     * Eased progress after which the outgoing side no longer shows (`out`) and before which the
+     * incoming side does not show yet (`in`): what decides the handles a cut needs. Without it
+     * both sides show through the whole window.
+     */
+    shows?(params: Record<string, unknown>): {
+        out: number;
+        in: number;
+    };
     /** Problems with `params`, as messages. */
     check?(params: Record<string, unknown>): string[];
     /** Builds the overlay's elements once, when the segment loads. `overlay.id` is unique. */

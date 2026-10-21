@@ -28,11 +28,11 @@ import {
 	BeatsFileShape,
 	barRows,
 	formatBarGrid,
-	programBeats,
 	type BarRow,
 	type BeatsFile,
 	type MusicBeats
 } from './beat-grid.js';
+import { musicTrack, placeMusic, type MusicTrack, type PlacedMusic } from './music.js';
 import { fileSha256 } from './beats.js';
 import { footageMap, footageRanges, type FootageMap, type FrameRange } from './footage-map.js';
 import type { FootageFrames, FootageRange, SubjectBox } from './resolve.js';
@@ -92,6 +92,11 @@ export type LoadedMusic = {
 	analysis: BeatsFile | null;
 	/** SHA-256 of the beats file as read; null when the item has none. */
 	beatsHash: string | null;
+	/** Its corrected beats in seconds of the music file; null without a beats file. */
+	track: MusicTrack | null;
+	/** Where the music sits in the program; null when its anchors failed (see the diagnostics). */
+	placed: PlacedMusic | null;
+	/** Its beats placed in the program; null without a beats file or a place. */
 	beats: MusicBeats | null;
 	/** Bars in program seconds, for the `check` grid. */
 	bars: BarRow[];
@@ -159,7 +164,7 @@ async function loadSounds(
 			out[name] = { hit: 0, error: `"${name}" has no sound ffmpeg can read.` };
 			continue;
 		}
-		const info: SoundInfo = { hit: 0 };
+		const info: SoundInfo = { hit: 0, duration: length };
 		for (let folder = path.dirname(file), up = 0; up <= 3; up++, folder = path.dirname(folder)) {
 			const found = await manifest(folder);
 			if (found && 'error' in found) {
@@ -194,6 +199,8 @@ async function loadMusic(project: MotionProject, dir: string): Promise<LoadedMus
 				beatsFile: null,
 				analysis: null,
 				beatsHash: null,
+				track: null,
+				placed: null,
 				beats: null,
 				bars: []
 			});
@@ -217,20 +224,22 @@ async function loadMusic(project: MotionProject, dir: string): Promise<LoadedMus
 			throw new Error(
 				`${music.src} changed since ${music.beats} was made. Run: visualfries beats ${music.src} --output ${music.beats}`
 			);
-		let beats: MusicBeats;
+		let track: MusicTrack;
 		try {
-			beats = programBeats(analysis, music);
+			track = musicTrack(analysis, music, loaded.length);
 		} catch (error) {
 			throw new Error(`Music "${music.id ?? music.src}": ${(error as Error).message}`);
 		}
-		const corrected = music.tempo !== undefined || music.downbeat !== undefined;
+		// Placed in the program once its words are known (`placeLoadedMusic`).
 		loaded.push({
 			music,
 			beatsFile,
 			analysis,
 			beatsHash,
-			beats,
-			bars: barRows(beats.grid, analysis.bars, corrected)
+			track,
+			placed: null,
+			beats: null,
+			bars: []
 		});
 	}
 	const ids = loaded.map((m) => m.music.id).filter(Boolean);
@@ -392,7 +401,7 @@ export async function loadMotionProject(
 		? parseTranscriptWords(JSON.parse(await fs.readFile(transcriptPath, 'utf8')))
 		: null;
 	const music = await loadMusic(project, dir);
-	const musicBeats = music.map((m) => m.beats).filter((b): b is MusicBeats => !!b);
+	const tracks = music.flatMap((m) => (m.track ? [m.track] : []));
 	const timing = music
 		.filter((m) => m.beatsHash)
 		.map(({ music: m, beatsHash }) => [
@@ -403,7 +412,8 @@ export async function loadMotionProject(
 			m.until ?? null,
 			m.shift ?? null,
 			m.downbeat ?? null,
-			m.tempo ?? null
+			m.tempo ?? null,
+			...(m.in !== undefined ? [m.in] : [])
 		]);
 	const musicHash = timing.length
 		? createHash('sha256').update(JSON.stringify(timing)).digest('hex').slice(0, 12)
@@ -442,7 +452,7 @@ export async function loadMotionProject(
 		}
 	}
 	const look = { brand: brand.resolved, style: style.resolved };
-	const inputs: ProgramInputs = { words, transcripts, sources, music: musicBeats, look };
+	const inputs: ProgramInputs = { words, transcripts, sources, tracks, look };
 	if (isProgramProject(project)) {
 		inputs.sounds = await loadSounds(project, dir);
 		// Keyed props are checked against what each block marks animatable.
@@ -452,6 +462,12 @@ export async function loadMotionProject(
 	}
 	const common = { file: abs, dir, project, music, musicHash, brand, style, inputs, hashes };
 	const cutList = resolveCutList(project, inputs);
+	const musicBeats = placeLoadedMusic(
+		music,
+		project,
+		inputs,
+		cutList.mode === 'inserts' ? words : cutList.words
+	);
 	if (cutList.mode === 'inserts') {
 		return {
 			...common,
@@ -479,12 +495,42 @@ export async function loadMotionProject(
 }
 
 /**
+ * Places the loaded music in the program against its words, as the program resolver does, and
+ * fills in each item's place, beats and bar grid. Returns the beats for the clips.
+ */
+function placeLoadedMusic(
+	music: LoadedMusic[],
+	project: MotionProject,
+	inputs: ProgramInputs,
+	words: MotionWord[] | null
+): MusicBeats[] {
+	const { placed, beats } = placeMusic(project, {
+		tracks: inputs.tracks,
+		words,
+		sounds: inputs.sounds,
+		stage: 'program'
+	});
+	music.forEach((m, i) => {
+		m.placed = placed[i];
+		m.beats = placed[i]?.beats ?? null;
+		const corrected = m.music.tempo !== undefined || m.music.downbeat !== undefined;
+		if (m.beats && m.analysis) m.bars = barRows(m.beats.grid, m.analysis.bars, corrected);
+	});
+	return beats;
+}
+
+/**
  * The bar grid of each music item with beats, as text for `check`: one line per bar with its
  * program time, tempo, energy and first beats. A BPM column at twice (or half) the tempo you
  * hear means the analyzer chose the wrong level: set `"tempo": "half"` (or `"double"`).
  */
 export function describeMusicGrid(loaded: LoadedMotionProject): string {
 	const parts: string[] = [];
+	// As written for seconds; an anchor shows where it resolved.
+	const seconds = (written: unknown, resolved: number) =>
+		written === undefined || typeof written === 'number'
+			? `${written ?? 0}s`
+			: `${resolved.toFixed(2)}s (${JSON.stringify(written)})`;
 	for (const m of loaded.music) {
 		if (!m.analysis || !m.beats) continue;
 		const { music, analysis } = m;
@@ -500,7 +546,7 @@ export function describeMusicGrid(loaded: LoadedMotionProject): string {
 		const bars = m.bars.filter((b) => b.bar > 0).length;
 		parts.push(
 			[
-				`music ${music.id ? `"${music.id}" ` : ''}${music.src} · ${music.beats} (${by}) · from ${music.from ?? 0}s${music.until !== undefined ? ` until ${music.until}s` : ''}`,
+				`music ${music.id ? `"${music.id}" ` : ''}${music.src} · ${music.beats} (${by}) · from ${seconds(music.from, m.placed?.from ?? 0)}${music.in !== undefined ? ` in ${music.in}s` : ''}${music.until !== undefined ? ` until ${seconds(music.until, m.placed?.until ?? 0)}` : ''}`,
 				`  ${(analysis.tempo * factor).toFixed(1)} BPM · ${analysis.beatsPerBar ?? '?'} beats per bar · ${m.beats.grid.length} beats · ${bars} bars${corrections.length ? ` · corrections: ${corrections.join(', ')}` : ''}`,
 				m.bars.length
 					? formatBarGrid(m.bars)

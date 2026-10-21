@@ -209,7 +209,8 @@ point `footage.<name>.transcript` at its transcript (`--transcript` only replace
 of a project without `cuts` or `shots`). `in` rounds to the nearest frame and `out` up to the
 next, so the last word is never clipped. A cut's `transition` belongs to the incoming range and
 never changes program time or sound; `audio: { split }` makes a J or L cut, and `check` warns
-about a word an audio edit point cuts through. `visualfries program` resolves cuts, program words,
+about a word an audio edit point cuts through. A cut can also end on the music:
+`"out": { "bar": 5 }` (see [Music in the program](#music-in-the-program)). `visualfries program` resolves cuts, program words,
 shots, clips, transitions, audio pieces and segments into `.visualfries/program/<format>.json`,
 and `check` reports what is wrong with them (a phrase that moved, a transition longer than its
 neighbour, missing handles).
@@ -418,10 +419,11 @@ the next (`'bar'`: within the bar). The frame nearest a beat counts as the beat,
 beat falls a few milliseconds after it. `clip.beats` lists every beat of the music with
 `index`, program `time`, clip-local `local`, `bar` and `beat` (1 = downbeat).
 
-**The music item:** `src`, `beats`, `from` (program second at which the music file starts,
-default 0) and `until` (program second at which it stops; later beats do not exist). A program
-render (`cuts` or `shots`) also mixes it, with `gain`, `fade` and `keys` (see "Program sound"
-under CLI); rendering clips one by one does not.
+**The music item:** `src`, `beats`, `from` (where the music starts in the program, default 0),
+`in` (seconds into the music file that play at `from`, default 0) and `until` (where it stops;
+later beats do not exist). A program render (`cuts` or `shots`) also mixes it, with `gain`,
+`fade` and `keys` (see "Program sound" under CLI), and ends it on a bar (below); rendering
+clips one by one does not.
 
 **Corrections.** Beat trackers are reliable within a frame, but they can pick the wrong
 level: half or double the tempo you hear, or the wrong beat as the downbeat. Fix it on the music
@@ -491,6 +493,56 @@ WAV, and the tool writes either lines of `time [position-in-bar]` (1 = downbeat)
 (`{ "beats": [0.5, …], "downbeats": [...] }`). Name it with `--analyzer-name` and
 `--analyzer-version`. In Node, `analyzeBeats(music, { analyzer })` from `visualfries/motion/beats`
 takes `beatThis()`, `commandBeats(template)` or any `BeatAnalyzer`.
+
+### Music in the program
+
+The beats of a music item move with it: a beat at second `t` of the file plays at program
+second `from + t − in`. Every beat anchor in the project reads that program time, so clips,
+cues, shots, keys, `sfx` and the music's own gain keys land on the frame nearest their beat.
+
+```json
+"music": [
+	{ "id": "bed", "src": "bed.mp3", "beats": "bed.beats.json", "from": 0.5, "in": 8 }
+],
+"cuts": [
+	{ "source": "talk", "in": "hello and welcome", "out": { "bar": 3 } },
+	{ "source": "talk", "in": "first open", "out": { "downbeat": "after", "at": "the settings" } },
+	{ "source": "talk", "in": "then pick", "out": "for today" }
+]
+```
+
+- **Where it starts.** `from` takes any program anchor: seconds, `{ "frame" }`, a phrase of the
+  program transcript, or a beat of a music item listed before it (`{ "bar": 9, "music":
+"intro" }`). A negative number starts inside the file, like `in`. `until` takes any anchor
+  too; its beat anchors read the item's own beats unless they name another music.
+- **Cuts on beats.** A cut's `out` can be a beat of the music instead of a point in its source:
+  `{ "bar": 5 }`, `{ "bar": 5, "beat": 3 }`, `{ "beat": 17 }`, or `{ "downbeat": "after", "at":
+"the settings" }` (the first downbeat at or after a point of the cut's own source; `"before"`,
+  and `"beat"` instead of `"downbeat"`, work too), with `offset` and `music` as in other beat
+  anchors. The cut then ends, and the next one starts, on the frame nearest that beat; its source
+  `in` stays where it was. A retake that changes an earlier cut moves the cut's source end, not
+  the beat. `in` is a point in the source and takes no beats (a cut starts where the one before
+  it ends). Cut points read only music placed without phrases, because the cut list decides
+  where phrases play.
+- **Ending on a bar.** The music ends, its fade-out done, on the bar end nearest to `until` (or
+  to the program end), never after the program end. A bar ends on the next downbeat; the last
+  bar of the file ends one bar after its downbeat. The end is worked out on every resolve, so
+  when a retake or a changed cut makes the program longer or shorter, the music re-snaps to the
+  bar end that is now nearest. This is the default for music whose beats have downbeats;
+  `"snap": false` keeps the exact end, and `"snap": "bar"` insists on it (an error without beats
+  or downbeats). `visualfries program` shows where each music item ends and which bar it snapped
+  to, and the program file has the same as `audio.music[].snap: { bar, target }`.
+
+`check` reports:
+
+- beats used with no beats file (a beat anchor while the only music has no `beats`, or `"snap":
+"bar"` on it): an error on the music that names the `visualfries beats` command to run;
+- a snap that is impossible (no bar end between the music's start and the program end): a
+  warning, and the music ends unsnapped;
+- music shorter than needed (the file runs out before the bar end, `until` or program end it
+  should reach): a warning, and the music ends on its last bar end inside the file (or where the
+  file ends, without beats);
+- a cut `out` on a beat that lands before the cut starts, and beats in a cut's `in`: errors.
 
 ## Built-in blocks and captions
 
@@ -746,8 +798,9 @@ the cache or transitions, and the same project gives the same samples on every r
   instead of its first sample (a manifest that cannot be read, or a `hitMs` outside the sound,
   is a warning and the file start is used). Each effect's loudest 100 ms sits `mix.sfx` dB (default −10)
   under the speech, plus its own `gain`. Sounds chosen automatically from the style come later.
-- **Music:** each music item plays from `from` (negative: from inside the file) until `until`
-  or the program end, at one steady level: its integrated loudness `mix.music` dB (default
+- **Music:** each music item plays from `from` (with `in`, or a negative `from`, it starts
+  inside the file) until `until` or the program end, snapped to a bar end when its beats have
+  downbeats (see [Music in the program](#music-in-the-program)), at one steady level: its integrated loudness `mix.music` dB (default
   −15) under the speech, plus its `gain`. It never rises in pauses on its own; `keys` change
   the level explicitly (dB on top of `gain`, in straight lines from key to key, holding before
   the first and after the last). `fade: { in, out }` defaults to 0.01 s and 1 s. Unknown

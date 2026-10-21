@@ -1778,6 +1778,10 @@ async function motionProgramCommand(args) {
 			console.log(
 				`transition ${t.type} into ${t.owner}  frames ${t.startFrame}–${t.startFrame + t.frames - 1} (cut ${t.cutFrame})${t.held.in || t.held.out ? `  held in ${t.held.in}, out ${t.held.out}` : ''}`
 			);
+		for (const m of program.audio.music)
+			console.log(
+				`music ${m.owner.padEnd(8)} ${m.at.toFixed(2)}s–${(m.at + (m.dur ?? 0)).toFixed(2)}s  ${m.file} from ${m.srcIn.toFixed(2)}s${m.snap ? `  ends on bar ${m.snap.bar} (unsnapped ${m.snap.target.toFixed(2)}s)` : ''}`
+			);
 		for (const seg of program.segments)
 			console.log(
 				`segment ${seg.id}  frames ${seg.startFrame}–${seg.startFrame + seg.frames - 1}  ${seg.hash.slice(0, 12)}  ${seg.items.join(', ')}`

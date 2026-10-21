@@ -2,6 +2,7 @@ import type { MotionProject } from './project.js';
 import { type Transition } from './timeline.js';
 import type { MotionWord } from './transcript.js';
 import type { MusicBeats } from './beat-grid.js';
+import { type MusicTrack } from './music.js';
 import type { ProjectLook } from './resolve.js';
 import type { AnimatableKind } from './interpolate.js';
 /** A word of the program transcript and where it came from. */
@@ -52,8 +53,16 @@ export type ProgramInputs = {
     transcripts?: Record<string, MotionWord[]>;
     /** Probed footage; a source missing here could not be read. */
     sources?: Record<string, SourceInfo>;
-    /** Music beats in program time (node tooling reads the beats files), for beat anchors. */
+    /**
+     * Music beats already in program time, for beat anchors. Ignored when `tracks` is given: the
+     * resolver then places the music itself.
+     */
     music?: MusicBeats[];
+    /**
+     * Each music item's beats in seconds of its file (node tooling reads the beats files). The
+     * resolver places them in the program through the item's `from`, `in` and `until`.
+     */
+    tracks?: MusicTrack[];
     /** Brand and style resolved from their files; neutral when absent. */
     look?: ProjectLook;
     /**
@@ -81,6 +90,8 @@ export type BlockAnimatable = {
  */
 export type SoundInfo = {
     hit: number;
+    /** Seconds of sound in the file, when it was probed. */
+    duration?: number;
     warning?: string;
     error?: string;
 };

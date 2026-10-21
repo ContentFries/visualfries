@@ -1,6 +1,7 @@
 import { SHOTS, TRANSITIONS } from './timeline.js';
 import { NO_BEATS, resolveAnchor } from './anchors.js';
-import { pickMusic } from './beat-grid.js';
+import { NO_MUSIC_BEATS, pickMusic } from './beat-grid.js';
+import { missingBeats, musicEnd, placeMusic } from './music.js';
 import { resolveFormat } from './format.js';
 import { resolveMoment } from './moment.js';
 import { resolveMotionProject } from './resolve.js';
@@ -61,13 +62,23 @@ const overlaps = (a, b) => a.startFrame < endOf(b) && b.startFrame < endOf(a);
  * transition windows with handles and held frames, keys, events, audio pieces and segments.
  * Pure: the same project and inputs give the same JSON, in Node and in the browser.
  */
-export function resolveProgram(project, inputs, opts = {}) {
+export function resolveProgram(project, given, opts = {}) {
     const fps = project.fps;
     const format = programFormat(project, opts.format);
-    const cutList = resolveCutList(project, inputs);
+    const cutList = resolveCutList(project, given);
     const program = cutList.mode === 'program';
     const diagnostics = [...cutList.diagnostics];
-    const words = program ? cutList.words : inputs.words;
+    const words = program ? cutList.words : given.words;
+    // Music goes where its anchors put it (program words exist now), and its beats with it.
+    const placement = placeMusic(project, {
+        tracks: given.tracks,
+        given: given.music,
+        words,
+        sounds: given.sounds,
+        stage: 'program'
+    });
+    diagnostics.push(...placement.diagnostics);
+    const inputs = given.tracks ? { ...given, music: placement.beats } : given;
     const warn = (level, item, field, message) => diagnostics.push({ level, item, field, message });
     // Clips resolve exactly as in `ResolvedProject`, against the program transcript.
     const beats = beatsOf(inputs);
@@ -76,7 +87,7 @@ export function resolveProgram(project, inputs, opts = {}) {
     const anchorCtx = { words, fps, window: null, localBase: null, beats };
     const at = (anchor, from) => resolveAnchor(anchor, from === undefined ? anchorCtx : { ...anchorCtx, window: { from, to: Infinity } }, from === undefined ? 'start' : 'end').time;
     // Program length: the cut list, else `duration`, else the latest end of clips or music.
-    const musicEnds = (project.music ?? []).flatMap((m) => m.until === undefined ? [] : [Math.round(m.until * fps)]);
+    const musicEnds = placement.placed.flatMap((m) => m?.until == null ? [] : [Math.round(m.until * fps)]);
     const frames = cutList.frames ??
         (project.duration !== undefined
             ? Math.round(project.duration * fps)
@@ -151,7 +162,7 @@ export function resolveProgram(project, inputs, opts = {}) {
     const audio = {
         speech: program ? speechPieces(project, cutList.cuts, sources, inputs, frames / fps) : [],
         sfx: resolveSfx(project, transitions, inputs, at, diagnostics),
-        music: resolveMusic(project, frames / fps, inputs, at, diagnostics),
+        music: resolveMusic(project, placement.placed, frames / fps, program, inputs, at, diagnostics),
         levels: { sfx: mix.sfx ?? MIX_DEFAULTS.sfx, music: mix.music ?? MIX_DEFAULTS.music },
         master: {
             lufs: mix.loudness ?? MIX_DEFAULTS.loudness,
@@ -161,6 +172,7 @@ export function resolveProgram(project, inputs, opts = {}) {
     // Clips, music and sfx share one id space only in a program (inserts mode keeps them apart).
     if (program)
         checkIds(project, cuts, shots, clips, diagnostics);
+    checkMissingBeats(project, diagnostics);
     const hashes = {
         project: inputs.hashes?.project ?? null,
         transcript: inputs.hashes?.transcript ?? null,
@@ -855,12 +867,13 @@ function resolveSfx(project, transitions, inputs, at, diagnostics) {
     return out.sort((a, b) => a.at - b.at || compareText(a.owner, b.owner));
 }
 /**
- * Where each music item plays: from `from` (a negative `from` starts inside the file) until
- * `until` or the program end, with its gain, fades (each at most the piece's length) and gain
+ * Where each music item plays: from `from` (before 0: the file starts that much further in,
+ * after `in`) until its end (see `musicEnd`: `until` or the program end, snapped to a bar end
+ * when the music has bars, in a program), with its gain, fades (each at most the piece's length) and gain
  * keys in program seconds. Its level under the speech is the mixer's (`levels.music`).
  */
-function resolveMusic(project, end, inputs, at, diagnostics) {
-    return (project.music ?? []).map((music, i) => {
+function resolveMusic(project, placed, end, program, inputs, at, diagnostics) {
+    return (project.music ?? []).flatMap((music, i) => {
         const owner = music.id ?? `music${i + 1}`;
         if (inputs.sounds?.[music.src] === null)
             diagnostics.push({
@@ -872,9 +885,16 @@ function resolveMusic(project, end, inputs, at, diagnostics) {
         const error = inputs.sounds?.[music.src]?.error;
         if (error)
             diagnostics.push({ level: 'error', item: owner, field: `music[${i}].src`, message: error });
-        const from = music.from ?? 0;
-        const start = Math.max(0, from);
-        const dur = Math.max(0, Math.min(music.until ?? end, end) - start);
+        const place = placed[i];
+        if (!place)
+            return [];
+        const start = Math.max(0, place.from);
+        // Only a program mixes music; inserts keep the plain end, as before bar snaps existed.
+        const target = Math.min(place.until ?? end, end);
+        const stop = program
+            ? musicEnd(music, place, end, diagnostics)
+            : { end: target, bar: null, target };
+        const dur = Math.max(0, stop.end - start);
         const gainKeys = [];
         (music.keys ?? []).forEach((key, k) => {
             try {
@@ -890,17 +910,42 @@ function resolveMusic(project, end, inputs, at, diagnostics) {
             }
         });
         gainKeys.sort((a, b) => a.at - b.at);
-        return {
-            owner,
-            file: music.src,
-            srcIn: micro(Math.max(0, -from)),
-            dur: micro(dur),
-            at: micro(start),
-            fadeIn: micro(Math.min(dur, music.fade?.in ?? MUSIC_FADE.in)),
-            fadeOut: micro(Math.min(dur, music.fade?.out ?? MUSIC_FADE.out)),
-            gain: music.gain ?? 0,
-            ...(gainKeys.length ? { gainKeys } : {})
-        };
+        return [
+            {
+                owner,
+                file: music.src,
+                srcIn: micro(place.in + Math.max(0, -place.from)),
+                dur: micro(dur),
+                at: micro(start),
+                fadeIn: micro(Math.min(dur, music.fade?.in ?? MUSIC_FADE.in)),
+                fadeOut: micro(Math.min(dur, music.fade?.out ?? MUSIC_FADE.out)),
+                gain: music.gain ?? 0,
+                ...(gainKeys.length ? { gainKeys } : {}),
+                ...(stop.bar !== null ? { snap: { bar: stop.bar, target: stop.target } } : {})
+            }
+        ];
+    });
+}
+/**
+ * Beat anchors that found no music with beats while the project has music without a beats
+ * file: one error on that music says how to make the file.
+ */
+function checkMissingBeats(project, diagnostics) {
+    const advice = missingBeats(project);
+    if (!advice)
+        return;
+    const ids = new Set((project.music ?? []).filter((m) => !m.beats && m.id).map((m) => m.id));
+    const asked = diagnostics.some((d) => d.message.includes(NO_MUSIC_BEATS) ||
+        [...ids].some((id) => d.message.includes(`Unknown music "${id}"`)));
+    if (!asked)
+        return;
+    const i = (project.music ?? []).findIndex((m) => !m.beats);
+    const m = project.music[i];
+    diagnostics.push({
+        level: 'error',
+        item: m.id ?? `music${i + 1}`,
+        field: `music[${i}].beats`,
+        message: advice
     });
 }
 function checkIds(project, cuts, shots, clips, diagnostics) {

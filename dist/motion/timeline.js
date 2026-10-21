@@ -25,6 +25,49 @@ export const SourceTimeShape = z.union([
     }),
     z.object({ frame: z.number().int().min(0), offset: z.number().optional() })
 ]);
+const beatMusic = z.string().min(1).optional();
+const beatOffset = z.union([
+    z.number(),
+    z.string().regex(/^[+-]?\d*\.?\d+b$/, 'offset: seconds as a number, or beats such as "-1b"')
+]);
+/**
+ * A cut's `out` on the music, in program time: the cut ends (and the next one starts) on the
+ * frame nearest that beat. `{ bar, beat? }` and `{ beat: n }` name a beat; `{ downbeat | beat:
+ * "after" | "before", at }` take the nearest one to `at`, a point in the cut's own source.
+ */
+export const CutBeatShape = z.union([
+    z
+        .object({
+        bar: z.number().int().min(0),
+        beat: z.number().int().min(1).optional(),
+        music: beatMusic,
+        offset: beatOffset.optional()
+    })
+        .strict(),
+    z
+        .object({ beat: z.number().int().min(1), music: beatMusic, offset: beatOffset.optional() })
+        .strict(),
+    z
+        .object({
+        downbeat: z.enum(['after', 'before']),
+        at: SourceTimeShape,
+        music: beatMusic,
+        offset: beatOffset.optional()
+    })
+        .strict(),
+    z
+        .object({
+        beat: z.enum(['after', 'before']),
+        at: SourceTimeShape,
+        music: beatMusic,
+        offset: beatOffset.optional()
+    })
+        .strict()
+]);
+/** A cut point: source time, or (for `out`) a beat of the music. One flat union for errors. */
+const CutPointShape = z.union([...SourceTimeShape.options, ...CutBeatShape.options]);
+/** A cut point on the music rather than in the source. */
+export const isCutBeat = (point) => typeof point === 'object' && ('bar' in point || 'beat' in point || 'downbeat' in point);
 /** A moment of the item itself ("start", "end", "mid", "2.5s", "f12", a cue of a clip). */
 export const MomentAnchorShape = z.object({ moment: z.string().min(1) });
 /**
@@ -85,10 +128,13 @@ export const KeyShape = z.object({
 export const CutShape = z.object({
     id: itemId.optional(),
     source: footage,
-    /** Default 0; a phrase starts at its first word ("start"). */
-    in: SourceTimeShape.optional(),
-    /** Default the end of the source; a phrase ends after its last word ("end"), searched from `in`. */
-    out: SourceTimeShape.optional(),
+    /** Default 0; a phrase starts at its first word ("start"). A beat here is an error. */
+    in: CutPointShape.optional(),
+    /**
+     * Default the end of the source; a phrase ends after its last word ("end"), searched from
+     * `in`. A beat of the music (`{ "bar": 5 }`) ends the cut on that beat's frame.
+     */
+    out: CutPointShape.optional(),
     transition: TransitionShape.optional(),
     audio: z
         .object({

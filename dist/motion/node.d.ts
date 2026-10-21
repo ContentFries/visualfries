@@ -6,6 +6,7 @@ import { type CutList, type ProgramInputs } from './cutlist.js';
 import { type ResolvedProgram } from './program.js';
 import { type ResolvedClip, type ResolvedProject } from './resolve.js';
 import { type BarRow, type BeatsFile, type MusicBeats } from './beat-grid.js';
+import { type MusicTrack, type PlacedMusic } from './music.js';
 import { type FootageMap, type FrameRange } from './footage-map.js';
 import type { FootageFrames, SubjectBox } from './resolve.js';
 export type LoadedMotionProject = {
@@ -51,6 +52,11 @@ export type LoadedMusic = {
     analysis: BeatsFile | null;
     /** SHA-256 of the beats file as read; null when the item has none. */
     beatsHash: string | null;
+    /** Its corrected beats in seconds of the music file; null without a beats file. */
+    track: MusicTrack | null;
+    /** Where the music sits in the program; null when its anchors failed (see the diagnostics). */
+    placed: PlacedMusic | null;
+    /** Its beats placed in the program; null without a beats file or a place. */
     beats: MusicBeats | null;
     /** Bars in program seconds, for the `check` grid. */
     bars: BarRow[];

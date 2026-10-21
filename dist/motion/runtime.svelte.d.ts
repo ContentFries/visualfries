@@ -1,5 +1,6 @@
 import type { FootageFrames, MotionWordRef, ResolvedClip, ResolvedCue, SubjectBox } from './resolve.js';
 import { type MotionBeatRef } from './beat-grid.js';
+import { type Energy } from './energy.js';
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
  * a cue with an offset ("extra+0.4", "extra.end-0.2"), the built-in "start"/"end",
@@ -8,6 +9,26 @@ import { type MotionBeatRef } from './beat-grid.js';
  */
 export type At = string | number;
 export type Ease = string | ((x: number) => number);
+/**
+ * Something visual that happens at a moment and may carry a sound: an element entering, one
+ * item of a stagger, a counter tick. Collected per clip for the SFX model; nothing plays here.
+ */
+export type ClipEvent = {
+    /** What happened, e.g. "pop", "slam", "tick". */
+    name: string;
+    /** Clip seconds of the visual moment (the landing of a slam, the middle of a whip). */
+    t: number;
+    /** Clip frame of `t`. */
+    frame: number;
+    /** The primitive that emitted it, when one did. */
+    move?: string;
+    phase?: 'enter' | 'exit' | 'emphasis' | 'count';
+    /** Stagger item index and count. */
+    item?: number;
+    items?: number;
+    /** Strength relative to a balanced default (1). */
+    intensity?: number;
+};
 declare const CONTEXT_KEY: unique symbol;
 export declare class Clip {
     #private;
@@ -35,7 +56,19 @@ export declare class Clip {
      * clip-local `local`, `bar` and `beat` (1 = downbeat). Empty without music.
      */
     readonly beats: MotionBeatRef[];
+    /**
+     * Motion energy for `use:motion` defaults: the clip's `props.energy` when it is `calm`,
+     * `balanced` or `punchy`, else `balanced` (other values belong to the block).
+     */
+    readonly energy: Energy;
     constructor(data: ResolvedClip);
+    /**
+     * Record an event at moment `at`, e.g. one per stagger item: `clip.event('pop', 'list+0.2')`.
+     * Register events at setup, not per frame. Returns a function that removes the event again.
+     */
+    event(name: string, at: At, detail?: Omit<ClipEvent, 'name' | 't' | 'frame'>): () => void;
+    /** Every recorded event in time order (ties keep their recording order). */
+    events(): ClipEvent[];
     /**
      * Where the subject of footage `name` is at clip frame `frame` (default: the current frame),
      * from its matte, in 0–1 fractions of the footage frame. Smoothed over `smooth` seconds on
@@ -77,6 +110,8 @@ export declare class Clip {
 }
 export declare const clamp: (x: number, a?: number, b?: number) => number;
 export declare const lerp: (a: number, b: number, p: number) => number;
+/** A GSAP ease name or function as a function; an unknown name is an error. */
+export declare function easeFn(ease: Ease): (x: number) => number;
 /**
  * Deterministic noise in [0, 1) for any combination of keys, e.g. `noise(i, clip.frame)`.
  * Safe anywhere, including per-frame code: the same keys always give the same value.
@@ -107,6 +142,10 @@ export type ClipController = {
     frameFns: FrameFn[];
     ready: Promise<unknown>[];
 };
+/** Called by the stage for every mounted clip. */
+export declare function registerClipRoot(c: ClipController): void;
+/** The clip an element of a mounted block belongs to. */
+export declare function controllerOf(node: Element): ClipController;
 /** The current clip: time, cues, bound transcript words, helpers. */
 export declare function useClip(): Clip;
 /**

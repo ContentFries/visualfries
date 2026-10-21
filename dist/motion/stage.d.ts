@@ -44,4 +44,5 @@ export declare function createMotionStage(options: StageOptions): {
         warnings: CheckIssue[];
     }>;
     unload: () => void;
+    events: () => import("./runtime.svelte.js").ClipEvent[];
 };

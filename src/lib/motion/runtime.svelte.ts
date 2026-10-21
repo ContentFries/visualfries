@@ -10,6 +10,7 @@ import type {
 import { resolveMoment } from './moment.js';
 import { subjectBox } from './footage.js';
 import { NO_MUSIC_BEATS, beatPhase, type GridBeat, type MotionBeatRef } from './beat-grid.js';
+import { clipEnergy, type Energy } from './energy.js';
 
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
@@ -19,6 +20,27 @@ import { NO_MUSIC_BEATS, beatPhase, type GridBeat, type MotionBeatRef } from './
  */
 export type At = string | number;
 export type Ease = string | ((x: number) => number);
+
+/**
+ * Something visual that happens at a moment and may carry a sound: an element entering, one
+ * item of a stagger, a counter tick. Collected per clip for the SFX model; nothing plays here.
+ */
+export type ClipEvent = {
+	/** What happened, e.g. "pop", "slam", "tick". */
+	name: string;
+	/** Clip seconds of the visual moment (the landing of a slam, the middle of a whip). */
+	t: number;
+	/** Clip frame of `t`. */
+	frame: number;
+	/** The primitive that emitted it, when one did. */
+	move?: string;
+	phase?: 'enter' | 'exit' | 'emphasis' | 'count';
+	/** Stagger item index and count. */
+	item?: number;
+	items?: number;
+	/** Strength relative to a balanced default (1). */
+	intensity?: number;
+};
 
 const CONTEXT_KEY = Symbol.for('visualfries.motion.clip');
 
@@ -50,6 +72,12 @@ export class Clip {
 	readonly #noBeats: string | undefined;
 	/** The beats in clip-local seconds, for moments and `pulse`. */
 	readonly #grid: GridBeat[];
+	/**
+	 * Motion energy for `use:motion` defaults: the clip's `props.energy` when it is `calm`,
+	 * `balanced` or `punchy`, else `balanced` (other values belong to the block).
+	 */
+	readonly energy: Energy;
+	#events: ClipEvent[] = [];
 
 	constructor(data: ResolvedClip) {
 		this.id = data.id;
@@ -71,6 +99,26 @@ export class Clip {
 			bar: b.bar,
 			beat: b.beat
 		}));
+		this.energy = clipEnergy(data);
+	}
+
+	/**
+	 * Record an event at moment `at`, e.g. one per stagger item: `clip.event('pop', 'list+0.2')`.
+	 * Register events at setup, not per frame. Returns a function that removes the event again.
+	 */
+	event(name: string, at: At, detail: Omit<ClipEvent, 'name' | 't' | 'frame'> = {}): () => void {
+		const t = this.at(at);
+		const event: ClipEvent = { name, t, frame: Math.round(t * this.fps), ...detail };
+		this.#events.push(event);
+		return () => {
+			const i = this.#events.indexOf(event);
+			if (i >= 0) this.#events.splice(i, 1);
+		};
+	}
+
+	/** Every recorded event in time order (ties keep their recording order). */
+	events(): ClipEvent[] {
+		return this.#events.map((e) => ({ ...e })).sort((a, b) => a.t - b.t);
 	}
 
 	/**
@@ -196,7 +244,8 @@ export const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 export const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
 
 const easeCache = new Map<string, (x: number) => number>();
-function easeFn(ease: Ease): (x: number) => number {
+/** A GSAP ease name or function as a function; an unknown name is an error. */
+export function easeFn(ease: Ease): (x: number) => number {
 	if (typeof ease === 'function') return ease;
 	let fn = easeCache.get(ease);
 	if (!fn) {
@@ -257,6 +306,23 @@ export type ClipController = {
 	frameFns: FrameFn[];
 	ready: Promise<unknown>[];
 };
+
+// Actions (`use:motion`) cannot read context, so they find their clip through the block's root.
+const roots = new WeakMap<Element, ClipController>();
+
+/** Called by the stage for every mounted clip. */
+export function registerClipRoot(c: ClipController): void {
+	roots.set(c.root, c);
+}
+
+/** The clip an element of a mounted block belongs to. */
+export function controllerOf(node: Element): ClipController {
+	for (let el: Element | null = node; el; el = el.parentElement) {
+		const c = roots.get(el);
+		if (c) return c;
+	}
+	throw new Error('use:motion must be used on an element inside a VisualFries motion block.');
+}
 
 function controller(): ClipController {
 	const c = getContext<ClipController | undefined>(CONTEXT_KEY);

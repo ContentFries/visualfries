@@ -129,6 +129,37 @@ block's own HTML: in `useFrame`, `requestPaint()` the canvas and await its `pain
 with the element's name); filter its children or in the shader instead. Without a GPU WebGL runs
 on the CPU and roughly doubles the cost of a 1080p frame.
 
+## Motion primitives
+
+Named entrances, exits and emphasis in one line, seek-safe and without GSAP:
+
+```svelte
+<script>
+	import { motion } from 'visualfries/motion';
+</script>
+
+<h1 use:motion={{ enter: 'pop', at: 'extra', exit: 'fade', emphasis: 'pulse' }}>…</h1>
+<p use:motion={{ enter: 'rise', split: 'words', at: 'stamps' }}>…</p>
+<svg use:motion={{ enter: 'draw', at: 'extra' }}>…</svg>
+<span use:motion={{ count: 12400, at: 'duplicate' }}>0</span>
+```
+
+Entrances `fade`, `pop`, `slide`, `scale`, `rise`, `drop`, `reveal` (mask from a side),
+`blur-in`, `spring`, `typewriter`, `draw`; exits mirror them (`exit`, gone by `until`, default
+`end`). Emphasis `pulse`, `shake`, `wiggle`, `punch`, `highlight`, `underline`, `strike`, `glow`
+(a name, `{ move, at }` or a list). Text splits by `words`, `chars` or `lines` with `stagger`.
+Also `duration`, `direction`, `intensity`, `color`, `ease`. Defaults scale with the clip's
+energy, `"props": { "energy": "calm" | "balanced" | "punchy" }` (default `balanced`; other
+values are left to the block).
+
+Each frame is computed from clip time alone; the first start state is applied when the element
+mounts. `use:motion` owns its element's transform (with transform-box/-origin), opacity,
+filter, clip-path, visibility, display, stroke-dash\* and, for marks, background-\* and
+box-decoration-break, so do not animate those from markup or a timeline on the same element.
+Every move records events (`pop`, `slam`, `whoosh`, `type`, a counter `tick` …, one per stagger
+item) that `clip.events()` lists for sound effects; `clip.event(name, at)` adds your own.
+Worked example: `static/demo/motion`.
+
 ## Footage and mattes
 
 A project can declare a video the blocks draw frame by frame, with an optional matte (greyscale,

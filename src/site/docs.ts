@@ -37,6 +37,7 @@ export const pages: DocPage[] = [
 
 	{ slug: 'blocks', title: 'Motion blocks', section: 'blocks' },
 	{ slug: 'clip-api', title: 'The clip object', section: 'blocks' },
+	{ slug: 'motion', title: 'Motion primitives', section: 'blocks' },
 	{ slug: 'determinism', title: 'Determinism rules', section: 'blocks' },
 
 	{ slug: 'time-and-cues', title: 'Time and cues', section: 'time' },

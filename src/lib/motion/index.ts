@@ -10,9 +10,22 @@ export {
 	random,
 	noise,
 	type At,
-	type Ease
+	type Ease,
+	type ClipEvent
 } from './runtime.svelte.js';
 export type { MotionBeatRef } from './beat-grid.js';
+export { ENERGIES, type Energy } from './energy.js';
+export { motion } from './motion.js';
+export {
+	ENERGY,
+	type MotionOptions,
+	type Entrance,
+	type Emphasis,
+	type EmphasisSpec,
+	type CountSpec,
+	type Direction,
+	type Split
+} from './primitives.js';
 export type {
 	FootageFrames,
 	MotionWordRef,

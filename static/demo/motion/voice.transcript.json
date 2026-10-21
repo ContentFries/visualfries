@@ -1,0 +1,139 @@
+{
+  "words": [
+    {
+      "text": "Motion",
+      "startMs": 200,
+      "endMs": 600
+    },
+    {
+      "text": "in",
+      "startMs": 650,
+      "endMs": 750
+    },
+    {
+      "text": "one",
+      "startMs": 800,
+      "endMs": 1000
+    },
+    {
+      "text": "line.",
+      "startMs": 1050,
+      "endMs": 1400
+    },
+    {
+      "text": "Words",
+      "startMs": 1900,
+      "endMs": 2200
+    },
+    {
+      "text": "pop,",
+      "startMs": 2300,
+      "endMs": 2600
+    },
+    {
+      "text": "rise",
+      "startMs": 2800,
+      "endMs": 3100
+    },
+    {
+      "text": "and",
+      "startMs": 3150,
+      "endMs": 3250
+    },
+    {
+      "text": "slide.",
+      "startMs": 3300,
+      "endMs": 3800
+    },
+    {
+      "text": "Type",
+      "startMs": 4200,
+      "endMs": 4450
+    },
+    {
+      "text": "it",
+      "startMs": 4500,
+      "endMs": 4600
+    },
+    {
+      "text": "out,",
+      "startMs": 4650,
+      "endMs": 4900
+    },
+    {
+      "text": "draw",
+      "startMs": 5200,
+      "endMs": 5500
+    },
+    {
+      "text": "the",
+      "startMs": 5550,
+      "endMs": 5620
+    },
+    {
+      "text": "arrow,",
+      "startMs": 5650,
+      "endMs": 6000
+    },
+    {
+      "text": "count",
+      "startMs": 6300,
+      "endMs": 6600
+    },
+    {
+      "text": "to",
+      "startMs": 6650,
+      "endMs": 6720
+    },
+    {
+      "text": "twelve",
+      "startMs": 6750,
+      "endMs": 7000
+    },
+    {
+      "text": "thousand.",
+      "startMs": 7050,
+      "endMs": 7500
+    },
+    {
+      "text": "Shake",
+      "startMs": 7900,
+      "endMs": 8200
+    },
+    {
+      "text": "it,",
+      "startMs": 8250,
+      "endMs": 8400
+    },
+    {
+      "text": "highlight",
+      "startMs": 8600,
+      "endMs": 9000
+    },
+    {
+      "text": "it,",
+      "startMs": 9050,
+      "endMs": 9200
+    },
+    {
+      "text": "and",
+      "startMs": 9400,
+      "endMs": 9500
+    },
+    {
+      "text": "let",
+      "startMs": 9550,
+      "endMs": 9700
+    },
+    {
+      "text": "it",
+      "startMs": 9750,
+      "endMs": 9850
+    },
+    {
+      "text": "go.",
+      "startMs": 9900,
+      "endMs": 10300
+    }
+  ]
+}

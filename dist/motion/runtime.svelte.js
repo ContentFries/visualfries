@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { resolveMoment } from './moment.js';
 import { subjectBox } from './footage.js';
 import { NO_MUSIC_BEATS, beatPhase } from './beat-grid.js';
+import { clipEnergy } from './energy.js';
 const CONTEXT_KEY = Symbol.for('visualfries.motion.clip');
 export class Clip {
     /** Clip-local time in seconds. Reactive: use it directly in markup. */
@@ -32,6 +33,12 @@ export class Clip {
     #noBeats;
     /** The beats in clip-local seconds, for moments and `pulse`. */
     #grid;
+    /**
+     * Motion energy for `use:motion` defaults: the clip's `props.energy` when it is `calm`,
+     * `balanced` or `punchy`, else `balanced` (other values belong to the block).
+     */
+    energy;
+    #events = [];
     constructor(data) {
         this.id = data.id;
         this.fps = data.fps;
@@ -52,6 +59,25 @@ export class Clip {
             bar: b.bar,
             beat: b.beat
         }));
+        this.energy = clipEnergy(data);
+    }
+    /**
+     * Record an event at moment `at`, e.g. one per stagger item: `clip.event('pop', 'list+0.2')`.
+     * Register events at setup, not per frame. Returns a function that removes the event again.
+     */
+    event(name, at, detail = {}) {
+        const t = this.at(at);
+        const event = { name, t, frame: Math.round(t * this.fps), ...detail };
+        this.#events.push(event);
+        return () => {
+            const i = this.#events.indexOf(event);
+            if (i >= 0)
+                this.#events.splice(i, 1);
+        };
+    }
+    /** Every recorded event in time order (ties keep their recording order). */
+    events() {
+        return this.#events.map((e) => ({ ...e })).sort((a, b) => a.t - b.t);
     }
     /**
      * Where the subject of footage `name` is at clip frame `frame` (default: the current frame),
@@ -162,7 +188,8 @@ export class Clip {
 export const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 export const lerp = (a, b, p) => a + (b - a) * p;
 const easeCache = new Map();
-function easeFn(ease) {
+/** A GSAP ease name or function as a function; an unknown name is an error. */
+export function easeFn(ease) {
     if (typeof ease === 'function')
         return ease;
     let fn = easeCache.get(ease);
@@ -201,6 +228,21 @@ export function random(seed = 1) {
         s = (s * 1664525 + 1013904223) >>> 0;
         return s / 4294967296;
     };
+}
+// Actions (`use:motion`) cannot read context, so they find their clip through the block's root.
+const roots = new WeakMap();
+/** Called by the stage for every mounted clip. */
+export function registerClipRoot(c) {
+    roots.set(c.root, c);
+}
+/** The clip an element of a mounted block belongs to. */
+export function controllerOf(node) {
+    for (let el = node; el; el = el.parentElement) {
+        const c = roots.get(el);
+        if (c)
+            return c;
+    }
+    throw new Error('use:motion must be used on an element inside a VisualFries motion block.');
 }
 function controller() {
     const c = getContext(CONTEXT_KEY);

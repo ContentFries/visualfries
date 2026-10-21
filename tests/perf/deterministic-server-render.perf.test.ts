@@ -123,7 +123,9 @@ const createSceneData = () =>
 			backgroundColor: '#000000'
 		},
 		assets: [],
-		layers: [{ id: 'layer-1', name: 'Layer 1', order: 0, visible: true, muted: false, components: [] }],
+		layers: [
+			{ id: 'layer-1', name: 'Layer 1', order: 0, visible: true, muted: false, components: [] }
+		],
 		transitions: [],
 		audioTracks: []
 	}) as any;
@@ -186,9 +188,18 @@ const splitEffect = () => ({
 	}
 });
 
+/**
+ * Synthetic blur work done so far (loop iterations, proportional to canvas area). The
+ * optimisation is asserted on this count: wall-clock throughput of runs this short swings with
+ * machine load, so it is only reported.
+ */
+let syntheticWork = 0;
+
 const installSyntheticCanvas = () => {
 	const originalCreateElement = document.createElement.bind(document);
-	const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
+	const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((
+		tag: string
+	) => {
 		if (tag !== 'canvas') {
 			return originalCreateElement(tag);
 		}
@@ -207,6 +218,7 @@ const installSyntheticCanvas = () => {
 					for (let i = 0; i < loops; i += 1) {
 						acc += i % 7;
 					}
+					syntheticWork += loops;
 					return acc;
 				}
 			})
@@ -249,7 +261,13 @@ const runRunner = async (frames: number, blurDownscale: number): Promise<{ diagn
 
 	const contexts = [
 		createContext({ componentId: 'video-normal', startAt: 0, endAt: 1, state, effects: {} }),
-		createContext({ componentId: 'video-split', startAt: 1, endAt: 2, state, effects: splitEffect() }),
+		createContext({
+			componentId: 'video-split',
+			startAt: 1,
+			endAt: 2,
+			state,
+			effects: splitEffect()
+		}),
 		createContext({
 			componentId: 'video-blur',
 			startAt: 2,
@@ -280,7 +298,12 @@ const runRunner = async (frames: number, blurDownscale: number): Promise<{ diagn
 	return { diagnostics: manager.getDiagnosticsReport() };
 };
 
-const runScenario = async (args: { frames: number; concurrency: number; blurDownscale: number }) => {
+const runScenario = async (args: {
+	frames: number;
+	concurrency: number;
+	blurDownscale: number;
+}) => {
+	const workBefore = syntheticWork;
 	const started = performance.now();
 	const runs = await Promise.all(
 		Array.from({ length: args.concurrency }, () => runRunner(args.frames, args.blurDownscale))
@@ -295,6 +318,7 @@ const runScenario = async (args: { frames: number; concurrency: number; blurDown
 		elapsedMs,
 		fps,
 		msPerFrame: elapsedMs / totalFrames,
+		work: syntheticWork - workBefore,
 		blurRedraws
 	};
 };
@@ -304,9 +328,17 @@ describe('Deterministic server render benchmark', () => {
 		const restoreCanvas = installSyntheticCanvas();
 		try {
 			const baselineSingle = await runScenario({ frames: 120, concurrency: 1, blurDownscale: 1 });
-			const optimizedSingle = await runScenario({ frames: 120, concurrency: 1, blurDownscale: 0.33 });
+			const optimizedSingle = await runScenario({
+				frames: 120,
+				concurrency: 1,
+				blurDownscale: 0.33
+			});
 			const baselineParallel = await runScenario({ frames: 90, concurrency: 4, blurDownscale: 1 });
-			const optimizedParallel = await runScenario({ frames: 90, concurrency: 4, blurDownscale: 0.33 });
+			const optimizedParallel = await runScenario({
+				frames: 90,
+				concurrency: 4,
+				blurDownscale: 0.33
+			});
 
 			console.table({
 				baseline_single: baselineSingle,
@@ -319,12 +351,13 @@ describe('Deterministic server render benchmark', () => {
 			expect(optimizedSingle.totalFrames).toBe(120);
 			expect(baselineParallel.totalFrames).toBe(360);
 			expect(optimizedParallel.totalFrames).toBe(360);
-			expect(optimizedSingle.fps).toBeGreaterThan(baselineSingle.fps);
-			expect(optimizedParallel.fps).toBeGreaterThan(baselineParallel.fps);
+			// Less blur work for the same frames, single and four in parallel.
+			expect(optimizedSingle.work).toBeLessThan(baselineSingle.work);
+			expect(optimizedParallel.work).toBeLessThan(baselineParallel.work);
+			expect(optimizedParallel.work).toBeGreaterThan(0);
 			expect(optimizedSingle.blurRedraws).toBeGreaterThan(0);
 		} finally {
 			restoreCanvas();
 		}
 	});
 });
-

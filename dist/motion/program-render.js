@@ -370,11 +370,15 @@ async function removeOrphans(dir, pattern) {
         await fs.rm(path.join(dir, name), { force: true });
     }));
 }
+/** Milliseconds a file time may lag the clock it is compared with (see `pruneSegments`). */
+const MTIME_SLACK = 100;
 /**
  * Keeps the intermediates some render of a project in this folder still uses. Each project and
  * format records the files of its latest render (`<project>.<format>.json`); an intermediate no
  * record names (an edited segment, an older engine) is removed, unless it is newer than this
- * render's start (another render in the folder may still be writing its record).
+ * render's start (another render in the folder may still be writing its record). File times
+ * come from a coarse kernel clock, up to a few milliseconds behind `Date.now()`: a file written
+ * right after the start can look older than it, so "newer" allows `MTIME_SLACK` of that.
  */
 async function pruneSegments(cacheDir, loaded, format, segments, since) {
     const name = path.basename(loaded.file).replace(/(\.vf)?\.json$/i, '');
@@ -396,7 +400,7 @@ async function pruneSegments(cacheDir, loaded, format, segments, since) {
         .filter((n) => /^[0-9a-f]{40}-[0-9a-f]{12}\.mkv$/.test(n) && !used.has(n))
         .map(async (n) => {
         const st = await fs.stat(path.join(cacheDir, n)).catch(() => null);
-        if (st && st.mtimeMs < since)
+        if (st && st.mtimeMs < since - MTIME_SLACK)
             await fs.rm(path.join(cacheDir, n), { force: true });
     }));
 }

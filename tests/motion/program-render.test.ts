@@ -279,32 +279,55 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 	}, 150_000);
 
 	it('draws again only the segment of an edited clip', async () => {
-		const before = await Promise.all(first.segments.map((s) => fs.stat(s.file)));
+		// The baseline is drawn here, not taken from the first render: the segment files carry
+		// the engine hash (the VisualFries sources), and an edit to them while the suite runs
+		// would make every earlier intermediate stale and prune it (seen as a missing file).
+		const base = await renderProgramVideo(await loadMotionProject(file), {
+			output: out('base.mp4')
+		});
+		const before = await Promise.all(base.segments.map((s) => fs.stat(s.file)));
 		await fs.writeFile(file, programJson('TWO'));
 		const edited = await renderProgramVideo(await loadMotionProject(file), {
 			output: out('edited.mp4')
 		});
 		expect(edited.segments.map((s) => s.cached)).toEqual([true, false, true]);
-		expect(edited.segments[1].hash).not.toBe(first.segments[1].hash);
+		expect(edited.segments[1].hash).not.toBe(base.segments[1].hash);
 		for (const i of [0, 2]) {
-			expect(edited.segments[i].file).toBe(first.segments[i].file);
+			expect(edited.segments[i].file).toBe(base.segments[i].file);
 			expect((await fs.stat(edited.segments[i].file)).mtimeMs).toBe(before[i].mtimeMs);
 		}
 		// The picture changed only where the label is.
-		const a = rgb(first.file);
+		const a = rgb(base.file);
 		const b = rgb(edited.file);
 		const differ = [...Array(120).keys()].filter((f) => !frameOf(a, f).equals(frameOf(b, f)));
 		expect(differ.length).toBeGreaterThan(0);
 		expect(differ.every((f) => f >= 30 && f < 60)).toBe(true);
 		// The sound does not depend on segments or the cache: the same encoded audio.
-		expect(audioHash(edited.file)).toBe(audioHash(first.file));
+		expect(audioHash(edited.file)).toBe(audioHash(base.file));
 		// The intermediate of the replaced segment is gone; the cache keeps what the render used.
-		expect(existsSync(first.segments[1].file)).toBe(false);
+		expect(existsSync(base.segments[1].file)).toBe(false);
 		const kept = (await fs.readdir(path.join(dir, '.visualfries', 'segments'))).filter((f) =>
 			f.endsWith('.mkv')
 		);
 		expect(kept.sort()).toEqual(edited.segments.map((s) => path.basename(s.file)).sort());
 		await fs.writeFile(file, programJson('ONE'));
+	}, 150_000);
+
+	it('keeps an unused intermediate written as a render starts, as file times lag the clock', async () => {
+		const cacheDir = path.join(dir, '.visualfries', 'segments');
+		const name = (c: string) => path.join(cacheDir, `${c.repeat(40)}-${c.repeat(12)}.mkv`);
+		// Another render's fresh intermediate (its record not written yet), stamped by the coarse
+		// kernel clock a few milliseconds before this render's start; and a stale one.
+		await fs.writeFile(name('a'), 'x');
+		await fs.writeFile(name('b'), 'x');
+		await fs.utimes(name('b'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
+		const loaded = await loadMotionProject(file);
+		// The render takes its start time synchronously, right after this.
+		await fs.utimes(name('a'), new Date(Date.now() - 4), new Date(Date.now() - 4));
+		await renderProgramVideo(loaded, { output: out('again.mp4') });
+		expect(existsSync(name('a'))).toBe(true);
+		expect(existsSync(name('b'))).toBe(false);
+		await fs.rm(name('a'));
 	}, 150_000);
 
 	it('draws again the segment of a block whose imported helper changed', async () => {

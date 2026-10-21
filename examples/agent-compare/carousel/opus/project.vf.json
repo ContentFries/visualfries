@@ -11,7 +11,7 @@
 		{ "family": "Instrument Serif", "src": "fonts/InstrumentSerif-Italic.ttf", "style": "italic" },
 		{ "family": "Instrument Serif", "src": "fonts/InstrumentSerif-Regular.ttf", "style": "normal" }
 	],
-	"styles": ["theme/carousel.css"],
+	"css": ["theme/carousel.css"],
 	"footage": {
 		"talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "start": 0, "margin": 3 }
 	},

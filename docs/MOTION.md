@@ -19,7 +19,7 @@ my-video/
 	"fps": 30,
 	"transcript": "voice.transcript.json",
 	"fonts": [{ "family": "Futura", "src": "fonts/Jost.ttf", "weight": "100 900" }],
-	"styles": ["theme/film.css"],
+	"css": ["theme/film.css"],
 	"background": "#17120e",
 	"clips": [
 		{
@@ -53,6 +53,10 @@ my-video/
   and clip-local `localStart`/`localEnd`.
 - **`tail`** extends (or trims) the end in seconds. **`alpha: true`** renders a transparent
   ProRes 4444 `.mov`.
+
+`css` lists global CSS files (themes, shared classes); relative `url()` references keep working.
+Its old name `styles` is still read the same way (not both at once); `style` is the video style
+(see Brand, style and format).
 
 Transcripts: Soniox-style `{ "words": [{ "text", "startMs", "endMs" }] }` or
 `[{ "text", "start", "end" }]` in seconds.

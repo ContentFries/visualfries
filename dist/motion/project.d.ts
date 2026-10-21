@@ -196,7 +196,11 @@ export declare const SafeZoneShape: z.ZodEnum<{
     tiktok: "tiktok";
     youtube: "youtube";
 }>;
-export declare const MotionProjectShape: z.ZodObject<{
+/**
+ * The project file. `styles` (the CSS list's old name) is still read and becomes `css`, so
+ * nothing after parsing sees it; `style` is the video style.
+ */
+export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
     size: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
     fps: z.ZodNumber;
     transcript: z.ZodOptional<z.ZodString>;
@@ -209,6 +213,7 @@ export declare const MotionProjectShape: z.ZodObject<{
             italic: "italic";
         }>>;
     }, z.core.$strip>>>;
+    css: z.ZodOptional<z.ZodArray<z.ZodString>>;
     styles: z.ZodOptional<z.ZodArray<z.ZodString>>;
     background: z.ZodOptional<z.ZodString>;
     footage: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodObject<{
@@ -322,6 +327,211 @@ export declare const MotionProjectShape: z.ZodObject<{
         audio: z.ZodOptional<z.ZodString>;
         music: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>>;
-}, z.core.$strip>;
-export type MotionProject = z.infer<typeof MotionProjectShape>;
+}, z.core.$strip>, z.ZodTransform<{
+    size: [number, number];
+    fps: number;
+    clips: {
+        id: string;
+        block: string;
+        from: MotionAnchor;
+        until: MotionAnchor;
+        tail?: number | undefined;
+        cues?: Record<string, MotionAnchor> | undefined;
+        words?: Record<string, string | {
+            from: MotionAnchor;
+            until: MotionAnchor;
+        }> | undefined;
+        props?: Record<string, unknown> | undefined;
+        alpha?: boolean | undefined;
+        background?: string | undefined;
+        audio?: string | undefined;
+        music?: string | undefined;
+    }[];
+    transcript?: string | undefined;
+    fonts?: {
+        family: string;
+        src: string;
+        weight?: string | number | undefined;
+        style?: "normal" | "italic" | undefined;
+    }[] | undefined;
+    css?: string[] | undefined;
+    background?: string | undefined;
+    footage?: Record<string, {
+        src: string;
+        matte?: string | undefined;
+        start?: number | undefined;
+        margin?: number | "all" | undefined;
+    }> | undefined;
+    music?: {
+        src: string;
+        id?: string | undefined;
+        beats?: string | undefined;
+        from?: number | undefined;
+        until?: number | undefined;
+        shift?: number | undefined;
+        downbeat?: number | undefined;
+        tempo?: "double" | "half" | undefined;
+    }[] | undefined;
+    brand?: string | {
+        colors: {
+            primary: string;
+            accent: string;
+            background: string;
+            surface: string;
+            text: string;
+            muted: string;
+            onPrimary?: string | undefined;
+            onAccent?: string | undefined;
+            extra?: Record<string, string> | undefined;
+        };
+        fonts: {
+            heading: {
+                family: string;
+                src: string;
+                weight?: string | number | undefined;
+                style?: "normal" | "italic" | undefined;
+            };
+            body: {
+                family: string;
+                src: string;
+                weight?: string | number | undefined;
+                style?: "normal" | "italic" | undefined;
+            };
+            mono?: {
+                family: string;
+                src: string;
+                weight?: string | number | undefined;
+                style?: "normal" | "italic" | undefined;
+            } | undefined;
+        };
+        name?: string | undefined;
+        logo?: {
+            full?: {
+                light?: string | undefined;
+                dark?: string | undefined;
+            } | undefined;
+            mark?: {
+                light?: string | undefined;
+                dark?: string | undefined;
+            } | undefined;
+        } | undefined;
+        radius?: string | number | undefined;
+    } | undefined;
+    style?: string | {
+        name?: string | undefined;
+        extends?: string | undefined;
+        energy?: "calm" | "balanced" | "punchy" | undefined;
+        transitions?: unknown;
+        shots?: unknown;
+        captions?: unknown;
+        sounds?: unknown;
+        emphasis?: unknown;
+        overlays?: unknown;
+    } | undefined;
+    safeZone?: "meta" | "all" | "tiktok" | "youtube" | undefined;
+}, {
+    size: [number, number];
+    fps: number;
+    clips: {
+        id: string;
+        block: string;
+        from: MotionAnchor;
+        until: MotionAnchor;
+        tail?: number | undefined;
+        cues?: Record<string, MotionAnchor> | undefined;
+        words?: Record<string, string | {
+            from: MotionAnchor;
+            until: MotionAnchor;
+        }> | undefined;
+        props?: Record<string, unknown> | undefined;
+        alpha?: boolean | undefined;
+        background?: string | undefined;
+        audio?: string | undefined;
+        music?: string | undefined;
+    }[];
+    transcript?: string | undefined;
+    fonts?: {
+        family: string;
+        src: string;
+        weight?: string | number | undefined;
+        style?: "normal" | "italic" | undefined;
+    }[] | undefined;
+    css?: string[] | undefined;
+    styles?: string[] | undefined;
+    background?: string | undefined;
+    footage?: Record<string, {
+        src: string;
+        matte?: string | undefined;
+        start?: number | undefined;
+        margin?: number | "all" | undefined;
+    }> | undefined;
+    music?: {
+        src: string;
+        id?: string | undefined;
+        beats?: string | undefined;
+        from?: number | undefined;
+        until?: number | undefined;
+        shift?: number | undefined;
+        downbeat?: number | undefined;
+        tempo?: "double" | "half" | undefined;
+    }[] | undefined;
+    brand?: string | {
+        colors: {
+            primary: string;
+            accent: string;
+            background: string;
+            surface: string;
+            text: string;
+            muted: string;
+            onPrimary?: string | undefined;
+            onAccent?: string | undefined;
+            extra?: Record<string, string> | undefined;
+        };
+        fonts: {
+            heading: {
+                family: string;
+                src: string;
+                weight?: string | number | undefined;
+                style?: "normal" | "italic" | undefined;
+            };
+            body: {
+                family: string;
+                src: string;
+                weight?: string | number | undefined;
+                style?: "normal" | "italic" | undefined;
+            };
+            mono?: {
+                family: string;
+                src: string;
+                weight?: string | number | undefined;
+                style?: "normal" | "italic" | undefined;
+            } | undefined;
+        };
+        name?: string | undefined;
+        logo?: {
+            full?: {
+                light?: string | undefined;
+                dark?: string | undefined;
+            } | undefined;
+            mark?: {
+                light?: string | undefined;
+                dark?: string | undefined;
+            } | undefined;
+        } | undefined;
+        radius?: string | number | undefined;
+    } | undefined;
+    style?: string | {
+        name?: string | undefined;
+        extends?: string | undefined;
+        energy?: "calm" | "balanced" | "punchy" | undefined;
+        transitions?: unknown;
+        shots?: unknown;
+        captions?: unknown;
+        sounds?: unknown;
+        emphasis?: unknown;
+        overlays?: unknown;
+    } | undefined;
+    safeZone?: "meta" | "all" | "tiktok" | "youtube" | undefined;
+}>>;
+export type MotionProject = z.output<typeof MotionProjectShape>;
 export declare function isMotionProject(value: unknown): boolean;

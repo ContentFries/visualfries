@@ -220,11 +220,14 @@ export const StyleShape = z
     .strict();
 /** Where the project's safe insets come from: every platform at once, or one platform. */
 export const SafeZoneShape = z.enum(['all', 'tiktok', 'meta', 'youtube']);
-export const MotionProjectShape = z.object({
+const MotionProjectFields = z.object({
     size: z.tuple([z.number().int().positive(), z.number().int().positive()]),
     fps: z.number().positive(),
     transcript: z.string().optional(),
     fonts: z.array(MotionFontShape).optional(),
+    /** Global CSS files loaded into every block (themes, shared classes). */
+    css: z.array(z.string()).optional(),
+    /** Deprecated name of `css`; parsed into `css`. */
     styles: z.array(z.string()).optional(),
     background: z.string().optional(),
     footage: z.record(footageName, MotionFootageShape).optional(),
@@ -240,6 +243,18 @@ export const MotionProjectShape = z.object({
     safeZone: SafeZoneShape.optional(),
     clips: z.array(MotionClipShape).min(1)
 });
+/**
+ * The project file. `styles` (the CSS list's old name) is still read and becomes `css`, so
+ * nothing after parsing sees it; `style` is the video style.
+ */
+export const MotionProjectShape = MotionProjectFields.superRefine((p, ctx) => {
+    if (p.css !== undefined && p.styles !== undefined)
+        ctx.addIssue({
+            code: 'custom',
+            path: ['styles'],
+            message: '"styles" is the old name of "css" (the CSS files); the project has both. Move the files to "css" and remove "styles".'
+        });
+}).transform(({ styles, ...project }) => styles !== undefined ? { ...project, css: styles } : project);
 export function isMotionProject(value) {
     return (!!value &&
         typeof value === 'object' &&

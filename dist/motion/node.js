@@ -365,7 +365,7 @@ export async function bundleMotionProject(loaded, clips) {
     });
     files.push(...loaded.brand.assets);
     let css = '';
-    for (const file of loaded.project.styles ?? []) {
+    for (const file of loaded.project.css ?? []) {
         const abs = path.resolve(loaded.dir, file);
         css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs), files) + '\n';
     }

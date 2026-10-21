@@ -69,7 +69,7 @@ The file in the zip continues with "a missing phrase suggests the closest spoken
 		}
 	],
 	"transcript": "voice.transcript.json",
-	"styles": ["styles.css"]
+	"css": ["styles.css"]
 }
 ```
 

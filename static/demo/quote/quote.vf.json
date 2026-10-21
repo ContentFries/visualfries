@@ -10,5 +10,5 @@
     "cues": { "reveal": "nothing", "hit": "silently", "by": "suggests" }
   }],
   "transcript": "voice.transcript.json",
-  "styles": ["styles.css"]
+  "css": ["styles.css"]
 }

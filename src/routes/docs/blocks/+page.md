@@ -68,7 +68,7 @@ A block can also own a WebGL canvas. To run a shader over the block's own HTML, 
 
 - **Props** come from the clip's `props` in the project file: read them as `clip.props` or as component props.
 - **Transcript words** come from `words` bindings: `clip.words.row`, or the words of a cue: `clip.cue.duplicate.words`.
-- **Shared components and CSS** live in your project (for example `theme/`). Import components with relative paths; list global CSS under `styles`.
+- **Shared components and CSS** live in your project (for example `theme/`). Import components with relative paths; list global CSS under `css`.
 - **Fonts** are loaded before a block mounts, so measuring text in `onMount` is safe.
 - A block may import `svelte`, `gsap` and `visualfries/motion` without its own `node_modules`.
 

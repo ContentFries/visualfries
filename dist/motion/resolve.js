@@ -246,6 +246,9 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
 export function resolveMotionProject(project, words, music = [], look = {}) {
     const diagnostics = [];
     const format = resolveFormat(project.size, project.safeZone);
+    // A project-wide setting: one warning for the project, not one per clip.
+    if (format.fallback)
+        diagnostics.push({ level: 'warning', field: 'safeZone', message: format.fallback });
     const ids = new Set();
     const clips = [];
     for (const clip of project.clips) {
@@ -275,13 +278,6 @@ export function resolveMotionProject(project, words, music = [], look = {}) {
                 message: `Unknown music "${clip.music}". Music with beats: ${music.map((m) => m.id ?? m.name).join(', ') || 'none'}`
             });
         }
-        if (format.fallback)
-            diagnostics.push({
-                level: 'warning',
-                clip: clip.id,
-                field: 'safeZone',
-                message: format.fallback
-            });
         const resolved = resolveMotionClip(clip, project, words, diagnostics, music, {
             ...look,
             format

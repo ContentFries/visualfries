@@ -285,9 +285,16 @@ describe('clip.brand, clip.style, clip.format', () => {
 		expect(r.diagnostics).toEqual([]);
 	});
 
-	it('warn per clip when the chosen platform has no zone for the ratio', () => {
-		const r = resolveMotionProject(MotionProjectShape.parse({ ...base, safeZone: 'tiktok' }), null);
-		expect(r.diagnostics).toMatchObject([{ level: 'warning', clip: 'c', field: 'safeZone' }]);
+	it('warn once per project when the chosen platform has no zone for the ratio', () => {
+		const clips = ['a', 'b', 'c'].map((id) => ({ ...base.clips[0], id }));
+		const r = resolveMotionProject(
+			MotionProjectShape.parse({ ...base, clips, safeZone: 'tiktok' }),
+			null
+		);
+		expect(r.clips).toHaveLength(3);
+		expect(r.diagnostics).toEqual([
+			{ level: 'warning', field: 'safeZone', message: expect.stringContaining('tiktok') }
+		]);
 	});
 });
 

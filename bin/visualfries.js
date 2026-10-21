@@ -1641,6 +1641,9 @@ async function motionCheckCommand(args) {
 	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
 	const grid = describeMusicGrid(loaded);
 	if (grid && !hasFlag(args, '--json')) console.log(`${grid}\n`);
+	// Project-wide warnings (no clip) come once, before the clips; stdout stays JSON with --json.
+	for (const d of loaded.resolved.diagnostics.filter((d) => !d.clip && d.level === 'warning'))
+		(hasFlag(args, '--json') ? console.error : console.log)(`warning: ${d.field}: ${d.message}`);
 	const results = await checkMotionProject(loaded, {
 		clips: readAllFlags(args, '--clip'),
 		determinism: hasFlag(args, '--determinism')

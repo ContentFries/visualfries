@@ -221,9 +221,31 @@ error), `<Footage program>` draws whatever is on screen, `offset` shifts inside 
 extracted, plus each footage's `margin` (default 2 s) around what the clips show, each range
 cached on its own.
 
-For now `still`, `check` and `render` work clip by clip: each clip in program time, over the
-footage the cut list shows. Shots and transitions are resolved into the program file but not
-drawn yet.
+In program mode `still` and `check` draw the whole program on one stage: the footage the cut
+list shows, clips with `"layer": "behind"` between the footage and the speaker cut out by the
+matte, then the other clips in project order. Each page holds one segment of the program (a
+range between hard cuts) with every clip on screen in it; a clip is hidden and not run outside
+its window, and inside a transition window it holds its first or last frame. `still` takes
+program moments (`--at 2.5s`, `--at f120`) or, with `--clip`, that clip's moments, and
+`check --determinism` compares every segment forward, backward, scrambled and against a page
+holding the whole program.
+
+`shots` frame the footage over time: `{ "shot": "punch", "from": "today we fix", "until": "slow export" }`.
+Gaps between shots are `full`. Each shot lays out per format class (landscape, square, portrait):
+
+- `full`: the footage fills the frame; when its aspect differs from the format's it is cropped
+  around the speaker's head (from the matte, smoothed). Portrait footage in a landscape frame
+  stands in a full-height window over the style's surface.
+- `punch`: `full`, `params.scale` (default 1.45) times closer, toward the head.
+- `strip`: the camera narrows into a strip and a `panel` slot opens beside it: camera left and
+  panel right in landscape and square, camera on top and panel below in portrait.
+  `params.side: "right"` swaps them; `params.size` is the camera's share of the frame.
+
+The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full` and
+`strip`, 0.16 s into `punch`, 0.45 s out of a punch; none under a shot `transition`). A clip with
+`"slot": "panel"` fills that slot and moves with it; while no shot frees its slot it is hidden
+and `check` warns. Shots add `shot` and `punch` events to the program. `window`, `behind` and
+`whip` are framed `full` until they are built.
 
 `visualfries matte talk.mp4 --output talk.matte.mp4` makes the matte: BiRefNet v2 on fal.ai
 (`FAL_KEY`) by default; `--provider rvm` runs RobustVideoMatting locally on the CPU with no key
@@ -572,6 +594,9 @@ that differ between seek orders. Run it after every edit; it takes seconds.
 `manifest.json` lists every clip's program start frame for placing it on an NLE timeline and
 the transcript it was timed against. Re-rendering some clips keeps the others; clips timed
 against an older transcript are marked `stale`.
+
+With `cuts` or `shots`, `render` still renders the clips one by one, in program time over the
+footage the cut list shows.
 
 A re-take that changes words (not just timing) makes the affected cues fail with a suggestion,
 e.g. `"extra" not found … Did you mean "spare" at 59.80s?`. Update the phrase in the JSON;

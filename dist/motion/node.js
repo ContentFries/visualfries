@@ -489,12 +489,20 @@ export async function bundleMotionProject(loaded, clips) {
         const abs = path.resolve(loaded.dir, file);
         css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs), files) + '\n';
     }
-    roots.push(...(await prepareFootage(loaded, clips)));
+    const footage = await extractFootage(loaded, clips);
+    roots.push(...footage.roots);
     const cssBundle = path.join(outDir, 'bundle.css');
     const cssLink = existsSync(cssBundle) ? '<link rel="stylesheet" href="bundle.css">' : '';
     const html = path.join(outDir, 'index.html');
     await fs.writeFile(html, `<!doctype html><meta charset="utf-8">${cssLink}<script>window.__vfFonts=${JSON.stringify(fonts)};window.__vfCss=${JSON.stringify(css)};window.__vfInvalidate=new URLSearchParams(location.search).get('invalidate')||undefined;</script><body><script src="bundle.js"></script></body>`);
-    return { dir: outDir, html, roots, files };
+    return {
+        dir: outDir,
+        html,
+        roots,
+        files,
+        footage: { frames: footage.frames, map: footage.map },
+        brand: loaded.brand.resolved
+    };
 }
 /** Project CSS is inlined into a page elsewhere; make its relative url(...) absolute. */
 function rebaseCssUrls(css, dir, files) {
@@ -524,7 +532,7 @@ export function findChromium() {
     ];
     return candidates.find((c) => c && existsSync(c));
 }
-async function launch() {
+export async function launch() {
     let chromium;
     try {
         ({ chromium } = await import('playwright'));
@@ -547,14 +555,19 @@ const PAGE_TIMEOUT_MS = 60_000;
 function pageMessage(error) {
     return error.message.replace(/^page\.evaluate: (Error: )?/, '').split('\n    at ')[0];
 }
-/**
- * One page with one clip loaded. Every call fails as soon as the page crashes or stops
- * answering: Playwright leaves a call to a crashed page pending forever, so without this a
- * renderer crash would hang `render` instead of failing it. Exported for tests.
- */
+/** One page with one clip loaded (see `openStagePage`). Exported for tests. */
 export async function openClip(browser, bundle, clip, opts = {}) {
+    return openStagePage(browser, bundle, { name: `Clip "${clip.id}"`, size: clip.size, alpha: clip.alpha, load: 'load', data: clip }, opts);
+}
+/**
+ * One page with a clip or a segment loaded. Every call fails as soon as the page crashes or
+ * stops answering: Playwright leaves a call to a crashed page pending forever, so without this a
+ * renderer crash would hang `render` instead of failing it.
+ */
+export async function openStagePage(browser, bundle, target, opts = {}) {
+    const { name } = target;
     const page = await browser.newPage({
-        viewport: { width: clip.size[0], height: clip.size[1] },
+        viewport: { width: target.size[0], height: target.size[1] },
         deviceScaleFactor: 1
     });
     const errors = [];
@@ -570,17 +583,17 @@ export async function openClip(browser, bundle, clip, opts = {}) {
     /** `prefix: message`, unless `settle` already named the clip in it. */
     const named = (prefix, error) => {
         const message = pageMessage(error);
-        return message.startsWith(`Clip "${clip.id}"`) ? message : `${prefix}: ${message}`;
+        return message.startsWith(name) ? message : `${prefix}: ${message}`;
     };
     /** `work`, or an error as soon as the page crashes or `ms` pass. One call at a time. */
     async function settle(what, work, ms = timeout) {
         let timer;
         const failure = new Promise((_, reject) => {
-            const crash = () => reject(new Error(`Clip "${clip.id}": the browser page crashed during ${what} (Chromium's renderer process died).`));
+            const crash = () => reject(new Error(`${name}: the browser page crashed during ${what} (Chromium's renderer process died).`));
             if (crashed)
                 return crash();
             onCrash = crash;
-            timer = setTimeout(() => reject(new Error(`Clip "${clip.id}": ${what} did not finish within ${ms / 1000} s; the page stopped responding (a useFrame or useReady promise that never settles, or an endless loop).`)), ms);
+            timer = setTimeout(() => reject(new Error(`${name}: ${what} did not finish within ${ms / 1000} s; the page stopped responding (a useFrame or useReady promise that never settles, or an endless loop).`)), ms);
         });
         work.catch(() => { }); // still pending when the page crashed; it may reject after the race
         try {
@@ -595,26 +608,29 @@ export async function openClip(browser, bundle, clip, opts = {}) {
     await settle('loading', page.goto(originUrl(bundle.html) + (opts.invalidate ? `?invalidate=${opts.invalidate}` : '')));
     let info;
     try {
-        info = await settle('loading', page.evaluate((data) => window.__vfMotionStage.load(data), clip));
+        info = await settle('loading', page.evaluate(({ load, data }) => window.__vfMotionStage[load](data), {
+            load: target.load,
+            data: target.data
+        }));
     }
     catch (error) {
-        throw new Error([named(`Clip "${clip.id}" failed to load`, error), ...errors].join('\n'));
+        throw new Error([named(`${name} failed to load`, error), ...errors].join('\n'));
     }
     return {
         mode: info.mode,
         async capture(frame) {
             if (errors.length)
-                throw new Error(`Clip "${clip.id}" page errors:\n${errors.join('\n')}`);
+                throw new Error(`${name} page errors:\n${errors.join('\n')}`);
             let r;
             try {
                 r = await settle(`frame ${frame}`, page.evaluate((n) => window.__vfMotionStage.frame(n, true), frame));
             }
             catch (error) {
-                throw new Error(named(`Clip "${clip.id}", frame ${frame}`, error));
+                throw new Error(named(`${name}, frame ${frame}`, error));
             }
             if (r.image)
                 return Buffer.from(r.image.slice(r.image.indexOf(',') + 1), 'base64');
-            return settle(`frame ${frame}`, page.locator('#vf-stage').screenshot({ omitBackground: clip.alpha, type: 'png' }));
+            return settle(`frame ${frame}`, page.locator('#vf-stage').screenshot({ omitBackground: target.alpha, type: 'png' }));
         },
         async check(frames) {
             // One call runs the whole list, so it gets the frame budget per ten frames.

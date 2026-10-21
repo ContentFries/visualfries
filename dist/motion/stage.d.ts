@@ -1,5 +1,6 @@
 import { type Component } from 'svelte';
 import type { ResolvedClip } from './resolve.js';
+import type { StageSegment } from './segments.js';
 export type StageFont = {
     family: string;
     url: string;
@@ -37,6 +38,12 @@ export declare function createMotionStage(options: StageOptions): {
         mode: CaptureMode;
         frames: number;
         fps: number;
+    }>;
+    loadSegment: (data: StageSegment) => Promise<{
+        mode: CaptureMode;
+        frames: number;
+        fps: number;
+        startFrame: number;
     }>;
     frame: (n: number, capture?: boolean) => Promise<FrameResult>;
     check: (frames: number[]) => Promise<{

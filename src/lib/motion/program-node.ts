@@ -1,0 +1,296 @@
+import fs from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import {
+	bundleMotionProject,
+	frameForAt,
+	launch,
+	openStagePage,
+	type BrowserLike,
+	type BundleResult,
+	type ClipCheck,
+	type LoadedMotionProject,
+	type MotionPage
+} from './node.js';
+import { resolveProgram, type ProgramSegment, type ResolvedProgram } from './program.js';
+import { resolveMoment } from './moment.js';
+import {
+	edgeFrames,
+	scrambled,
+	segmentAt,
+	segmentCheckFrames,
+	segmentStage,
+	wholeProgram,
+	type StageSegment
+} from './segments.js';
+
+/**
+ * Program mode in Node: pages that draw segments of the program (`loadSegment`), and the
+ * `still` and `check` commands on top of them. A page holds one segment, or the whole program
+ * when a check compares the two.
+ */
+
+type Span = { id: string; startFrame: number; frames: number };
+
+/** One page with a segment of the program loaded; `capture` takes program frames. */
+export async function openSegment(
+	browser: BrowserLike,
+	bundle: BundleResult,
+	program: ResolvedProgram,
+	segment: Span,
+	opts: { invalidate?: string; timeout?: number } = {}
+): Promise<MotionPage & { segment: StageSegment }> {
+	const data = segmentStage(program, segment, bundle.footage, bundle.brand);
+	const page = await openStagePage(
+		browser,
+		bundle,
+		{
+			name: segment.id === 'program' ? 'Program' : `Segment "${segment.id}"`,
+			size: program.format.size,
+			alpha: false,
+			load: 'loadSegment',
+			data
+		},
+		opts
+	);
+	return { ...page, segment: data };
+}
+
+/** Throws when the program has errors: its frames are not defined until they are fixed. */
+export function assertProgramRenders(program: ResolvedProgram) {
+	if (program.mode !== 'program')
+		throw new Error('The project has no "cuts" or "shots"; render its clips one by one instead.');
+	const errors = program.diagnostics.filter((d) => d.level === 'error');
+	if (errors.length)
+		throw new Error(
+			'Project has errors:\n' +
+				errors.map((e) => `  ${e.item ?? e.clip ?? '-'} ${e.field}: ${e.message}`).join('\n')
+		);
+}
+
+/** The program, bundled with the blocks of all its clips and the footage it shows. */
+async function prepareProgram(loaded: LoadedMotionProject) {
+	const program = resolveProgram(loaded.project, loaded.inputs);
+	assertProgramRenders(program);
+	const bundle = await bundleMotionProject(loaded, program.clips);
+	return { program, bundle };
+}
+
+/**
+ * Program frame of a moment: program-wide ("2.5s", "f120", "mid", "end", seconds), or inside a
+ * clip when `clip` is given ("extra+0.3", the clip's own "end").
+ */
+export function programFrameForAt(program: ResolvedProgram, at: string, clip?: string): number {
+	if (clip) {
+		const found = program.clips.find((c) => c.id === clip);
+		if (!found)
+			throw new Error(
+				`Unknown clip "${clip}". Clips: ${program.clips.map((c) => c.id).join(', ') || 'none'}`
+			);
+		return found.startFrame + frameForAt(found, at);
+	}
+	const seconds = resolveMoment(at, {
+		id: 'program',
+		cues: {},
+		duration: program.frames / program.fps,
+		fps: program.fps
+	});
+	return Math.max(0, Math.min(program.frames - 1, Math.round(seconds * program.fps)));
+}
+
+/** Moments for a program contact sheet: the start, the middle and first frame of every cut, the end. */
+export function defaultProgramMoments(program: ResolvedProgram): string[] {
+	const frames = new Set<number>([0]);
+	for (const cut of program.cuts) {
+		frames.add(cut.startFrame);
+		frames.add(cut.startFrame + Math.floor(cut.frames / 2));
+	}
+	if (!program.cuts.length) frames.add(Math.floor(program.frames / 2));
+	frames.add(program.frames - 1);
+	return [...frames].sort((a, b) => a - b).map((f) => `f${f}`);
+}
+
+/**
+ * Stills of the program: each request is drawn on the page of the segment holding its frame,
+ * one page per segment.
+ */
+export async function renderProgramStills(
+	loaded: LoadedMotionProject,
+	requests: { at: string; clip?: string }[],
+	opts: { invalidate?: string } = {}
+): Promise<{ clip?: string; at: string; frame: number; png: Buffer; mode: string }[]> {
+	const { program, bundle } = await prepareProgram(loaded);
+	const wanted = requests.map((r) => ({ ...r, frame: programFrameForAt(program, r.at, r.clip) }));
+	const browser = await launch();
+	const out = new Map<number, { png: Buffer; mode: string }>();
+	try {
+		for (const segment of program.segments) {
+			const frames = wanted
+				.map((r) => r.frame)
+				.filter((f) => segmentAt(program, f) === segment && !out.has(f));
+			if (!frames.length) continue;
+			const page = await openSegment(browser, bundle, program, segment, opts);
+			try {
+				for (const f of frames) out.set(f, { png: await page.capture(f), mode: page.mode });
+			} finally {
+				await page.close();
+			}
+		}
+	} finally {
+		await browser.close();
+		await fs.rm(bundle.dir, { recursive: true, force: true });
+	}
+	return wanted.map((r) => ({ ...r, ...out.get(r.frame)! }));
+}
+
+/**
+ * Captures `frames` of the program in the given order, on segment pages (default) or on one page
+ * holding the whole program. Returns PNGs by program frame. Mainly for tests and checks.
+ */
+export async function captureProgramFrames(
+	loaded: LoadedMotionProject,
+	frames: number[],
+	opts: { whole?: boolean; invalidate?: string } = {}
+): Promise<Map<number, Buffer>> {
+	const { program, bundle } = await prepareProgram(loaded);
+	const browser = await launch();
+	const out = new Map<number, Buffer>();
+	try {
+		const spans: Span[] = opts.whole ? [wholeProgram(program)] : program.segments;
+		for (const span of spans) {
+			const own = frames.filter((f) => f >= span.startFrame && f < span.startFrame + span.frames);
+			if (!own.length) continue;
+			const page = await openSegment(browser, bundle, program, span, opts);
+			try {
+				for (const f of own) out.set(f, await page.capture(f));
+			} finally {
+				await page.close();
+			}
+		}
+	} finally {
+		await browser.close();
+		await fs.rm(bundle.dir, { recursive: true, force: true });
+	}
+	return out;
+}
+
+const sha1 = (b: Buffer) => createHash('sha1').update(b).digest('hex');
+
+/**
+ * Checks a program on segment pages: runs every clip's logic at the frames around cuts, clip
+ * edges, cues and transitions, and with `determinism` captures a sample of frames forward,
+ * backward and scrambled on the segment's page and once more on a page holding the whole
+ * program; all four must give identical pixels. One result per segment; `clips` limits the
+ * check to the segments those clips are on screen in.
+ */
+export async function checkProgram(
+	loaded: LoadedMotionProject,
+	opts: { clips?: string[]; determinism?: boolean } = {}
+): Promise<ClipCheck[]> {
+	const program = resolveProgram(loaded.project, loaded.inputs);
+	const known = new Set(loaded.project.clips.map((c) => c.id));
+	const unknown = (opts.clips ?? []).filter((id) => !known.has(id));
+	if (unknown.length)
+		throw new Error(
+			`Unknown clip ${unknown.map((id) => `"${id}"`).join(', ')}. Clips: ${[...known].join(', ')}`
+		);
+	const segments = program.segments.filter(
+		(s) => !opts.clips?.length || opts.clips.some((id) => s.items.includes(id))
+	);
+	const results: ClipCheck[] = segments.map((s) => ({
+		id: s.id,
+		ok: false,
+		errors: [],
+		warnings: []
+	}));
+	const failing = program.diagnostics.filter((d) => d.level === 'error');
+	if (failing.length) {
+		// Frames are not defined until the program resolves; the program diagnostics say why.
+		for (const r of results)
+			r.errors.push({ message: 'The program has errors (listed above), so it was not drawn.' });
+		return results;
+	}
+	const bundle = await bundleMotionProject(loaded, program.clips);
+	const browser = await launch();
+	/** Hash of every sampled frame on its segment's page, by segment. */
+	const sampled = new Map<string, Map<number, string>>();
+	try {
+		for (const segment of segments) {
+			const result = results.find((r) => r.id === segment.id)!;
+			let page: Awaited<ReturnType<typeof openSegment>> | undefined;
+			try {
+				page = await openSegment(browser, bundle, program, segment);
+				result.mode = page.mode;
+				const list = segmentCheckFrames(program, segment);
+				const found = await page.check(list);
+				result.errors.push(...found.errors);
+				result.warnings.push(...found.warnings);
+				if (!opts.determinism || found.errors.length) continue;
+				const sample = determinismSample(program, segment, list);
+				const first = new Map<number, string>();
+				const differ = new Set<number>();
+				for (const order of [sample, [...sample].reverse(), scrambled(sample)])
+					for (const f of order) {
+						const hash = sha1(await page.capture(f));
+						if (!first.has(f)) first.set(f, hash);
+						else if (first.get(f) !== hash) differ.add(f);
+					}
+				if (differ.size) {
+					result.nondeterministic = [...differ].sort((a, b) => a - b);
+					result.errors.push({
+						message: `Frames ${result.nondeterministic.join(', ')} look different depending on seek order. Something depends on history (wall-clock time, stateful random, state kept between frames).`
+					});
+				}
+				sampled.set(segment.id, first);
+			} catch (error) {
+				result.errors.push({ message: (error as Error).message });
+			} finally {
+				await page?.close();
+			}
+		}
+		if (opts.determinism) await compareWithWholeProgram(browser, bundle, program, results, sampled);
+	} finally {
+		await browser.close();
+		await fs.rm(bundle.dir, { recursive: true, force: true });
+	}
+	for (const r of results) r.ok = r.errors.length === 0;
+	return results;
+}
+
+/** Up to about a dozen evenly spread frames plus the frames on both sides of every change. */
+function determinismSample(program: ResolvedProgram, segment: ProgramSegment, list: number[]) {
+	const step = Math.max(1, Math.floor(list.length / 12));
+	const end = segment.startFrame + segment.frames;
+	const picked = new Set([
+		...list.filter((_, i) => i % step === 0),
+		...edgeFrames(program).filter((f) => f >= segment.startFrame && f < end)
+	]);
+	return [...picked].sort((a, b) => a - b);
+}
+
+/** One page holding the whole program must draw every sampled frame like its segment's page. */
+async function compareWithWholeProgram(
+	browser: BrowserLike,
+	bundle: BundleResult,
+	program: ResolvedProgram,
+	results: ClipCheck[],
+	sampled: Map<string, Map<number, string>>
+) {
+	const checked = results.filter((r) => sampled.has(r.id) && !r.errors.length);
+	if (!checked.length) return;
+	const page = await openSegment(browser, bundle, program, wholeProgram(program));
+	try {
+		for (const result of checked) {
+			const differ: number[] = [];
+			for (const [f, hash] of sampled.get(result.id)!)
+				if (sha1(await page.capture(f)) !== hash) differ.push(f);
+			if (differ.length)
+				result.errors.push({
+					message: `Frames ${differ.join(', ')} look different on a page holding the whole program than on the segment's own page. Something depends on what else is loaded (state shared between clips, a clip seeked outside its window).`
+				});
+		}
+	} catch (error) {
+		for (const r of checked) r.errors.push({ message: (error as Error).message });
+	} finally {
+		await page.close();
+	}
+}

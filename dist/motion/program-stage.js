@@ -1,0 +1,358 @@
+import { flushSync, mount, unmount } from 'svelte';
+import { Clip, MOTION_CONTEXT_KEY, registerClipRoot } from './runtime.svelte.js';
+import { brandTokens } from './brand.js';
+import { formatTokens } from './format.js';
+import { seekTimeline } from './seek.js';
+import { programFootageAt, transitionSidesAt } from './footage-map.js';
+import { sourceFrameUrl, sourceSubjectBox } from './footage.js';
+import { clipFrameAt } from './segments.js';
+import { shotLayout, shotLayoutAt } from './shots/index.js';
+import { SUBJECT_SMOOTH } from './shots/layout.js';
+import { createTransitionPlayer } from './transitions/player.js';
+/**
+ * The fill around a framed shot: the brand's surface; without a brand, the project background
+ * (the brand's neutral surface when there is none either).
+ */
+const surface = (seg) => seg.brand.neutral ? (seg.background ?? seg.brand.colors.surface) : 'var(--brand-surface)';
+/** Brand tokens, safe insets and `data-format`, as the clip stage sets them on a clip's root. */
+function applyLook(el, seg) {
+    el.dataset.format = seg.format.class;
+    for (const [name, value] of Object.entries({
+        ...brandTokens(seg.brand),
+        ...formatTokens(seg.format)
+    }))
+        el.style.setProperty(name, value);
+}
+const LAYER = 'position:absolute;inset:0';
+function layer(parent, className, style = LAYER) {
+    const el = document.createElement('div');
+    el.className = className;
+    el.style.cssText = style;
+    parent.appendChild(el);
+    return el;
+}
+/** An `<img>` in its own clipped box (the camera window); empty images stay hidden. */
+function picture(parent, className) {
+    // Placed by `frameBox` alone: an `inset` here would fight its left and top.
+    const box = layer(parent, className, 'position:absolute;overflow:hidden');
+    const img = document.createElement('img');
+    img.alt = '';
+    img.draggable = false;
+    img.style.cssText = 'position:absolute;display:none;max-width:none';
+    box.appendChild(img);
+    return { box, img };
+}
+function side(stage, name) {
+    const el = layer(stage, 'vf-side');
+    el.dataset.side = name;
+    const fill = layer(el, 'vf-fill');
+    const plate = picture(el, 'vf-plate');
+    const behind = layer(el, 'vf-behind');
+    const subject = picture(el, 'vf-subject');
+    return { el, fill, plate, behind, subject };
+}
+/** Places `el` at `rect` (absolute, stage pixels); writes only what changed. */
+function place(el, rect) {
+    const box = `${rect.x} ${rect.y} ${rect.width} ${rect.height}`;
+    if (el.dataset.box === box)
+        return;
+    el.dataset.box = box;
+    Object.assign(el.style, {
+        left: `${rect.x}px`,
+        top: `${rect.y}px`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`
+    });
+}
+/** The camera window: clips the picture to `layout.clip`, footage placed at `layout.camera`. */
+function frameBox(pic, layout) {
+    const { clip, camera, radius } = layout;
+    place(pic.box, clip);
+    pic.box.style.borderRadius = radius ? `${radius}px` : '';
+    place(pic.img, {
+        x: camera.x - clip.x,
+        y: camera.y - clip.y,
+        width: camera.width,
+        height: camera.height
+    });
+}
+/** Shows `url` in `img`; resolves once the image is decoded. */
+function show(img, url) {
+    img.style.display = '';
+    if (img.src === url)
+        return null;
+    img.src = url;
+    return img.decode();
+}
+const hide = (img) => (img.style.display = 'none');
+function clipError(id, error) {
+    const message = error?.message ?? String(error);
+    return new Error(message.startsWith(`Clip "${id}"`) ? message : `Clip "${id}": ${message}`);
+}
+const endOf = (s) => s.startFrame + s.frames;
+const FULL = { shot: 'full', params: {} };
+/** Builds the layer tree in `stage` and mounts every clip of the segment. */
+export function createProgramScene(stage, seg, blocks) {
+    // On the stage too: fills and transition overlays use the brand's colours.
+    applyLook(stage, seg);
+    const a = side(stage, 'a');
+    // Side b shows only inside a cut or shot transition window.
+    const b = side(stage, 'b');
+    b.el.style.display = 'none';
+    const front = layer(stage, 'vf-clips');
+    const overlay = layer(stage, 'vf-overlay', `${LAYER};pointer-events:none`);
+    const player = createTransitionPlayer(overlay, seg.transitions, { size: seg.size, cls: seg.cls });
+    const mounted = [];
+    const ready = [];
+    try {
+        for (const data of seg.clips) {
+            const Block = blocks[data.block];
+            if (!Block)
+                throw new Error(`Block "${data.block}" is not in the bundle.`);
+            // A slotted root is placed on every seek, where the shot puts its slot.
+            const root = layer(data.layer === 'behind' ? a.behind : front, 'vf-clip', data.slot
+                ? `position:absolute;left:0;top:0;width:${seg.size[0]}px;height:${seg.size[1]}px`
+                : LAYER);
+            root.dataset.clip = data.id;
+            applyLook(root, seg);
+            // Roots stay visible until the first seek: blocks may measure text when they mount.
+            const controller = {
+                clip: new Clip({ ...data, footage: seg.footage, footageMap: seg.footageMap ?? undefined }),
+                root,
+                timelines: [],
+                frameFns: [],
+                ready: []
+            };
+            registerClipRoot(controller);
+            let instance;
+            try {
+                // The clip's reactive props: what changes `clip.props` later reaches the block.
+                instance = mount(Block, {
+                    target: root,
+                    props: controller.clip.props,
+                    context: new Map([[MOTION_CONTEXT_KEY, controller]])
+                });
+            }
+            catch (error) {
+                throw clipError(data.id, error);
+            }
+            mounted.push({ data, controller, instance, shown: null });
+            ready.push(...controller.ready);
+        }
+        flushSync();
+    }
+    catch (error) {
+        for (const m of mounted)
+            unmount(m.instance);
+        throw error;
+    }
+    /** The plan of the frame last seeked. */
+    let last = null;
+    /** The extracted frames of the source a view shows; null without them. */
+    const framesOf = (view) => (view ? (seg.footage[view.source] ?? null) : null);
+    /** The layout of a side showing `view`: the shot track at `f`, or `shot` alone. */
+    function layoutFor(f, view, shot) {
+        const frames = framesOf(view);
+        const input = {
+            cls: seg.cls,
+            size: seg.size,
+            footage: frames ? [frames.width, frames.height] : null,
+            subject: frames && view
+                ? sourceSubjectBox(frames, view.frame, Math.round(SUBJECT_SMOOTH * seg.fps))
+                : null
+        };
+        return shot ? shotLayout(shot, input) : shotLayoutAt(seg.shots, f, input);
+    }
+    /** Which side a clip rides in transition `t`: out when it ends on the cut, in when it starts on it. */
+    function rides(data, t) {
+        if (!t)
+            return null;
+        if (t.cutFrame === data.startFrame)
+            return 'b';
+        if (t.cutFrame === endOf(data))
+            return 'a';
+        return null;
+    }
+    function plan(f) {
+        let staged = player.at(f).find((t) => t.kind !== 'clip') ?? null;
+        const both = staged
+            ? seg.footageMap
+                ? transitionSidesAt(seg.footageMap, staged, f)
+                : { out: null, in: null }
+            : null;
+        if (!both)
+            staged = null;
+        let sides;
+        if (!staged || !both) {
+            const view = seg.footageMap ? programFootageAt(seg.footageMap, f) : null;
+            sides = { a: { view, layout: layoutFor(f, view) }, b: null };
+        }
+        else if (staged.kind === 'cut') {
+            sides = {
+                a: { view: both.out, layout: layoutFor(f, both.out) },
+                b: { view: both.in, layout: layoutFor(f, both.in) }
+            };
+        }
+        else {
+            // Same footage under the previous and the new layout: each side holds its own shot's
+            // layout on the other side of the cut.
+            const shot = (id) => seg.shots.find((s) => s.id === id) ?? FULL;
+            const before = f < staged.cutFrame;
+            sides = {
+                a: {
+                    view: both.out,
+                    layout: before ? layoutFor(f, both.out) : layoutFor(f, both.out, shot(staged.outgoing))
+                },
+                b: {
+                    view: both.in,
+                    layout: before ? layoutFor(f, both.in, shot(staged.owner)) : layoutFor(f, both.in)
+                }
+            };
+        }
+        const current = staged && f >= staged.cutFrame && sides.b ? sides.b : sides.a;
+        const clips = mounted.map((m) => {
+            let local = clipFrameAt(m.data, f);
+            const side = sides.b ? rides(m.data, staged) : null;
+            let slot = null;
+            if (m.data.slot) {
+                // A slot the shot does not free hides its clip.
+                const layout = side === 'b' ? sides.b.layout : side === 'a' ? sides.a.layout : current.layout;
+                slot = layout.slots[m.data.slot] ?? null;
+                if (!slot)
+                    local = null;
+            }
+            return { local, slot, side };
+        });
+        return { f, staged, ...sides, clips };
+    }
+    /** Behind clips in project order inside the side they belong to (b: arriving on its cut). */
+    function arrangeBehind(now) {
+        for (const s of [a, b]) {
+            const want = mounted
+                .filter((m, i) => m.data.layer === 'behind' && (now.clips[i].side === 'b') === (s === b))
+                .map((m) => m.controller.root);
+            const have = [...s.behind.children];
+            if (want.length !== have.length || want.some((el, i) => el !== have[i]))
+                for (const el of want)
+                    s.behind.appendChild(el);
+        }
+    }
+    /** The elements leaving and arriving in transition `t` at the planned frame. */
+    function sidesOf(now, t) {
+        const onScreen = (m, i) => now.clips[i].local !== null;
+        if (t.kind !== 'clip') {
+            const riders = (s) => mounted
+                .filter((m, i) => m.data.layer === 'front' && onScreen(m, i) && now.clips[i].side === s)
+                .map((m) => m.controller.root);
+            return { out: [a.el, ...riders('a')], in: [b.el, ...riders('b')] };
+        }
+        const i = mounted.findIndex((m) => m.data.id === t.owner);
+        const own = mounted[i];
+        if (!own)
+            return { out: [], in: [] };
+        if (own.data.layer === 'behind') {
+            const home = now.clips[i].side === 'b' ? b : a;
+            return { out: [home.fill, home.plate.box], in: [own.controller.root] };
+        }
+        const below = mounted
+            .filter((m, k) => m.data.layer === 'front' && m.data.z < own.data.z && onScreen(m, k))
+            .map((m) => m.controller.root);
+        return {
+            out: [a.el, ...(now.b ? [b.el] : []), ...below],
+            in: [own.controller.root]
+        };
+    }
+    function drawSide(s, view, behind, pending) {
+        s.fill.style.background = view.layout.fill ? surface(seg) : '';
+        frameBox(s.plate, view.layout);
+        frameBox(s.subject, view.layout);
+        const frames = framesOf(view.view);
+        if (!view.view || !frames) {
+            hide(s.plate.img);
+            hide(s.subject.img);
+            return;
+        }
+        const plate = show(s.plate.img, sourceFrameUrl(frames, view.view.frame, 'plate'));
+        if (plate)
+            pending.push(plate);
+        // The subject covers behind clips only while one is on screen.
+        if (behind && frames.subject) {
+            const subject = show(s.subject.img, sourceFrameUrl(frames, view.view.frame, 'subject'));
+            if (subject)
+                pending.push(subject);
+        }
+        else
+            hide(s.subject.img);
+    }
+    function inSegment(f) {
+        if (f < seg.startFrame || f >= seg.startFrame + seg.frames)
+            throw new Error(`Frame ${f} is outside segment "${seg.id}" (frames ${seg.startFrame}–${seg.startFrame + seg.frames - 1}).`);
+    }
+    return {
+        fps: seg.fps,
+        ready,
+        seek(f) {
+            inSegment(f);
+            const now = plan(f);
+            last = now;
+            b.el.style.display = now.b ? '' : 'none';
+            mounted.forEach((m, i) => {
+                const { local, slot } = now.clips[i];
+                if (slot)
+                    place(m.controller.root, slot);
+                m.controller.root.style.display = local === null ? 'none' : '';
+                m.shown = local;
+                if (local === null)
+                    return;
+                m.controller.clip.t = local / seg.fps;
+                m.controller.clip.frame = local;
+            });
+            arrangeBehind(now);
+            flushSync();
+            for (const m of mounted) {
+                if (m.shown === null)
+                    continue;
+                try {
+                    for (const tl of m.controller.timelines)
+                        seekTimeline(tl, m.shown / seg.fps);
+                }
+                catch (error) {
+                    throw clipError(m.data.id, error);
+                }
+            }
+            player.seek(f, (t) => sidesOf(now, t));
+        },
+        async draw(f) {
+            const pending = [];
+            const now = last?.f === f ? last : plan(f);
+            const behindOn = (s) => mounted.some((m, i) => m.data.layer === 'behind' &&
+                now.clips[i].local !== null &&
+                (now.clips[i].side === 'b') === (s === 'b'));
+            drawSide(a, now.a, behindOn('a'), pending);
+            if (now.b)
+                drawSide(b, now.b, behindOn('b'), pending);
+            for (const m of mounted) {
+                if (m.shown === null)
+                    continue;
+                const { clip } = m.controller;
+                for (const fn of m.controller.frameFns) {
+                    let result;
+                    try {
+                        result = fn({ t: clip.t, frame: clip.frame, clip });
+                    }
+                    catch (error) {
+                        throw clipError(m.data.id, error);
+                    }
+                    if (result && typeof result.then === 'function')
+                        pending.push(result.catch((e) => Promise.reject(clipError(m.data.id, e))));
+                }
+            }
+            await Promise.all(pending);
+        },
+        destroy() {
+            for (const m of mounted)
+                unmount(m.instance);
+            mounted.length = 0;
+        }
+    };
+}

@@ -503,7 +503,16 @@ export function assertNoErrors(loaded: LoadedMotionProject, clipIds?: string[]) 
  * What the page may read: whole `roots` (the bundle and extracted footage) and single `files`
  * (declared fonts and assets the project CSS points to). Nothing else in the project is served.
  */
-type BundleResult = { dir: string; html: string; roots: string[]; files: string[] };
+export type BundleResult = {
+	dir: string;
+	html: string;
+	roots: string[];
+	files: string[];
+	/** Extracted footage and, in program mode, the map from program to source frames. */
+	footage: { frames: Record<string, FootageFrames>; map: FootageMap | null };
+	/** The project's brand; the program stage sets its tokens on the whole stage. */
+	brand: ResolvedBrand;
+};
 
 const BUILTIN_PREFIX = '@visualfries/';
 /** Blocks that ship with VisualFries; a clip names them as `"block": "@visualfries/captions"`. */
@@ -626,7 +635,8 @@ export async function bundleMotionProject(
 		const abs = path.resolve(loaded.dir, file);
 		css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs), files) + '\n';
 	}
-	roots.push(...(await prepareFootage(loaded, clips)));
+	const footage = await extractFootage(loaded, clips);
+	roots.push(...footage.roots);
 	const cssBundle = path.join(outDir, 'bundle.css');
 	const cssLink = existsSync(cssBundle) ? '<link rel="stylesheet" href="bundle.css">' : '';
 	const html = path.join(outDir, 'index.html');
@@ -636,7 +646,14 @@ export async function bundleMotionProject(
 			css
 		)};window.__vfInvalidate=new URLSearchParams(location.search).get('invalidate')||undefined;</script><body><script src="bundle.js"></script></body>`
 	);
-	return { dir: outDir, html, roots, files };
+	return {
+		dir: outDir,
+		html,
+		roots,
+		files,
+		footage: { frames: footage.frames, map: footage.map },
+		brand: loaded.brand.resolved
+	};
 }
 
 /** Project CSS is inlined into a page elsewhere; make its relative url(...) absolute. */
@@ -687,9 +704,9 @@ type PageLike = {
 	on(event: 'pageerror' | 'console' | 'crash', fn: (e: any) => void): void;
 	close(): Promise<void>;
 };
-type BrowserLike = { newPage(opts: object): Promise<PageLike>; close(): Promise<void> };
+export type BrowserLike = { newPage(opts: object): Promise<PageLike>; close(): Promise<void> };
 
-async function launch(): Promise<BrowserLike> {
+export async function launch(): Promise<BrowserLike> {
 	let chromium: { launch(opts: object): Promise<unknown> };
 	try {
 		({ chromium } = await import('playwright'));
@@ -726,19 +743,45 @@ function pageMessage(error: unknown): string {
 	return (error as Error).message.replace(/^page\.evaluate: (Error: )?/, '').split('\n    at ')[0];
 }
 
-/**
- * One page with one clip loaded. Every call fails as soon as the page crashes or stops
- * answering: Playwright leaves a call to a crashed page pending forever, so without this a
- * renderer crash would hang `render` instead of failing it. Exported for tests.
- */
+/** One page with one clip loaded (see `openStagePage`). Exported for tests. */
 export async function openClip(
 	browser: BrowserLike,
-	bundle: BundleResult,
+	bundle: Pick<BundleResult, 'html' | 'roots' | 'files'>,
 	clip: ResolvedClip,
 	opts: { invalidate?: string; timeout?: number } = {}
 ): Promise<MotionPage> {
+	return openStagePage(
+		browser,
+		bundle,
+		{ name: `Clip "${clip.id}"`, size: clip.size, alpha: clip.alpha, load: 'load', data: clip },
+		opts
+	);
+}
+
+/** What a page loads: one clip (`load`) or a segment of the program (`loadSegment`). */
+export type StageTarget = {
+	/** How errors name it: `Clip "intro"`, `Segment "seg2"`. */
+	name: string;
+	size: [number, number];
+	alpha: boolean;
+	load: 'load' | 'loadSegment';
+	data: unknown;
+};
+
+/**
+ * One page with a clip or a segment loaded. Every call fails as soon as the page crashes or
+ * stops answering: Playwright leaves a call to a crashed page pending forever, so without this a
+ * renderer crash would hang `render` instead of failing it.
+ */
+export async function openStagePage(
+	browser: BrowserLike,
+	bundle: Pick<BundleResult, 'html' | 'roots' | 'files'>,
+	target: StageTarget,
+	opts: { invalidate?: string; timeout?: number } = {}
+): Promise<MotionPage> {
+	const { name } = target;
 	const page = await browser.newPage({
-		viewport: { width: clip.size[0], height: clip.size[1] },
+		viewport: { width: target.size[0], height: target.size[1] },
 		deviceScaleFactor: 1
 	});
 	const errors: string[] = [];
@@ -754,7 +797,7 @@ export async function openClip(
 	/** `prefix: message`, unless `settle` already named the clip in it. */
 	const named = (prefix: string, error: unknown) => {
 		const message = pageMessage(error);
-		return message.startsWith(`Clip "${clip.id}"`) ? message : `${prefix}: ${message}`;
+		return message.startsWith(name) ? message : `${prefix}: ${message}`;
 	};
 	/** `work`, or an error as soon as the page crashes or `ms` pass. One call at a time. */
 	async function settle<T>(what: string, work: Promise<T>, ms = timeout): Promise<T> {
@@ -763,7 +806,7 @@ export async function openClip(
 			const crash = () =>
 				reject(
 					new Error(
-						`Clip "${clip.id}": the browser page crashed during ${what} (Chromium's renderer process died).`
+						`${name}: the browser page crashed during ${what} (Chromium's renderer process died).`
 					)
 				);
 			if (crashed) return crash();
@@ -772,7 +815,7 @@ export async function openClip(
 				() =>
 					reject(
 						new Error(
-							`Clip "${clip.id}": ${what} did not finish within ${ms / 1000} s; the page stopped responding (a useFrame or useReady promise that never settles, or an endless loop).`
+							`${name}: ${what} did not finish within ${ms / 1000} s; the page stopped responding (a useFrame or useReady promise that never settles, or an endless loop).`
 						)
 					),
 				ms
@@ -795,15 +838,18 @@ export async function openClip(
 	try {
 		info = await settle(
 			'loading',
-			page.evaluate((data) => (window as any).__vfMotionStage.load(data), clip)
+			page.evaluate(({ load, data }) => (window as any).__vfMotionStage[load](data), {
+				load: target.load,
+				data: target.data
+			})
 		);
 	} catch (error) {
-		throw new Error([named(`Clip "${clip.id}" failed to load`, error), ...errors].join('\n'));
+		throw new Error([named(`${name} failed to load`, error), ...errors].join('\n'));
 	}
 	return {
 		mode: info.mode,
 		async capture(frame) {
-			if (errors.length) throw new Error(`Clip "${clip.id}" page errors:\n${errors.join('\n')}`);
+			if (errors.length) throw new Error(`${name} page errors:\n${errors.join('\n')}`);
 			let r: { image?: string };
 			try {
 				r = await settle(
@@ -814,12 +860,12 @@ export async function openClip(
 					)
 				);
 			} catch (error) {
-				throw new Error(named(`Clip "${clip.id}", frame ${frame}`, error));
+				throw new Error(named(`${name}, frame ${frame}`, error));
 			}
 			if (r.image) return Buffer.from(r.image.slice(r.image.indexOf(',') + 1), 'base64');
 			return settle(
 				`frame ${frame}`,
-				page.locator('#vf-stage').screenshot({ omitBackground: clip.alpha, type: 'png' })
+				page.locator('#vf-stage').screenshot({ omitBackground: target.alpha, type: 'png' })
 			);
 		},
 		async check(frames) {

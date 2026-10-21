@@ -8,6 +8,7 @@ export { default as Footage } from './Footage.svelte';
 export { default as Captions } from './Captions.svelte';
 export { footageFrameAt, footageFrameUrl, sourceFrameUrl, sourceSubjectBox, subjectBox, type FootageFrame, type FootageLayer } from './footage.js';
 export { footageAt, programFootageAt, sourceFrameAt, type FootageMap, type FootageView } from './footage-map.js';
+export { SHOT_MODULES, mixLayouts, shotAt, shotLayout, shotLayoutAt, shotModule, type Rect as ShotRect, type ShotInput, type ShotLayout, type ShotModule, type ShotSpan } from './shots/index.js';
 export { outline, outlineFilter, outlineFilterId, outlineFilterMarkup, outlineStyle, type OutlineMode, type OutlineOptions } from './outline.js';
 export { NEUTRAL_BRAND, contrast, readableOn, solidColor, toHex, type ResolvedBrand } from './brand.js';
 export { BUILTIN_STYLES, type ResolvedStyle } from './style.js';

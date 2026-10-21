@@ -1,0 +1,265 @@
+import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { parseMotionProject } from '$lib/motion/timeline.js';
+import { parseTranscriptWords } from '$lib/motion/transcript.js';
+import { resolveProgram, type ProgramInputs, type ProgramTransition } from '$lib/motion/program.js';
+import { footageMap, transitionSidesAt } from '$lib/motion/footage-map.js';
+import { clipShowRange } from '$lib/motion/segments.js';
+import {
+	frameAtProgress,
+	screenDirection,
+	TRANSITION_MODULES,
+	transitionEvents,
+	transitionProgress,
+	wipeBarAt
+} from '$lib/motion/transitions/index.js';
+import { createTransitionPlayer } from '$lib/motion/transitions/player.js';
+
+const DIR = path.join(__dirname, 'fixtures/program');
+const read = (file: string) => JSON.parse(fs.readFileSync(path.join(DIR, file), 'utf8'));
+const source = (frames: number) => ({
+	frames,
+	duration: frames / 30,
+	width: 1920,
+	height: 1080,
+	fps: 30,
+	audio: true
+});
+const inputs: ProgramInputs = {
+	words: null,
+	transcripts: { talk: parseTranscriptWords(read('take1.transcript.json')) },
+	sources: { talk: source(400), broll: source(90) }
+};
+const program = (json: unknown, format?: string) =>
+	resolveProgram(parseMotionProject(json), inputs, format ? { format } : {});
+
+const transition = (t: Partial<ProgramTransition>): ProgramTransition => ({
+	id: 'x.transition',
+	owner: 'x',
+	kind: 'cut',
+	outgoing: 'w',
+	type: 'push',
+	startFrame: 10,
+	frames: 14,
+	cutFrame: 17,
+	align: 'center',
+	direction: 'left',
+	ease: null,
+	params: {},
+	sound: null,
+	native: null,
+	held: { out: 0, in: 0 },
+	...t
+});
+
+describe('transition progress and events', () => {
+	it('runs strictly inside 0–1 over the window, rising every frame', () => {
+		const t = transition({});
+		const ps = [...Array(t.frames).keys()].map((k) => transitionProgress(t, t.startFrame + k));
+		expect(ps[0]).toBeCloseTo(1 / 15, 12);
+		expect(ps[ps.length - 1]).toBeCloseTo(14 / 15, 12);
+		for (let i = 1; i < ps.length; i++) expect(ps[i]).toBeGreaterThan(ps[i - 1]);
+		// The frames just outside are the plain sides.
+		expect(transitionProgress(t, t.startFrame - 1)).toBe(0);
+		expect(transitionProgress(t, t.startFrame + t.frames)).toBe(1);
+	});
+
+	it('puts a halfway event on the cut of a centred window, odd or even', () => {
+		for (const frames of [12, 13, 14, 15]) {
+			const t = transition({ frames, cutFrame: 10 + Math.floor(frames / 2) });
+			expect(frameAtProgress(t, 0.5), `${frames} frames`).toBe(t.cutFrame);
+			expect(transitionEvents(t)).toEqual([{ kind: 'transition', frame: t.cutFrame }]);
+		}
+		// A transition not drawn yet keeps one event on its cut.
+		expect(transitionEvents(transition({ type: 'card', cutFrame: 11 }))).toEqual([
+			{ kind: 'transition', frame: 11 }
+		]);
+		// Events stay inside the window.
+		const t = transition({});
+		expect(frameAtProgress(t, 0)).toBe(t.startFrame);
+		expect(frameAtProgress(t, 1)).toBe(t.startFrame + t.frames - 1);
+	});
+
+	it('maps forward and back per format class and keeps screen directions', () => {
+		expect(screenDirection(null, 'landscape')).toBe('left');
+		expect(screenDirection('forward', 'square')).toBe('left');
+		expect(screenDirection('back', 'landscape')).toBe('right');
+		expect(screenDirection('forward', 'portrait')).toBe('up');
+		expect(screenDirection('back', 'portrait')).toBe('down');
+		expect(screenDirection('right', 'portrait')).toBe('right');
+	});
+
+	it('sweeps the wipe bars in, covers the frame halfway and sweeps them out in reverse', () => {
+		expect([0, 1, 2].map((i) => wipeBarAt(i, 3, 0))).toEqual([-130, -130, -130]);
+		expect([0, 1, 2].map((i) => wipeBarAt(i, 3, 0.4999))).toEqual([0, 0, expect.any(Number)]);
+		expect([0, 1, 2].map((i) => wipeBarAt(i, 3, 0.5))).toEqual([0, 0, 0]);
+		expect([0, 1, 2].map((i) => wipeBarAt(i, 3, 1))).toEqual([130, 130, 130]);
+		// The last bar in (on top) leaves first.
+		expect(wipeBarAt(2, 3, 0.6)).toBeGreaterThan(wipeBarAt(0, 3, 0.6));
+	});
+});
+
+describe('transitions in the resolved program', () => {
+	const json = () => {
+		const j = read('handles.vf.json');
+		j.cuts[1].transition = 'push';
+		j.shots[1].transition = 'wipe';
+		return j;
+	};
+
+	it('takes duration, ease and direction from the module, per format class', () => {
+		const land = program(json());
+		const push = land.transitions.find((t) => t.owner === 'broll')!;
+		const wipe = land.transitions.find((t) => t.owner === 'whip')!;
+		// 0.55 s and 0.8 s at 30 fps.
+		expect(push).toMatchObject({ frames: 17, direction: 'left', ease: 'expo.inOut' });
+		expect(wipe).toMatchObject({ frames: 24, direction: 'left', ease: 'none' });
+		const tall = program(json(), '1080x1920');
+		expect(tall.transitions.find((t) => t.owner === 'broll')!.direction).toBe('up');
+		const back = json();
+		back.cuts[1].transition = { type: 'push', direction: 'back', ease: 'power3.inOut' };
+		expect(program(back, '1080x1920').transitions[0]).toMatchObject({
+			direction: 'down',
+			ease: 'power3.inOut'
+		});
+		// A transition not drawn yet keeps what was written and says it cuts.
+		const card = land.transitions.find((t) => t.type === 'card')!;
+		expect(card).toMatchObject({ direction: null, ease: null, frames: 9 });
+		expect(land.diagnostics).toContainEqual({
+			level: 'warning',
+			item: 'cut5',
+			field: 'cuts[4].transition',
+			message: 'The "card" transition is not drawn yet; it cuts on the cut.'
+		});
+	});
+
+	it('emits the transition events of the modules', () => {
+		const p = program(json());
+		const events = p.events.filter((e) => e.kind === 'transition');
+		for (const t of p.transitions)
+			expect(events.find((e) => e.owner === t.id)!.frame, t.id).toBe(t.cutFrame);
+	});
+
+	it('rejects unknown eases and params', () => {
+		const bad = json();
+		bad.cuts[1].transition = { type: 'push', ease: 'bouncy', params: { blurr: 3 } };
+		bad.shots[1].transition = { type: 'wipe', params: { colors: 'red' } };
+		const errors = program(bad).diagnostics.filter((d) => d.level === 'error');
+		expect(errors.map((d) => [d.item, d.field, d.message])).toEqual([
+			['broll', 'cuts[1].transition.params', 'Unknown param "blurr". Known: blur.'],
+			[
+				'broll',
+				'cuts[1].transition.ease',
+				'Unknown ease "bouncy". Use a GSAP ease such as "expo.inOut", "power3.out" or "none".'
+			],
+			['whip', 'shots[1].transition.params', '"colors" must be a list of CSS colours (got "red").']
+		]);
+	});
+
+	it('holds no clip for a transition that is not drawn', () => {
+		const clip = { id: 'c', startFrame: 20, frames: 10 };
+		const card = transition({ type: 'card', startFrame: 16, frames: 8, cutFrame: 20 });
+		expect(clipShowRange(clip, [card])).toEqual({ from: 20, until: 30 });
+		expect(clipShowRange(clip, [{ ...card, type: 'push' }])).toEqual({ from: 16, until: 30 });
+	});
+
+	it('gives each side its footage through the window, holding edge frames', () => {
+		const p = program(json());
+		const map = footageMap(p);
+		const push = p.transitions.find((t) => t.owner === 'broll')!;
+		const [cut1, broll] = p.cuts;
+		for (let f = push.startFrame; f < push.startFrame + push.frames; f++) {
+			const sides = transitionSidesAt(map, push, f)!;
+			expect(sides.out).toMatchObject({ source: 'talk', frame: cut1.srcIn + f - cut1.startFrame });
+			const wanted = broll.srcIn + f - broll.startFrame;
+			expect(sides.in).toMatchObject({
+				source: 'broll',
+				frame: Math.max(0, wanted),
+				held: wanted < 0
+			});
+		}
+		// The held frames are the ones `check` reports.
+		const held = [...Array(push.frames).keys()].filter(
+			(k) => transitionSidesAt(map, push, push.startFrame + k)!.in!.held
+		);
+		expect(held.length).toBe(push.held.in);
+		// A shot transition: both sides show the cut list under the shots.
+		const wipe = p.transitions.find((t) => t.owner === 'whip')!;
+		const sides = transitionSidesAt(map, wipe, wipe.startFrame)!;
+		expect(sides.out).toEqual(sides.in);
+	});
+});
+
+describe('transition modules on the DOM', () => {
+	const size: [number, number] = [640, 360];
+
+	function stage() {
+		const root = document.createElement('div');
+		const els = ['a', 'b', 'clipA', 'clipB'].map((name) => {
+			const el = document.createElement('div');
+			el.dataset.name = name;
+			root.appendChild(el);
+			return el;
+		});
+		const layer = document.createElement('div');
+		root.appendChild(layer);
+		return { root, els, layer };
+	}
+
+	for (const [name, module] of Object.entries(TRANSITION_MODULES))
+		for (const kind of ['cut', 'clip'] as const)
+			it(`${name} (${kind}): applies from progress alone and releases every style it set`, () => {
+				const { els, layer } = stage();
+				const t = transition({ type: name, kind, direction: 'up', ease: module.ease });
+				const player = createTransitionPlayer(layer, [t], { size, cls: 'landscape' });
+				const sides = () => ({ out: [els[0], els[2]], in: [els[1], els[3]] });
+				const styleAt = (f: number) => {
+					player.seek(f, sides);
+					return [...els, ...layer.querySelectorAll<HTMLElement>('*')].map(
+						(el) => el.getAttribute('style') ?? ''
+					);
+				};
+				const frames = [...Array(t.frames).keys()].map((k) => t.startFrame + k);
+				const forward = frames.map(styleAt);
+				// Backward and jumping around: the same styles at the same frames.
+				expect([...frames].reverse().map(styleAt).reverse()).toEqual(forward);
+				expect(
+					frames.map((f, i) => (i % 2 ? styleAt(f) : styleAt(frames[frames.length - 1 - i])))
+				).toEqual(frames.map((f, i) => forward[i % 2 ? i : frames.length - 1 - i]));
+				// Something moves inside the window.
+				expect(new Set(forward.map((s) => JSON.stringify(s))).size).toBeGreaterThan(3);
+				// Outside it nothing is left on the sides and the overlay is hidden.
+				for (const f of [t.startFrame - 1, t.startFrame + t.frames]) {
+					player.seek(f, sides);
+					for (const el of els)
+						expect(el.getAttribute('style') ?? '', `${name} frame ${f}`).toBe('');
+					expect((layer.firstElementChild as HTMLElement).style.display).toBe('none');
+				}
+			});
+
+	it('push moves both sides together by the eased travel', () => {
+		const { els, layer } = stage();
+		const t = transition({ direction: 'left', ease: 'none', params: { blur: 0 } });
+		const player = createTransitionPlayer(layer, [t], { size, cls: 'landscape' });
+		player.seek(t.startFrame + 2, () => ({ out: [els[0]], in: [els[1]] }));
+		// p = 3/15: the outgoing side 128 px to the left, the incoming 512 px to its right.
+		expect(els[0].style.transform).toBe('translate(-128px, 0px)');
+		expect(els[1].style.transform).toBe('translate(512px, 0px)');
+		expect(els[0].style.filter).toBe('');
+	});
+
+	it('wipe hides the incoming side until halfway, then the outgoing one', () => {
+		const { els, layer } = stage();
+		const t = transition({ type: 'wipe', ease: 'none' });
+		const player = createTransitionPlayer(layer, [t], { size, cls: 'landscape' });
+		const at = (f: number) => {
+			player.seek(f, () => ({ out: [els[0]], in: [els[1]] }));
+			return [els[0].style.visibility, els[1].style.visibility];
+		};
+		expect(at(t.startFrame)).toEqual(['', 'hidden']);
+		expect(at(t.cutFrame)).toEqual(['hidden', '']);
+		expect(at(t.startFrame + t.frames - 1)).toEqual(['hidden', '']);
+		expect(at(t.startFrame + t.frames)).toEqual(['', '']);
+	});
+});

@@ -4,6 +4,7 @@ import { Clip, MOTION_CONTEXT_KEY, registerClipRoot } from './runtime.svelte.js'
 import { seekTimeline } from './seek.js';
 import { brandTokens, NEUTRAL_BRAND } from './brand.js';
 import { formatTokens, resolveFormat } from './format.js';
+import { createProgramScene } from './program-stage.js';
 /**
  * Browser side of motion rendering. Everything that decides pixels lives here so
  * preview, local export and server export run the same code.
@@ -25,6 +26,8 @@ export function createMotionStage(options) {
     let ctx = null;
     let stage = null;
     let active = null;
+    /** Program mode: the segment on the stage (see `loadSegment`). */
+    let segment = null;
     let seeks = 0;
     /** `<canvas layoutsubtree>` elements the block nests in the stage, as of the last seek. */
     let nested = [];
@@ -38,14 +41,36 @@ export function createMotionStage(options) {
             throw error;
         }
     }
-    async function mountClip(data) {
+    /**
+     * Program mode: a range of the program (or all of it) on one stage, with the footage the cut
+     * list shows and every clip on screen in it. `frame(n)` then takes program frames.
+     */
+    async function loadSegment(data) {
+        try {
+            return await mountSegment(data);
+        }
+        catch (error) {
+            unload();
+            throw error;
+        }
+    }
+    async function mountSegment(data) {
         unload();
-        const [width, height] = data.size;
+        createStage(data.size, data.background);
+        await loadFonts();
+        segment = createProgramScene(stage, data, options.blocks);
+        findNestedCanvases();
+        assertNoEffectOverNestedCanvas();
+        await Promise.all(segment.ready);
+        await document.fonts.ready;
+        return { mode, frames: data.frames, fps: data.fps, startFrame: data.startFrame };
+    }
+    function createStage([width, height], background) {
         stage = document.createElement('div');
         stage.id = 'vf-stage';
         stage.style.width = `${width}px`;
         stage.style.height = `${height}px`;
-        stage.style.background = data.background ?? 'transparent';
+        stage.style.background = background ?? 'transparent';
         if (mode === 'html-in-canvas') {
             canvas = document.createElement('canvas');
             canvas.setAttribute('layoutsubtree', '');
@@ -60,12 +85,19 @@ export function createMotionStage(options) {
         else {
             document.body.appendChild(stage);
         }
-        // Fonts first: blocks and engines measure text when they mount.
+    }
+    /** Fonts first: blocks and engines measure text when they mount. */
+    async function loadFonts() {
         const query = (f) => `${f.style ?? 'normal'} ${String(f.weight ?? 400).split(/\s+/)[0]} 32px ${JSON.stringify(f.family)}`;
         await Promise.all((options.fonts ?? []).map((f) => document.fonts.load(query(f))));
         const missing = (options.fonts ?? []).filter((f) => !document.fonts.check(query(f)));
         if (missing.length)
             throw new Error(`Fonts failed to load: ${missing.map((f) => f.family).join(', ')}`);
+    }
+    async function mountClip(data) {
+        unload();
+        createStage(data.size, data.background);
+        await loadFonts();
         const Block = options.blocks[data.block];
         if (!Block)
             throw new Error(`Block "${data.block}" is not in the bundle.`);
@@ -104,6 +136,13 @@ export function createMotionStage(options) {
     }
     /** Sets clip time and runs the clip's logic; resolves once every `useFrame` promise settles. */
     async function applyTime(frame) {
+        if (segment) {
+            segment.seek(frame);
+            findNestedCanvases();
+            assertNoEffectOverNestedCanvas();
+            await segment.draw(frame);
+            return frame / segment.fps;
+        }
         if (!active)
             throw new Error('No clip loaded.');
         const { controller, data } = active;
@@ -206,6 +245,8 @@ export function createMotionStage(options) {
         return { frame: n, t, image, paintMs, mode };
     }
     function unload() {
+        segment?.destroy();
+        segment = null;
         if (active) {
             unmount(active.instance);
             active = null;
@@ -235,7 +276,7 @@ export function createMotionStage(options) {
                 const message = error.message;
                 if (!errors.some((e) => e.message === message))
                     errors.push({ frame: n, message });
-                if (!active)
+                if (!active && !segment)
                     break; // unloaded to keep the page alive
                 continue;
             }
@@ -278,7 +319,7 @@ export function createMotionStage(options) {
     function events() {
         return active?.controller.clip.events() ?? [];
     }
-    return { mode, load, frame, check, unload, events };
+    return { mode, load, loadSegment, frame, check, unload, events };
 }
 function describe(el) {
     // `className` of an SVG element is an SVGAnimatedString, not the class text.

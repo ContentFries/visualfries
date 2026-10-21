@@ -47,7 +47,16 @@ function expectGolden(name: string, value: ResolvedProgram) {
 describe('resolved program', () => {
 	it('matches the golden program of the retake fixture', () => {
 		const p = program(read('retake.vf.json'));
-		expect(p.diagnostics).toEqual([]);
+		// The codec clip names the panel slot, but no strip frees it.
+		expect(p.diagnostics).toEqual([
+			{
+				level: 'warning',
+				clip: 'codec',
+				field: 'slot',
+				message:
+					'No shot frees the "panel" slot for 90 of the clip\'s 90 frames (first at 3.30 s); the clip is hidden there. Shots with a "panel" slot: strip.'
+			}
+		]);
 		expectGolden('retake.program.json', p);
 	});
 
@@ -224,13 +233,15 @@ describe('shots, clips, keys and events', () => {
 		);
 	});
 
-	it('emits an event where each written shot starts and on each transition cut', () => {
+	it('emits shot and transition events in frame order', () => {
 		expect(p.events).toEqual([
 			{ kind: 'transition', frame: 39, owner: 'broll.transition' },
-			{ kind: 'shot', frame: 96, owner: 'punch' },
+			{ kind: 'punch', frame: 96, owner: 'punch' },
 			{ kind: 'whip', frame: 156, owner: 'whip' },
 			{ kind: 'transition', frame: 156, owner: 'whip.transition' },
-			{ kind: 'transition', frame: 204, owner: 'cut5.transition' }
+			{ kind: 'transition', frame: 204, owner: 'cut5.transition' },
+			// The camera moving back to full after the whip, halfway through the morph.
+			{ kind: 'shot', frame: 214, owner: 'full-204' }
 		]);
 	});
 

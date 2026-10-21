@@ -55,6 +55,9 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     resolve the whole program (cuts, shots, clips, transitions, audio,
                     segments) and save it as .visualfries/program/<format>.json
   visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
+                    with "cuts" or "shots" the still shows the whole program (footage and
+                    every clip on screen); --clip is then optional and --at takes program
+                    moments ("2.5s", "f120", "end"); check runs per segment of the program
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
   visualfries cache <project.vf.json> [--clear]
                     size of the project's .visualfries/ cache; --clear drops extracted footage frames
@@ -1572,6 +1575,11 @@ async function motionModule() {
 	return import('../dist/motion/node.js');
 }
 
+/** Program mode (a cut list or shots): pages that draw segments of the whole program. */
+async function programModule() {
+	return import('../dist/motion/program-node.js');
+}
+
 async function isMotionProjectFile(file) {
 	if (file.endsWith('.vf.json')) return true;
 	try {
@@ -1657,9 +1665,11 @@ async function motionCheckCommand(args) {
 	const { program } = await motionProgram(loaded);
 	const programMode = program.mode === 'program';
 	const key = (d) => JSON.stringify([d.clip, d.field, d.message]);
-	// Printed above (project-wide warnings) or with each clip.
+	// Printed above (project-wide) or, in inserts mode, with each clip; program mode checks segments.
 	const shown = new Set(
-		loaded.resolved.diagnostics.filter((d) => d.clip || d.level === 'warning').map(key)
+		loaded.resolved.diagnostics
+			.filter((d) => (d.clip ? !programMode : d.level === 'warning'))
+			.map(key)
 	);
 	const diagnostics = program.diagnostics.filter((d) => !shown.has(key(d)));
 	if (!json && diagnostics.length) {
@@ -1671,14 +1681,20 @@ async function motionCheckCommand(args) {
 		clips: readAllFlags(args, '--clip'),
 		determinism: hasFlag(args, '--determinism')
 	};
-	const results = await checkMotionProject(loaded, checkOptions);
+	const results = programMode
+		? await (await programModule()).checkProgram(loaded, checkOptions)
+		: await checkMotionProject(loaded, checkOptions);
+	const kind = programMode ? 'segments' : 'clips';
+	const segment = (id) => program.segments.find((s) => s.id === id);
 	if (json) {
 		console.log(
 			JSON.stringify(programMode ? { program: diagnostics, clips: results } : results, null, 2)
 		);
 	} else {
 		for (const r of results) {
-			console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.id}${r.mode ? `  (${r.mode})` : ''}`);
+			const seg = programMode ? segment(r.id) : null;
+			const span = seg ? `  frames ${seg.startFrame}–${seg.startFrame + seg.frames - 1}` : '';
+			console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.id}${span}${r.mode ? `  (${r.mode})` : ''}`);
 			for (const e of r.errors)
 				console.log(
 					`  error${e.frame !== undefined && e.frame >= 0 ? ` @f${e.frame}` : ''}: ${e.message}`
@@ -1688,12 +1704,17 @@ async function motionCheckCommand(args) {
 		const failed = results.filter((r) => !r.ok).length;
 		console.log(
 			failed
-				? `${failed} of ${results.length} clips need attention.`
-				: `All ${results.length} clips pass.`
+				? `${failed} of ${results.length} ${kind} need attention.`
+				: `All ${results.length} ${kind} pass.`
 		);
 	}
 	if (results.some((r) => !r.ok) || diagnostics.some((d) => d.level === 'error'))
 		process.exitCode = 1;
+}
+
+async function loadedProgram(loaded) {
+	const { motionProgram } = await motionModule();
+	return motionProgram(loaded);
 }
 
 const frameTime = (frame, fps) => `${(frame / fps).toFixed(2)}s`;
@@ -1746,21 +1767,41 @@ async function motionStillCommand(args) {
 	const file = args[0];
 	const clip = readFlag(args, '--clip');
 	const output = readFlag(args, '--output');
-	if (!file || !clip || !output) {
+	const { loadMotionProject, renderStills, composeSheet, defaultMoments } = await motionModule();
+	const loaded = file
+		? await loadMotionProject(file, { transcript: readFlag(args, '--transcript') })
+		: null;
+	// Program mode draws the whole program (footage and every clip); --clip only times moments.
+	const programMode = loaded?.cutList.mode === 'program';
+	if (!loaded || !output || (!clip && !programMode)) {
 		throw new Error(
-			'Usage: visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>'
+			'Usage: visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>\n' +
+				'       (with "cuts" or "shots", --clip is optional: moments are program moments)'
 		);
 	}
-	const { loadMotionProject, renderStills, composeSheet, defaultMoments } = await motionModule();
-	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
-	const resolved = loaded.resolved.clips.find((c) => c.id === clip);
+	const resolved = clip ? loaded.resolved.clips.find((c) => c.id === clip) : null;
 	let moments = readAllFlags(args, '--at');
-	if (!moments.length && resolved) moments = defaultMoments(resolved);
-	const stills = await renderStills(
-		loaded,
-		moments.map((at) => ({ clip, at })),
-		{ invalidate: readFlag(args, '--invalidate') }
-	);
+	let stills;
+	if (programMode) {
+		const program = await programModule();
+		if (!moments.length) {
+			moments = resolved
+				? defaultMoments(resolved)
+				: program.defaultProgramMoments((await loadedProgram(loaded)).program);
+		}
+		stills = await program.renderProgramStills(
+			loaded,
+			moments.map((at) => ({ clip: clip ?? undefined, at })),
+			{ invalidate: readFlag(args, '--invalidate') }
+		);
+	} else {
+		if (!moments.length && resolved) moments = defaultMoments(resolved);
+		stills = await renderStills(
+			loaded,
+			moments.map((at) => ({ clip, at })),
+			{ invalidate: readFlag(args, '--invalidate') }
+		);
+	}
 	const png =
 		stills.length === 1
 			? stills[0].png
@@ -1776,7 +1817,7 @@ async function motionStillCommand(args) {
 	console.log(
 		JSON.stringify({
 			output,
-			clip,
+			...(clip ? { clip } : {}),
 			mode: stills[0]?.mode,
 			stills: stills.map((s) => ({ at: s.at, frame: s.frame }))
 		})

@@ -53,6 +53,19 @@ export {
 	type FootageView
 } from './footage-map.js';
 export {
+	SHOT_MODULES,
+	mixLayouts,
+	shotAt,
+	shotLayout,
+	shotLayoutAt,
+	shotModule,
+	type Rect as ShotRect,
+	type ShotInput,
+	type ShotLayout,
+	type ShotModule,
+	type ShotSpan
+} from './shots/index.js';
+export {
 	outline,
 	outlineFilter,
 	outlineFilterId,

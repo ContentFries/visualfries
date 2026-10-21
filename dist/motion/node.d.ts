@@ -6,8 +6,8 @@ import { type CutList, type ProgramInputs } from './cutlist.js';
 import { type ResolvedProgram } from './program.js';
 import { type ResolvedClip, type ResolvedProject } from './resolve.js';
 import { type BarRow, type BeatsFile, type MusicBeats } from './beat-grid.js';
-import { type FrameRange } from './footage-map.js';
-import type { SubjectBox } from './resolve.js';
+import { type FootageMap, type FrameRange } from './footage-map.js';
+import type { FootageFrames, SubjectBox } from './resolve.js';
 export type LoadedMotionProject = {
     file: string;
     dir: string;
@@ -104,11 +104,18 @@ export declare function assertNoErrors(loaded: LoadedMotionProject, clipIds?: st
  * What the page may read: whole `roots` (the bundle and extracted footage) and single `files`
  * (declared fonts and assets the project CSS points to). Nothing else in the project is served.
  */
-type BundleResult = {
+export type BundleResult = {
     dir: string;
     html: string;
     roots: string[];
     files: string[];
+    /** Extracted footage and, in program mode, the map from program to source frames. */
+    footage: {
+        frames: Record<string, FootageFrames>;
+        map: FootageMap | null;
+    };
+    /** The project's brand; the program stage sets its tokens on the whole stage. */
+    brand: ResolvedBrand;
 };
 /** Compile the project's blocks together with the stage runtime into one page. */
 export declare function bundleMotionProject(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<BundleResult>;
@@ -136,10 +143,11 @@ type PageLike = {
     on(event: 'pageerror' | 'console' | 'crash', fn: (e: any) => void): void;
     close(): Promise<void>;
 };
-type BrowserLike = {
+export type BrowserLike = {
     newPage(opts: object): Promise<PageLike>;
     close(): Promise<void>;
 };
+export declare function launch(): Promise<BrowserLike>;
 export type MotionPage = {
     mode: 'html-in-canvas' | 'dom';
     capture(frame: number): Promise<Buffer>;
@@ -155,12 +163,26 @@ export type MotionPage = {
     }>;
     close(): Promise<void>;
 };
+/** One page with one clip loaded (see `openStagePage`). Exported for tests. */
+export declare function openClip(browser: BrowserLike, bundle: Pick<BundleResult, 'html' | 'roots' | 'files'>, clip: ResolvedClip, opts?: {
+    invalidate?: string;
+    timeout?: number;
+}): Promise<MotionPage>;
+/** What a page loads: one clip (`load`) or a segment of the program (`loadSegment`). */
+export type StageTarget = {
+    /** How errors name it: `Clip "intro"`, `Segment "seg2"`. */
+    name: string;
+    size: [number, number];
+    alpha: boolean;
+    load: 'load' | 'loadSegment';
+    data: unknown;
+};
 /**
- * One page with one clip loaded. Every call fails as soon as the page crashes or stops
- * answering: Playwright leaves a call to a crashed page pending forever, so without this a
- * renderer crash would hang `render` instead of failing it. Exported for tests.
+ * One page with a clip or a segment loaded. Every call fails as soon as the page crashes or
+ * stops answering: Playwright leaves a call to a crashed page pending forever, so without this a
+ * renderer crash would hang `render` instead of failing it.
  */
-export declare function openClip(browser: BrowserLike, bundle: BundleResult, clip: ResolvedClip, opts?: {
+export declare function openStagePage(browser: BrowserLike, bundle: Pick<BundleResult, 'html' | 'roots' | 'files'>, target: StageTarget, opts?: {
     invalidate?: string;
     timeout?: number;
 }): Promise<MotionPage>;

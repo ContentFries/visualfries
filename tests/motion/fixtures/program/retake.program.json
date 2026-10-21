@@ -164,7 +164,7 @@
 			"source": null,
 			"params": {},
 			"morphFrames": 6,
-			"morphEase": "none",
+			"morphEase": "power4.out",
 			"transition": null,
 			"keys": [
 				{
@@ -186,8 +186,8 @@
 			"frames": 90,
 			"source": null,
 			"params": {},
-			"morphFrames": 0,
-			"morphEase": "none",
+			"morphFrames": 14,
+			"morphEase": "power3.inOut",
 			"transition": null,
 			"keys": [],
 			"native": null
@@ -411,12 +411,12 @@
 			"kind": "cut",
 			"outgoing": "cut2",
 			"type": "push",
-			"startFrame": 92,
-			"frames": 15,
+			"startFrame": 91,
+			"frames": 17,
 			"cutFrame": 99,
 			"align": "center",
-			"direction": null,
-			"ease": null,
+			"direction": "up",
+			"ease": "expo.inOut",
 			"params": {},
 			"sound": null,
 			"native": null,
@@ -435,8 +435,8 @@
 			"frames": 12,
 			"cutFrame": 99,
 			"align": "center",
-			"direction": null,
-			"ease": null,
+			"direction": "up",
+			"ease": "none",
 			"params": {},
 			"sound": null,
 			"native": null,
@@ -710,7 +710,7 @@
 	],
 	"events": [
 		{
-			"kind": "shot",
+			"kind": "punch",
 			"frame": 39,
 			"owner": "punch1"
 		},
@@ -808,15 +808,22 @@
 				"cut3.transition",
 				"codec.transition"
 			],
-			"hash": "f8db2db84f88e1fe0363e83b9716284b068bd461"
+			"hash": "8f0e19b03d3c1a7b43d27d0467de49fa33632e5c"
 		},
 		{
 			"id": "seg3",
 			"startFrame": 147,
 			"frames": 42,
 			"items": ["cut4", "full-99", "codec"],
-			"hash": "a51649cc568c5974a30ff38a08b6be3a984a736b"
+			"hash": "fd177aa9fc8ae5f9560bae297d42bdbdb4fd91f8"
 		}
 	],
-	"diagnostics": []
+	"diagnostics": [
+		{
+			"level": "warning",
+			"clip": "codec",
+			"field": "slot",
+			"message": "No shot frees the \"panel\" slot for 90 of the clip's 90 frames (first at 3.30 s); the clip is hidden there. Shots with a \"panel\" slot: strip."
+		}
+	]
 }

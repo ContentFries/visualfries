@@ -53,6 +53,8 @@ export type ResolvedClip = {
     footage?: Record<string, FootageFrames>;
     /** Program mode: which source frame the program shows when (filled in with `footage`). */
     footageMap?: FootageMap;
+    /** Program mode: the area of the frame the clip fills (see `ProgramClip`). */
+    slot?: string | null;
 };
 /** One extracted range of footage frames, in its own folder. */
 export type FootageRange = {

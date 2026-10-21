@@ -1,0 +1,137 @@
+{
+	"size": [1920, 1080],
+	"fps": 30,
+	"background": "#000000",
+	"footage": {
+		"talk": {
+			"src": "talk.mp4",
+			"matte": "talk.matte.mp4",
+			"transcript": "take1.transcript.json"
+		},
+		"broll": {
+			"src": "broll.mp4",
+			"provenance": {
+				"provider": "example-video-model",
+				"prompt": "export progress bar filling up",
+				"seed": 42
+			}
+		}
+	},
+	"cuts": [
+		{
+			"source": "talk",
+			"in": "hello and welcome",
+			"out": "welcome back"
+		},
+		{
+			"id": "broll",
+			"source": "broll",
+			"in": 0.1,
+			"out": 2,
+			"transition": {
+				"type": "push",
+				"duration": 0.5,
+				"direction": "left"
+			}
+		},
+		{
+			"source": "talk",
+			"in": "today we fix",
+			"out": "the slow export",
+			"audio": {
+				"split": -0.3
+			}
+		},
+		{
+			"source": "talk",
+			"in": "then pick",
+			"out": "faster codec"
+		},
+		{
+			"source": "talk",
+			"in": "that is all",
+			"out": {
+				"say": "for today",
+				"edge": "end"
+			},
+			"transition": {
+				"type": "card",
+				"align": "end",
+				"duration": 0.3
+			}
+		}
+	],
+	"shots": [
+		{
+			"id": "punch",
+			"shot": "punch",
+			"from": "today we fix",
+			"until": "the slow export",
+			"morph": 0.2,
+			"keys": [
+				{
+					"at": 0,
+					"scale": 1
+				},
+				{
+					"at": {
+						"moment": "mid"
+					},
+					"scale": 1.2,
+					"ease": "power2.out"
+				},
+				{
+					"at": "slow export",
+					"x": "5%"
+				}
+			]
+		},
+		{
+			"id": "whip",
+			"shot": "whip",
+			"from": "then pick",
+			"until": "faster codec",
+			"transition": {
+				"type": "wipe",
+				"duration": 0.4
+			}
+		}
+	],
+	"clips": [
+		{
+			"id": "price",
+			"block": "blocks/Word.svelte",
+			"from": "today we fix",
+			"until": "the slow export",
+			"layer": "behind",
+			"cues": {
+				"slow": "slow"
+			},
+			"keys": [
+				{
+					"at": {
+						"moment": "slow"
+					},
+					"opacity": 0.5
+				},
+				{
+					"at": 9,
+					"opacity": 1
+				}
+			]
+		}
+	],
+	"music": [
+		{
+			"src": "bed.mp3",
+			"from": 0
+		}
+	],
+	"sfx": [
+		{
+			"at": "the slow export",
+			"sound": "whoosh",
+			"gain": -3
+		}
+	]
+}

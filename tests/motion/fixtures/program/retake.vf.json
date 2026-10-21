@@ -1,0 +1,81 @@
+{
+	"size": [1080, 1920],
+	"fps": 30,
+	"footage": {
+		"talk": {
+			"src": "talk.mp4",
+			"transcript": "take1.transcript.json"
+		}
+	},
+	"cuts": [
+		{
+			"in": "hello and welcome",
+			"out": "welcome back",
+			"source": "talk"
+		},
+		{
+			"source": "talk",
+			"in": "today we fix",
+			"out": "the slow export"
+		},
+		{
+			"source": "talk",
+			"in": "then pick",
+			"out": "faster codec",
+			"transition": "push"
+		},
+		{
+			"source": "talk",
+			"in": "that is all",
+			"out": "for today"
+		}
+	],
+	"shots": [
+		{
+			"id": "punch1",
+			"shot": "punch",
+			"from": "today we fix",
+			"until": "slow export",
+			"morph": 0.2,
+			"keys": [
+				{
+					"at": {
+						"moment": "mid"
+					},
+					"scale": 1.15
+				}
+			]
+		}
+	],
+	"clips": [
+		{
+			"id": "title",
+			"block": "blocks/Title.svelte",
+			"from": "today we fix",
+			"until": "the slow export",
+			"cues": {
+				"slow": "slow"
+			}
+		},
+		{
+			"id": "codec",
+			"block": "blocks/Title.svelte",
+			"from": "then pick",
+			"until": "for today",
+			"cues": {
+				"codec": "faster codec"
+			},
+			"slot": "panel",
+			"transition": {
+				"type": "wipe",
+				"duration": 0.4
+			}
+		}
+	],
+	"sfx": [
+		{
+			"at": "faster codec",
+			"sound": "pop"
+		}
+	]
+}

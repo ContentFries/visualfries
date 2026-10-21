@@ -1,6 +1,7 @@
-import { type MotionClip, type MotionProject } from './project.js';
-import { type MotionWord } from './transcript.js';
+import type { MotionClip, MotionProject } from './project.js';
+import type { MotionWord } from './transcript.js';
 import { type MotionBeatRef, type MusicBeats } from './beat-grid.js';
+import type { FootageMap } from './footage-map.js';
 import { type ResolvedBrand } from './brand.js';
 import { type ResolvedStyle } from './style.js';
 import { type ResolvedFormat } from './format.js';
@@ -50,14 +51,31 @@ export type ResolvedClip = {
     format: ResolvedFormat;
     /** Frames of the project's footage, filled in by the node tooling before a page loads. */
     footage?: Record<string, FootageFrames>;
+    /** Program mode: which source frame the program shows when (filled in with `footage`). */
+    footageMap?: FootageMap;
 };
-/** Extracted frames of one footage, served to the page (see `<Footage>`). */
-export type FootageFrames = {
+/** One extracted range of footage frames, in its own folder. */
+export type FootageRange = {
     /** URL prefix; frames are `<url>plate/000123.jpg` and `<url>subject/000123.png`. */
     url: string;
     /** First and last extracted footage frame (inclusive). */
     first: number;
     last: number;
+    /** Subject box of every frame of the range (`first`…`last`), measured on the matte. */
+    boxes?: (SubjectBox | null)[];
+};
+/** Extracted frames of one footage, served to the page (see `<Footage>`). */
+export type FootageFrames = {
+    /** URL prefix of the first range (see `ranges`). */
+    url: string;
+    /** First and last frame of the first range (see `ranges`). */
+    first: number;
+    last: number;
+    /**
+     * Every extracted range, in order. Inserts mode extracts one; program mode one per stretch of
+     * the source the program shows (none for a source it never shows).
+     */
+    ranges: FootageRange[];
     /** Frames in the whole footage (at the project frame rate). */
     total: number;
     width: number;
@@ -66,7 +84,7 @@ export type FootageFrames = {
     startFrame: number;
     /** Whether a matte was given, so `subject` frames exist. */
     subject: boolean;
-    /** Subject box of every extracted frame (`first`…`last`), measured on the matte. */
+    /** Subject boxes of the first range (see `ranges`). */
     boxes?: (SubjectBox | null)[];
 };
 /**

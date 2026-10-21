@@ -1,0 +1,129 @@
+{
+	"words": [
+		{
+			"text": "Hello",
+			"startMs": 500,
+			"endMs": 800
+		},
+		{
+			"text": "and",
+			"startMs": 850,
+			"endMs": 950
+		},
+		{
+			"text": "welcome",
+			"startMs": 1000,
+			"endMs": 1400
+		},
+		{
+			"text": "back.",
+			"startMs": 1450,
+			"endMs": 1800
+		},
+		{
+			"text": "So,",
+			"startMs": 2550,
+			"endMs": 2850
+		},
+		{
+			"text": "today",
+			"startMs": 3000,
+			"endMs": 3300
+		},
+		{
+			"text": "we",
+			"startMs": 3350,
+			"endMs": 3450
+		},
+		{
+			"text": "fix",
+			"startMs": 3500,
+			"endMs": 3800
+		},
+		{
+			"text": "the",
+			"startMs": 3850,
+			"endMs": 3950
+		},
+		{
+			"text": "slow",
+			"startMs": 4000,
+			"endMs": 4400
+		},
+		{
+			"text": "export.",
+			"startMs": 4450,
+			"endMs": 5000
+		},
+		{
+			"text": "First",
+			"startMs": 6000,
+			"endMs": 6300
+		},
+		{
+			"text": "open",
+			"startMs": 6350,
+			"endMs": 6600
+		},
+		{
+			"text": "the",
+			"startMs": 6650,
+			"endMs": 6750
+		},
+		{
+			"text": "settings.",
+			"startMs": 6800,
+			"endMs": 7400
+		},
+		{
+			"text": "Then",
+			"startMs": 8000,
+			"endMs": 8200
+		},
+		{
+			"text": "pick",
+			"startMs": 8250,
+			"endMs": 8500
+		},
+		{
+			"text": "a",
+			"startMs": 8550,
+			"endMs": 8600
+		},
+		{
+			"text": "faster",
+			"startMs": 8650,
+			"endMs": 9000
+		},
+		{
+			"text": "codec.",
+			"startMs": 9050,
+			"endMs": 9600
+		},
+		{
+			"text": "That",
+			"startMs": 10500,
+			"endMs": 10700
+		},
+		{
+			"text": "is",
+			"startMs": 10750,
+			"endMs": 10850
+		},
+		{
+			"text": "all",
+			"startMs": 10900,
+			"endMs": 11100
+		},
+		{
+			"text": "for",
+			"startMs": 11150,
+			"endMs": 11300
+		},
+		{
+			"text": "today.",
+			"startMs": 11350,
+			"endMs": 11900
+		}
+	]
+}

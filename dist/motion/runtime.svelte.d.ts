@@ -1,4 +1,5 @@
 import type { FootageFrames, MotionWordRef, ResolvedClip, ResolvedCue, SubjectBox } from './resolve.js';
+import { type FootageMap } from './footage-map.js';
 import { type MotionBeatRef } from './beat-grid.js';
 import { type Energy } from './energy.js';
 import { type ResolvedBrand } from './brand.js';
@@ -77,6 +78,8 @@ export declare class Clip {
      * as `--safe-top|right|bottom|left` and a `data-format` attribute on the clip's root.
      */
     readonly format: ResolvedFormat;
+    /** With a cut list: which source frame the program shows when; null in inserts mode. */
+    readonly footageMap: FootageMap | null;
     constructor(data: ResolvedClip);
     /**
      * Record an event at moment `at`, e.g. one per stagger item: `clip.event('pop', 'list+0.2')`.
@@ -88,7 +91,8 @@ export declare class Clip {
     /**
      * Where the subject of footage `name` is at clip frame `frame` (default: the current frame),
      * from its matte, in 0–1 fractions of the footage frame. Smoothed over `smooth` seconds on
-     * each side. Null without a matte or with the subject out of frame.
+     * each side. Null without a matte or with the subject out of frame; with a cut list also
+     * while the program does not show that footage.
      */
     subject(name: string, frame?: number, smooth?: number): SubjectBox | null;
     /**

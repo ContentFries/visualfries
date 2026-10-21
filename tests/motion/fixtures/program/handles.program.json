@@ -1,0 +1,882 @@
+{
+	"version": 1,
+	"mode": "program",
+	"format": {
+		"name": "1920x1080",
+		"size": [1920, 1080],
+		"class": "landscape",
+		"aspect": "16:9",
+		"width": 1920,
+		"height": 1080,
+		"zone": "all",
+		"safe": {
+			"top": 184,
+			"right": 162,
+			"bottom": 386,
+			"left": 38,
+			"notchY": 694,
+			"rightUpper": 162
+		}
+	},
+	"fps": 30,
+	"frames": 246,
+	"background": "#000000",
+	"hashes": {
+		"project": "project-hash",
+		"transcript": null,
+		"transcripts": {
+			"talk": "talk-transcript-hash"
+		},
+		"sources": {
+			"talk": "talk-file-hash",
+			"broll": "broll-file-hash"
+		},
+		"assets": {
+			"blocks/Word.svelte": "word-block-hash",
+			"blocks/Title.svelte": "title-block-hash"
+		},
+		"music": null,
+		"brand": null,
+		"style": null
+	},
+	"sources": {
+		"talk": {
+			"src": "talk.mp4",
+			"matte": "talk.matte.mp4",
+			"frames": 400,
+			"width": 1920,
+			"height": 1080,
+			"fps": 30,
+			"audio": "talk.mp4"
+		},
+		"broll": {
+			"src": "broll.mp4",
+			"matte": null,
+			"frames": 90,
+			"width": 1920,
+			"height": 1080,
+			"fps": 30,
+			"audio": "broll.mp4",
+			"provenance": {
+				"provider": "example-video-model",
+				"prompt": "export progress bar filling up",
+				"seed": 42
+			}
+		}
+	},
+	"cuts": [
+		{
+			"id": "cut1",
+			"index": 0,
+			"source": "talk",
+			"startFrame": 0,
+			"frames": 39,
+			"srcIn": 15,
+			"srcOut": 54,
+			"handles": {
+				"before": 15,
+				"after": 346
+			},
+			"transition": null,
+			"audio": {
+				"edit": 0,
+				"split": 0,
+				"crossfade": 0.01,
+				"gain": 0,
+				"mute": false
+			},
+			"native": null
+		},
+		{
+			"id": "broll",
+			"index": 1,
+			"source": "broll",
+			"startFrame": 39,
+			"frames": 57,
+			"srcIn": 3,
+			"srcOut": 60,
+			"handles": {
+				"before": 3,
+				"after": 30
+			},
+			"transition": "broll.transition",
+			"audio": {
+				"edit": 1.3,
+				"split": 0,
+				"crossfade": 0.01,
+				"gain": 0,
+				"mute": false
+			},
+			"native": null
+		},
+		{
+			"id": "cut3",
+			"index": 2,
+			"source": "talk",
+			"startFrame": 96,
+			"frames": 60,
+			"srcIn": 90,
+			"srcOut": 150,
+			"handles": {
+				"before": 90,
+				"after": 250
+			},
+			"transition": null,
+			"audio": {
+				"edit": 2.9,
+				"split": -0.3,
+				"crossfade": 0.01,
+				"gain": 0,
+				"mute": false
+			},
+			"native": null
+		},
+		{
+			"id": "cut4",
+			"index": 3,
+			"source": "talk",
+			"startFrame": 156,
+			"frames": 48,
+			"srcIn": 240,
+			"srcOut": 288,
+			"handles": {
+				"before": 240,
+				"after": 112
+			},
+			"transition": null,
+			"audio": {
+				"edit": 5.2,
+				"split": 0,
+				"crossfade": 0.01,
+				"gain": 0,
+				"mute": false
+			},
+			"native": null
+		},
+		{
+			"id": "cut5",
+			"index": 4,
+			"source": "talk",
+			"startFrame": 204,
+			"frames": 42,
+			"srcIn": 315,
+			"srcOut": 357,
+			"handles": {
+				"before": 315,
+				"after": 43
+			},
+			"transition": "cut5.transition",
+			"audio": {
+				"edit": 6.8,
+				"split": 0,
+				"crossfade": 0.01,
+				"gain": 0,
+				"mute": false
+			},
+			"native": null
+		}
+	],
+	"shots": [
+		{
+			"id": "full-0",
+			"shot": "full",
+			"implicit": true,
+			"startFrame": 0,
+			"frames": 96,
+			"source": null,
+			"params": {},
+			"morphFrames": 0,
+			"morphEase": "none",
+			"transition": null,
+			"keys": [],
+			"native": null
+		},
+		{
+			"id": "punch",
+			"shot": "punch",
+			"implicit": false,
+			"startFrame": 96,
+			"frames": 60,
+			"source": null,
+			"params": {},
+			"morphFrames": 6,
+			"morphEase": "none",
+			"transition": null,
+			"keys": [
+				{
+					"frame": 96,
+					"values": {
+						"scale": 1
+					},
+					"ease": null,
+					"mix": "oklch"
+				},
+				{
+					"frame": 126,
+					"values": {
+						"scale": 1.2
+					},
+					"ease": "power2.out",
+					"mix": "oklch"
+				},
+				{
+					"frame": 126,
+					"values": {
+						"x": "5%"
+					},
+					"ease": null,
+					"mix": "oklch"
+				}
+			],
+			"native": null
+		},
+		{
+			"id": "whip",
+			"shot": "whip",
+			"implicit": false,
+			"startFrame": 156,
+			"frames": 48,
+			"source": null,
+			"params": {},
+			"morphFrames": 0,
+			"morphEase": "none",
+			"transition": "whip.transition",
+			"keys": [],
+			"native": null
+		},
+		{
+			"id": "full-204",
+			"shot": "full",
+			"implicit": true,
+			"startFrame": 204,
+			"frames": 42,
+			"source": null,
+			"params": {},
+			"morphFrames": 0,
+			"morphEase": "none",
+			"transition": null,
+			"keys": [],
+			"native": null
+		}
+	],
+	"clips": [
+		{
+			"id": "price",
+			"block": "blocks/Word.svelte",
+			"fps": 30,
+			"size": [1920, 1080],
+			"start": 3.2,
+			"end": 5.2,
+			"startFrame": 96,
+			"frames": 60,
+			"duration": 2,
+			"cues": {
+				"slow": {
+					"start": 1,
+					"end": 1.4000000000000004,
+					"frame": 30,
+					"words": [
+						{
+							"id": "w9",
+							"index": 9,
+							"text": "slow",
+							"raw": "slow",
+							"start": 4.2,
+							"end": 4.6000000000000005,
+							"source": "talk",
+							"sourceIndex": 9,
+							"cut": 2,
+							"sourceStart": 4,
+							"sourceEnd": 4.4,
+							"localStart": 1,
+							"localEnd": 1.4000000000000004
+						}
+					]
+				}
+			},
+			"words": {},
+			"props": {},
+			"alpha": false,
+			"background": "#000000",
+			"audio": null,
+			"brand": {
+				"neutral": true,
+				"name": null,
+				"colors": {
+					"primary": "#f43f5e",
+					"accent": "#fbc42d",
+					"background": "#08090c",
+					"surface": "#12141b",
+					"text": "#ffffff",
+					"muted": "#c9ced8",
+					"onPrimary": "#ffffff",
+					"onAccent": "#111111",
+					"extra": {}
+				},
+				"fonts": {
+					"heading": "Anton, Impact, sans-serif",
+					"body": "Inter, system-ui, sans-serif",
+					"mono": "ui-monospace, Menlo, Consolas, monospace"
+				},
+				"logo": {
+					"full": {
+						"light": null,
+						"dark": null
+					},
+					"mark": {
+						"light": null,
+						"dark": null
+					}
+				},
+				"radius": "12px"
+			},
+			"style": {
+				"neutral": true,
+				"energy": "balanced",
+				"layers": []
+			},
+			"format": {
+				"class": "landscape",
+				"aspect": "16:9",
+				"width": 1920,
+				"height": 1080,
+				"zone": "all",
+				"safe": {
+					"top": 184,
+					"right": 162,
+					"bottom": 386,
+					"left": 38,
+					"notchY": 694,
+					"rightUpper": 162
+				}
+			},
+			"slot": null,
+			"layer": "behind",
+			"transition": null,
+			"keys": [
+				{
+					"frame": 126,
+					"values": {
+						"opacity": 0.5
+					},
+					"ease": null,
+					"mix": "oklch"
+				},
+				{
+					"frame": 366,
+					"values": {
+						"opacity": 1
+					},
+					"ease": null,
+					"mix": "oklch"
+				}
+			],
+			"z": 0,
+			"native": null
+		}
+	],
+	"transitions": [
+		{
+			"id": "broll.transition",
+			"owner": "broll",
+			"kind": "cut",
+			"outgoing": "cut1",
+			"type": "push",
+			"startFrame": 32,
+			"frames": 15,
+			"cutFrame": 39,
+			"align": "center",
+			"direction": "left",
+			"ease": null,
+			"params": {},
+			"sound": null,
+			"native": null,
+			"held": {
+				"out": 0,
+				"in": 4
+			}
+		},
+		{
+			"id": "whip.transition",
+			"owner": "whip",
+			"kind": "shot",
+			"outgoing": "punch",
+			"type": "wipe",
+			"startFrame": 150,
+			"frames": 12,
+			"cutFrame": 156,
+			"align": "center",
+			"direction": null,
+			"ease": null,
+			"params": {},
+			"sound": null,
+			"native": null,
+			"held": {
+				"out": 0,
+				"in": 0
+			}
+		},
+		{
+			"id": "cut5.transition",
+			"owner": "cut5",
+			"kind": "cut",
+			"outgoing": "cut4",
+			"type": "card",
+			"startFrame": 195,
+			"frames": 9,
+			"cutFrame": 204,
+			"align": "end",
+			"direction": null,
+			"ease": null,
+			"params": {},
+			"sound": null,
+			"native": null,
+			"held": {
+				"out": 0,
+				"in": 0
+			}
+		}
+	],
+	"words": [
+		{
+			"id": "w0",
+			"index": 0,
+			"text": "Hello",
+			"raw": "Hello",
+			"start": 0,
+			"end": 0.30000000000000004,
+			"source": "talk",
+			"sourceIndex": 0,
+			"cut": 0,
+			"sourceStart": 0.5,
+			"sourceEnd": 0.8
+		},
+		{
+			"id": "w1",
+			"index": 1,
+			"text": "and",
+			"raw": "and",
+			"start": 0.35,
+			"end": 0.44999999999999996,
+			"source": "talk",
+			"sourceIndex": 1,
+			"cut": 0,
+			"sourceStart": 0.85,
+			"sourceEnd": 0.95
+		},
+		{
+			"id": "w2",
+			"index": 2,
+			"text": "welcome",
+			"raw": "welcome",
+			"start": 0.5,
+			"end": 0.8999999999999999,
+			"source": "talk",
+			"sourceIndex": 2,
+			"cut": 0,
+			"sourceStart": 1,
+			"sourceEnd": 1.4
+		},
+		{
+			"id": "w3",
+			"index": 3,
+			"text": "back",
+			"raw": "back.",
+			"start": 0.95,
+			"end": 1.3,
+			"source": "talk",
+			"sourceIndex": 3,
+			"cut": 0,
+			"sourceStart": 1.45,
+			"sourceEnd": 1.8
+		},
+		{
+			"id": "w4",
+			"index": 4,
+			"text": "So",
+			"raw": "So,",
+			"start": 2.9,
+			"end": 3.0500000000000003,
+			"source": "talk",
+			"sourceIndex": 4,
+			"cut": 2,
+			"sourceStart": 2.55,
+			"sourceEnd": 2.85
+		},
+		{
+			"id": "w5",
+			"index": 5,
+			"text": "today",
+			"raw": "today",
+			"start": 3.2,
+			"end": 3.5,
+			"source": "talk",
+			"sourceIndex": 5,
+			"cut": 2,
+			"sourceStart": 3,
+			"sourceEnd": 3.3
+		},
+		{
+			"id": "w6",
+			"index": 6,
+			"text": "we",
+			"raw": "we",
+			"start": 3.5500000000000003,
+			"end": 3.6500000000000004,
+			"source": "talk",
+			"sourceIndex": 6,
+			"cut": 2,
+			"sourceStart": 3.35,
+			"sourceEnd": 3.45
+		},
+		{
+			"id": "w7",
+			"index": 7,
+			"text": "fix",
+			"raw": "fix",
+			"start": 3.7,
+			"end": 4,
+			"source": "talk",
+			"sourceIndex": 7,
+			"cut": 2,
+			"sourceStart": 3.5,
+			"sourceEnd": 3.8
+		},
+		{
+			"id": "w8",
+			"index": 8,
+			"text": "the",
+			"raw": "the",
+			"start": 4.050000000000001,
+			"end": 4.15,
+			"source": "talk",
+			"sourceIndex": 8,
+			"cut": 2,
+			"sourceStart": 3.85,
+			"sourceEnd": 3.95
+		},
+		{
+			"id": "w9",
+			"index": 9,
+			"text": "slow",
+			"raw": "slow",
+			"start": 4.2,
+			"end": 4.6000000000000005,
+			"source": "talk",
+			"sourceIndex": 9,
+			"cut": 2,
+			"sourceStart": 4,
+			"sourceEnd": 4.4
+		},
+		{
+			"id": "w10",
+			"index": 10,
+			"text": "export",
+			"raw": "export.",
+			"start": 4.65,
+			"end": 5.2,
+			"source": "talk",
+			"sourceIndex": 10,
+			"cut": 2,
+			"sourceStart": 4.45,
+			"sourceEnd": 5
+		},
+		{
+			"id": "w11",
+			"index": 11,
+			"text": "Then",
+			"raw": "Then",
+			"start": 5.2,
+			"end": 5.3999999999999995,
+			"source": "talk",
+			"sourceIndex": 15,
+			"cut": 3,
+			"sourceStart": 8,
+			"sourceEnd": 8.2
+		},
+		{
+			"id": "w12",
+			"index": 12,
+			"text": "pick",
+			"raw": "pick",
+			"start": 5.45,
+			"end": 5.7,
+			"source": "talk",
+			"sourceIndex": 16,
+			"cut": 3,
+			"sourceStart": 8.25,
+			"sourceEnd": 8.5
+		},
+		{
+			"id": "w13",
+			"index": 13,
+			"text": "a",
+			"raw": "a",
+			"start": 5.750000000000001,
+			"end": 5.8,
+			"source": "talk",
+			"sourceIndex": 17,
+			"cut": 3,
+			"sourceStart": 8.55,
+			"sourceEnd": 8.6
+		},
+		{
+			"id": "w14",
+			"index": 14,
+			"text": "faster",
+			"raw": "faster",
+			"start": 5.8500000000000005,
+			"end": 6.2,
+			"source": "talk",
+			"sourceIndex": 18,
+			"cut": 3,
+			"sourceStart": 8.65,
+			"sourceEnd": 9
+		},
+		{
+			"id": "w15",
+			"index": 15,
+			"text": "codec",
+			"raw": "codec.",
+			"start": 6.250000000000001,
+			"end": 6.8,
+			"source": "talk",
+			"sourceIndex": 19,
+			"cut": 3,
+			"sourceStart": 9.05,
+			"sourceEnd": 9.6
+		},
+		{
+			"id": "w16",
+			"index": 16,
+			"text": "That",
+			"raw": "That",
+			"start": 6.8,
+			"end": 6.999999999999999,
+			"source": "talk",
+			"sourceIndex": 20,
+			"cut": 4,
+			"sourceStart": 10.5,
+			"sourceEnd": 10.7
+		},
+		{
+			"id": "w17",
+			"index": 17,
+			"text": "is",
+			"raw": "is",
+			"start": 7.05,
+			"end": 7.1499999999999995,
+			"source": "talk",
+			"sourceIndex": 21,
+			"cut": 4,
+			"sourceStart": 10.75,
+			"sourceEnd": 10.85
+		},
+		{
+			"id": "w18",
+			"index": 18,
+			"text": "all",
+			"raw": "all",
+			"start": 7.2,
+			"end": 7.3999999999999995,
+			"source": "talk",
+			"sourceIndex": 22,
+			"cut": 4,
+			"sourceStart": 10.9,
+			"sourceEnd": 11.1
+		},
+		{
+			"id": "w19",
+			"index": 19,
+			"text": "for",
+			"raw": "for",
+			"start": 7.45,
+			"end": 7.6000000000000005,
+			"source": "talk",
+			"sourceIndex": 23,
+			"cut": 4,
+			"sourceStart": 11.15,
+			"sourceEnd": 11.3
+		},
+		{
+			"id": "w20",
+			"index": 20,
+			"text": "today",
+			"raw": "today.",
+			"start": 7.6499999999999995,
+			"end": 8.2,
+			"source": "talk",
+			"sourceIndex": 24,
+			"cut": 4,
+			"sourceStart": 11.35,
+			"sourceEnd": 11.9
+		}
+	],
+	"events": [
+		{
+			"kind": "transition",
+			"frame": 39,
+			"owner": "broll.transition"
+		},
+		{
+			"kind": "shot",
+			"frame": 96,
+			"owner": "punch"
+		},
+		{
+			"kind": "whip",
+			"frame": 156,
+			"owner": "whip"
+		},
+		{
+			"kind": "transition",
+			"frame": 156,
+			"owner": "whip.transition"
+		},
+		{
+			"kind": "transition",
+			"frame": 204,
+			"owner": "cut5.transition"
+		}
+	],
+	"audio": {
+		"speech": [
+			{
+				"owner": "cut1",
+				"file": "talk.mp4",
+				"srcIn": 0.5,
+				"dur": 1.305,
+				"at": 0,
+				"fadeIn": 0,
+				"fadeOut": 0.01,
+				"gain": 0
+			},
+			{
+				"owner": "broll",
+				"file": "broll.mp4",
+				"srcIn": 0.095,
+				"dur": 1.61,
+				"at": 1.295,
+				"fadeIn": 0.01,
+				"fadeOut": 0.01,
+				"gain": 0
+			},
+			{
+				"owner": "cut3",
+				"file": "talk.mp4",
+				"srcIn": 2.695,
+				"dur": 2.31,
+				"at": 2.895,
+				"fadeIn": 0.01,
+				"fadeOut": 0.01,
+				"gain": 0
+			},
+			{
+				"owner": "cut4",
+				"file": "talk.mp4",
+				"srcIn": 7.995,
+				"dur": 1.61,
+				"at": 5.195,
+				"fadeIn": 0.01,
+				"fadeOut": 0.01,
+				"gain": 0
+			},
+			{
+				"owner": "cut5",
+				"file": "talk.mp4",
+				"srcIn": 10.495,
+				"dur": 1.405,
+				"at": 6.795,
+				"fadeIn": 0.01,
+				"fadeOut": 0,
+				"gain": 0
+			}
+		],
+		"sfx": [
+			{
+				"owner": "sfx1",
+				"file": "whoosh",
+				"srcIn": 0,
+				"dur": null,
+				"at": 4.066667,
+				"fadeIn": 0,
+				"fadeOut": 0,
+				"gain": -3
+			}
+		],
+		"music": [
+			{
+				"owner": "music1",
+				"file": "bed.mp3",
+				"srcIn": 0,
+				"dur": 8.2,
+				"at": 0,
+				"fadeIn": 0,
+				"fadeOut": 0,
+				"gain": 0
+			}
+		],
+		"master": {
+			"lufs": -14,
+			"truePeak": -1
+		}
+	},
+	"segments": [
+		{
+			"id": "seg1",
+			"startFrame": 0,
+			"frames": 96,
+			"items": ["cut1", "broll", "full-0", "broll.transition"],
+			"hash": "e244c0cc07fbf7f360cbb3626590f6be1c79ee48"
+		},
+		{
+			"id": "seg2",
+			"startFrame": 96,
+			"frames": 150,
+			"items": [
+				"cut3",
+				"cut4",
+				"cut5",
+				"punch",
+				"whip",
+				"full-204",
+				"price",
+				"whip.transition",
+				"cut5.transition"
+			],
+			"hash": "9ae0a3a6f3ed59e5e710a6b26ec56636720446cd"
+		}
+	],
+	"diagnostics": [
+		{
+			"level": "info",
+			"item": "broll",
+			"field": "cuts[1].in",
+			"message": "cut 2: \"in\" is 0.10 s of \"broll\"; it does not follow a retake."
+		},
+		{
+			"level": "info",
+			"item": "broll",
+			"field": "cuts[1].out",
+			"message": "cut 2: \"out\" is 2.00 s of \"broll\"; it does not follow a retake."
+		},
+		{
+			"level": "warning",
+			"item": "cut3",
+			"field": "cuts[2]",
+			"message": "cut 3: the audio edit point at 2.90 s cuts through \"So\" (2.75–3.05 s)."
+		},
+		{
+			"level": "warning",
+			"clip": "price",
+			"field": "keys[1].at",
+			"message": "Key at 12.20 s is outside the clip (3.20–5.20 s)."
+		},
+		{
+			"level": "warning",
+			"item": "broll",
+			"field": "cuts[1].transition",
+			"message": "cut 2: push needs 0.23 s of incoming handle, 0.10 s available; the first frame holds 4 frames."
+		}
+	]
+}

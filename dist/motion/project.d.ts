@@ -56,6 +56,7 @@ export declare const MotionFontShape: z.ZodObject<{
     }>>;
 }, z.core.$strip>;
 export type MotionFont = z.infer<typeof MotionFontShape>;
+export declare const footageName: z.ZodString;
 /**
  * A video the blocks draw frame by frame, e.g. the talking head the transcript belongs to.
  * `matte` is a greyscale video of the same footage (white = subject); with it, blocks can draw
@@ -66,6 +67,14 @@ export declare const MotionFootageShape: z.ZodObject<{
     matte: z.ZodOptional<z.ZodString>;
     start: z.ZodOptional<z.ZodNumber>;
     margin: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodLiteral<"all">]>>;
+    transcript: z.ZodOptional<z.ZodString>;
+    provenance: z.ZodOptional<z.ZodLazy<z.ZodObject<{
+        provider: z.ZodString;
+        model: z.ZodOptional<z.ZodString>;
+        prompt: z.ZodOptional<z.ZodString>;
+        seed: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    }, z.core.$loose>>>;
+    audio: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodLiteral<false>]>>;
 }, z.core.$strip>;
 export type MotionFootage = z.infer<typeof MotionFootageShape>;
 /**
@@ -103,6 +112,49 @@ export declare const MotionClipShape: z.ZodObject<{
     background: z.ZodOptional<z.ZodString>;
     audio: z.ZodOptional<z.ZodString>;
     music: z.ZodOptional<z.ZodString>;
+    slot: z.ZodOptional<z.ZodString>;
+    layer: z.ZodOptional<z.ZodEnum<{
+        behind: "behind";
+        front: "front";
+    }>>;
+    transition: z.ZodOptional<z.ZodLazy<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+        type: z.ZodString;
+        duration: z.ZodOptional<z.ZodNumber>;
+        align: z.ZodOptional<z.ZodEnum<{
+            start: "start";
+            end: "end";
+            center: "center";
+        }>>;
+        direction: z.ZodOptional<z.ZodEnum<{
+            left: "left";
+            right: "right";
+            up: "up";
+            down: "down";
+            back: "back";
+            forward: "forward";
+        }>>;
+        ease: z.ZodOptional<z.ZodString>;
+        params: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+        sound: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<false>, z.ZodString]>>;
+        native: z.ZodOptional<z.ZodBoolean>;
+    }, z.core.$strip>]>>>;
+    keys: z.ZodOptional<z.ZodLazy<z.ZodArray<z.ZodObject<{
+        at: z.ZodUnion<readonly [z.ZodLazy<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>, z.ZodObject<{
+            moment: z.ZodString;
+        }, z.core.$strip>]>;
+        x: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        y: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        scale: z.ZodOptional<z.ZodNumber>;
+        rotation: z.ZodOptional<z.ZodNumber>;
+        opacity: z.ZodOptional<z.ZodNumber>;
+        props: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+        ease: z.ZodOptional<z.ZodString>;
+        mix: z.ZodOptional<z.ZodEnum<{
+            oklab: "oklab";
+            oklch: "oklch";
+        }>>;
+    }, z.core.$strip>>>>;
+    native: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 export type MotionClip = z.infer<typeof MotionClipShape>;
 /**
@@ -195,8 +247,9 @@ export declare const SafeZoneShape: z.ZodEnum<{
     youtube: "youtube";
 }>;
 /**
- * The project file. `styles` (the CSS list's old name) is still read and becomes `css`, so
- * nothing after parsing sees it; `style` is the video style.
+ * The project file: clips (inserts mode), or a whole program described by a cut list or a shots
+ * track. `styles` (the CSS list's old name) is still read and becomes `css`, so nothing after
+ * parsing sees it; `style` is the video style.
  */
 export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
     size: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
@@ -219,6 +272,14 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         matte: z.ZodOptional<z.ZodString>;
         start: z.ZodOptional<z.ZodNumber>;
         margin: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodLiteral<"all">]>>;
+        transcript: z.ZodOptional<z.ZodString>;
+        provenance: z.ZodOptional<z.ZodLazy<z.ZodObject<{
+            provider: z.ZodString;
+            model: z.ZodOptional<z.ZodString>;
+            prompt: z.ZodOptional<z.ZodString>;
+            seed: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        }, z.core.$loose>>>;
+        audio: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodLiteral<false>]>>;
     }, z.core.$strip>>>;
     music: z.ZodOptional<z.ZodArray<z.ZodObject<{
         id: z.ZodOptional<z.ZodString>;
@@ -308,7 +369,7 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         tiktok: "tiktok";
         youtube: "youtube";
     }>>;
-    clips: z.ZodArray<z.ZodObject<{
+    clips: z.ZodDefault<z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         block: z.ZodString;
         from: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
@@ -324,7 +385,177 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         background: z.ZodOptional<z.ZodString>;
         audio: z.ZodOptional<z.ZodString>;
         music: z.ZodOptional<z.ZodString>;
-    }, z.core.$strip>>;
+        slot: z.ZodOptional<z.ZodString>;
+        layer: z.ZodOptional<z.ZodEnum<{
+            behind: "behind";
+            front: "front";
+        }>>;
+        transition: z.ZodOptional<z.ZodLazy<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+            type: z.ZodString;
+            duration: z.ZodOptional<z.ZodNumber>;
+            align: z.ZodOptional<z.ZodEnum<{
+                start: "start";
+                end: "end";
+                center: "center";
+            }>>;
+            direction: z.ZodOptional<z.ZodEnum<{
+                left: "left";
+                right: "right";
+                up: "up";
+                down: "down";
+                back: "back";
+                forward: "forward";
+            }>>;
+            ease: z.ZodOptional<z.ZodString>;
+            params: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            sound: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<false>, z.ZodString]>>;
+            native: z.ZodOptional<z.ZodBoolean>;
+        }, z.core.$strip>]>>>;
+        keys: z.ZodOptional<z.ZodLazy<z.ZodArray<z.ZodObject<{
+            at: z.ZodUnion<readonly [z.ZodLazy<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>, z.ZodObject<{
+                moment: z.ZodString;
+            }, z.core.$strip>]>;
+            x: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+            y: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+            scale: z.ZodOptional<z.ZodNumber>;
+            rotation: z.ZodOptional<z.ZodNumber>;
+            opacity: z.ZodOptional<z.ZodNumber>;
+            props: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            ease: z.ZodOptional<z.ZodString>;
+            mix: z.ZodOptional<z.ZodEnum<{
+                oklab: "oklab";
+                oklch: "oklch";
+            }>>;
+        }, z.core.$strip>>>>;
+        native: z.ZodOptional<z.ZodBoolean>;
+    }, z.core.$strip>>>;
+    cuts: z.ZodOptional<z.ZodLazy<z.ZodArray<z.ZodObject<{
+        id: z.ZodOptional<z.ZodString>;
+        source: z.ZodLazy<z.ZodString>;
+        in: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+            say: z.ZodString;
+            edge: z.ZodOptional<z.ZodEnum<{
+                start: "start";
+                end: "end";
+                last: "last";
+            }>>;
+            occurrence: z.ZodOptional<z.ZodNumber>;
+            offset: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            frame: z.ZodNumber;
+            offset: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>]>>;
+        out: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+            say: z.ZodString;
+            edge: z.ZodOptional<z.ZodEnum<{
+                start: "start";
+                end: "end";
+                last: "last";
+            }>>;
+            occurrence: z.ZodOptional<z.ZodNumber>;
+            offset: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            frame: z.ZodNumber;
+            offset: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>]>>;
+        transition: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+            type: z.ZodString;
+            duration: z.ZodOptional<z.ZodNumber>;
+            align: z.ZodOptional<z.ZodEnum<{
+                start: "start";
+                end: "end";
+                center: "center";
+            }>>;
+            direction: z.ZodOptional<z.ZodEnum<{
+                left: "left";
+                right: "right";
+                up: "up";
+                down: "down";
+                back: "back";
+                forward: "forward";
+            }>>;
+            ease: z.ZodOptional<z.ZodString>;
+            params: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            sound: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<false>, z.ZodString]>>;
+            native: z.ZodOptional<z.ZodBoolean>;
+        }, z.core.$strip>]>>;
+        audio: z.ZodOptional<z.ZodObject<{
+            split: z.ZodOptional<z.ZodNumber>;
+            crossfade: z.ZodOptional<z.ZodNumber>;
+            gain: z.ZodOptional<z.ZodNumber>;
+            mute: z.ZodOptional<z.ZodBoolean>;
+        }, z.core.$strip>>;
+        native: z.ZodOptional<z.ZodBoolean>;
+    }, z.core.$strip>>>>;
+    shots: z.ZodOptional<z.ZodLazy<z.ZodArray<z.ZodObject<{
+        id: z.ZodOptional<z.ZodString>;
+        shot: z.ZodString;
+        from: z.ZodLazy<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
+        until: z.ZodLazy<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
+        source: z.ZodOptional<z.ZodUnion<readonly [z.ZodLazy<z.ZodString>, z.ZodObject<{
+            name: z.ZodLazy<z.ZodString>;
+            in: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
+                say: z.ZodString;
+                edge: z.ZodOptional<z.ZodEnum<{
+                    start: "start";
+                    end: "end";
+                    last: "last";
+                }>>;
+                occurrence: z.ZodOptional<z.ZodNumber>;
+                offset: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>, z.ZodObject<{
+                frame: z.ZodNumber;
+                offset: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>]>>;
+        }, z.core.$strip>]>>;
+        params: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+        morph: z.ZodOptional<z.ZodNumber>;
+        transition: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+            type: z.ZodString;
+            duration: z.ZodOptional<z.ZodNumber>;
+            align: z.ZodOptional<z.ZodEnum<{
+                start: "start";
+                end: "end";
+                center: "center";
+            }>>;
+            direction: z.ZodOptional<z.ZodEnum<{
+                left: "left";
+                right: "right";
+                up: "up";
+                down: "down";
+                back: "back";
+                forward: "forward";
+            }>>;
+            ease: z.ZodOptional<z.ZodString>;
+            params: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            sound: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<false>, z.ZodString]>>;
+            native: z.ZodOptional<z.ZodBoolean>;
+        }, z.core.$strip>]>>;
+        keys: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            at: z.ZodUnion<readonly [z.ZodLazy<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>, z.ZodObject<{
+                moment: z.ZodString;
+            }, z.core.$strip>]>;
+            x: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+            y: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+            scale: z.ZodOptional<z.ZodNumber>;
+            rotation: z.ZodOptional<z.ZodNumber>;
+            opacity: z.ZodOptional<z.ZodNumber>;
+            props: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            ease: z.ZodOptional<z.ZodString>;
+            mix: z.ZodOptional<z.ZodEnum<{
+                oklab: "oklab";
+                oklch: "oklch";
+            }>>;
+        }, z.core.$strip>>>;
+        native: z.ZodOptional<z.ZodBoolean>;
+    }, z.core.$strip>>>>;
+    sfx: z.ZodOptional<z.ZodLazy<z.ZodArray<z.ZodObject<{
+        id: z.ZodOptional<z.ZodString>;
+        at: z.ZodLazy<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
+        sound: z.ZodString;
+        gain: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>>>>;
+    duration: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>, z.ZodTransform<{
     size: [number, number];
     fps: number;
@@ -344,6 +575,32 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         background?: string | undefined;
         audio?: string | undefined;
         music?: string | undefined;
+        slot?: string | undefined;
+        layer?: "behind" | "front" | undefined;
+        transition?: string | {
+            type: string;
+            duration?: number | undefined;
+            align?: "start" | "end" | "center" | undefined;
+            direction?: "left" | "right" | "up" | "down" | "back" | "forward" | undefined;
+            ease?: string | undefined;
+            params?: Record<string, unknown> | undefined;
+            sound?: string | false | undefined;
+            native?: boolean | undefined;
+        } | undefined;
+        keys?: {
+            at: MotionAnchor | {
+                moment: string;
+            };
+            x?: string | number | undefined;
+            y?: string | number | undefined;
+            scale?: number | undefined;
+            rotation?: number | undefined;
+            opacity?: number | undefined;
+            props?: Record<string, unknown> | undefined;
+            ease?: string | undefined;
+            mix?: "oklab" | "oklch" | undefined;
+        }[] | undefined;
+        native?: boolean | undefined;
     }[];
     transcript?: string | undefined;
     fonts?: {
@@ -359,6 +616,15 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         matte?: string | undefined;
         start?: number | undefined;
         margin?: number | "all" | undefined;
+        transcript?: string | undefined;
+        provenance?: {
+            [x: string]: unknown;
+            provider: string;
+            model?: string | undefined;
+            prompt?: string | undefined;
+            seed?: string | number | undefined;
+        } | undefined;
+        audio?: string | false | undefined;
     }> | undefined;
     music?: {
         src: string;
@@ -427,6 +693,96 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         overlays?: unknown;
     } | undefined;
     safeZone?: "meta" | "all" | "tiktok" | "youtube" | undefined;
+    cuts?: {
+        source: string;
+        id?: string | undefined;
+        in?: string | number | {
+            say: string;
+            edge?: "start" | "end" | "last" | undefined;
+            occurrence?: number | undefined;
+            offset?: number | undefined;
+        } | {
+            frame: number;
+            offset?: number | undefined;
+        } | undefined;
+        out?: string | number | {
+            say: string;
+            edge?: "start" | "end" | "last" | undefined;
+            occurrence?: number | undefined;
+            offset?: number | undefined;
+        } | {
+            frame: number;
+            offset?: number | undefined;
+        } | undefined;
+        transition?: string | {
+            type: string;
+            duration?: number | undefined;
+            align?: "start" | "end" | "center" | undefined;
+            direction?: "left" | "right" | "up" | "down" | "back" | "forward" | undefined;
+            ease?: string | undefined;
+            params?: Record<string, unknown> | undefined;
+            sound?: string | false | undefined;
+            native?: boolean | undefined;
+        } | undefined;
+        audio?: {
+            split?: number | undefined;
+            crossfade?: number | undefined;
+            gain?: number | undefined;
+            mute?: boolean | undefined;
+        } | undefined;
+        native?: boolean | undefined;
+    }[] | undefined;
+    shots?: {
+        shot: string;
+        from: MotionAnchor;
+        until: MotionAnchor;
+        id?: string | undefined;
+        source?: string | {
+            name: string;
+            in?: string | number | {
+                say: string;
+                edge?: "start" | "end" | "last" | undefined;
+                occurrence?: number | undefined;
+                offset?: number | undefined;
+            } | {
+                frame: number;
+                offset?: number | undefined;
+            } | undefined;
+        } | undefined;
+        params?: Record<string, unknown> | undefined;
+        morph?: number | undefined;
+        transition?: string | {
+            type: string;
+            duration?: number | undefined;
+            align?: "start" | "end" | "center" | undefined;
+            direction?: "left" | "right" | "up" | "down" | "back" | "forward" | undefined;
+            ease?: string | undefined;
+            params?: Record<string, unknown> | undefined;
+            sound?: string | false | undefined;
+            native?: boolean | undefined;
+        } | undefined;
+        keys?: {
+            at: MotionAnchor | {
+                moment: string;
+            };
+            x?: string | number | undefined;
+            y?: string | number | undefined;
+            scale?: number | undefined;
+            rotation?: number | undefined;
+            opacity?: number | undefined;
+            props?: Record<string, unknown> | undefined;
+            ease?: string | undefined;
+            mix?: "oklab" | "oklch" | undefined;
+        }[] | undefined;
+        native?: boolean | undefined;
+    }[] | undefined;
+    sfx?: {
+        at: MotionAnchor;
+        sound: string;
+        id?: string | undefined;
+        gain?: number | undefined;
+    }[] | undefined;
+    duration?: number | undefined;
 }, {
     size: [number, number];
     fps: number;
@@ -446,6 +802,32 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         background?: string | undefined;
         audio?: string | undefined;
         music?: string | undefined;
+        slot?: string | undefined;
+        layer?: "behind" | "front" | undefined;
+        transition?: string | {
+            type: string;
+            duration?: number | undefined;
+            align?: "start" | "end" | "center" | undefined;
+            direction?: "left" | "right" | "up" | "down" | "back" | "forward" | undefined;
+            ease?: string | undefined;
+            params?: Record<string, unknown> | undefined;
+            sound?: string | false | undefined;
+            native?: boolean | undefined;
+        } | undefined;
+        keys?: {
+            at: MotionAnchor | {
+                moment: string;
+            };
+            x?: string | number | undefined;
+            y?: string | number | undefined;
+            scale?: number | undefined;
+            rotation?: number | undefined;
+            opacity?: number | undefined;
+            props?: Record<string, unknown> | undefined;
+            ease?: string | undefined;
+            mix?: "oklab" | "oklch" | undefined;
+        }[] | undefined;
+        native?: boolean | undefined;
     }[];
     transcript?: string | undefined;
     fonts?: {
@@ -462,6 +844,15 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         matte?: string | undefined;
         start?: number | undefined;
         margin?: number | "all" | undefined;
+        transcript?: string | undefined;
+        provenance?: {
+            [x: string]: unknown;
+            provider: string;
+            model?: string | undefined;
+            prompt?: string | undefined;
+            seed?: string | number | undefined;
+        } | undefined;
+        audio?: string | false | undefined;
     }> | undefined;
     music?: {
         src: string;
@@ -530,6 +921,96 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         overlays?: unknown;
     } | undefined;
     safeZone?: "meta" | "all" | "tiktok" | "youtube" | undefined;
+    cuts?: {
+        source: string;
+        id?: string | undefined;
+        in?: string | number | {
+            say: string;
+            edge?: "start" | "end" | "last" | undefined;
+            occurrence?: number | undefined;
+            offset?: number | undefined;
+        } | {
+            frame: number;
+            offset?: number | undefined;
+        } | undefined;
+        out?: string | number | {
+            say: string;
+            edge?: "start" | "end" | "last" | undefined;
+            occurrence?: number | undefined;
+            offset?: number | undefined;
+        } | {
+            frame: number;
+            offset?: number | undefined;
+        } | undefined;
+        transition?: string | {
+            type: string;
+            duration?: number | undefined;
+            align?: "start" | "end" | "center" | undefined;
+            direction?: "left" | "right" | "up" | "down" | "back" | "forward" | undefined;
+            ease?: string | undefined;
+            params?: Record<string, unknown> | undefined;
+            sound?: string | false | undefined;
+            native?: boolean | undefined;
+        } | undefined;
+        audio?: {
+            split?: number | undefined;
+            crossfade?: number | undefined;
+            gain?: number | undefined;
+            mute?: boolean | undefined;
+        } | undefined;
+        native?: boolean | undefined;
+    }[] | undefined;
+    shots?: {
+        shot: string;
+        from: MotionAnchor;
+        until: MotionAnchor;
+        id?: string | undefined;
+        source?: string | {
+            name: string;
+            in?: string | number | {
+                say: string;
+                edge?: "start" | "end" | "last" | undefined;
+                occurrence?: number | undefined;
+                offset?: number | undefined;
+            } | {
+                frame: number;
+                offset?: number | undefined;
+            } | undefined;
+        } | undefined;
+        params?: Record<string, unknown> | undefined;
+        morph?: number | undefined;
+        transition?: string | {
+            type: string;
+            duration?: number | undefined;
+            align?: "start" | "end" | "center" | undefined;
+            direction?: "left" | "right" | "up" | "down" | "back" | "forward" | undefined;
+            ease?: string | undefined;
+            params?: Record<string, unknown> | undefined;
+            sound?: string | false | undefined;
+            native?: boolean | undefined;
+        } | undefined;
+        keys?: {
+            at: MotionAnchor | {
+                moment: string;
+            };
+            x?: string | number | undefined;
+            y?: string | number | undefined;
+            scale?: number | undefined;
+            rotation?: number | undefined;
+            opacity?: number | undefined;
+            props?: Record<string, unknown> | undefined;
+            ease?: string | undefined;
+            mix?: "oklab" | "oklch" | undefined;
+        }[] | undefined;
+        native?: boolean | undefined;
+    }[] | undefined;
+    sfx?: {
+        at: MotionAnchor;
+        sound: string;
+        id?: string | undefined;
+        gain?: number | undefined;
+    }[] | undefined;
+    duration?: number | undefined;
 }>>;
 export type MotionProject = z.output<typeof MotionProjectShape>;
 export declare function isMotionProject(value: unknown): boolean;

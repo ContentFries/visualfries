@@ -1,0 +1,44 @@
+{
+	"size": [1920, 1080],
+	"fps": 25,
+	"transcript": "talk.transcript.json",
+	"clips": [
+		{
+			"id": "missing",
+			"block": "b.svelte",
+			"from": "nowhere to be found",
+			"until": "thanks for watching"
+		},
+		{
+			"id": "typo",
+			"block": "b.svelte",
+			"from": "intro words",
+			"until": "thanks for",
+			"cues": { "drop": "price droped" }
+		},
+		{
+			"id": "ambiguous",
+			"block": "b.svelte",
+			"from": "intro words",
+			"until": "thanks for",
+			"cues": { "x": "words that" }
+		},
+		{ "id": "ambiguous", "block": "b.svelte", "from": 0, "until": 1 },
+		{ "id": "unknown-audio", "block": "b.svelte", "from": 0, "until": 1, "audio": "nope" },
+		{ "id": "backwards", "block": "b.svelte", "from": 3, "until": 2 },
+		{
+			"id": "outside",
+			"block": "b.svelte",
+			"from": "the price",
+			"until": "by half",
+			"cues": { "x": "thanks for" }
+		},
+		{
+			"id": "oneword",
+			"block": "b.svelte",
+			"from": "intro",
+			"until": "overnight",
+			"words": { "none": { "from": 0.1, "until": 0.2 } }
+		}
+	]
+}

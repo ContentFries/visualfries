@@ -1,21 +1,15 @@
+import type { MotionClip, MotionProject, MotionWords } from './project.js';
+import type { MotionWord } from './transcript.js';
+import { pickMusic, type MotionBeatRef, type MusicBeats } from './beat-grid.js';
 import {
-	AMBIGUOUS_BAR_ANCHOR,
-	type MotionAnchor,
-	type MotionClip,
-	type MotionProject,
-	type MotionWords
-} from './project.js';
-import { describeWords, findPhrase, suggestPhrases, type MotionWord } from './transcript.js';
-import {
-	BEAT_OFFSET,
-	findBarBeat,
-	findBeat,
-	nearBeat,
-	pickMusic,
-	shiftByBeats,
-	type MotionBeatRef,
-	type MusicBeats
-} from './beat-grid.js';
+	AnchorError,
+	resolveAnchor,
+	resolvePhrase,
+	type AnchorContext,
+	type BeatContext,
+	type Window
+} from './anchors.js';
+import type { FootageMap } from './footage-map.js';
 import { NEUTRAL_BRAND, type ResolvedBrand } from './brand.js';
 import { NEUTRAL_STYLE, type ResolvedStyle } from './style.js';
 import { resolveFormat, type ResolvedFormat } from './format.js';
@@ -68,15 +62,33 @@ export type ResolvedClip = {
 	format: ResolvedFormat;
 	/** Frames of the project's footage, filled in by the node tooling before a page loads. */
 	footage?: Record<string, FootageFrames>;
+	/** Program mode: which source frame the program shows when (filled in with `footage`). */
+	footageMap?: FootageMap;
 };
 
-/** Extracted frames of one footage, served to the page (see `<Footage>`). */
-export type FootageFrames = {
+/** One extracted range of footage frames, in its own folder. */
+export type FootageRange = {
 	/** URL prefix; frames are `<url>plate/000123.jpg` and `<url>subject/000123.png`. */
 	url: string;
 	/** First and last extracted footage frame (inclusive). */
 	first: number;
 	last: number;
+	/** Subject box of every frame of the range (`first`…`last`), measured on the matte. */
+	boxes?: (SubjectBox | null)[];
+};
+
+/** Extracted frames of one footage, served to the page (see `<Footage>`). */
+export type FootageFrames = {
+	/** URL prefix of the first range (see `ranges`). */
+	url: string;
+	/** First and last frame of the first range (see `ranges`). */
+	first: number;
+	last: number;
+	/**
+	 * Every extracted range, in order. Inserts mode extracts one; program mode one per stretch of
+	 * the source the program shows (none for a source it never shows).
+	 */
+	ranges: FootageRange[];
 	/** Frames in the whole footage (at the project frame rate). */
 	total: number;
 	width: number;
@@ -85,7 +97,7 @@ export type FootageFrames = {
 	startFrame: number;
 	/** Whether a matte was given, so `subject` frames exist. */
 	subject: boolean;
-	/** Subject box of every extracted frame (`first`…`last`), measured on the matte. */
+	/** Subject boxes of the first range (see `ranges`). */
 	boxes?: (SubjectBox | null)[];
 };
 
@@ -116,136 +128,6 @@ export type ResolvedProject = {
 	diagnostics: MotionDiagnostic[];
 };
 
-class AnchorError extends Error {}
-
-type Window = { from: number; to: number };
-
-function resolvePhrase(
-	words: MotionWord[] | null,
-	say: string,
-	window: Window | null,
-	occurrence: number | undefined
-): { start: number; end: number; words: MotionWord[] } {
-	if (!words)
-		throw new AnchorError(`"${say}" needs a transcript; set "transcript" in the project.`);
-	const hits = findPhrase(words, say, window?.from, window?.to);
-	if (!hits.length) {
-		const anywhere = window ? findPhrase(words, say) : [];
-		const similar = suggestPhrases(words, say, window?.from, window?.to);
-		const hint = anywhere.length
-			? ` It occurs outside this clip at ${anywhere.map((h) => h.start.toFixed(2) + 's').join(', ')}.`
-			: similar.length
-				? ` Did you mean ${similar
-						.map(
-							(h) => `"${h.text}" at ${h.start.toFixed(2)}s (${describeWords(words, h.start, 2)})`
-						)
-						.join('; ')}?`
-				: window
-					? ` Words in the clip start: ${describeWords(words, window.from, 6)}`
-					: '';
-		throw new AnchorError(`Phrase "${say}" not found${window ? ' inside the clip' : ''}.${hint}`);
-	}
-	if (occurrence !== undefined) {
-		const hit = hits[occurrence - 1];
-		if (!hit)
-			throw new AnchorError(
-				`Phrase "${say}" has only ${hits.length} occurrence(s), asked for #${occurrence}.`
-			);
-		return hit;
-	}
-	if (hits.length > 1) {
-		const list = hits
-			.map((h, i) => `#${i + 1} at ${h.start.toFixed(2)}s (${describeWords(words, h.start, 2)})`)
-			.join('; ');
-		throw new AnchorError(
-			`Phrase "${say}" is ambiguous: ${list}. Use a longer phrase or { "say": "${say}", "occurrence": n }.`
-		);
-	}
-	return hits[0];
-}
-
-/** The music beat anchors may use, and the clip's choice among several. */
-type BeatContext = { music: MusicBeats[]; clip: string | undefined };
-
-function musicFor(beats: BeatContext, id: string | undefined): MusicBeats {
-	return pickMusic(beats.music, id ?? beats.clip);
-}
-
-/** Adds seconds, or moves along the beat grid for `"-1b"`. */
-function applyOffset(
-	time: number,
-	offset: number | string | undefined,
-	beats: BeatContext,
-	id?: string
-): number {
-	if (offset === undefined) return time;
-	if (typeof offset === 'number') return time + offset;
-	const m = BEAT_OFFSET.exec(offset);
-	if (!m) throw new AnchorError(`Offset "${offset}" must be seconds (-0.2) or beats ("-1b").`);
-	const music = musicFor(beats, id);
-	return shiftByBeats(music.grid, time, Number(m[1]), music.name);
-}
-
-/** Returns program seconds (or clip-local when `localBase` is given for numeric anchors). */
-function resolveAnchor(
-	anchor: MotionAnchor,
-	words: MotionWord[] | null,
-	fps: number,
-	window: Window | null,
-	defaultEdge: 'start' | 'last' | 'end',
-	localBase: number | null,
-	beats: BeatContext
-): { time: number; end: number; words: MotionWord[] } {
-	if (typeof anchor === 'number') {
-		const time = localBase === null ? anchor : localBase + anchor;
-		return { time, end: time, words: [] };
-	}
-	if (typeof anchor === 'string') anchor = { say: anchor };
-	if ('frame' in anchor) {
-		// Program frame for clip ranges, clip-local frame for cues (like numbers).
-		const time = applyOffset((localBase ?? 0) + anchor.frame / fps, anchor.offset, beats);
-		return { time, end: time, words: [] };
-	}
-	if ('bar' in anchor || 'downbeat' in anchor || 'beat' in anchor) {
-		if (
-			'bar' in anchor &&
-			('at' in anchor || 'downbeat' in anchor || typeof anchor.beat === 'string')
-		)
-			throw new AnchorError(AMBIGUOUS_BAR_ANCHOR);
-		// Beats are absolute: bar 5 is bar 5 wherever the clip is.
-		const music = musicFor(beats, anchor.music);
-		let base: number;
-		if ('bar' in anchor)
-			base = findBarBeat(music.grid, anchor.bar, anchor.beat ?? 1, music.name).time;
-		else if ('downbeat' in anchor || typeof anchor.beat === 'string') {
-			const direction =
-				'downbeat' in anchor ? anchor.downbeat : (anchor.beat as 'after' | 'before');
-			// `at` keeps the caller's edge: in `until` a phrase means its end, so the downbeat after
-			// it never cuts the phrase short. `{ say, edge }` still picks another edge.
-			const at = resolveAnchor(anchor.at, words, fps, window, defaultEdge, localBase, beats).time;
-			base = nearBeat(
-				music.grid,
-				at,
-				'downbeat' in anchor ? 'downbeat' : 'beat',
-				direction,
-				music.name
-			).time;
-		} else base = findBeat(music.grid, anchor.beat, music.name).time;
-		const time = applyOffset(base, anchor.offset, beats, anchor.music);
-		return { time, end: time, words: [] };
-	}
-	const hit = resolvePhrase(words, anchor.say, window, anchor.occurrence);
-	const edge = anchor.edge ?? defaultEdge;
-	const base =
-		edge === 'start'
-			? hit.start
-			: edge === 'last'
-				? hit.words[hit.words.length - 1].start
-				: hit.end;
-	const time = applyOffset(base, anchor.offset, beats);
-	return { time, end: hit.end, words: hit.words };
-}
-
 function toRef(word: MotionWord, clipStart: number): MotionWordRef {
 	return { ...word, localStart: word.start - clipStart, localEnd: word.end - clipStart };
 }
@@ -261,9 +143,10 @@ function resolveWords(
 	if (!words)
 		throw new AnchorError('Word bindings need a transcript; set "transcript" in the project.');
 	if (spec === 'clip') return words.filter((w) => w.start >= window.from && w.start < window.to);
-	if (typeof spec === 'string') return resolvePhrase(words, spec, window, undefined).words;
-	const a = resolveAnchor(spec.from, words, fps, window, 'start', clipStart, beats);
-	const b = resolveAnchor(spec.until, words, fps, window, 'end', clipStart, beats);
+	const ctx: AnchorContext = { words, fps, window, localBase: clipStart, beats };
+	if (typeof spec === 'string') return resolvePhrase(spec, ctx, undefined).words;
+	const a = resolveAnchor(spec.from, ctx, 'start');
+	const b = resolveAnchor(spec.until, ctx, 'end');
 	return words.filter((w) => w.start >= a.time - 1e-6 && w.start < b.time);
 }
 
@@ -286,7 +169,11 @@ export function resolveMotionClip(
 	let startSec: number;
 	let endSec: number;
 	try {
-		startSec = resolveAnchor(clip.from, words, fps, null, 'start', null, beats).time;
+		startSec = resolveAnchor(
+			clip.from,
+			{ words, fps, window: null, localBase: null, beats },
+			'start'
+		).time;
 	} catch (error) {
 		fail('from', error);
 		return null;
@@ -294,12 +181,8 @@ export function resolveMotionClip(
 	try {
 		endSec = resolveAnchor(
 			clip.until,
-			words,
-			fps,
-			{ from: startSec, to: Infinity },
-			'end',
-			null,
-			beats
+			{ words, fps, window: { from: startSec, to: Infinity }, localBase: null, beats },
+			'end'
 		).time;
 	} catch (error) {
 		fail('until', error);
@@ -341,7 +224,7 @@ export function resolveMotionClip(
 	const cues: Record<string, ResolvedCue> = {};
 	for (const [name, anchor] of Object.entries(clip.cues ?? {})) {
 		try {
-			const hit = resolveAnchor(anchor, words, fps, window, 'start', start, beats);
+			const hit = resolveAnchor(anchor, { words, fps, window, localBase: start, beats }, 'start');
 			const local = hit.time - start;
 			if (local < -1 / fps || local >= end - start) {
 				diagnostics.push({
@@ -386,7 +269,7 @@ export function resolveMotionClip(
 	if (music.length) {
 		try {
 			musicFields = {
-				beats: musicFor(beats, undefined).grid.map(({ index, time, bar, beat }) => ({
+				beats: pickMusic(beats.music, beats.clip).grid.map(({ index, time, bar, beat }) => ({
 					index,
 					time,
 					local: time - start,

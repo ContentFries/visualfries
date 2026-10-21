@@ -28,6 +28,7 @@ export {
 } from './primitives.js';
 export type {
 	FootageFrames,
+	FootageRange,
 	MotionWordRef,
 	ResolvedClip,
 	ResolvedCue,
@@ -35,7 +36,22 @@ export type {
 } from './resolve.js';
 export { default as Footage } from './Footage.svelte';
 export { default as Captions } from './Captions.svelte';
-export { footageFrameUrl, subjectBox, type FootageLayer } from './footage.js';
+export {
+	footageFrameAt,
+	footageFrameUrl,
+	sourceFrameUrl,
+	sourceSubjectBox,
+	subjectBox,
+	type FootageFrame,
+	type FootageLayer
+} from './footage.js';
+export {
+	footageAt,
+	programFootageAt,
+	sourceFrameAt,
+	type FootageMap,
+	type FootageView
+} from './footage-map.js';
 export {
 	outline,
 	outlineFilter,

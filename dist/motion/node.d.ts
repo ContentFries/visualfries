@@ -2,13 +2,17 @@ import { type MotionFont, type MotionMusic, type MotionProject } from './project
 import { type ResolvedBrand } from './brand.js';
 import { type ResolvedStyle } from './style.js';
 import { type MotionWord } from './transcript.js';
+import { type CutList, type ProgramInputs } from './cutlist.js';
+import { type ResolvedProgram } from './program.js';
 import { type ResolvedClip, type ResolvedProject } from './resolve.js';
 import { type BarRow, type BeatsFile, type MusicBeats } from './beat-grid.js';
+import { type FrameRange } from './footage-map.js';
 import type { SubjectBox } from './resolve.js';
 export type LoadedMotionProject = {
     file: string;
     dir: string;
     project: MotionProject;
+    /** Program-time words the clips resolve against (the program transcript in program mode). */
     words: MotionWord[] | null;
     /** Short hash of the transcript's words and times; changes with every re-take. */
     transcriptHash: string | null;
@@ -22,6 +26,20 @@ export type LoadedMotionProject = {
     brand: LoadedBrand;
     style: LoadedStyle;
     resolved: ResolvedProject;
+    /**
+     * What the program resolves from: the project-level transcript, transcripts of single footage
+     * sources (`footage.<name>.transcript`, source time) and, in program mode only, the probed
+     * footage files whose lengths the cut list needs.
+     */
+    inputs: ProgramInputs;
+    /** Short hashes: project file, transcripts by source, footage files (size and time). */
+    hashes: {
+        project: string;
+        transcript: string | null;
+        transcripts: Record<string, string>;
+        sources: Record<string, string>;
+    };
+    cutList: CutList;
 };
 export type LoadedMusic = {
     music: MotionMusic;
@@ -64,6 +82,17 @@ export declare function loadMotionProject(file: string, opts?: {
  * hear means the analyzer chose the wrong level: set `"tempo": "half"` (or `"double"`).
  */
 export declare function describeMusicGrid(loaded: LoadedMotionProject): string;
+/**
+ * The resolved program for one format (see `resolveProgram`), with the hashes of the files
+ * behind it. `write` also saves it as `.visualfries/program/<format>.json` next to the project.
+ */
+export declare function motionProgram(loaded: LoadedMotionProject, opts?: {
+    format?: string;
+    write?: boolean;
+}): Promise<{
+    program: ResolvedProgram;
+    file: string | null;
+}>;
 /** Throws when a requested clip id does not exist in the project. */
 export declare function assertKnownClips(loaded: LoadedMotionProject, clipIds?: string[]): void;
 /** Throws on errors of the given clips (all clips when omitted), including clips that failed to resolve. */
@@ -144,9 +173,24 @@ type VideoInfo = {
 };
 export declare function probeVideo(file: string): Promise<VideoInfo>;
 /**
+ * Cache key of one extracted range: source, matte, their sizes and times, frame rate and range.
+ * Inserts mode has always used it for its one range, so existing caches stay valid.
+ */
+export declare function footageCacheKey(input: {
+    src: string;
+    matte: string | null;
+    sizes: ([number, number] | null)[];
+    fps: number;
+    range: FrameRange;
+}): string;
+/**
  * Extracts the footage frames the given clips need (with a margin) into
  * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
- * Frames are cached by source, matte, frame rate and range.
+ * Inserts mode extracts one range per footage around the clips. Program mode extracts every
+ * range of every source the program shows (cuts, the handles their transitions need, shots with
+ * a source) plus the margin around what the clips show, each range on its own, and attaches the
+ * footage map that turns program frames into source frames. Each range is cached by source,
+ * matte, frame rate and range.
  */
 export declare function prepareFootage(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<string[]>;
 /** Subject box of one greyscale matte frame, in 0–1 coordinates. Exported for tests. */

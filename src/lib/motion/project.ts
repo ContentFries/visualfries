@@ -1,5 +1,16 @@
 import { z } from 'zod';
 import { ENERGIES } from './energy.js';
+import {
+	CutShape,
+	KeyShape,
+	ProvenanceShape,
+	SfxShape,
+	ShotShape,
+	TransitionShape
+} from './timeline.js';
+
+// timeline.ts reads this file's anchor shape, so its shapes are read through z.lazy here.
+const timeline = <T extends z.ZodType>(shape: () => T) => z.lazy(shape);
 
 /** Seconds (`-0.1`) or beats of the music (`"-1b"`, `"0.5b"`) added to an anchor. */
 const AnchorOffsetShape = z.union([
@@ -115,7 +126,7 @@ export const MotionFontShape = z.object({
 });
 export type MotionFont = z.infer<typeof MotionFontShape>;
 
-const footageName = z
+export const footageName = z
 	.string()
 	.regex(/^[A-Za-z_][A-Za-z0-9_-]*$/, 'footage name: letters, digits, dash, underscore');
 
@@ -133,7 +144,13 @@ export const MotionFootageShape = z.object({
 	 * Seconds extracted before and after the clips that use the footage. Default 2. Raise it for
 	 * `<Footage offset>` larger than that, or use "all" for blocks that jump around in it.
 	 */
-	margin: z.union([z.number().min(0), z.literal('all')]).optional()
+	margin: z.union([z.number().min(0), z.literal('all')]).optional(),
+	/** This source's own transcript (source time); the cut list maps it to program time. */
+	transcript: z.string().optional(),
+	/** Where generated footage came from. */
+	provenance: timeline(() => ProvenanceShape).optional(),
+	/** A separate sound file for this source (e.g. the microphone), or false: no sound. */
+	audio: z.union([z.string().min(1), z.literal(false)]).optional()
 });
 export type MotionFootage = z.infer<typeof MotionFootageShape>;
 
@@ -207,7 +224,16 @@ export const MotionClipShape = z.object({
 	 * Id of the music whose beats this clip's anchors, moments, `clip.beats` and `clip.pulse()`
 	 * use. Needed only when several music items have beats.
 	 */
-	music: musicId.optional()
+	music: musicId.optional(),
+	/** Program mode: the area a shot frees that this clip fills (e.g. "panel"). */
+	slot: z.string().min(1).optional(),
+	/** "behind": between the footage and the subject cut out by its matte. Default front. */
+	layer: z.enum(['front', 'behind']).optional(),
+	/** Handoff from every layer below into this clip. */
+	transition: timeline(() => TransitionShape).optional(),
+	keys: timeline(() => z.array(KeyShape)).optional(),
+	/** false: always rendered to pixels in editor packages. */
+	native: z.boolean().optional()
 });
 export type MotionClip = z.infer<typeof MotionClipShape>;
 
@@ -317,14 +343,28 @@ const MotionProjectFields = z.object({
 	style: z.union([z.string().min(1), StyleShape]).optional(),
 	/** Safe insets for blocks: `all` (default) or one platform. */
 	safeZone: SafeZoneShape.optional(),
-	clips: z.array(MotionClipShape).min(1)
+	/** May be empty when `cuts` or `shots` describe the program. */
+	clips: z.array(MotionClipShape).default([]),
+	/** The cut list: ranges of raw sources that make up the program's footage. */
+	cuts: timeline(() => z.array(CutShape)).optional(),
+	shots: timeline(() => z.array(ShotShape)).optional(),
+	sfx: timeline(() => z.array(SfxShape)).optional(),
+	/** Program seconds when there is no cut list. Default: the latest end of clips or music. */
+	duration: z.number().positive().optional()
 });
 
 /**
- * The project file. `styles` (the CSS list's old name) is still read and becomes `css`, so
- * nothing after parsing sees it; `style` is the video style.
+ * The project file: clips (inserts mode), or a whole program described by a cut list or a shots
+ * track. `styles` (the CSS list's old name) is still read and becomes `css`, so nothing after
+ * parsing sees it; `style` is the video style.
  */
 export const MotionProjectShape = MotionProjectFields.superRefine((p, ctx) => {
+	if (!p.clips.length && !p.cuts?.length && !p.shots?.length)
+		ctx.addIssue({
+			code: 'custom',
+			path: ['clips'],
+			message: 'Add at least one clip, or "cuts" or "shots" for a whole program.'
+		});
 	if (p.css !== undefined && p.styles !== undefined)
 		ctx.addIssue({
 			code: 'custom',
@@ -341,7 +381,9 @@ export function isMotionProject(value: unknown): boolean {
 	return (
 		!!value &&
 		typeof value === 'object' &&
-		Array.isArray((value as { clips?: unknown }).clips) &&
+		['clips', 'cuts', 'shots'].some((key) =>
+			Array.isArray((value as Record<string, unknown>)[key])
+		) &&
 		!('layers' in (value as object))
 	);
 }

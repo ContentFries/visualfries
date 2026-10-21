@@ -1,0 +1,129 @@
+{
+	"words": [
+		{
+			"text": "Hello",
+			"startMs": 1750,
+			"endMs": 2080
+		},
+		{
+			"text": "and",
+			"startMs": 2135,
+			"endMs": 2245
+		},
+		{
+			"text": "welcome",
+			"startMs": 2300,
+			"endMs": 2740
+		},
+		{
+			"text": "back.",
+			"startMs": 2795,
+			"endMs": 3180
+		},
+		{
+			"text": "So,",
+			"startMs": 4005,
+			"endMs": 4335
+		},
+		{
+			"text": "today",
+			"startMs": 4500,
+			"endMs": 4830
+		},
+		{
+			"text": "we",
+			"startMs": 4885,
+			"endMs": 4995
+		},
+		{
+			"text": "fix",
+			"startMs": 5050,
+			"endMs": 5380
+		},
+		{
+			"text": "the",
+			"startMs": 5435,
+			"endMs": 5545
+		},
+		{
+			"text": "slow",
+			"startMs": 5600,
+			"endMs": 6040
+		},
+		{
+			"text": "export.",
+			"startMs": 6095,
+			"endMs": 6700
+		},
+		{
+			"text": "First",
+			"startMs": 7800,
+			"endMs": 8130
+		},
+		{
+			"text": "open",
+			"startMs": 8185,
+			"endMs": 8460
+		},
+		{
+			"text": "the",
+			"startMs": 8515,
+			"endMs": 8625
+		},
+		{
+			"text": "settings.",
+			"startMs": 8680,
+			"endMs": 9340
+		},
+		{
+			"text": "Then",
+			"startMs": 10000,
+			"endMs": 10220
+		},
+		{
+			"text": "pick",
+			"startMs": 10275,
+			"endMs": 10550
+		},
+		{
+			"text": "a",
+			"startMs": 10605,
+			"endMs": 10660
+		},
+		{
+			"text": "faster",
+			"startMs": 10715,
+			"endMs": 11100
+		},
+		{
+			"text": "codec.",
+			"startMs": 11155,
+			"endMs": 11760
+		},
+		{
+			"text": "That",
+			"startMs": 12750,
+			"endMs": 12970
+		},
+		{
+			"text": "is",
+			"startMs": 13025,
+			"endMs": 13135
+		},
+		{
+			"text": "all",
+			"startMs": 13190,
+			"endMs": 13410
+		},
+		{
+			"text": "for",
+			"startMs": 13465,
+			"endMs": 13630
+		},
+		{
+			"text": "today.",
+			"startMs": 13685,
+			"endMs": 14290
+		}
+	]
+}

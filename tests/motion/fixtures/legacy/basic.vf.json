@@ -1,0 +1,47 @@
+{
+	"size": [1080, 1920],
+	"fps": 30,
+	"background": "#101010",
+	"transcript": "talk.transcript.json",
+	"footage": {
+		"talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "start": -0.5, "margin": 1 }
+	},
+	"clips": [
+		{
+			"id": "intro",
+			"block": "blocks/Title.svelte",
+			"from": "intro words",
+			"until": { "say": "that duplicate", "edge": "end" },
+			"tail": 0.2,
+			"cues": {
+				"second": { "say": "words that", "occurrence": 2 },
+				"last": { "say": "words that duplicate", "edge": "last" },
+				"half": 0.5,
+				"frame": { "frame": 15 }
+			},
+			"words": {
+				"all": "clip",
+				"phrase": "that repeat",
+				"range": { "from": "intro", "until": { "say": "repeat", "edge": "end" } }
+			},
+			"props": { "title": "Intro" },
+			"audio": "talk"
+		},
+		{
+			"id": "price",
+			"block": "blocks/Stat.svelte",
+			"from": { "say": "the price", "offset": -0.1 },
+			"until": "thanks for watching",
+			"cues": { "drop": "dropped by half", "late": "thanks for" },
+			"alpha": true,
+			"background": "#ff0000"
+		},
+		{
+			"id": "frames",
+			"block": "blocks/Title.svelte",
+			"from": { "frame": 200 },
+			"until": { "frame": 230, "offset": 0.05 },
+			"background": "#00ff00"
+		}
+	]
+}

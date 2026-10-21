@@ -51,6 +51,9 @@ Usage:
 Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries clips <project.vf.json> [--clip <id>] [--json]
   visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]
+  visualfries program <project.vf.json> [--format <WxH>] [--json]
+                    resolve the whole program (cuts, shots, clips, transitions, audio,
+                    segments) and save it as .visualfries/program/<format>.json
   visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
   visualfries cache <project.vf.json> [--clear]
@@ -1573,7 +1576,10 @@ async function isMotionProjectFile(file) {
 	if (file.endsWith('.vf.json')) return true;
 	try {
 		const data = await readJson(file);
-		return Array.isArray(data?.clips) && !('layers' in data);
+		// Clips (inserts), or a whole program described by a cut list or a shots track.
+		return (
+			['clips', 'cuts', 'shots'].some((key) => Array.isArray(data?.[key])) && !('layers' in data)
+		);
 	} catch {
 		return false;
 	}
@@ -1637,19 +1643,39 @@ async function motionCheckCommand(args) {
 		throw new Error(
 			'Usage: visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]'
 		);
-	const { loadMotionProject, checkMotionProject, describeMusicGrid } = await motionModule();
+	const { loadMotionProject, checkMotionProject, describeMusicGrid, motionProgram } =
+		await motionModule();
 	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const json = hasFlag(args, '--json');
 	const grid = describeMusicGrid(loaded);
-	if (grid && !hasFlag(args, '--json')) console.log(`${grid}\n`);
+	if (grid && !json) console.log(`${grid}\n`);
 	// Project-wide warnings (no clip) come once, before the clips; stdout stays JSON with --json.
 	for (const d of loaded.resolved.diagnostics.filter((d) => !d.clip && d.level === 'warning'))
-		(hasFlag(args, '--json') ? console.error : console.log)(`warning: ${d.field}: ${d.message}`);
-	const results = await checkMotionProject(loaded, {
+		(json ? console.error : console.log)(`warning: ${d.field}: ${d.message}`);
+	// Program diagnostics: cuts, shots, transitions, audio, and clip fields only the program
+	// reads (keys, layer, transition); the clip checks below report the rest.
+	const { program } = await motionProgram(loaded);
+	const programMode = program.mode === 'program';
+	const key = (d) => JSON.stringify([d.clip, d.field, d.message]);
+	// Printed above (project-wide warnings) or with each clip.
+	const shown = new Set(
+		loaded.resolved.diagnostics.filter((d) => d.clip || d.level === 'warning').map(key)
+	);
+	const diagnostics = program.diagnostics.filter((d) => !shown.has(key(d)));
+	if (!json && diagnostics.length) {
+		console.log(`program (${program.frames} frames, ${program.segments.length} segments)`);
+		for (const d of diagnostics)
+			console.log(`  ${d.level}: ${d.item ?? d.clip ?? '-'} ${d.field}: ${d.message}`);
+	}
+	const checkOptions = {
 		clips: readAllFlags(args, '--clip'),
 		determinism: hasFlag(args, '--determinism')
-	});
-	if (hasFlag(args, '--json')) {
-		console.log(JSON.stringify(results, null, 2));
+	};
+	const results = await checkMotionProject(loaded, checkOptions);
+	if (json) {
+		console.log(
+			JSON.stringify(programMode ? { program: diagnostics, clips: results } : results, null, 2)
+		);
 	} else {
 		for (const r of results) {
 			console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.id}${r.mode ? `  (${r.mode})` : ''}`);
@@ -1666,7 +1692,54 @@ async function motionCheckCommand(args) {
 				: `All ${results.length} clips pass.`
 		);
 	}
-	if (results.some((r) => !r.ok)) process.exitCode = 1;
+	if (results.some((r) => !r.ok) || diagnostics.some((d) => d.level === 'error'))
+		process.exitCode = 1;
+}
+
+const frameTime = (frame, fps) => `${(frame / fps).toFixed(2)}s`;
+
+async function motionProgramCommand(args) {
+	const file = args[0];
+	if (!file)
+		throw new Error('Usage: visualfries program <project.vf.json> [--format <WxH>] [--json]');
+	const { loadMotionProject, motionProgram } = await motionModule();
+	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const { program, file: saved } = await motionProgram(loaded, {
+		format: readFlag(args, '--format'),
+		write: true
+	});
+	if (hasFlag(args, '--json')) {
+		console.log(JSON.stringify(program, null, 2));
+	} else {
+		const { fps } = program;
+		console.log(
+			`${program.mode} mode  ${program.format.name} (${program.format.class})  ${program.frames} frames  ${frameTime(program.frames, fps)}  ${fps} fps`
+		);
+		for (const c of program.cuts)
+			console.log(
+				`cut ${c.id.padEnd(10)} ${frameTime(c.startFrame, fps)}  ${c.frames} frames  ${c.source} ${frameTime(c.srcIn, fps)}–${frameTime(c.srcOut, fps)}${c.audio.split ? `  split ${c.audio.split}s` : ''}${c.transition ? `  ← ${c.transition}` : ''}`
+			);
+		for (const s of program.shots.filter((x) => !x.implicit))
+			console.log(
+				`shot ${s.id.padEnd(9)} ${frameTime(s.startFrame, fps)}  ${s.frames} frames  ${s.shot}${s.morphFrames ? `  morph ${s.morphFrames} frames ${s.morphEase}` : ''}${s.keys.length ? `  ${s.keys.length} keys` : ''}`
+			);
+		for (const c of program.clips)
+			console.log(
+				`clip ${c.id.padEnd(9)} ${frameTime(c.startFrame, fps)}  ${c.frames} frames  ${c.block}${c.layer === 'behind' ? '  behind' : ''}${c.slot ? `  slot ${c.slot}` : ''}`
+			);
+		for (const t of program.transitions)
+			console.log(
+				`transition ${t.type} into ${t.owner}  frames ${t.startFrame}–${t.startFrame + t.frames - 1} (cut ${t.cutFrame})${t.held.in || t.held.out ? `  held in ${t.held.in}, out ${t.held.out}` : ''}`
+			);
+		for (const seg of program.segments)
+			console.log(
+				`segment ${seg.id}  frames ${seg.startFrame}–${seg.startFrame + seg.frames - 1}  ${seg.hash.slice(0, 12)}  ${seg.items.join(', ')}`
+			);
+		for (const d of program.diagnostics)
+			console.log(`${d.level.toUpperCase()} ${d.item ?? d.clip ?? '-'} ${d.field}: ${d.message}`);
+		console.log(`Saved ${path.relative(process.cwd(), saved)}`);
+	}
+	if (program.diagnostics.some((d) => d.level === 'error')) process.exitCode = 1;
 }
 
 async function motionStillCommand(args) {
@@ -1912,6 +1985,7 @@ async function main() {
 	if (command === 'clips') return motionClipsCommand(args);
 	if (command === 'still') return motionStillCommand(args);
 	if (command === 'check') return motionCheckCommand(args);
+	if (command === 'program') return motionProgramCommand(args);
 	if (command === 'matte') return matteCommand(args);
 	if (command === 'cache') return cacheCommand(args);
 	if (command === 'beats') return beatsCommand(args);

@@ -52,13 +52,14 @@ function side(stage, name) {
     const el = layer(stage, 'vf-side', ISOLATED);
     el.dataset.side = name;
     const fill = layer(el, 'vf-fill');
-    const plate = picture(el, 'vf-plate');
+    const group = layer(el, 'vf-picture');
+    const plate = picture(group, 'vf-plate');
     // Painted over their whole box (see `TransitionSides`).
     for (const solid of [el, fill, plate.box])
         solid.dataset.solid = '';
-    const behind = layer(el, 'vf-behind', ISOLATED);
-    const subject = picture(el, 'vf-subject');
-    return { el, fill, plate, behind, subject };
+    const behind = layer(group, 'vf-behind', ISOLATED);
+    const subject = picture(group, 'vf-subject');
+    return { el, fill, picture: group, plate, behind, subject };
 }
 /** Places `el` at `rect` (absolute, stage pixels); writes only what changed. */
 function place(el, rect) {
@@ -75,10 +76,9 @@ function place(el, rect) {
 }
 /** The camera window: clips the picture to `layout.clip`, footage placed at `layout.camera`. */
 function frameBox(pic, layout) {
-    const { clip, camera, radius, turn, opacity } = layout;
+    const { clip, camera, radius, turn } = layout;
     place(pic.box, clip);
     pic.box.style.borderRadius = radius ? `${radius}px` : '';
-    pic.box.style.opacity = opacity === undefined ? '' : String(opacity);
     place(pic.img, {
         x: camera.x - clip.x,
         y: camera.y - clip.y,
@@ -299,6 +299,8 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     }
     function drawSide(s, view, behind, pending) {
         s.fill.style.background = view.layout.fill ? surface(seg) : '';
+        const opacity = view.layout.opacity;
+        s.picture.style.opacity = opacity === undefined ? '' : String(opacity);
         frameBox(s.plate, view.layout);
         frameBox(s.subject, view.layout);
         const frames = framesOf(view.view);

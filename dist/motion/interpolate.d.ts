@@ -2,7 +2,7 @@ import { type ColorSpace, type Oklab } from './color.js';
 /**
  * Keyframe interpolation: numbers, lengths, colours, gradients and shadows. Pure functions with
  * no DOM access (Node and browser). GSAP provides the ease curves; this module mixes the values,
- * because colours blend in OKLab and gradients and shadows have to be aligned before they mix.
+ * because colours blend in OKLCH (or OKLab) and gradients and shadows have to be aligned before they mix.
  */
 /** What a keyframed value is, as a block declares it in `animatable`. */
 export type AnimatableKind = 'number' | 'length' | 'color' | 'gradient' | 'shadow';
@@ -98,13 +98,22 @@ export declare function formatShadows(shadows: Shadow[]): string;
 export declare function interpolator<K extends AnimatableKind>(kind: K, from: unknown, to: unknown, options?: InterpolateOptions): (t: number) => AnimatableValue[K];
 /** One-off `interpolator(kind, from, to, options)(t)`. */
 export declare function interpolate<K extends AnimatableKind>(kind: K, from: unknown, to: unknown, t: number, options?: InterpolateOptions): AnimatableValue[K];
-/** One keyframe. `ease` and `space` shape the segment arriving at this key. */
+/**
+ * One keyframe. `ease` and `space` shape the segment arriving at this key. `label` names it in
+ * error messages (default "key N", its place in the list given).
+ */
 export type Key = {
     frame: number;
     value: unknown;
     ease?: string;
     space?: ColorSpace;
+    label?: string;
 };
+/** A key that cannot be drawn; `key` is its index in the list given to `createTrack`. */
+export declare class TrackError extends Error {
+    readonly key: number;
+    constructor(message: string, key: number);
+}
 export type TrackOptions = InterpolateOptions & {
     /** Ease for keys without one. Default `DEFAULT_EASE`. */
     ease?: string;

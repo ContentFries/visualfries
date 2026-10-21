@@ -10,7 +10,7 @@ import { defaultMorph, SHOT_MODULES, shotAt, shotEvents, shotLayout, shotModule,
 import { parseEase } from './ease.js';
 import { NEUTRAL_BRAND } from './brand.js';
 import { clipEnergy } from './energy.js';
-import { buildKeyTracks, KEY_EASE, substituteBrand } from './keys.js';
+import { compileKeyTracks, KEY_EASE, PLACEMENT, substituteBrand } from './keys.js';
 import { screenDirection, transitionEvents, transitionModule } from './transitions/index.js';
 /** Seconds a transition not drawn yet lasts when the project does not say. */
 export const DEFAULT_TRANSITION_SECONDS = 0.5;
@@ -228,7 +228,6 @@ function resolveKeys(keys, item, kind, id, ctx) {
     const { words, beats, fps, diagnostics } = ctx;
     const start = item.startFrame / fps;
     const duration = item.frames / fps;
-    const out = [];
     const report = (level, field, message) => diagnostics.push({
         level,
         ...(kind === 'clip' ? { clip: id } : { item: id }),
@@ -236,6 +235,8 @@ function resolveKeys(keys, item, kind, id, ctx) {
         message
     });
     let broken = false;
+    /** Resolved keys with their index as written. */
+    const resolved = [];
     (keys ?? []).forEach((key, i) => {
         const field = `keys[${i}].at`;
         let time;
@@ -285,26 +286,54 @@ function resolveKeys(keys, item, kind, id, ctx) {
             }
             values.props = props;
         }
-        out.push({ frame, values, ease: key.ease ?? KEY_EASE[ctx.energy], mix: key.mix ?? 'oklch' });
+        resolved.push({
+            key: { frame, values, ease: key.ease ?? KEY_EASE[ctx.energy], mix: key.mix ?? 'oklch' },
+            at: i
+        });
     });
-    out.sort((a, b) => a.frame - b.frame);
+    resolved.sort((a, b) => a.key.frame - b.key.frame);
+    const out = resolved.map((r) => r.key);
+    const authored = resolved.map((r) => r.at);
     if (!broken && out.length) {
         // Without the block's declaration only placement can be checked here; the stage checks props.
         const checked = ctx.animatable === undefined
             ? out.map((k) => ({ ...k, values: { ...k.values, props: undefined } }))
             : out;
-        try {
-            buildKeyTracks(checked, {
-                size: ctx.size,
-                animatable: ctx.animatable ?? undefined,
-                block: ctx.block
-            });
-        }
-        catch (error) {
-            report('error', 'keys', error.message);
-        }
+        const { problems } = compileKeyTracks(checked, {
+            size: ctx.size,
+            animatable: ctx.animatable ?? undefined,
+            block: ctx.block,
+            authored
+        });
+        for (const p of problems)
+            report('error', p.key === null ? 'keys' : `keys[${p.key}]${p.property ? `.${p.property}` : ''}`, p.message);
+        if (!problems.length)
+            warnLateFirstKeys(out, authored, kind, item, fps, report);
     }
     return out;
+}
+/**
+ * A property first keyed after the item's first key holds that first value from the item's
+ * start (a lone `opacity: 0` on the last key hides the item the whole time): a warning, naming
+ * the key that sets it first.
+ */
+function warnLateFirstKeys(keys, authored, kind, item, fps, report) {
+    if (keys.length < 2)
+        return;
+    const first = keys[0].frame;
+    const seconds = (f) => `${(f / fps).toFixed(2)} s`;
+    const names = [
+        ...PLACEMENT.map((n) => [n, (k) => k.values[n]]),
+        ...[...new Set(keys.flatMap((k) => Object.keys(k.values.props ?? {})))]
+            .sort()
+            .map((n) => [`props.${n}`, (k) => k.values.props?.[n]])
+    ];
+    for (const [name, pick] of names) {
+        const i = keys.findIndex((k) => pick(k) !== undefined);
+        if (i < 0 || keys[i].frame <= first)
+            continue;
+        report('warning', `keys[${authored[i]}].${name}`, `"${name}" is first keyed at ${seconds(keys[i].frame)}, after the ${kind}'s first key (${seconds(first)}), so it is ${JSON.stringify(pick(keys[i]))} from the ${kind}'s start (${seconds(item.startFrame)}). Set "${name}" on the first key too.`);
+    }
 }
 /**
  * What `block` marks animatable, from the node tooling's reading of its source: undefined when

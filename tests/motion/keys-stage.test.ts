@@ -5,8 +5,18 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { findChromium, loadMotionProject } from '../../src/lib/motion/node.js';
-import { captureProgramFrames, checkProgram } from '../../src/lib/motion/program-node.js';
+import {
+	bundleMotionProject,
+	findChromium,
+	launch,
+	loadMotionProject
+} from '../../src/lib/motion/node.js';
+import {
+	captureProgramFrames,
+	checkProgram,
+	openSegment
+} from '../../src/lib/motion/program-node.js';
+import { shotLayoutAt } from '../../src/lib/motion/shots/index.js';
 import { resolveProgram } from '../../src/lib/motion/program.js';
 import { scrambled } from '../../src/lib/motion/segments.js';
 import { NEUTRAL_BRAND } from '../../src/lib/motion/brand.js';
@@ -237,7 +247,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('keys on the stage', () => {
 		expect(results.map((r) => [r.id, r.ok, r.errors])).toEqual([['seg1', true, []]]);
 	}, 300_000);
 
-	it('fails a render-time key the block does not mark animatable', async () => {
+	it('refuses a non-animatable prop in check and again on the stage itself', async () => {
 		const json = JSON.parse(await fs.readFile(file, 'utf8'));
 		json.clips[0].keys[0].props = { size: 3 };
 		const bad = path.join(dir, 'bad.vf.json');
@@ -248,11 +258,234 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('keys on the stage', () => {
 			expect.objectContaining({
 				level: 'error',
 				clip: 'card',
-				field: 'keys',
+				field: 'keys[0].props.size',
 				message: 'Prop "size" is not animatable in Card.svelte. Animatable: color.'
 			})
 		);
-		await expect(captureProgramFrames(loaded, [20])).rejects.toThrow(/not animatable/);
+		await expect(captureProgramFrames(loaded, [20])).rejects.toThrow(/Project has errors/);
+		// Past the program check (as a page loaded by hand would be): the stage refuses the clip,
+		// reading what the bundled block exports.
+		const bundle = await bundleMotionProject(loaded, program.clips);
+		const browser = await launch();
+		try {
+			await expect(openSegment(browser, bundle, program, program.segments[0])).rejects.toThrow(
+				'Clip "card": Prop "size" is not animatable in Card.svelte. Animatable: color.'
+			);
+		} finally {
+			await browser.close();
+			await fs.rm(bundle.dir, { recursive: true, force: true });
+		}
+	}, 120_000);
+
+	/** A program of the test footage with `shots` and `clips`, written next to the footage. */
+	async function write(name: string, shots: unknown[], clips: unknown[], extra: object = {}) {
+		const out = path.join(dir, `${name}.vf.json`);
+		await fs.writeFile(
+			out,
+			JSON.stringify({
+				size: [SW, SH],
+				fps: 30,
+				background: '#000000',
+				footage: { talk: { src: 'talk.mp4', matte: 'talk.matte.mp4' } },
+				cuts: [{ source: 'talk', out: 3 }],
+				shots,
+				clips,
+				...extra
+			})
+		);
+		return loadMotionProject(out);
+	}
+
+	it('fades footage and subject together: a behind clip elsewhere does not change the face', async () => {
+		const fade = [
+			{
+				shot: 'full',
+				from: 0,
+				until: 3,
+				keys: [
+					{ at: 0, opacity: 1 },
+					{ at: 1, opacity: 0.5, ease: 'none' }
+				]
+			}
+		];
+		const corner = {
+			id: 'corner',
+			block: 'Card.svelte',
+			from: 0,
+			until: 3,
+			layer: 'behind',
+			props: { color: '#00ff00' }
+		};
+		await fs.writeFile(
+			path.join(dir, 'Corner.svelte'),
+			CARD.replace('width: 100px; height: 100px', 'width: 60px; height: 60px')
+		);
+		const plain = await captureProgramFrames(await write('fade', fade, []), [0, 45]);
+		const behind = await captureProgramFrames(
+			await write('fade-behind', fade, [{ ...corner, block: 'Corner.svelte' }]),
+			[45]
+		);
+		const full = rgba(plain.get(0)!, SW);
+		const a = rgba(plain.get(45)!, SW);
+		const b = rgba(behind.get(45)!, SW);
+		// Face and room at half their unfaded value over the black stage, with or without the
+		// behind clip in the corner.
+		for (const [x, y] of [
+			[400, 200],
+			[600, 300]
+		]) {
+			expect(Math.abs(a.at(x, y)[1] - full.at(x, y)[1] / 2)).toBeLessThanOrEqual(1);
+			// ±1: with a behind clip on screen the face comes from the PNG cut-out, not the JPEG
+			// plate (drawn twice, the face read 152 instead of 102 here).
+			for (let c = 0; c < 3; c++)
+				expect(Math.abs(b.at(x, y)[c] - a.at(x, y)[c])).toBeLessThanOrEqual(1);
+		}
+		// The behind clip itself is in the faded picture.
+		expect(b.at(50, 50)[1]).toBeGreaterThan(100);
+		expect(b.at(50, 50)[1]).toBeLessThan(140);
+	}, 120_000);
+
+	it('blends both shots’ keys through a morph, deterministically', async () => {
+		const loaded = await write(
+			'morph',
+			[
+				{
+					id: 'a',
+					shot: 'full',
+					from: 0,
+					until: 1,
+					keys: [
+						{ at: 0, scale: 1 },
+						{ at: 1, scale: 1.4, ease: 'none' }
+					]
+				},
+				{
+					id: 'b',
+					shot: 'full',
+					from: 1,
+					until: 3,
+					morph: 0.5,
+					keys: [
+						{ at: 0, scale: 2 },
+						{ at: 1, scale: 1.2, ease: 'none' }
+					]
+				}
+			],
+			[]
+		);
+		const program = resolveProgram(loaded.project, loaded.inputs);
+		expect(program.diagnostics.filter((d) => d.level !== 'info')).toEqual([]);
+		const b = program.shots.find((s) => s.id === 'b')!;
+		expect([b.startFrame, b.morphFrames]).toEqual([30, 15]);
+		const input = {
+			cls: 'landscape' as const,
+			size: [SW, SH] as [number, number],
+			footage: [SW, SH] as [number, number],
+			subject: null
+		};
+		const width = (f: number) => shotLayoutAt(program.shots, f, input).camera.width;
+		// Inside the morph the layout moves from a's held last value toward b's keyed value.
+		expect(width(29)).toBeCloseTo(SW * 1.4 * (29 / 30) + SW * (1 - 29 / 30) * 1, -1);
+		expect(width(37)).toBeGreaterThan(SW * 1.4);
+		expect(width(37)).toBeLessThan(SW * 2);
+		const frames = [0, 29, 30, 33, 37, 41, 45, 60, 89];
+		const pngs = await captureProgramFrames(loaded, frames);
+		const widths = new Map(frames.map((f) => [f, head(rgba(pngs.get(f)!, SW)).width]));
+		for (const f of frames)
+			expect(widths.get(f)! / widths.get(0)!, `frame ${f}`).toBeCloseTo(width(f) / width(0), 1);
+		const results = await checkProgram(loaded, { determinism: true });
+		expect(results.map((r) => [r.id, r.ok, r.errors])).toEqual([['seg1', true, []]]);
+	}, 240_000);
+});
+
+describe.skipIf(!hasChromium || !hasFfmpeg)('keyed props of the built-in blocks', () => {
+	let dir: string;
+	beforeAll(async () => {
+		dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-keys-builtin-'));
+		for (const [name, lum] of [
+			['talk.mp4', `if(lt(${HEAD},1),190,96)`],
+			['talk.matte.mp4', `if(lt(${HEAD},1),255,0)`]
+		])
+			ffmpeg([
+				'-f',
+				'lavfi',
+				'-i',
+				`color=black:s=${SW}x${SH}:r=30:d=4`,
+				'-vf',
+				`geq=lum='${lum}':cb=128:cr=128`,
+				'-pix_fmt',
+				'yuv420p',
+				path.join(dir, name)
+			]);
+		const words = ['one', 'two', 'three', 'four', 'five', 'six'].map((text, i) => ({
+			text,
+			start: 0.2 + i * 0.45,
+			end: 0.55 + i * 0.45
+		}));
+		await fs.writeFile(path.join(dir, 'talk.transcript.json'), JSON.stringify(words));
+	});
+	afterAll(async () => {
+		await fs.rm(dir, { recursive: true, force: true });
+	});
+
+	const background = [
+		{ at: 0, props: { background: '#ff0000' } },
+		{ at: 2, props: { background: 'linear-gradient(90deg, #0000ff, #0000ff)' }, ease: 'none' }
+	];
+
+	async function project(name: string, clip: object) {
+		const file = path.join(dir, `${name}.vf.json`);
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [SW, SH],
+				fps: 30,
+				background: '#000000',
+				footage: {
+					talk: { src: 'talk.mp4', matte: 'talk.matte.mp4', transcript: 'talk.transcript.json' }
+				},
+				cuts: [{ source: 'talk', out: 3 }],
+				clips: [{ id: 'b', from: 0, until: 3, keys: background, ...clip }]
+			})
+		);
+		return loadMotionProject(file);
+	}
+
+	it('redraws the captions block’s keyed background', async () => {
+		const loaded = await project('captions', {
+			block: '@visualfries/captions',
+			words: { captions: 'clip' }
+		});
+		expect(
+			resolveProgram(loaded.project, loaded.inputs).diagnostics.filter((d) => d.level === 'error')
+		).toEqual([]);
+		const pngs = await captureProgramFrames(loaded, [0, 30, 60]);
+		const at = (f: number) => rgba(pngs.get(f)!, SW).at(10, 10);
+		expect(at(0)).toEqual([255, 0, 0]);
+		const mid = gamutMapToSrgb(
+			mixColors(parseColor('#ff0000'), parseColor('#0000ff'), 0.5, 'oklch')
+		);
+		const got = at(30);
+		[mid.r, mid.g, mid.b].forEach((v, c) =>
+			expect(Math.abs(got[c] - v * 255)).toBeLessThanOrEqual(1)
+		);
+		expect(at(60)).toEqual([0, 0, 255]);
+	}, 120_000);
+
+	it('redraws the speaker-depth block’s keyed background', async () => {
+		const loaded = await project('depth', {
+			block: '@visualfries/speaker-depth',
+			props: { captions: false }
+		});
+		const pngs = await captureProgramFrames(loaded, [30, 60]);
+		const corner = (f: number) => rgba(pngs.get(f)!, SW).at(4, 4);
+		// Light and blobs sit over the backdrop, so compare channels: halfway the red is still in
+		// it (magenta), at the last key it is gone (blue).
+		const [r1, , b1] = corner(30);
+		const [r2, , b2] = corner(60);
+		expect(r1 - r2).toBeGreaterThan(60);
+		expect(b1).toBeGreaterThan(100);
+		expect(b2 - r2).toBeGreaterThan(100);
 	}, 120_000);
 });
 

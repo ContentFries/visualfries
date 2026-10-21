@@ -29,9 +29,10 @@ import { keyTracks, placementTransform, type Animatable, type KeyTracks } from '
  *
  *   #vf-stage
  *     .vf-side[a]  .vf-fill             style fill around a framed shot
- *                  .vf-plate > img      footage the cut list shows, in the shot's camera window
- *                  .vf-behind           clips with `layer: "behind"` (frame space)
- *                  .vf-subject > img    the subject cut out by its matte, over the behind clips
+ *                  .vf-picture          the footage as one picture (a shot's `opacity` key fades it):
+ *                    .vf-plate > img    footage the cut list shows, in the shot's camera window
+ *                    .vf-behind         clips with `layer: "behind"` (frame space)
+ *                    .vf-subject > img  the subject cut out by its matte, over the behind clips
  *     .vf-side[b]  the same, for the incoming side of a cut or shot transition
  *     .vf-clips    front clips in project order; a slotted clip follows its slot
  *     .vf-overlay  one element per transition, above everything
@@ -67,6 +68,8 @@ type Picture = { box: HTMLDivElement; img: HTMLImageElement };
 type Side = {
 	el: HTMLDivElement;
 	fill: HTMLDivElement;
+	/** Plate, behind clips and subject: faded together, so the subject never doubles the plate. */
+	picture: HTMLDivElement;
 	plate: Picture;
 	behind: HTMLDivElement;
 	subject: Picture;
@@ -148,12 +151,13 @@ function side(stage: HTMLElement, name: 'a' | 'b'): Side {
 	const el = layer(stage, 'vf-side', ISOLATED);
 	el.dataset.side = name;
 	const fill = layer(el, 'vf-fill');
-	const plate = picture(el, 'vf-plate');
+	const group = layer(el, 'vf-picture');
+	const plate = picture(group, 'vf-plate');
 	// Painted over their whole box (see `TransitionSides`).
 	for (const solid of [el, fill, plate.box]) solid.dataset.solid = '';
-	const behind = layer(el, 'vf-behind', ISOLATED);
-	const subject = picture(el, 'vf-subject');
-	return { el, fill, plate, behind, subject };
+	const behind = layer(group, 'vf-behind', ISOLATED);
+	const subject = picture(group, 'vf-subject');
+	return { el, fill, picture: group, plate, behind, subject };
 }
 
 /** Places `el` at `rect` (absolute, stage pixels); writes only what changed. */
@@ -171,10 +175,9 @@ function place(el: HTMLElement, rect: Rect) {
 
 /** The camera window: clips the picture to `layout.clip`, footage placed at `layout.camera`. */
 function frameBox(pic: Picture, layout: ShotLayout) {
-	const { clip, camera, radius, turn, opacity } = layout;
+	const { clip, camera, radius, turn } = layout;
 	place(pic.box, clip);
 	pic.box.style.borderRadius = radius ? `${radius}px` : '';
-	pic.box.style.opacity = opacity === undefined ? '' : String(opacity);
 	place(pic.img, {
 		x: camera.x - clip.x,
 		y: camera.y - clip.y,
@@ -409,6 +412,8 @@ export function createProgramScene(
 
 	function drawSide(s: Side, view: SideView, behind: boolean, pending: Promise<unknown>[]) {
 		s.fill.style.background = view.layout.fill ? surface(seg) : '';
+		const opacity = view.layout.opacity;
+		s.picture.style.opacity = opacity === undefined ? '' : String(opacity);
 		frameBox(s.plate, view.layout);
 		frameBox(s.subject, view.layout);
 		const frames = framesOf(view.view);

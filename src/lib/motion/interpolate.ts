@@ -18,7 +18,7 @@ import {
 /**
  * Keyframe interpolation: numbers, lengths, colours, gradients and shadows. Pure functions with
  * no DOM access (Node and browser). GSAP provides the ease curves; this module mixes the values,
- * because colours blend in OKLab and gradients and shadows have to be aligned before they mix.
+ * because colours blend in OKLCH (or OKLab) and gradients and shadows have to be aligned before they mix.
  */
 
 /** What a keyframed value is, as a block declares it in `animatable`. */
@@ -406,7 +406,7 @@ function solidAs(color: Oklab, like: Gradient): Gradient {
 }
 
 function gradientMixer(from: Paint, to: Paint, options: InterpolateOptions): (t: number) => string {
-	const space = options.space ?? 'oklab';
+	const space = options.space ?? 'oklch';
 	if (!isGradientPaint(from) && !isGradientPaint(to)) {
 		return (t) => formatColor(mixColors(from, to, t, space));
 	}
@@ -558,7 +558,7 @@ function shadowMixer(
 	to: Shadow[],
 	options: InterpolateOptions
 ): (t: number) => string {
-	const space = options.space ?? 'oklab';
+	const space = options.space ?? 'oklch';
 	const count = Math.max(from.length, to.length);
 	const pairs = Array.from({ length: count }, (_, i) => {
 		const a = from[i] ?? emptyShadowLike(to[i]);
@@ -705,8 +705,27 @@ export function interpolate<K extends AnimatableKind>(
 
 // Tracks
 
-/** One keyframe. `ease` and `space` shape the segment arriving at this key. */
-export type Key = { frame: number; value: unknown; ease?: string; space?: ColorSpace };
+/**
+ * One keyframe. `ease` and `space` shape the segment arriving at this key. `label` names it in
+ * error messages (default "key N", its place in the list given).
+ */
+export type Key = {
+	frame: number;
+	value: unknown;
+	ease?: string;
+	space?: ColorSpace;
+	label?: string;
+};
+
+/** A key that cannot be drawn; `key` is its index in the list given to `createTrack`. */
+export class TrackError extends Error {
+	constructor(
+		message: string,
+		readonly key: number
+	) {
+		super(message);
+	}
+}
 
 export type TrackOptions = InterpolateOptions & {
 	/** Ease for keys without one. Default `DEFAULT_EASE`. */
@@ -732,13 +751,14 @@ export function createTrack<K extends AnimatableKind>(
 	const sorted = keys
 		.map((key, index) => ({ key, index }))
 		.sort((p, q) => p.key.frame - q.key.frame);
+	const name = (index: number) => keys[index].label ?? `key ${index + 1}`;
 	const parsed = sorted.map(({ key, index }) => {
 		if (!Number.isFinite(key.frame))
-			throw new Error(`${label}: key ${index + 1} has no valid frame.`);
+			throw new TrackError(`${label}: ${name(index)} has no valid frame.`, index);
 		try {
 			return c.parse(key.value);
 		} catch (error) {
-			throw new Error(`${label}: key ${index + 1}: ${(error as Error).message}`);
+			throw new TrackError(`${label}: ${name(index)}: ${(error as Error).message}`, index);
 		}
 	});
 	const segments = sorted.slice(1).map(({ key, index }, i) => {
@@ -752,8 +772,9 @@ export function createTrack<K extends AnimatableKind>(
 					: c.prepare(parsed[i], parsed[i + 1], { ...options, space: key.space ?? options.space });
 			return { from, to: key.frame, ease, mix };
 		} catch (error) {
-			throw new Error(
-				`${label}: key ${sorted[i].index + 1} to ${index + 1}: ${(error as Error).message}`
+			throw new TrackError(
+				`${label}: ${name(sorted[i].index)} to ${name(index)}: ${(error as Error).message}`,
+				index
 			);
 		}
 	});

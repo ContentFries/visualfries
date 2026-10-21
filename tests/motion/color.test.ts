@@ -164,6 +164,14 @@ describe('mixColors', () => {
 		expect(interpolateColor('rgb(0 0 255 / 0)', 'red', 0.25, { space: 'oklab' })).toBe(
 			'rgb(255 0 0 / 0.25)'
 		);
+		// Nearly transparent behaves like transparent: no hue of its own drags the mix.
+		const near = parseColor(interpolateColor('rgb(0 0 255 / 0.000000001)', 'red', 0.25));
+		const want = parseColor('rgb(255 0 0 / 0.25)');
+		for (const k of ['l', 'a', 'b'] as const) expect(near[k]).toBeCloseTo(want[k], 4);
+		// Equal alphas: the plain OKLCH mix.
+		expect(interpolateColor('rgb(0 0 255 / 0.5)', 'rgb(255 0 0 / 0.5)', 0.5)).toBe(
+			interpolateColor('blue', 'red', 0.5).replace('/ 1)', '/ 0.5)')
+		);
 	});
 
 	it('OKLCH takes the shorter hue arc', () => {

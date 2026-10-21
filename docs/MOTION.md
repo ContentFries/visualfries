@@ -294,9 +294,14 @@ change what a block draws:
   `scale`, `rotation` (degrees) and `opacity` (0–1). On a shot they move the camera: the footage
   is scaled and turned about the speaker's face (from the matte; without one, the point the shot
   frames) and moved inside the shot's window, which stays where the shot put it; inside a morph
-  both shots' keys blend. On a clip they move a box around the block about the clip's centre
-  (the slot's centre for a slotted clip); the clip's root stays the transitions', so keys and
-  transitions combine.
+  both shots' keys blend. A shot's `opacity` fades the footage as one picture, with the subject
+  cut-out and any clip behind the subject in it, over the fill or the stage background. A
+  `rotation` turns the footage inside the window without growing it, so the window's corners
+  show what is behind the footage unless `scale` covers them (about 1 + |angle in radians| ×
+  the window's aspect ratio). On a clip they move a box around the block about the clip's
+  centre (the slot's centre for a slotted clip); the clip's root stays the transitions', so
+  keys and transitions combine. `scale` never goes below 0 and `opacity` stays within 0–1,
+  also where an ease overshoots.
 - **Props:** only props the block marks animatable, with their kind, in its module script:
 
   ```svelte
@@ -306,7 +311,9 @@ change what a block draws:
   ```
 
   Kinds: `number`, `length` (px or `%`), `color`, `gradient` (a solid colour counts as a
-  gradient) and `shadow`. The declaration must be a literal object. On every frame the stage
+  gradient) and `shadow`. The declaration must be a literal object, exported as above or as
+  `const animatable = { … }; export { animatable }` (also `export { keyed as animatable }`); a
+  block that does not parse is reported as such. On every frame the stage
   sets the keyed props on `clip.props`, so the block must read them live (in markup, `$derived`
   or `useFrame`), not copy them once at setup; before the first frame they hold the value of
   the clip's first frame. Built-in `@visualfries/captions` and `@visualfries/speaker-depth`
@@ -315,22 +322,27 @@ change what a block draws:
 - **Brand colours:** `"brand.primary"`, `"brand.accent"`, `"brand.background"`,
   `"brand.surface"`, `"brand.text"`, `"brand.muted"`, `"brand.onPrimary"`, `"brand.onAccent"`
   and `"brand.extra.<name>"` are replaced by the brand's colours before anything mixes, also
-  inside gradients and shadows (`"linear-gradient(90deg, brand.primary, brand.accent)"`).
+  inside gradients and shadows (`"linear-gradient(90deg, brand.primary, brand.accent)"`). A
+  brand colour that is itself a gradient works only as the whole value.
 - **Tracks:** every property has its own track. Before its first key a property holds that
   key's value and after its last key the last value, so give the first key every property you
-  move later (a lone `"y": 100` at the second key holds 100 from the start).
+  move later (a lone `"y": 100` at the second key holds 100 from the start; `check` warns).
 - **Easing:** `ease` (a GSAP name) shapes the move arriving at that key. Without it the style's
   energy decides: `sine.inOut` (calm), `power2.inOut` (balanced, also without a style) or
   `expo.inOut` (punchy); a clip's `props.energy` wins for its own keys.
 - **Mixing:** numbers and lengths in straight lines (px and `%` must match between keys);
-  colours in OKLCH along the shorter hue arc, which keeps the midpoint saturated (`"mix":
-"oklab"` on the arriving key for a straight OKLab line); a fully transparent end only fades;
-  gradients pair their stops (the shorter one resampled at the longer one's positions) and
-  must be the same type; shadow lists pad the shorter with transparent shadows.
+  colours, gradient stops and shadow colours in OKLCH along the shorter hue arc, which keeps
+  the midpoint saturated (`"mix": "oklab"` on the arriving key for a straight OKLab line).
+  Alpha is premultiplied and the hue moves by the alpha-weighted progress, so a transparent or
+  nearly transparent end only fades and never passes through a hue of its own (CSS
+  `color-mix()` moves the hue unweighted). Gradients pair their stops (the shorter one
+  resampled at the longer one's positions) and must be the same type; shadow lists pad the
+  shorter with transparent shadows.
 
-`check` and `program` report keys that cannot be drawn as errors: a prop the block does not
-mark animatable, `props` on a shot, px against `%`, a linear against a radial gradient, an
-unknown ease or brand colour. The resolved program holds every key at its program frame with
+`check` and `program` report keys that cannot be drawn as errors, each at the key as written
+(`keys[2].props.bg`): a prop the block does not mark animatable, `props` on a shot, px against
+`%`, a linear against a radial gradient, an unknown ease or brand colour; every bad property is
+reported, not only the first. The resolved program holds every key at its program frame with
 brand colours filled in and its ease; changing a key changes the hash of the segments the item
 is on screen in, and `check --determinism` samples the frames at and between keys. Keys have
 no effect on a project without `cuts` or `shots` (a warning).

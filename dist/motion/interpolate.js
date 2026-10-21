@@ -318,7 +318,7 @@ function solidAs(color, like) {
     return { ...like, stops: like.stops.map((s) => ({ color, position: s.position })) };
 }
 function gradientMixer(from, to, options) {
-    const space = options.space ?? 'oklab';
+    const space = options.space ?? 'oklch';
     if (!isGradientPaint(from) && !isGradientPaint(to)) {
         return (t) => formatColor(mixColors(from, to, t, space));
     }
@@ -439,7 +439,7 @@ const emptyShadowLike = (like) => ({
     color: { ...TRANSPARENT }
 });
 function shadowMixer(from, to, options) {
-    const space = options.space ?? 'oklab';
+    const space = options.space ?? 'oklch';
     const count = Math.max(from.length, to.length);
     const pairs = Array.from({ length: count }, (_, i) => {
         const a = from[i] ?? emptyShadowLike(to[i]);
@@ -545,6 +545,14 @@ export function interpolator(kind, from, to, options = {}) {
 export function interpolate(kind, from, to, t, options = {}) {
     return interpolator(kind, from, to, options)(t);
 }
+/** A key that cannot be drawn; `key` is its index in the list given to `createTrack`. */
+export class TrackError extends Error {
+    key;
+    constructor(message, key) {
+        super(message);
+        this.key = key;
+    }
+}
 /**
  * A keyframe track for one property: returns the value at any frame (fractional frames work).
  * Before the first key the first value holds, after the last the last. Keys sharing a frame make
@@ -559,14 +567,15 @@ export function createTrack(kind, keys, options = {}) {
     const sorted = keys
         .map((key, index) => ({ key, index }))
         .sort((p, q) => p.key.frame - q.key.frame);
+    const name = (index) => keys[index].label ?? `key ${index + 1}`;
     const parsed = sorted.map(({ key, index }) => {
         if (!Number.isFinite(key.frame))
-            throw new Error(`${label}: key ${index + 1} has no valid frame.`);
+            throw new TrackError(`${label}: ${name(index)} has no valid frame.`, index);
         try {
             return c.parse(key.value);
         }
         catch (error) {
-            throw new Error(`${label}: key ${index + 1}: ${error.message}`);
+            throw new TrackError(`${label}: ${name(index)}: ${error.message}`, index);
         }
     });
     const segments = sorted.slice(1).map(({ key, index }, i) => {
@@ -580,7 +589,7 @@ export function createTrack(kind, keys, options = {}) {
             return { from, to: key.frame, ease, mix };
         }
         catch (error) {
-            throw new Error(`${label}: key ${sorted[i].index + 1} to ${index + 1}: ${error.message}`);
+            throw new TrackError(`${label}: ${name(sorted[i].index)} to ${name(index)}: ${error.message}`, index);
         }
     });
     const first = c.format(parsed[0]);

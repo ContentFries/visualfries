@@ -36,7 +36,7 @@ import type { MotionWord } from './transcript.js';
 import { parseEase } from './ease.js';
 import { NEUTRAL_BRAND, type ResolvedBrand } from './brand.js';
 import { clipEnergy, type Energy } from './energy.js';
-import { buildKeyTracks, KEY_EASE, substituteBrand, type Animatable } from './keys.js';
+import { compileKeyTracks, KEY_EASE, PLACEMENT, substituteBrand, type Animatable } from './keys.js';
 import { screenDirection, transitionEvents, transitionModule } from './transitions/index.js';
 
 export type {
@@ -502,7 +502,6 @@ function resolveKeys(
 	const { words, beats, fps, diagnostics } = ctx;
 	const start = item.startFrame / fps;
 	const duration = item.frames / fps;
-	const out: ResolvedKey[] = [];
 	const report = (level: 'error' | 'warning', field: string, message: string) =>
 		diagnostics.push({
 			level,
@@ -511,6 +510,8 @@ function resolveKeys(
 			message
 		});
 	let broken = false;
+	/** Resolved keys with their index as written. */
+	const resolved: { key: ResolvedKey; at: number }[] = [];
 	(keys ?? []).forEach((key, i) => {
 		const field = `keys[${i}].at`;
 		let time: number;
@@ -571,26 +572,68 @@ function resolveKeys(
 			}
 			values.props = props;
 		}
-		out.push({ frame, values, ease: key.ease ?? KEY_EASE[ctx.energy], mix: key.mix ?? 'oklch' });
+		resolved.push({
+			key: { frame, values, ease: key.ease ?? KEY_EASE[ctx.energy], mix: key.mix ?? 'oklch' },
+			at: i
+		});
 	});
-	out.sort((a, b) => a.frame - b.frame);
+	resolved.sort((a, b) => a.key.frame - b.key.frame);
+	const out = resolved.map((r) => r.key);
+	const authored = resolved.map((r) => r.at);
 	if (!broken && out.length) {
 		// Without the block's declaration only placement can be checked here; the stage checks props.
 		const checked =
 			ctx.animatable === undefined
 				? out.map((k) => ({ ...k, values: { ...k.values, props: undefined } }))
 				: out;
-		try {
-			buildKeyTracks(checked, {
-				size: ctx.size,
-				animatable: ctx.animatable ?? undefined,
-				block: ctx.block
-			});
-		} catch (error) {
-			report('error', 'keys', (error as Error).message);
-		}
+		const { problems } = compileKeyTracks(checked, {
+			size: ctx.size,
+			animatable: ctx.animatable ?? undefined,
+			block: ctx.block,
+			authored
+		});
+		for (const p of problems)
+			report(
+				'error',
+				p.key === null ? 'keys' : `keys[${p.key}]${p.property ? `.${p.property}` : ''}`,
+				p.message
+			);
+		if (!problems.length) warnLateFirstKeys(out, authored, kind, item, fps, report);
 	}
 	return out;
+}
+
+/**
+ * A property first keyed after the item's first key holds that first value from the item's
+ * start (a lone `opacity: 0` on the last key hides the item the whole time): a warning, naming
+ * the key that sets it first.
+ */
+function warnLateFirstKeys(
+	keys: ResolvedKey[],
+	authored: number[],
+	kind: 'clip' | 'shot',
+	item: Span,
+	fps: number,
+	report: (level: 'warning', field: string, message: string) => void
+) {
+	if (keys.length < 2) return;
+	const first = keys[0].frame;
+	const seconds = (f: number) => `${(f / fps).toFixed(2)} s`;
+	const names: [string, (k: ResolvedKey) => unknown][] = [
+		...PLACEMENT.map((n): [string, (k: ResolvedKey) => unknown] => [n, (k) => k.values[n]]),
+		...[...new Set(keys.flatMap((k) => Object.keys(k.values.props ?? {})))]
+			.sort()
+			.map((n): [string, (k: ResolvedKey) => unknown] => [`props.${n}`, (k) => k.values.props?.[n]])
+	];
+	for (const [name, pick] of names) {
+		const i = keys.findIndex((k) => pick(k) !== undefined);
+		if (i < 0 || keys[i].frame <= first) continue;
+		report(
+			'warning',
+			`keys[${authored[i]}].${name}`,
+			`"${name}" is first keyed at ${seconds(keys[i].frame)}, after the ${kind}'s first key (${seconds(first)}), so it is ${JSON.stringify(pick(keys[i]))} from the ${kind}'s start (${seconds(item.startFrame)}). Set "${name}" on the first key too.`
+		);
+	}
 }
 
 /**

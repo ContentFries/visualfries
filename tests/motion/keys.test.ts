@@ -35,6 +35,19 @@ describe('key tracks', () => {
 		expect(placement!(40)).toMatchObject({ x: 100, scale: 2, opacity: 0 });
 	});
 
+	it('never mirrors or over-fades an item when an ease overshoots', () => {
+		// back.out(4) overshoots past the last key: scale and opacity would go below 0.
+		const { placement } = buildKeyTracks(
+			[key(0, { scale: 1, opacity: 1 }), key(10, { scale: 0, opacity: 0 }, 'back.out(4)')],
+			{ size: SIZE }
+		);
+		const frames = [...Array(11).keys()].map((f) => placement!(f));
+		const clamped = frames.slice(0, 10).filter((p) => p.scale === 0);
+		expect(clamped.length).toBeGreaterThan(0);
+		expect(clamped.every((p) => p.opacity === 0)).toBe(true);
+		expect(frames.every((p) => p.scale >= 0 && p.opacity >= 0 && p.opacity <= 1)).toBe(true);
+	});
+
 	it('resolves "%" against the format frame (x: width, y: height)', () => {
 		const { placement } = buildKeyTracks(
 			[key(0, { x: '0%', y: '0%' }), key(10, { x: '10%', y: '50%' })],
@@ -225,6 +238,30 @@ describe('animatable declarations', () => {
 		).toEqual({ error: expect.stringContaining('must be a literal object') });
 	});
 
+	it('reads `export { animatable }` and `export { x as animatable }`', async () => {
+		for (const src of [
+			`<script module>const animatable = { color: 'color' }; export { animatable };</script>`,
+			`<script module lang="ts">const keyed = { color: 'color' } as const; export { keyed as animatable };</script>`
+		])
+			expect(await readAnimatable(src, 'B.svelte')).toEqual({ props: { color: 'color' } });
+		expect(
+			await readAnimatable(`<script module>let other = 1; export { other };</script>`, 'B.svelte')
+		).toEqual({ props: {} });
+	});
+
+	it('reports a block that does not parse instead of reading no props', async () => {
+		expect(
+			await readAnimatable(
+				`<script module>export const animatable = { color: 'color' </script><div>`,
+				'B.svelte'
+			)
+		).toEqual({
+			error: expect.stringMatching(
+				/^B\.svelte does not parse, so its animatable props cannot be read: /
+			)
+		});
+	});
+
 	it('marks the built-in blocks’ backgrounds animatable', async () => {
 		for (const file of ['Captions.svelte', 'SpeakerDepth.svelte']) {
 			const abs = path.join(__dirname, '../../src/lib/motion/blocks', file);
@@ -331,7 +368,7 @@ describe('keys in the program', () => {
 		expect(problems(resolve([{ at: 0, props: { title: 'Hi' } }]))).toEqual([
 			[
 				'error',
-				'keys',
+				'keys[0].props.title',
 				'Prop "title" is not animatable in blocks/Card.svelte. Animatable: color, bg.'
 			]
 		]);
@@ -363,7 +400,7 @@ describe('keys in the program', () => {
 		);
 		expect(problems(shot)).toContainEqual([
 			'error',
-			'keys',
+			'keys[0]',
 			'Keys of a shot take x, y, scale, rotation and opacity, not props (color).'
 		]);
 	});
@@ -379,9 +416,34 @@ describe('keys in the program', () => {
 		).toEqual([
 			[
 				'error',
-				'keys',
-				'Keys of "bg": key 1 to 2: Cannot interpolate a linear-gradient into a radial-gradient; use the same gradient type at both keys.'
+				'keys[1].props.bg',
+				'Keys of "bg": keys[0] to keys[1]: Cannot interpolate a linear-gradient into a radial-gradient; use the same gradient type at both keys.'
 			]
+		]);
+		// Named as written, also behind other keys and out of order; every bad property reported.
+		expect(
+			problems(
+				resolve([
+					{ at: 0, x: 0, y: 10 },
+					{ at: 0.5, x: 10 },
+					{ at: 3, y: '5%', props: { bg: 'radial-gradient(red, blue)' } },
+					{ at: 1, props: { bg: 'linear-gradient(red, blue)' } }
+				])
+			)
+		).toEqual([
+			[
+				'error',
+				'keys[2].y',
+				'Keys of "y": keys[0] to keys[2]: Cannot interpolate 10px to 5%: use the same unit (px or %) at both keys.'
+			],
+			[
+				'error',
+				'keys[2].props.bg',
+				'Keys of "bg": keys[3] to keys[2]: Cannot interpolate a linear-gradient into a radial-gradient; use the same gradient type at both keys.'
+			]
+		]);
+		expect(problems(resolve([{ at: 0, props: { color: 'not-a-colour' } }]))).toEqual([
+			['error', 'keys[0].props.color', expect.stringMatching(/^Keys of "color": keys\[0\]: /)]
 		]);
 		expect(
 			problems(
@@ -399,6 +461,54 @@ describe('keys in the program', () => {
 			'keys[0].props.color',
 			expect.stringContaining('Unknown brand colour "brand.nope"')
 		]);
+	});
+
+	it('reports a brand gradient used inside a gradient, naming the token', () => {
+		const brand = {
+			...NEUTRAL_BRAND,
+			colors: { ...NEUTRAL_BRAND.colors, primary: 'linear-gradient(90deg, #f00, #00f)' }
+		};
+		const p = resolve(
+			[
+				{ at: 0, props: { bg: 'linear-gradient(90deg, brand.primary, brand.accent)' } },
+				{ at: 1, props: { bg: 'brand.primary' } }
+			],
+			{},
+			{ look: { brand } }
+		);
+		expect(problems(p)).toEqual([
+			[
+				'error',
+				'keys[0].props.bg',
+				'"brand.primary" is a gradient in this brand (linear-gradient(90deg, #f00, #00f)), so it cannot stand inside "linear-gradient(90deg, brand.primary, brand.accent)". Use it as the whole value, or write the colours out.'
+			]
+		]);
+	});
+
+	it('warns when a property is first keyed after the item’s first key', () => {
+		expect(
+			problems(
+				resolve([
+					{ at: 0, x: 0 },
+					{ at: 2, x: 100 },
+					{ at: 3.9, opacity: 0 }
+				])
+			)
+		).toEqual([
+			[
+				'warning',
+				'keys[2].opacity',
+				'"opacity" is first keyed at 5.90 s, after the clip\'s first key (2.00 s), so it is 0 from the clip\'s start (2.00 s). Set "opacity" on the first key too.'
+			]
+		]);
+		expect(
+			problems(
+				resolve([
+					{ at: 0, x: 0, opacity: 1 },
+					{ at: 3.9, opacity: 0 }
+				])
+			)
+		).toEqual([]);
 	});
 
 	it('warns about a key outside its item and checks nothing in inserts mode', () => {

@@ -50,11 +50,26 @@ export type KeyTrackOptions = {
     /** Block name for messages. */
     block?: string;
 };
+/** A key that cannot be drawn: `key` is the authored index of the key at fault (if one is). */
+export type KeyProblem = {
+    message: string;
+    key: number | null;
+    property: string | null;
+};
 /**
- * The tracks of one item's keys. Throws (with the property in the message) when a key cannot be
- * drawn: an unknown or non-animatable prop, a value of the wrong kind, units or gradient types
- * that differ between keys, an unknown ease.
+ * The tracks of one item's keys and everything wrong with them: an unknown or non-animatable
+ * prop, a value of the wrong kind, units or gradient types that differ between keys, an unknown
+ * ease. Each property is checked on its own, so one bad property does not hide another.
+ * `opts.authored` gives each key's index as written (keys arrive sorted by frame); messages and
+ * `KeyProblem.key` use it.
  */
+export declare function compileKeyTracks(keys: readonly ResolvedKey[], opts: KeyTrackOptions & {
+    authored?: readonly number[];
+}): {
+    tracks: KeyTracks;
+    problems: KeyProblem[];
+};
+/** The tracks of one item's keys; throws the first problem (see `compileKeyTracks`). */
 export declare function buildKeyTracks(keys: readonly ResolvedKey[], opts: KeyTrackOptions): KeyTracks;
 /** `buildKeyTracks`, built once per key list and options (the stage evaluates it every frame). */
 export declare function keyTracks(keys: readonly ResolvedKey[], opts: KeyTrackOptions): KeyTracks;

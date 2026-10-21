@@ -877,6 +877,12 @@
 		},
 		{
 			"level": "warning",
+			"item": "punch",
+			"field": "keys[2].x",
+			"message": "\"x\" is first keyed at 4.20 s, after the shot's first key (3.20 s), so it is \"5%\" from the shot's start (3.20 s). Set \"x\" on the first key too."
+		},
+		{
+			"level": "warning",
 			"item": "whip",
 			"field": "shots[1].shot",
 			"message": "The \"whip\" shot is not drawn yet; it is framed full."

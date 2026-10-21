@@ -38,8 +38,9 @@ export declare function gamutMapToSrgb(color: Oklab): Rgb;
 /**
  * Mix two colours at `t` (0 = `from`, 1 = `to`; values outside 0–1 extrapolate, as overshooting
  * eases need) with premultiplied alpha, so a transparent end takes the other end's colour and only
- * fades. `oklch` (the default) takes the shorter hue arc; a grey or fully transparent end adopts
- * the other end's hue.
+ * fades. `oklch` (the default) takes the shorter hue arc; a grey end adopts the other end's hue,
+ * and the hue moves at the alpha-weighted progress, so a (nearly) transparent end only fades.
+ * (CSS mixes hue unweighted; here a fade never passes through a third hue.)
  */
 export declare function mixColors(from: Oklab, to: Oklab, t: number, space?: ColorSpace): Oklab;
 /**

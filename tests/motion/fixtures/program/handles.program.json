@@ -816,11 +816,15 @@
 				"srcIn": 0,
 				"dur": 8.2,
 				"at": 0,
-				"fadeIn": 0,
-				"fadeOut": 0,
+				"fadeIn": 0.01,
+				"fadeOut": 1,
 				"gain": 0
 			}
 		],
+		"levels": {
+			"sfx": -10,
+			"music": -15
+		},
 		"master": {
 			"lufs": -14,
 			"truePeak": -1

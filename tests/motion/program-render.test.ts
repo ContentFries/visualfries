@@ -8,11 +8,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { findChromium, loadMotionProject } from '../../src/lib/motion/node.js';
 import { captureProgramFrames } from '../../src/lib/motion/program-node.js';
-import {
-	renderProgramVideo,
-	speechMix,
-	type RenderedProgram
-} from '../../src/lib/motion/program-render.js';
+import { renderProgramVideo, type RenderedProgram } from '../../src/lib/motion/program-render.js';
+import { mixProgram, writeWav } from '../../src/lib/motion/audio.js';
+import { integratedLoudness, truePeak } from '../../src/lib/motion/loudness.js';
 import { motionProgram } from '../../src/lib/motion/node.js';
 
 const hasChromium = !!findChromium();
@@ -50,6 +48,30 @@ const rgb = (input: string | Buffer) =>
 const FRAME = W * H * 3;
 const frameOf = (raw: Buffer, i: number) => raw.subarray(i * FRAME, (i + 1) * FRAME);
 const sha1 = (b: Buffer) => createHash('sha1').update(b).digest('hex');
+
+/** Loudness and true peak of a video's audio, as the program mixer measures them. */
+function deliveredOf(file: string) {
+	const raw = ffmpeg([
+		'-i',
+		file,
+		'-map',
+		'0:a',
+		'-ac',
+		'2',
+		'-ar',
+		'48000',
+		'-f',
+		'f32le',
+		'pipe:1'
+	]);
+	const samples = new Float32Array(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.length));
+	const r = (x: number) => Math.round(x * 100) / 100;
+	return { lufs: r(integratedLoudness(samples)), truePeak: r(truePeak(samples)) };
+}
+
+/** Hash of the encoded audio packets. */
+const audioHash = (file: string) =>
+	String(ffmpeg(['-i', file, '-map', '0:a', '-c', 'copy', '-f', 'md5', 'pipe:1']));
 
 function probe(file: string, entries: string, stream = 'v') {
 	const out = spawnSync('ffprobe', [
@@ -149,7 +171,8 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		await fs.writeFile(file, programJson('ONE'));
 		first = await renderProgramVideo(await loadMotionProject(file), {
 			output: out('a.mp4'),
-			jobs: 6
+			jobs: 6,
+			stems: true
 		});
 	}, 150_000);
 	afterAll(async () => {
@@ -170,10 +193,44 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 			height: H,
 			r_frame_rate: '30/1'
 		});
-		expect(first.audio).toBe('speech');
+		expect(first.audio).toBe('mixed');
 		const sound = probe(first.file, 'stream=codec_name,sample_rate,duration', 'a');
 		expect(sound.streams[0]).toMatchObject({ codec_name: 'aac', sample_rate: '48000' });
 		expect(Number(sound.streams[0].duration)).toBeCloseTo(4, 1);
+		// Normalised: the video's own audio measures −14 LUFS and a true peak under −1 dBTP, as the
+		// report says (it measures the encoded audio, not the mix before encoding).
+		expect(first.mix!.speech).toEqual(expect.any(Number));
+		expect(deliveredOf(first.file)).toEqual(first.mix!.delivered);
+		expect(Math.abs(first.mix!.delivered!.lufs + 14)).toBeLessThanOrEqual(0.5);
+		expect(first.mix!.delivered!.truePeak).toBeLessThanOrEqual(-1);
+		const meter = String(
+			spawnSync('ffmpeg', [
+				'-hide_banner',
+				'-nostats',
+				'-i',
+				first.file,
+				'-map',
+				'0:a',
+				'-af',
+				'ebur128',
+				'-f',
+				'null',
+				'-'
+			]).stderr
+		);
+		const lufs = Number(/I:\s+(-?[\d.]+) LUFS/.exec(meter.slice(meter.lastIndexOf('Summary')))![1]);
+		expect(Math.abs(lufs + 14)).toBeLessThanOrEqual(0.5);
+		// The stems beside the video: 48 kHz float WAV, as long as the program.
+		for (const stem of ['speech', 'sfx', 'music'] as const) {
+			expect(first.stems![stem]).toBe(out(`a.${stem}.wav`));
+			const wav = probe(first.stems![stem], 'stream=codec_name,sample_rate,channels,duration', 'a');
+			expect(wav.streams[0]).toMatchObject({
+				codec_name: 'pcm_f32le',
+				sample_rate: '48000',
+				channels: 2
+			});
+			expect(Number(wav.streams[0].duration)).toBeCloseTo(4, 6);
+		}
 		const saved = JSON.parse(await fs.readFile(out('a.program.json'), 'utf8'));
 		expect(saved.frames).toBe(120);
 		// The program as resolved, the same as `visualfries program` saves (no extracted footage).
@@ -239,6 +296,8 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		const differ = [...Array(120).keys()].filter((f) => !frameOf(a, f).equals(frameOf(b, f)));
 		expect(differ.length).toBeGreaterThan(0);
 		expect(differ.every((f) => f >= 30 && f < 60)).toBe(true);
+		// The sound does not depend on segments or the cache: the same encoded audio.
+		expect(audioHash(edited.file)).toBe(audioHash(first.file));
 		// The intermediate of the replaced segment is gone; the cache keeps what the render used.
 		expect(existsSync(first.segments[1].file)).toBe(false);
 		const kept = (await fs.readdir(path.join(dir, '.visualfries', 'segments'))).filter((f) =>
@@ -356,15 +415,86 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 			fs
 				.readdir(segmentsDir)
 				.then((names) => names.filter((n) => n.includes(`.partial-${cli.pid}-`)));
-		while (!(await live()).length && Date.now() - started < 60_000)
+		// What the loop saw: read again, a short segment may already be done and renamed.
+		let seen: string[] = [];
+		while (!(seen = await live()).length && Date.now() - started < 60_000)
 			await new Promise((r) => setTimeout(r, 50));
-		expect((await live()).length).toBeGreaterThan(0);
+		expect(seen.length).toBeGreaterThan(0);
 		for (const f of orphans) expect(existsSync(f), f).toBe(false);
 		cli.kill('SIGINT');
 		await exited;
 		expect(await live()).toEqual([]);
 		expect((await fs.readdir(runDir)).filter((n) => n.includes('.partial-'))).toEqual([]);
 		expect(existsSync(path.join(runDir, 'out.mp4'))).toBe(false);
+	}, 150_000);
+
+	it('holds the true-peak ceiling in the delivered video, also where the encoder adds peaks', async () => {
+		const loud = path.join(dir, 'loud');
+		await fs.mkdir(loud, { recursive: true });
+		let seed = 1;
+		const frames = 3 * 48000;
+		const bursts = new Float32Array(frames * 2);
+		for (let n = 0; n < frames; n++) {
+			seed = (seed * 1103515245 + 12345) >>> 0;
+			bursts[2 * n] = bursts[2 * n + 1] =
+				(seed / 2 ** 32 - 0.5) * 0.05 * (n % 48000 < 2000 ? 12 : 1);
+		}
+		await writeWav(path.join(loud, 'bursts.wav'), bursts);
+		await fs.copyFile(path.join(dir, 'num.mp4'), path.join(loud, 'num.mp4'));
+		const project = path.join(loud, 'loud.vf.json');
+		await fs.writeFile(
+			project,
+			JSON.stringify({
+				size: [W, H],
+				fps: FPS,
+				footage: { num: { src: 'num.mp4', audio: false } },
+				cuts: [{ source: 'num', in: 0, out: 3 }],
+				music: [{ src: 'bursts.wav' }]
+			})
+		);
+		const r = await renderProgramVideo(await loadMotionProject(project), {
+			output: path.join(loud, 'loud.mp4')
+		});
+		const measured = deliveredOf(r.file);
+		expect(measured).toEqual(r.mix!.delivered);
+		expect(measured.truePeak).toBeLessThanOrEqual(-1);
+		expect(Math.abs(measured.lufs + 14)).toBeLessThanOrEqual(0.5);
+		// The mix before encoding was limited further down to make room for the encoder.
+		expect(r.mix!.ceiling).toBeLessThan(-1);
+		expect(r.mix!.warnings).toEqual([]);
+	}, 150_000);
+
+	it('mixes before drawing: an unreadable sound fails the render with no picture drawn', async () => {
+		const bad = path.join(dir, 'bad');
+		await fs.mkdir(bad, { recursive: true });
+		await fs.copyFile(path.join(dir, 'num.mp4'), path.join(bad, 'num.mp4'));
+		// The footage's sound file is missing: decoding it fails, before any picture is drawn.
+		await fs.writeFile(path.join(bad, 'Label.svelte'), LABEL);
+		const project = path.join(bad, 'bad.vf.json');
+		await fs.writeFile(
+			project,
+			JSON.stringify({
+				size: [W, H],
+				fps: FPS,
+				footage: { num: { src: 'num.mp4', audio: 'gone.wav' } },
+				cuts: [{ source: 'num', in: 0, out: 1 }],
+				clips: [{ id: 'label', block: 'Label.svelte', from: 0, until: 1, props: { text: 'X' } }]
+			})
+		);
+		await expect(
+			renderProgramVideo(await loadMotionProject(project), { output: path.join(bad, 'bad.mp4') })
+		).rejects.toThrow(/gone\.wav/);
+		const segments = await fs.readdir(path.join(bad, '.visualfries', 'segments')).catch(() => []);
+		expect(segments.filter((f) => f.endsWith('.mkv'))).toEqual([]);
+		expect((await fs.readdir(bad)).filter((f) => f.includes('partial'))).toEqual([]);
+	}, 150_000);
+
+	it('removes stems of an earlier render when rendering again without them', async () => {
+		expect(existsSync(out('a.speech.wav'))).toBe(true);
+		const again = await renderProgramVideo(await loadMotionProject(file), { output: out('a.mp4') });
+		expect(again.stems).toBeNull();
+		for (const stem of ['speech', 'sfx', 'music'])
+			expect(existsSync(out(`a.${stem}.wav`))).toBe(false);
 	}, 150_000);
 
 	it('counts the program segments in `visualfries cache` and --clear drops them', async () => {
@@ -437,29 +567,26 @@ describe.skipIf(!hasFfmpeg)('program speech placement', () => {
 		);
 		const { program } = await motionProgram(await loadMotionProject(file));
 		expect(program.audio.speech[1]).toMatchObject({ at: 1, srcIn: 0, fadeIn: 0.005 });
-		const { inputs, filter } = speechMix(dir, program.audio.speech, 2);
-		// Input 0 stands in for the picture, as in the final encode.
-		const raw = ffmpeg([
-			...['-f', 'lavfi', '-i', 'color=black:s=16x16:r=30:d=2'],
-			...inputs,
-			...['-filter_complex', filter, '-map', '[speech]', '-ac', '1', '-f', 'f32le', 'pipe:1']
-		]);
-		const samples = new Float32Array(raw.buffer, raw.byteOffset, raw.length / 4);
+		const left = async (p: typeof program) => {
+			const mixed = await mixProgram(p, { dir, normalize: false });
+			return mixed!.samples.filter((_, i) => i % 2 === 0);
+		};
+		const samples = await left(program);
 		const peaks = [...samples.keys()].filter((i) => Math.abs(samples[i]) > 0.3);
 		// Source 1.1 s and 1.9 s land at program 0.1 s and 0.9 s; source 0.1 s and 0.7 s at 1.1 s
 		// and 1.7 s; the click at 2.5 s is outside both cuts.
 		expect(peaks).toEqual([4800, 43200, 52800, 81600]);
 		// A piece written before its file starts (older program files) keeps its samples in place.
-		const early = program.audio.speech.map((p, i) =>
-			i === 1 ? { ...p, srcIn: -0.005, at: 0.995, dur: 1.005, fadeIn: 0.01 } : p
-		);
-		const mixed = speechMix(dir, early, 2);
-		const again = ffmpeg([
-			...['-f', 'lavfi', '-i', 'color=black:s=16x16:r=30:d=2'],
-			...mixed.inputs,
-			...['-filter_complex', mixed.filter, '-map', '[speech]', '-ac', '1', '-f', 'f32le', 'pipe:1']
-		]);
-		const s2 = new Float32Array(again.buffer, again.byteOffset, again.length / 4);
+		const early = {
+			...program,
+			audio: {
+				...program.audio,
+				speech: program.audio.speech.map((p, i) =>
+					i === 1 ? { ...p, srcIn: -0.005, at: 0.995, dur: 1.005, fadeIn: 0.01 } : p
+				)
+			}
+		};
+		const s2 = await left(early);
 		expect([...s2.keys()].filter((i) => Math.abs(s2[i]) > 0.3)).toEqual(peaks);
 	});
 });

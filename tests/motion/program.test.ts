@@ -523,6 +523,94 @@ describe('item ids', () => {
 	});
 });
 
+describe('program audio pieces', () => {
+	const base = {
+		size: [1920, 1080],
+		fps: 30,
+		footage: { talk: { src: 'talk.mp4' }, broll: { src: 'broll.mp4' } },
+		cuts: [
+			{ id: 'a', source: 'talk', in: 1, out: 3 },
+			{ id: 'b', source: 'talk', in: 5, out: 7, transition: { type: 'push', sound: 'whoosh.wav' } }
+		]
+	};
+
+	it('places music with its gain, default fades and gain keys in program seconds', () => {
+		const p = program({
+			...base,
+			music: [
+				{
+					src: 'bed.mp3',
+					gain: -2,
+					keys: [
+						{ at: 'first open', gain: 0 },
+						{ at: 1, gain: -6 }
+					]
+				},
+				{ id: 'sting', src: 'sting.wav', from: -1.5, until: 9, fade: { in: 0, out: 0.25 } }
+			]
+		});
+		expect(errors(p)).toEqual([]);
+		const [bed, sting] = p.audio.music;
+		expect(bed).toMatchObject({ at: 0, srcIn: 0, dur: 4, fadeIn: 0.01, fadeOut: 1, gain: -2 });
+		// Keys sorted by time; a phrase anchor resolves against the program transcript.
+		// "First" is source 6 s: program 2 s (cut b) + 1 s.
+		expect(bed.gainKeys).toEqual([
+			{ at: 1, gain: -6 },
+			{ at: 3, gain: 0 }
+		]);
+		// A negative `from` starts inside the file; `until` past the program end stops at it.
+		expect(sting).toMatchObject({
+			owner: 'sting',
+			at: 0,
+			srcIn: 1.5,
+			dur: 4,
+			fadeIn: 0,
+			fadeOut: 0.25
+		});
+	});
+
+	it('adds an effect for a transition that names a sound, its hit on the transition event', () => {
+		const p = program(base, { sounds: { 'whoosh.wav': { hit: 0.2 } } });
+		const event = p.events.find((e) => e.owner === 'b.transition')!;
+		expect(p.audio.sfx).toEqual([
+			{
+				owner: 'b.transition.sound',
+				file: 'whoosh.wav',
+				srcIn: 0,
+				dur: null,
+				at: Math.round((event.frame / 30 - 0.2) * 1e6) / 1e6,
+				fadeIn: 0,
+				fadeOut: 0,
+				gain: 0
+			}
+		]);
+		// `sound: false` (and no sound) adds nothing: the style palette comes with the SFX model.
+		const silent = structuredClone(base);
+		(silent.cuts[1].transition as { sound: unknown }).sound = false;
+		expect(program(silent).audio.sfx).toEqual([]);
+	});
+
+	it('cuts an effect whose hit comes before its lead-in at the program start', () => {
+		const p = program(
+			{ ...base, sfx: [{ at: 0.1, sound: 'boom.wav', gain: 3 }] },
+			{ sounds: { 'boom.wav': { hit: 0.3 }, 'whoosh.wav': { hit: 0 } } }
+		);
+		expect(p.audio.sfx[0]).toMatchObject({ owner: 'sfx1', at: 0, srcIn: 0.2, gain: 3 });
+	});
+
+	it('takes levels and loudness from the project, else the defaults', () => {
+		expect(program(base).audio).toMatchObject({
+			levels: { sfx: -10, music: -15 },
+			master: { lufs: -14, truePeak: -1 }
+		});
+		const p = program({ ...base, mix: { sfx: -8, music: -20, loudness: -16, truePeak: -2 } });
+		expect(p.audio).toMatchObject({
+			levels: { sfx: -8, music: -20 },
+			master: { lufs: -16, truePeak: -2 }
+		});
+	});
+});
+
 it('hashes like sha1', () => {
 	for (const text of ['', 'abc', 'a'.repeat(55), 'a'.repeat(64), 'naïve – ✓'.repeat(300)])
 		expect(sha1(text)).toBe(createHash('sha1').update(text).digest('hex'));

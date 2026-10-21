@@ -62,7 +62,19 @@ export type ProgramInputs = {
 	music?: MusicBeats[];
 	/** Brand and style resolved from their files; neutral when absent. */
 	look?: ProjectLook;
+	/**
+	 * Sound files named by sfx items, transitions and music items, by the name as written: the
+	 * seconds into the file where its hit sits (0 unless a sound library's `sounds.json` says),
+	 * or null when the file does not exist. Absent: not looked up.
+	 */
+	sounds?: Record<string, SoundInfo | null>;
 };
+
+/**
+ * `warning`: why the hit offset could not be read (it is then 0); `error`: the file has no
+ * readable sound.
+ */
+export type SoundInfo = { hit: number; warning?: string; error?: string };
 
 export type ResolvedCut = {
 	id: string;

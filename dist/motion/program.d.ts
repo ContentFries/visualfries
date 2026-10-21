@@ -187,6 +187,12 @@ export type ResolvedProgram = {
         speech: AudioPiece[];
         sfx: AudioPiece[];
         music: AudioPiece[];
+        /** dB of effects (their loudest 100 ms) and music under the speech loudness. */
+        levels: {
+            sfx: number;
+            music: number;
+        };
+        /** Integrated loudness (LUFS) and true-peak ceiling (dBTP) of the finished video. */
         master: {
             lufs: number;
             truePeak: number;
@@ -197,8 +203,29 @@ export type ResolvedProgram = {
 };
 /** Seconds a transition not drawn yet lasts when the project does not say. */
 export declare const DEFAULT_TRANSITION_SECONDS = 0.5;
+/**
+ * Mix levels when the project does not set them: effects about 10 dB under the speech (issue
+ * 07), music at one steady level under it (issue 17), finished videos at −14 LUFS integrated
+ * with true peaks at or under −1 dBTP.
+ */
+export declare const MIX_DEFAULTS: {
+    readonly sfx: -10;
+    readonly music: -15;
+    readonly loudness: -14;
+    readonly truePeak: -1;
+};
+/** Default music fades: an anti-click fade-in and a one-second fade-out. */
+export declare const MUSIC_FADE: {
+    readonly in: 0.01;
+    readonly out: 1;
+};
 /** The project's frame, or another size given as "1080x1350". */
 export declare function programFormat(project: Pick<MotionProject, 'size' | 'safeZone'>, name?: string): ProgramFormat;
+/**
+ * Orders text by UTF-16 code units, the same on every machine (`localeCompare` follows the
+ * locale, which would make the order, and the mix, depend on where it runs).
+ */
+export declare const compareText: (a: string, b: string) => 0 | 1 | -1;
 /**
  * Resolves a project into its program for one format: cuts, shots (gaps framed `full`), clips,
  * transition windows with handles and held frames, keys, events, audio pieces and segments.

@@ -78,9 +78,10 @@ export declare const MotionFootageShape: z.ZodObject<{
 }, z.core.$strip>;
 export type MotionFootage = z.infer<typeof MotionFootageShape>;
 /**
- * A music item. For now it only times things: beat anchors read its beats file (made by
- * `visualfries beats`); render does not mix it yet. Corrections fix what the analyzer got wrong
- * without touching the beats file, so re-analysis keeps them.
+ * A music item. Beat anchors read its beats file (made by `visualfries beats`); a program render
+ * mixes it at one steady level under the speech (`mix.music`), with its own gain, fades and gain
+ * keys on top. Corrections fix what the analyzer got wrong without touching the beats file, so
+ * re-analysis keeps them.
  */
 export declare const MotionMusicShape: z.ZodObject<{
     id: z.ZodOptional<z.ZodString>;
@@ -94,7 +95,22 @@ export declare const MotionMusicShape: z.ZodObject<{
         double: "double";
         half: "half";
     }>>;
-}, z.core.$strip>;
+    gain: z.ZodOptional<z.ZodNumber>;
+    fade: z.ZodOptional<z.ZodObject<{
+        in: z.ZodOptional<z.ZodNumber>;
+        out: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strict>>;
+    keys: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        at: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
+        gain: z.ZodNumber;
+    }, z.core.$strict>>>;
+    provenance: z.ZodOptional<z.ZodLazy<z.ZodObject<{
+        provider: z.ZodString;
+        model: z.ZodOptional<z.ZodString>;
+        prompt: z.ZodOptional<z.ZodString>;
+        seed: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    }, z.core.$loose>>>;
+}, z.core.$strict>;
 export type MotionMusic = z.infer<typeof MotionMusicShape>;
 export declare const MotionClipShape: z.ZodObject<{
     id: z.ZodString;
@@ -293,7 +309,22 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
             double: "double";
             half: "half";
         }>>;
-    }, z.core.$strip>>>;
+        gain: z.ZodOptional<z.ZodNumber>;
+        fade: z.ZodOptional<z.ZodObject<{
+            in: z.ZodOptional<z.ZodNumber>;
+            out: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strict>>;
+        keys: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            at: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
+            gain: z.ZodNumber;
+        }, z.core.$strict>>>;
+        provenance: z.ZodOptional<z.ZodLazy<z.ZodObject<{
+            provider: z.ZodString;
+            model: z.ZodOptional<z.ZodString>;
+            prompt: z.ZodOptional<z.ZodString>;
+            seed: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        }, z.core.$loose>>>;
+    }, z.core.$strict>>>;
     brand: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
         name: z.ZodOptional<z.ZodString>;
         colors: z.ZodObject<{
@@ -555,6 +586,12 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         sound: z.ZodString;
         gain: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>>>>;
+    mix: z.ZodOptional<z.ZodLazy<z.ZodObject<{
+        sfx: z.ZodOptional<z.ZodNumber>;
+        music: z.ZodOptional<z.ZodNumber>;
+        loudness: z.ZodOptional<z.ZodNumber>;
+        truePeak: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strict>>>;
     duration: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>, z.ZodTransform<{
     size: [number, number];
@@ -635,6 +672,22 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         shift?: number | undefined;
         downbeat?: number | undefined;
         tempo?: "double" | "half" | undefined;
+        gain?: number | undefined;
+        fade?: {
+            in?: number | undefined;
+            out?: number | undefined;
+        } | undefined;
+        keys?: {
+            at: MotionAnchor;
+            gain: number;
+        }[] | undefined;
+        provenance?: {
+            [x: string]: unknown;
+            provider: string;
+            model?: string | undefined;
+            prompt?: string | undefined;
+            seed?: string | number | undefined;
+        } | undefined;
     }[] | undefined;
     brand?: string | {
         colors: {
@@ -782,6 +835,12 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         id?: string | undefined;
         gain?: number | undefined;
     }[] | undefined;
+    mix?: {
+        sfx?: number | undefined;
+        music?: number | undefined;
+        loudness?: number | undefined;
+        truePeak?: number | undefined;
+    } | undefined;
     duration?: number | undefined;
 }, {
     size: [number, number];
@@ -863,6 +922,22 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         shift?: number | undefined;
         downbeat?: number | undefined;
         tempo?: "double" | "half" | undefined;
+        gain?: number | undefined;
+        fade?: {
+            in?: number | undefined;
+            out?: number | undefined;
+        } | undefined;
+        keys?: {
+            at: MotionAnchor;
+            gain: number;
+        }[] | undefined;
+        provenance?: {
+            [x: string]: unknown;
+            provider: string;
+            model?: string | undefined;
+            prompt?: string | undefined;
+            seed?: string | number | undefined;
+        } | undefined;
     }[] | undefined;
     brand?: string | {
         colors: {
@@ -1010,6 +1085,12 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         id?: string | undefined;
         gain?: number | undefined;
     }[] | undefined;
+    mix?: {
+        sfx?: number | undefined;
+        music?: number | undefined;
+        loudness?: number | undefined;
+        truePeak?: number | undefined;
+    } | undefined;
     duration?: number | undefined;
 }>>;
 export type MotionProject = z.output<typeof MotionProjectShape>;

@@ -61,9 +61,11 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
                     with "cuts" or "shots" renders the whole program as one video
                     (--export video, the default there; --export inserts renders clips):
-                    [--format <WxH>] [--no-cache]; segments are cached losslessly in
+                    [--format <WxH>] [--no-cache] [--stems]; segments are cached losslessly in
                     .visualfries/segments/ and only changed segments are drawn again;
-                    <name>.program.json is saved beside the video
+                    <name>.program.json is saved beside the video. The sound is speech, sfx
+                    and music mixed and normalised (-14 LUFS, -1 dBTP; "mix" in the project);
+                    --stems also writes <name>.speech|sfx|music.wav
   visualfries cache <project.vf.json> [--clear]
                     size of the project's .visualfries/ cache; --clear drops extracted footage
                     frames and rendered program segments
@@ -1683,6 +1685,24 @@ async function motionCheckCommand(args) {
 		for (const d of diagnostics)
 			console.log(`  ${d.level}: ${d.item ?? d.clip ?? '-'} ${d.field}: ${d.message}`);
 	}
+	// The program's sound: every sound file decodes, and the mix reaches its loudness.
+	let mix = null;
+	if (programMode && !diagnostics.some((d) => d.level === 'error')) {
+		const { mixProgram } = await import('../dist/motion/audio.js');
+		try {
+			mix = (await mixProgram(program, { dir: loaded.dir }))?.report ?? null;
+		} catch (error) {
+			mix = { error: error.message };
+			process.exitCode = 1;
+		}
+		if (!json && mix?.error) console.log(`mix\n  error: ${mix.error}`);
+		else if (!json && mix) {
+			console.log(
+				`mix: speech ${mix.speech ?? '–'} LUFS, ${mix.lufs} LUFS and ${mix.truePeak} dBTP before encoding (${mix.gain} dB${mix.limiter ? `, limiter ${mix.limiter} dB` : ''})`
+			);
+			for (const w of mix.warnings) console.log(`  warning: ${w}`);
+		}
+	}
 	const checkOptions = {
 		clips: readAllFlags(args, '--clip'),
 		determinism: hasFlag(args, '--determinism')
@@ -1694,7 +1714,7 @@ async function motionCheckCommand(args) {
 	const segment = (id) => program.segments.find((s) => s.id === id);
 	if (json) {
 		console.log(
-			JSON.stringify(programMode ? { program: diagnostics, clips: results } : results, null, 2)
+			JSON.stringify(programMode ? { program: diagnostics, mix, clips: results } : results, null, 2)
 		);
 	} else {
 		for (const r of results) {
@@ -1968,7 +1988,7 @@ async function motionRenderCommand(args) {
 	if (!output)
 		throw new Error(
 			'Usage: visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]\n' +
-				'       visualfries render <program.vf.json> --output <dir|video.mp4> [--export video] [--format <WxH>] [--jobs <n>] [--no-cache]'
+				'       visualfries render <program.vf.json> --output <dir|video.mp4> [--export video] [--format <WxH>] [--jobs <n>] [--no-cache] [--stems]'
 		);
 	const { loadMotionProject, renderMotionClips } = await motionModule();
 	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
@@ -1990,6 +2010,7 @@ async function motionRenderCommand(args) {
 			jobs: numberFlag(args, '--jobs'),
 			invalidate: readFlag(args, '--invalidate'),
 			fresh: hasFlag(args, '--no-cache'),
+			stems: hasFlag(args, '--stems'),
 			onProgress: (msg) => console.error(msg)
 		});
 		console.log(JSON.stringify(result, null, 2));

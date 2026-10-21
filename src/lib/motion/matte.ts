@@ -1,7 +1,9 @@
 import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { probeVideo } from './node.js';
 
 // ---------------------------------------------------------------- providers
@@ -202,6 +204,64 @@ export function commandMatte(
 					env: { ...process.env, VF_MATTE_INPUT: chunk.input, VF_MATTE_OUTPUT: chunk.output },
 					windowsVerbatimArguments: windows
 				}
+			);
+		}
+	};
+}
+
+/** `scripts/<name>` of this package, found from dist/ (published) or src/ (tests) alike. */
+function bundledScript(name: string): string {
+	let dir = path.dirname(fileURLToPath(import.meta.url));
+	for (let i = 0; i < 5; i++) {
+		const candidate = path.join(dir, 'scripts', name);
+		if (existsSync(candidate)) return candidate;
+		dir = path.dirname(dir);
+	}
+	throw new Error(`Bundled script scripts/${name} not found next to the visualfries package.`);
+}
+
+/**
+ * Local matte with RobustVideoMatting (mobilenetv3) on the CPU: no API key, no account, temporally
+ * stable. Runs the bundled `scripts/rvm-matte.py` through `uv`, which brings torch, torchvision and
+ * numpy on first use (CPU wheels); the model is fetched once by torch.hub. Needs `uv` and `ffmpeg`.
+ * About 3 fps at 1080p and 16 fps at 540p on a 12-core server. RVM is recurrent, so long chunks keep
+ * it stable; 480 frames per chunk by default.
+ */
+export function rvmMatte(
+	opts: { threads?: number; maxFrames?: number; uv?: string; script?: string } = {}
+): MatteProvider {
+	const script = opts.script ?? bundledScript('rvm-matte.py');
+	const threads = Math.max(1, Math.round(opts.threads ?? Math.min(10, os.cpus().length)));
+	const uv = opts.uv ?? 'uv';
+	return {
+		name: `rvm (local CPU, ${threads} threads)`,
+		maxFrames: opts.maxFrames ?? 480,
+		parallel: 1,
+		output: 'luma',
+		async segment(chunk) {
+			// No shell: the script path and the chunk paths are passed as plain arguments.
+			await run(
+				uv,
+				[
+					'run',
+					'-q',
+					'--index',
+					'https://download.pytorch.org/whl/cpu',
+					'--index-strategy',
+					'unsafe-best-match',
+					'--with',
+					'torch',
+					'--with',
+					'torchvision',
+					'--with',
+					'numpy',
+					'python',
+					script,
+					chunk.input,
+					chunk.output,
+					String(threads)
+				],
+				'RVM matte'
 			);
 		}
 	};

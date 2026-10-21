@@ -61,6 +61,19 @@ export declare function commandMatte(template: string, opts?: {
     output?: 'luma' | 'alpha';
     extension?: string;
 }): MatteProvider;
+/**
+ * Local matte with RobustVideoMatting (mobilenetv3) on the CPU: no API key, no account, temporally
+ * stable. Runs the bundled `scripts/rvm-matte.py` through `uv`, which brings torch, torchvision and
+ * numpy on first use (CPU wheels); the model is fetched once by torch.hub. Needs `uv` and `ffmpeg`.
+ * About 3 fps at 1080p and 16 fps at 540p on a 12-core server. RVM is recurrent, so long chunks keep
+ * it stable; 480 frames per chunk by default.
+ */
+export declare function rvmMatte(opts?: {
+    threads?: number;
+    maxFrames?: number;
+    uv?: string;
+    script?: string;
+}): MatteProvider;
 export type MatteOptions = {
     output: string;
     /** Who segments the video. Default: `falBiRefNet({ model, resolution, key: falKey })`. */

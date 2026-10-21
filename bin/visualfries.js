@@ -55,9 +55,10 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
   visualfries cache <project.vf.json> [--clear]
                     size of the project's .visualfries/ cache; --clear drops extracted footage frames
-  visualfries matte <video> --output <matte.mp4> [--provider fal|command] [options]
+  visualfries matte <video> --output <matte.mp4> [--provider fal|rvm|command] [options]
                     subject matte (white = subject) for "footage". Default provider: BiRefNet v2
-                    on fal.ai (FAL_KEY; --model Matting, --resolution 1024x1024). Any local tool:
+                    on fal.ai (FAL_KEY; --model Matting, --resolution 1024x1024). Local, no key:
+                    --provider rvm [--threads n] (RobustVideoMatting on the CPU via uv). Any local tool:
                     --command "tool --in {input} --out {output}" [--command-output luma|alpha]
                     [--command-ext .webm] [--max-frames n]. Long videos are split, checked
                     and joined frame-exact.
@@ -1761,9 +1762,9 @@ async function matteCommand(args) {
 	const output = readFlag(args, '--output');
 	if (!input || !output)
 		throw new Error(
-			'Usage: visualfries matte <video> --output <matte.mp4> [--provider fal|command] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs 3]'
+			'Usage: visualfries matte <video> --output <matte.mp4> [--provider fal|rvm|command] [--threads n] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs 3]'
 		);
-	const { createSubjectMatte, falBiRefNet, commandMatte } = await import('../dist/motion/matte.js');
+	const { createSubjectMatte, falBiRefNet, commandMatte, rvmMatte } = await import('../dist/motion/matte.js');
 	const command = readFlag(args, '--command');
 	const providerName = readFlag(args, '--provider', command ? 'command' : 'fal');
 	let provider;
@@ -1780,8 +1781,10 @@ async function matteCommand(args) {
 			maxFrames: numberFlag(args, '--max-frames'),
 			parallel: numberFlag(args, '--jobs')
 		});
+	} else if (providerName === 'rvm') {
+		provider = rvmMatte({ threads: numberFlag(args, '--threads'), maxFrames: numberFlag(args, '--max-frames') });
 	} else {
-		throw new Error(`Unknown matte provider "${providerName}". Use fal or command.`);
+		throw new Error(`Unknown matte provider "${providerName}". Use fal, rvm or command.`);
 	}
 	const result = await createSubjectMatte(input, {
 		output,

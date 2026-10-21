@@ -6,3 +6,8 @@ export { ENERGY } from './primitives.js';
 export { default as Footage } from './Footage.svelte';
 export { default as Captions } from './Captions.svelte';
 export { footageFrameUrl, subjectBox } from './footage.js';
+export { outline, outlineFilter, outlineFilterId, outlineFilterMarkup, outlineStyle } from './outline.js';
+export { NEUTRAL_BRAND, contrast, readableOn, solidColor, toHex } from './brand.js';
+export { BUILTIN_STYLES } from './style.js';
+export { SAFE_ZONES, SAFE_ZONES_CHECKED } from './safe-zones.js';
+export { resolveFormat } from './format.js';

@@ -1,4 +1,6 @@
-import { type MotionMusic, type MotionProject } from './project.js';
+import { type MotionFont, type MotionMusic, type MotionProject } from './project.js';
+import { type ResolvedBrand } from './brand.js';
+import { type ResolvedStyle } from './style.js';
 import { type MotionWord } from './transcript.js';
 import { type ResolvedClip, type ResolvedProject } from './resolve.js';
 import { type BarRow, type BeatsFile, type MusicBeats } from './beat-grid.js';
@@ -17,6 +19,8 @@ export type LoadedMotionProject = {
      * `tempo`); null without music beats. Beat-anchored clips move when it changes.
      */
     musicHash: string | null;
+    brand: LoadedBrand;
+    style: LoadedStyle;
     resolved: ResolvedProject;
 };
 export type LoadedMusic = {
@@ -30,6 +34,26 @@ export type LoadedMusic = {
     /** Bars in program seconds, for the `check` grid. */
     bars: BarRow[];
 };
+export type LoadedBrand = {
+    resolved: ResolvedBrand;
+    /** Short hash of the brand's values and the contents of its font and logo files; null without a brand. */
+    hash: string | null;
+    /** The brand file, null for an inline brand or none. */
+    file: string | null;
+    /** Font faces to load, with absolute paths. */
+    fonts: MotionFont[];
+    /** Absolute paths of every file the brand references (fonts, logos), served to the page. */
+    assets: string[];
+};
+export type LoadedStyle = {
+    resolved: ResolvedStyle;
+    /** Short hash of the layered style; null without a style. */
+    hash: string | null;
+};
+/** Read and resolve the project's brand: a file next to the project or an inline object. */
+export declare function loadBrand(project: MotionProject, dir: string): Promise<LoadedBrand>;
+/** Resolve the project's style through its `extends` chain (built-ins, style files, inline). */
+export declare function loadStyle(project: MotionProject, dir: string): LoadedStyle;
 /** `transcript` overrides the project's transcript (e.g. a re-recorded voiceover); relative to cwd. */
 export declare function loadMotionProject(file: string, opts?: {
     transcript?: string;
@@ -157,6 +181,11 @@ export declare function checkMotionProject(loaded: LoadedMotionProject, opts?: {
     clips?: string[];
     determinism?: boolean;
 }): Promise<ClipCheck[]>;
+/**
+ * Colour literals in a block's source (hex, rgb(), hsl()), each listed once. Black, white and
+ * their transparent shades (shadows, scrims) and fallbacks inside `var(--x, …)` are left out.
+ */
+export declare function hardCodedColors(source: string): string[];
 /** Moments worth checking: start, each cue + 0.6 s settle, end. */
 export declare function defaultMoments(clip: ResolvedClip): string[];
 export declare function renderStills(loaded: LoadedMotionProject, requests: StillRequest[], opts?: {
@@ -190,6 +219,10 @@ export type RenderedClip = {
     transcript: string | null;
     /** Music beats and corrections the clip was timed against (`musicHash`); absent without music. */
     music?: string;
+    /** Hash of the brand the clip was rendered with (null: no brand). */
+    brand: string | null;
+    /** Hash of the layered style the clip was rendered with (null: no style). */
+    style: string | null;
     /** Set when the clip was rendered against another transcript or music beats than the newest render. */
     stale?: boolean;
 };

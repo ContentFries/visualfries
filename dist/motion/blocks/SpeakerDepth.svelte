@@ -7,6 +7,8 @@
 	  words     [{ text, at, until?, style?, enter?, size?, y?, hit? }]
 	            style: "solid" | "accent" | "outline" | "echo" (three receding copies) | "strike"
 	            enter: "slam" | "left" | "right" | "rise"
+	            size:  font size in px, used as written; default: sized to the word and shrunk until
+	                   it fits the frame width in the block's font
 	            y:     vertical centre, 0–1 of the clip height; default: just under the top of the
 	                   head, measured from the matte, so the head covers the middle of the word
 	            hit:   flash, shake and a camera punch on the face
@@ -15,11 +17,18 @@
 	  cold      { at, until }: the mood turns blue
 	  captions  <Captions> props plus `words` (selection name, default "captions"); false for none
 	  accent, alt, cool, font, background
+
+	Colours and fonts come from the project's brand: accent, primary (for `alt`), text, muted,
+	surface, background, heading font (words) and body font (chips). `cool` is the mood colour of
+	`cold` and stays blue unless set.
 -->
 <script lang="ts">
 	import { noise, useClip, useFrame, useTimeline, type At } from '../runtime.svelte.js';
 	import Footage from '../Footage.svelte';
 	import Captions from '../Captions.svelte';
+	import { parseColor, toHex } from '../brand.js';
+	import { outline } from '../outline.js';
+	import { OUTLINE_EM, wordSize, type MeasureText } from './speaker-depth-size.js';
 
 	type Word = {
 		text: string;
@@ -41,10 +50,11 @@
 			`speaker-depth needs footage with a matte; "${name ?? '(none)'}" has none. Add "matte" to the footage.`
 		);
 	}
-	const accent: string = props.accent ?? '#fbc42d';
-	const alt: string = props.alt ?? '#f43f5e';
+	const brand = clip.brand;
+	const accent: string = props.accent ?? toHex(brand.colors.accent);
+	const alt: string = props.alt ?? toHex(brand.colors.primary);
 	const cool: string = props.cool ?? '#5a96ff';
-	const font: string = props.font ?? 'Anton, Impact, sans-serif';
+	const font: string = props.font ?? brand.fonts.heading;
 	const W = clip.width;
 	const H = clip.height;
 
@@ -58,6 +68,15 @@
 	const head0 = toStage(clip.subject(name, 0, 0.5));
 	const FACE = { x: head0.x, y: head0.y + FOOT_H * 0.14 };
 
+	// Fonts are loaded before blocks mount, so the canvas measures the real face.
+	const ctx = document.createElement('canvas').getContext('2d');
+	const measure: MeasureText = ctx
+		? (text, px) => {
+				ctx.font = `${px}px ${font}`;
+				return ctx.measureText(text).width;
+			}
+		: null;
+
 	const sec = (a: At) => clip.at(a);
 	const words: (Word & { start: number; end: number; px: number; top: number })[] = (
 		(props.words ?? []) as Word[]
@@ -68,8 +87,12 @@
 		// A word stays at least long enough to land and be read.
 		const end = Math.min(clip.duration, Math.max(until, start + 0.7));
 		const text = String(w.text);
-		const px =
-			w.size ?? Math.round(Math.min(W * 0.9, (W * 0.92) / (0.53 * Math.max(2, text.length))));
+		const px = wordSize(text, {
+			size: w.size,
+			width: W,
+			outlined: w.style === 'outline' || w.style === 'echo',
+			measure
+		});
 		const head = toStage(clip.subject(name, Math.round(start * clip.fps), 0.3));
 		const centre = w.y !== undefined ? w.y * H : head.y + px * 0.18;
 		const top = Math.max(H * 0.03, Math.min(H * 0.62, centre - px * 0.43));
@@ -244,10 +267,42 @@
 		}
 	});
 
-	const rgba = (hex: string, a: number) => {
-		const n = parseInt(hex.replace('#', ''), 16);
-		return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+	const rgba = (color: string, a: number) => {
+		const c = parseColor(color);
+		return c
+			? `rgba(${c[0]},${c[1]},${c[2]},${a})`
+			: `color-mix(in srgb, ${color} ${a * 100}%, transparent)`;
 	};
+
+	// Brand-dependent colours of the stylesheet. The neutral brand keeps the block's original
+	// values, some of which are tuned shades rather than brand roles.
+	const ink = toHex(brand.colors.text);
+	const surface = toHex(brand.colors.surface);
+	const look = brand.neutral
+		? {
+				background: '#08090c',
+				backdrop: 'radial-gradient(120% 70% at 52% 48%, #262a37 0%, #12141b 55%, #08090c 100%)',
+				word: '#f4f4f6',
+				outline: 'rgba(255, 255, 255, 0.92)',
+				strikeGlow: 'rgba(244, 63, 94, 0.7)',
+				ownInk: '#131616',
+				otherFill: 'rgba(255, 255, 255, 0.12)',
+				otherInk: '#c9ced8',
+				otherBorder: 'rgba(255, 255, 255, 0.25)',
+				chipFont: 'Inter, sans-serif'
+			}
+		: {
+				background: brand.colors.background,
+				backdrop: `radial-gradient(120% 70% at 52% 48%, color-mix(in srgb, ${surface} 88%, ${ink}) 0%, ${surface} 55%, ${toHex(brand.colors.background)} 100%)`,
+				word: ink,
+				outline: rgba(ink, 0.92),
+				strikeGlow: rgba(alt, 0.7),
+				ownInk: toHex(brand.colors.onAccent),
+				otherFill: rgba(ink, 0.12),
+				otherInk: toHex(brand.colors.muted),
+				otherBorder: rgba(ink, 0.25),
+				chipFont: brand.fonts.body
+			};
 
 	useFrame(({ frame }) => {
 		const sx = (noise(frame, 1) - 0.5) * 28 * st.shake;
@@ -300,7 +355,21 @@
 	const { words: _key, ...captionProps } = captions ?? {};
 </script>
 
-<div class="vf-sd" style:--accent={accent} style:--alt={alt} style:font-family={font}>
+<div
+	class="vf-sd"
+	style:--accent={accent}
+	style:--alt={alt}
+	style:--sd-background={look.background}
+	style:--sd-backdrop={look.backdrop}
+	style:--sd-word={look.word}
+	style:--sd-strike-glow={look.strikeGlow}
+	style:--sd-own-ink={look.ownInk}
+	style:--sd-other-fill={look.otherFill}
+	style:--sd-other-ink={look.otherInk}
+	style:--sd-other-border={look.otherBorder}
+	style:--sd-chip-font={look.chipFont}
+	style:font-family={font}
+>
 	<div class="layer backdrop" style:background={props.background}>
 		<div class="blob" style:background={accent} style="left:-10%;top:10%;opacity:.16"></div>
 		<div class="blob" style:background={alt} style="left:40%;top:62%;opacity:.12"></div>
@@ -324,7 +393,13 @@
 					style:font-size="{w.px}px"
 					style:z-index={3 - k}
 				>
-					{w.text}
+					{#if w.style === 'outline' || w.style === 'echo'}
+						<span class="ink" use:outline={{ width: `${OUTLINE_EM}em`, color: look.outline }}
+							>{w.text}</span
+						>
+					{:else}
+						{w.text}
+					{/if}
 				</div>
 			{/each}
 			{#if w.style === 'strike'}
@@ -344,7 +419,12 @@
 			<Footage {name} layer="plate" class="vf-sd-fill" />
 		</div>
 		{#if props.ghost}
-			<div class="foot ghost" bind:this={ghostBox} style:top="{FOOT_TOP}px" style:height="{FOOT_H}px">
+			<div
+				class="foot ghost"
+				bind:this={ghostBox}
+				style:top="{FOOT_TOP}px"
+				style:height="{FOOT_H}px"
+			>
 				<Footage {name} layer="subject" offset={-0.4} class="vf-sd-fill" />
 			</div>
 		{/if}
@@ -386,14 +466,14 @@
 		position: absolute;
 		inset: 0;
 		overflow: hidden;
-		background: #08090c;
+		background: var(--sd-background);
 	}
 	.layer {
 		position: absolute;
 		inset: 0;
 	}
 	.backdrop {
-		background: radial-gradient(120% 70% at 52% 48%, #262a37 0%, #12141b 55%, #08090c 100%);
+		background: var(--sd-backdrop);
 		overflow: hidden;
 	}
 	.blob {
@@ -432,17 +512,16 @@
 		text-align: center;
 		line-height: 0.86;
 		white-space: nowrap;
-		color: #f4f4f6;
+		color: var(--sd-word);
 		opacity: 0;
 		text-transform: uppercase;
 	}
 	.word.accent {
 		color: var(--accent);
 	}
-	.word.outline,
-	.word.echo {
-		color: transparent;
-		-webkit-text-stroke: 0.014em rgba(255, 255, 255, 0.92);
+	/* Hollow words: the outline follows the letters' outer edge, never a font's inner contours. */
+	.ink {
+		display: inline-block;
 	}
 	.strike {
 		position: absolute;
@@ -451,7 +530,7 @@
 		transform-origin: 0 50%;
 		rotate: -4deg;
 		scale: 0 1;
-		box-shadow: 0 0 40px rgba(244, 63, 94, 0.7);
+		box-shadow: 0 0 40px var(--sd-strike-glow);
 	}
 	.camera {
 		transform-origin: 0 0;
@@ -478,9 +557,7 @@
 	.chip {
 		position: absolute;
 		padding: 16px 32px;
-		font:
-			900 52px/1 Inter,
-			sans-serif;
+		font: 900 52px/1 var(--sd-chip-font);
 		letter-spacing: 0.02em;
 		border-radius: 999px;
 		opacity: 0;
@@ -488,13 +565,13 @@
 	}
 	.chip.own {
 		background: var(--accent);
-		color: #131616;
+		color: var(--sd-own-ink);
 		box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
 	}
 	.chip.other {
-		background: rgba(255, 255, 255, 0.12);
-		color: #c9ced8;
-		border: 2px solid rgba(255, 255, 255, 0.25);
+		background: var(--sd-other-fill);
+		color: var(--sd-other-ink);
+		border: 2px solid var(--sd-other-border);
 	}
 	.vignette {
 		background: radial-gradient(

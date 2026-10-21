@@ -9,7 +9,7 @@
     {"family": "Mono", "src": "fonts/JetBrainsMono.ttf", "weight": "100 800"},
     {"family": "Anton", "src": "fonts/Anton-Regular.ttf", "weight": "400"}
   ],
-  "styles": ["theme/editorial.css"],
+  "css": ["theme/editorial.css"],
   "footage": {"talk": {"src": "talk.mp4", "matte": "talk.matte.mp4", "start": 0, "margin": 2}},
   "clips": [
     {"id": "01-hook", "block": "blocks/Hook.svelte", "from": 0, "until": 3, "props": {"title": "How to turn one talking-head take into a week of content"}},

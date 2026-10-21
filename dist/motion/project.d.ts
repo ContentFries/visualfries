@@ -105,7 +105,100 @@ export declare const MotionClipShape: z.ZodObject<{
     music: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 export type MotionClip = z.infer<typeof MotionClipShape>;
-export declare const MotionProjectShape: z.ZodObject<{
+/**
+ * A creator's identity: colours in fixed roles, fonts, logo, corner radius. Blocks read it as
+ * `--brand-*` CSS custom properties and as `clip.brand`. Any colour may be a CSS gradient. File
+ * paths are relative to the brand file (or to the project for an inline brand).
+ */
+export declare const BrandShape: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    colors: z.ZodObject<{
+        primary: z.ZodString;
+        accent: z.ZodString;
+        background: z.ZodString;
+        surface: z.ZodString;
+        text: z.ZodString;
+        muted: z.ZodString;
+        onPrimary: z.ZodOptional<z.ZodString>;
+        onAccent: z.ZodOptional<z.ZodString>;
+        extra: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.core.$strict>;
+    fonts: z.ZodObject<{
+        heading: z.ZodObject<{
+            family: z.ZodString;
+            src: z.ZodString;
+            weight: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+            style: z.ZodOptional<z.ZodEnum<{
+                normal: "normal";
+                italic: "italic";
+            }>>;
+        }, z.core.$strip>;
+        body: z.ZodObject<{
+            family: z.ZodString;
+            src: z.ZodString;
+            weight: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+            style: z.ZodOptional<z.ZodEnum<{
+                normal: "normal";
+                italic: "italic";
+            }>>;
+        }, z.core.$strip>;
+        mono: z.ZodOptional<z.ZodObject<{
+            family: z.ZodString;
+            src: z.ZodString;
+            weight: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+            style: z.ZodOptional<z.ZodEnum<{
+                normal: "normal";
+                italic: "italic";
+            }>>;
+        }, z.core.$strip>>;
+    }, z.core.$strict>;
+    logo: z.ZodOptional<z.ZodObject<{
+        full: z.ZodOptional<z.ZodObject<{
+            light: z.ZodOptional<z.ZodString>;
+            dark: z.ZodOptional<z.ZodString>;
+        }, z.core.$strict>>;
+        mark: z.ZodOptional<z.ZodObject<{
+            light: z.ZodOptional<z.ZodString>;
+            dark: z.ZodOptional<z.ZodString>;
+        }, z.core.$strict>>;
+    }, z.core.$strict>>;
+    radius: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+}, z.core.$strict>;
+export type Brand = z.infer<typeof BrandShape>;
+/**
+ * A creator's editing grammar. `extends` names a built-in style or a style file (relative to
+ * the file that names it); this layer then changes only what differs. Later layers win; arrays
+ * replace whole, objects merge key by key. Only `energy` is read today; the other sections are
+ * reserved so style files can already carry them.
+ */
+export declare const StyleShape: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    extends: z.ZodOptional<z.ZodString>;
+    energy: z.ZodOptional<z.ZodEnum<{
+        calm: "calm";
+        balanced: "balanced";
+        punchy: "punchy";
+    }>>;
+    transitions: z.ZodOptional<z.ZodUnknown>;
+    shots: z.ZodOptional<z.ZodUnknown>;
+    captions: z.ZodOptional<z.ZodUnknown>;
+    sounds: z.ZodOptional<z.ZodUnknown>;
+    emphasis: z.ZodOptional<z.ZodUnknown>;
+    overlays: z.ZodOptional<z.ZodUnknown>;
+}, z.core.$strict>;
+export type Style = z.infer<typeof StyleShape>;
+/** Where the project's safe insets come from: every platform at once, or one platform. */
+export declare const SafeZoneShape: z.ZodEnum<{
+    meta: "meta";
+    all: "all";
+    tiktok: "tiktok";
+    youtube: "youtube";
+}>;
+/**
+ * The project file. `styles` (the CSS list's old name) is still read and becomes `css`, so
+ * nothing after parsing sees it; `style` is the video style.
+ */
+export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
     size: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
     fps: z.ZodNumber;
     transcript: z.ZodOptional<z.ZodString>;
@@ -118,6 +211,7 @@ export declare const MotionProjectShape: z.ZodObject<{
             italic: "italic";
         }>>;
     }, z.core.$strip>>>;
+    css: z.ZodOptional<z.ZodArray<z.ZodString>>;
     styles: z.ZodOptional<z.ZodArray<z.ZodString>>;
     background: z.ZodOptional<z.ZodString>;
     footage: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodObject<{
@@ -139,6 +233,81 @@ export declare const MotionProjectShape: z.ZodObject<{
             half: "half";
         }>>;
     }, z.core.$strip>>>;
+    brand: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        colors: z.ZodObject<{
+            primary: z.ZodString;
+            accent: z.ZodString;
+            background: z.ZodString;
+            surface: z.ZodString;
+            text: z.ZodString;
+            muted: z.ZodString;
+            onPrimary: z.ZodOptional<z.ZodString>;
+            onAccent: z.ZodOptional<z.ZodString>;
+            extra: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+        }, z.core.$strict>;
+        fonts: z.ZodObject<{
+            heading: z.ZodObject<{
+                family: z.ZodString;
+                src: z.ZodString;
+                weight: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+                style: z.ZodOptional<z.ZodEnum<{
+                    normal: "normal";
+                    italic: "italic";
+                }>>;
+            }, z.core.$strip>;
+            body: z.ZodObject<{
+                family: z.ZodString;
+                src: z.ZodString;
+                weight: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+                style: z.ZodOptional<z.ZodEnum<{
+                    normal: "normal";
+                    italic: "italic";
+                }>>;
+            }, z.core.$strip>;
+            mono: z.ZodOptional<z.ZodObject<{
+                family: z.ZodString;
+                src: z.ZodString;
+                weight: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+                style: z.ZodOptional<z.ZodEnum<{
+                    normal: "normal";
+                    italic: "italic";
+                }>>;
+            }, z.core.$strip>>;
+        }, z.core.$strict>;
+        logo: z.ZodOptional<z.ZodObject<{
+            full: z.ZodOptional<z.ZodObject<{
+                light: z.ZodOptional<z.ZodString>;
+                dark: z.ZodOptional<z.ZodString>;
+            }, z.core.$strict>>;
+            mark: z.ZodOptional<z.ZodObject<{
+                light: z.ZodOptional<z.ZodString>;
+                dark: z.ZodOptional<z.ZodString>;
+            }, z.core.$strict>>;
+        }, z.core.$strict>>;
+        radius: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    }, z.core.$strict>]>>;
+    style: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        extends: z.ZodOptional<z.ZodString>;
+        energy: z.ZodOptional<z.ZodEnum<{
+            calm: "calm";
+            balanced: "balanced";
+            punchy: "punchy";
+        }>>;
+        transitions: z.ZodOptional<z.ZodUnknown>;
+        shots: z.ZodOptional<z.ZodUnknown>;
+        captions: z.ZodOptional<z.ZodUnknown>;
+        sounds: z.ZodOptional<z.ZodUnknown>;
+        emphasis: z.ZodOptional<z.ZodUnknown>;
+        overlays: z.ZodOptional<z.ZodUnknown>;
+    }, z.core.$strict>]>>;
+    safeZone: z.ZodOptional<z.ZodEnum<{
+        meta: "meta";
+        all: "all";
+        tiktok: "tiktok";
+        youtube: "youtube";
+    }>>;
     clips: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         block: z.ZodString;
@@ -156,6 +325,211 @@ export declare const MotionProjectShape: z.ZodObject<{
         audio: z.ZodOptional<z.ZodString>;
         music: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>>;
-}, z.core.$strip>;
-export type MotionProject = z.infer<typeof MotionProjectShape>;
+}, z.core.$strip>, z.ZodTransform<{
+    size: [number, number];
+    fps: number;
+    clips: {
+        id: string;
+        block: string;
+        from: MotionAnchor;
+        until: MotionAnchor;
+        tail?: number | undefined;
+        cues?: Record<string, MotionAnchor> | undefined;
+        words?: Record<string, string | {
+            from: MotionAnchor;
+            until: MotionAnchor;
+        }> | undefined;
+        props?: Record<string, unknown> | undefined;
+        alpha?: boolean | undefined;
+        background?: string | undefined;
+        audio?: string | undefined;
+        music?: string | undefined;
+    }[];
+    transcript?: string | undefined;
+    fonts?: {
+        family: string;
+        src: string;
+        weight?: string | number | undefined;
+        style?: "normal" | "italic" | undefined;
+    }[] | undefined;
+    css?: string[] | undefined;
+    background?: string | undefined;
+    footage?: Record<string, {
+        src: string;
+        matte?: string | undefined;
+        start?: number | undefined;
+        margin?: number | "all" | undefined;
+    }> | undefined;
+    music?: {
+        src: string;
+        id?: string | undefined;
+        beats?: string | undefined;
+        from?: number | undefined;
+        until?: number | undefined;
+        shift?: number | undefined;
+        downbeat?: number | undefined;
+        tempo?: "double" | "half" | undefined;
+    }[] | undefined;
+    brand?: string | {
+        colors: {
+            primary: string;
+            accent: string;
+            background: string;
+            surface: string;
+            text: string;
+            muted: string;
+            onPrimary?: string | undefined;
+            onAccent?: string | undefined;
+            extra?: Record<string, string> | undefined;
+        };
+        fonts: {
+            heading: {
+                family: string;
+                src: string;
+                weight?: string | number | undefined;
+                style?: "normal" | "italic" | undefined;
+            };
+            body: {
+                family: string;
+                src: string;
+                weight?: string | number | undefined;
+                style?: "normal" | "italic" | undefined;
+            };
+            mono?: {
+                family: string;
+                src: string;
+                weight?: string | number | undefined;
+                style?: "normal" | "italic" | undefined;
+            } | undefined;
+        };
+        name?: string | undefined;
+        logo?: {
+            full?: {
+                light?: string | undefined;
+                dark?: string | undefined;
+            } | undefined;
+            mark?: {
+                light?: string | undefined;
+                dark?: string | undefined;
+            } | undefined;
+        } | undefined;
+        radius?: string | number | undefined;
+    } | undefined;
+    style?: string | {
+        name?: string | undefined;
+        extends?: string | undefined;
+        energy?: "calm" | "balanced" | "punchy" | undefined;
+        transitions?: unknown;
+        shots?: unknown;
+        captions?: unknown;
+        sounds?: unknown;
+        emphasis?: unknown;
+        overlays?: unknown;
+    } | undefined;
+    safeZone?: "meta" | "all" | "tiktok" | "youtube" | undefined;
+}, {
+    size: [number, number];
+    fps: number;
+    clips: {
+        id: string;
+        block: string;
+        from: MotionAnchor;
+        until: MotionAnchor;
+        tail?: number | undefined;
+        cues?: Record<string, MotionAnchor> | undefined;
+        words?: Record<string, string | {
+            from: MotionAnchor;
+            until: MotionAnchor;
+        }> | undefined;
+        props?: Record<string, unknown> | undefined;
+        alpha?: boolean | undefined;
+        background?: string | undefined;
+        audio?: string | undefined;
+        music?: string | undefined;
+    }[];
+    transcript?: string | undefined;
+    fonts?: {
+        family: string;
+        src: string;
+        weight?: string | number | undefined;
+        style?: "normal" | "italic" | undefined;
+    }[] | undefined;
+    css?: string[] | undefined;
+    styles?: string[] | undefined;
+    background?: string | undefined;
+    footage?: Record<string, {
+        src: string;
+        matte?: string | undefined;
+        start?: number | undefined;
+        margin?: number | "all" | undefined;
+    }> | undefined;
+    music?: {
+        src: string;
+        id?: string | undefined;
+        beats?: string | undefined;
+        from?: number | undefined;
+        until?: number | undefined;
+        shift?: number | undefined;
+        downbeat?: number | undefined;
+        tempo?: "double" | "half" | undefined;
+    }[] | undefined;
+    brand?: string | {
+        colors: {
+            primary: string;
+            accent: string;
+            background: string;
+            surface: string;
+            text: string;
+            muted: string;
+            onPrimary?: string | undefined;
+            onAccent?: string | undefined;
+            extra?: Record<string, string> | undefined;
+        };
+        fonts: {
+            heading: {
+                family: string;
+                src: string;
+                weight?: string | number | undefined;
+                style?: "normal" | "italic" | undefined;
+            };
+            body: {
+                family: string;
+                src: string;
+                weight?: string | number | undefined;
+                style?: "normal" | "italic" | undefined;
+            };
+            mono?: {
+                family: string;
+                src: string;
+                weight?: string | number | undefined;
+                style?: "normal" | "italic" | undefined;
+            } | undefined;
+        };
+        name?: string | undefined;
+        logo?: {
+            full?: {
+                light?: string | undefined;
+                dark?: string | undefined;
+            } | undefined;
+            mark?: {
+                light?: string | undefined;
+                dark?: string | undefined;
+            } | undefined;
+        } | undefined;
+        radius?: string | number | undefined;
+    } | undefined;
+    style?: string | {
+        name?: string | undefined;
+        extends?: string | undefined;
+        energy?: "calm" | "balanced" | "punchy" | undefined;
+        transitions?: unknown;
+        shots?: unknown;
+        captions?: unknown;
+        sounds?: unknown;
+        emphasis?: unknown;
+        overlays?: unknown;
+    } | undefined;
+    safeZone?: "meta" | "all" | "tiktok" | "youtube" | undefined;
+}>>;
+export type MotionProject = z.output<typeof MotionProjectShape>;
 export declare function isMotionProject(value: unknown): boolean;

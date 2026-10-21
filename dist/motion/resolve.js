@@ -1,6 +1,9 @@
 import { AMBIGUOUS_BAR_ANCHOR } from './project.js';
 import { describeWords, findPhrase, suggestPhrases } from './transcript.js';
 import { BEAT_OFFSET, findBarBeat, findBeat, nearBeat, pickMusic, shiftByBeats } from './beat-grid.js';
+import { NEUTRAL_BRAND } from './brand.js';
+import { NEUTRAL_STYLE } from './style.js';
+import { resolveFormat } from './format.js';
 class AnchorError extends Error {
 }
 function resolvePhrase(words, say, window, occurrence) {
@@ -108,7 +111,7 @@ function resolveWords(spec, words, fps, window, clipStart, beats) {
     const b = resolveAnchor(spec.until, words, fps, window, 'end', clipStart, beats);
     return words.filter((w) => w.start >= a.time - 1e-6 && w.start < b.time);
 }
-export function resolveMotionClip(clip, project, words, diagnostics, music = []) {
+export function resolveMotionClip(clip, project, words, diagnostics, music = [], look = {}) {
     const fps = project.fps;
     const beats = { music, clip: clip.music };
     const fail = (field, error) => {
@@ -233,12 +236,19 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [])
         alpha: clip.alpha ?? false,
         background: clip.alpha ? null : (clip.background ?? project.background ?? null),
         audio: clip.audio ?? null,
-        ...musicFields
+        ...musicFields,
+        brand: look.brand ?? NEUTRAL_BRAND,
+        style: look.style ?? NEUTRAL_STYLE,
+        format: look.format ?? resolveFormat(project.size, project.safeZone)
     };
 }
 /** `music`: beats of the project's music items, placed in the program (see `programBeats`). */
-export function resolveMotionProject(project, words, music = []) {
+export function resolveMotionProject(project, words, music = [], look = {}) {
     const diagnostics = [];
+    const format = resolveFormat(project.size, project.safeZone);
+    // A project-wide setting: one warning for the project, not one per clip.
+    if (format.fallback)
+        diagnostics.push({ level: 'warning', field: 'safeZone', message: format.fallback });
     const ids = new Set();
     const clips = [];
     for (const clip of project.clips) {
@@ -268,7 +278,10 @@ export function resolveMotionProject(project, words, music = []) {
                 message: `Unknown music "${clip.music}". Music with beats: ${music.map((m) => m.id ?? m.name).join(', ') || 'none'}`
             });
         }
-        const resolved = resolveMotionClip(clip, project, words, diagnostics, music);
+        const resolved = resolveMotionClip(clip, project, words, diagnostics, music, {
+            ...look,
+            format
+        });
         if (resolved)
             clips.push(resolved);
     }

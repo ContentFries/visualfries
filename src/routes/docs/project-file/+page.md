@@ -1,6 +1,6 @@
 ---
 title: The project file (.vf.json)
-description: Reference for the VisualFries motion project file. Size, fps, transcript, fonts and styles at the top; clips with a block, a range anchored to spoken phrases, cues, word bindings and props.
+description: Reference for the VisualFries motion project file. Size, fps, transcript, fonts and CSS at the top; clips with a block, a range anchored to spoken phrases, cues, word bindings and props.
 updated: 2026-09-27
 ---
 
@@ -14,7 +14,7 @@ A motion project is one JSON file, usually named `<name>.vf.json`. It lists clip
 	"fps": 30,
 	"transcript": "voice.transcript.json",
 	"fonts": [{ "family": "Futura", "src": "fonts/Jost.ttf", "weight": "100 900" }],
-	"styles": ["theme/film.css"],
+	"css": ["theme/film.css"],
 	"background": "#17120e",
 	"clips": [ … ]
 }
@@ -28,9 +28,12 @@ A fragment: a project needs at least one clip.
 | `fps`        | number            | Required. Frames per second, positive.                                                                               |
 | `transcript` | path              | Word-level transcript of the voiceover. Required when anything is anchored to a phrase or when a clip binds `words`. |
 | `fonts`      | list              | Font files loaded before any block mounts. A variable font declares its range as `"100 900"`.                        |
-| `styles`     | list              | Global CSS files (themes, shared classes). Relative `url()` references keep working.                                 |
+| `css`        | list              | Global CSS files (themes, shared classes). Relative `url()` references keep working. Old name: `styles`.             |
 | `background` | CSS color         | Default background of every opaque clip.                                                                             |
 | `music`      | list              | Music items: `{ "src", "beats", "from", "until" }` plus corrections. Their beats are timing anchors (below).         |
+| `brand`      | path or object    | Brand file or inline brand: colours, fonts, logo and radius, as `--brand-*` tokens in every block.                   |
+| `style`      | name or object    | The video style: a built-in name (`kinetic` …), a style file or an inline layer. Sets the motion energy.             |
+| `safeZone`   | string            | Safe insets for blocks: `all` (default), `tiktok`, `meta` or `youtube`.                                              |
 | `clips`      | list              | Required, at least one. Described below.                                                                             |
 
 Ship fonts with the project. A render must never depend on what happens to be installed on the machine.

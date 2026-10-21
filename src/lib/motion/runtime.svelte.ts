@@ -11,6 +11,9 @@ import { resolveMoment } from './moment.js';
 import { subjectBox } from './footage.js';
 import { NO_MUSIC_BEATS, beatPhase, type GridBeat, type MotionBeatRef } from './beat-grid.js';
 import { clipEnergy, type Energy } from './energy.js';
+import { NEUTRAL_BRAND, type ResolvedBrand } from './brand.js';
+import { NEUTRAL_STYLE, type ResolvedStyle } from './style.js';
+import { resolveFormat, type ResolvedFormat } from './format.js';
 
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
@@ -74,10 +77,23 @@ export class Clip {
 	readonly #grid: GridBeat[];
 	/**
 	 * Motion energy for `use:motion` defaults: the clip's `props.energy` when it is `calm`,
-	 * `balanced` or `punchy`, else `balanced` (other values belong to the block).
+	 * `balanced` or `punchy` (other values belong to the block), else the project style's
+	 * energy, else `balanced`.
 	 */
 	readonly energy: Energy;
 	#events: ClipEvent[] = [];
+	/**
+	 * The project's brand: colours by role, fonts, logo URLs, radius. Also on the clip's root
+	 * element as `--brand-*` CSS custom properties. `neutral` when the project names no brand.
+	 */
+	readonly brand: ResolvedBrand;
+	/** The project's style after layering; `energy` is `calm`, `balanced` or `punchy`. */
+	readonly style: ResolvedStyle;
+	/**
+	 * `class` (`landscape`, `square`, `portrait`) and safe insets in px for the project size, also
+	 * as `--safe-top|right|bottom|left` and a `data-format` attribute on the clip's root.
+	 */
+	readonly format: ResolvedFormat;
 
 	constructor(data: ResolvedClip) {
 		this.id = data.id;
@@ -100,6 +116,9 @@ export class Clip {
 			beat: b.beat
 		}));
 		this.energy = clipEnergy(data);
+		this.brand = data.brand ?? NEUTRAL_BRAND;
+		this.style = data.style ?? NEUTRAL_STYLE;
+		this.format = data.format ?? resolveFormat(data.size);
 	}
 
 	/**

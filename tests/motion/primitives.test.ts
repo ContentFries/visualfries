@@ -9,6 +9,7 @@ import { motion } from '../../src/lib/motion/motion.js';
 import { ENERGY, planMotion, type MotionOptions } from '../../src/lib/motion/primitives.js';
 import type { ResolvedClip } from '../../src/lib/motion/resolve.js';
 import { clipEnergy } from '../../src/lib/motion/energy.js';
+import { resolveStyle } from '../../src/lib/motion/style.js';
 import MotionBlock from './fixtures/MotionBlock.svelte';
 
 const FPS = 30;
@@ -389,6 +390,27 @@ describe('motion energy', () => {
 		expect(new Clip(resolved({ energy: 'punchy' })).energy).toBe('punchy');
 		expect(clipEnergy({ props: { energy: 'calm' } })).toBe('calm');
 		expect(clipEnergy({})).toBe('balanced');
+	});
+
+	it('falls back to the project style’s energy, then balanced', () => {
+		const style = (spec: Parameters<typeof resolveStyle>[0]) =>
+			resolveStyle(spec, () => {
+				throw new Error('no style files here');
+			});
+		const kinetic = (props: Record<string, unknown> = {}) =>
+			new Clip({ ...resolved(props), style: style('kinetic') });
+		expect(kinetic().energy).toBe('punchy');
+		expect(planMotion(kinetic(), { enter: 'pop' }, 1).energy).toBe('punchy');
+		// The clip's own valid props.energy wins; any other value falls through to the style.
+		expect(kinetic({ energy: 'calm' }).energy).toBe('calm');
+		expect(kinetic({ energy: 0.8 }).energy).toBe('punchy');
+		expect(new Clip({ ...resolved(), style: style('editorial') }).energy).toBe('calm');
+		expect(
+			new Clip({ ...resolved(), style: style({ extends: 'brutal', energy: 'balanced' }) }).energy
+		).toBe('balanced');
+		expect(clipEnergy({ style: { energy: 'punchy' } })).toBe('punchy');
+		expect(clipEnergy({ props: { energy: 'calm' }, style: { energy: 'punchy' } })).toBe('calm');
+		expect(clipEnergy({ style: { energy: 'loud' } })).toBe('balanced');
 	});
 
 	it('rejects unknown names instead of guessing', () => {

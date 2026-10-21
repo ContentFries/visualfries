@@ -16,6 +16,9 @@ import {
 	type MotionBeatRef,
 	type MusicBeats
 } from './beat-grid.js';
+import { NEUTRAL_BRAND, type ResolvedBrand } from './brand.js';
+import { NEUTRAL_STYLE, type ResolvedStyle } from './style.js';
+import { resolveFormat, type ResolvedFormat } from './format.js';
 
 export type MotionWordRef = MotionWord & {
 	/** Seconds relative to the clip start. */
@@ -57,6 +60,12 @@ export type ResolvedClip = {
 	 */
 	beats?: MotionBeatRef[];
 	noBeats?: string;
+	/** The project's brand (the neutral brand when it names none). */
+	brand: ResolvedBrand;
+	/** The project's style after layering. */
+	style: ResolvedStyle;
+	/** Format class and safe insets of the project size. */
+	format: ResolvedFormat;
 	/** Frames of the project's footage, filled in by the node tooling before a page loads. */
 	footage?: Record<string, FootageFrames>;
 };
@@ -258,12 +267,16 @@ function resolveWords(
 	return words.filter((w) => w.start >= a.time - 1e-6 && w.start < b.time);
 }
 
+/** Brand and style resolved from their files (node side); neutral when the project names none. */
+export type ProjectLook = { brand?: ResolvedBrand; style?: ResolvedStyle };
+
 export function resolveMotionClip(
 	clip: MotionClip,
-	project: Pick<MotionProject, 'fps' | 'size' | 'background'>,
+	project: Pick<MotionProject, 'fps' | 'size' | 'background' | 'safeZone'>,
 	words: MotionWord[] | null,
 	diagnostics: MotionDiagnostic[],
-	music: MusicBeats[] = []
+	music: MusicBeats[] = [],
+	look: ProjectLook & { format?: ResolvedFormat } = {}
 ): ResolvedClip | null {
 	const fps = project.fps;
 	const beats: BeatContext = { music, clip: clip.music };
@@ -402,7 +415,10 @@ export function resolveMotionClip(
 		alpha: clip.alpha ?? false,
 		background: clip.alpha ? null : (clip.background ?? project.background ?? null),
 		audio: clip.audio ?? null,
-		...musicFields
+		...musicFields,
+		brand: look.brand ?? NEUTRAL_BRAND,
+		style: look.style ?? NEUTRAL_STYLE,
+		format: look.format ?? resolveFormat(project.size, project.safeZone)
 	};
 }
 
@@ -410,9 +426,14 @@ export function resolveMotionClip(
 export function resolveMotionProject(
 	project: MotionProject,
 	words: MotionWord[] | null,
-	music: MusicBeats[] = []
+	music: MusicBeats[] = [],
+	look: ProjectLook = {}
 ): ResolvedProject {
 	const diagnostics: MotionDiagnostic[] = [];
+	const format = resolveFormat(project.size, project.safeZone);
+	// A project-wide setting: one warning for the project, not one per clip.
+	if (format.fallback)
+		diagnostics.push({ level: 'warning', field: 'safeZone', message: format.fallback });
 	const ids = new Set<string>();
 	const clips: ResolvedClip[] = [];
 	for (const clip of project.clips) {
@@ -442,7 +463,10 @@ export function resolveMotionProject(
 				message: `Unknown music "${clip.music}". Music with beats: ${music.map((m) => m.id ?? m.name).join(', ') || 'none'}`
 			});
 		}
-		const resolved = resolveMotionClip(clip, project, words, diagnostics, music);
+		const resolved = resolveMotionClip(clip, project, words, diagnostics, music, {
+			...look,
+			format
+		});
 		if (resolved) clips.push(resolved);
 	}
 	return { fps: project.fps, size: project.size, clips, diagnostics };

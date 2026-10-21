@@ -660,29 +660,45 @@ the cache or transitions, and the same project gives the same samples on every r
   (`audio.crossfade`, default 0.01 s) centred on each audio edit point, so cuts never click.
   `audio.split` moves the edit point (negative: a J cut, the sound leads; positive: an L cut)
   while the sound stays in sync with the picture; `audio.gain` (dB) and `audio.mute` per cut.
+  Two cuts that continue the same take (the second starts in the source where the first ends,
+  same gain) meet without a fade, so splitting a take leaves its sound unchanged.
   `footage.<name>.audio` names a separate sound file (the microphone) or `false`.
 - **Effects:** `sfx` items play a sound file (relative to the project) at any program anchor,
   rounded to a frame. A transition with `"sound"` plays it on its event (the middle of `push`
   and `wipe`). When a sound library's `sounds.json` (`{ "sounds": [{ "file", "hitMs" }] }`, in
   the sound's folder or up to three folders above) lists the file, its hit lands on the moment
-  instead of its first sample. Each effect's loudest 100 ms sits `mix.sfx` dB (default −10)
+  instead of its first sample (a manifest that cannot be read, or a `hitMs` outside the sound,
+  is a warning and the file start is used). Each effect's loudest 100 ms sits `mix.sfx` dB (default −10)
   under the speech, plus its own `gain`. Sounds chosen automatically from the style come later.
 - **Music:** each music item plays from `from` (negative: from inside the file) until `until`
   or the program end, at one steady level: its integrated loudness `mix.music` dB (default
   −15) under the speech, plus its `gain`. It never rises in pauses on its own; `keys` change
   the level explicitly (dB on top of `gain`, in straight lines from key to key, holding before
-  the first and after the last). `fade: { in, out }` defaults to 0.01 s and 1 s.
+  the first and after the last). `fade: { in, out }` defaults to 0.01 s and 1 s. Unknown
+  fields on a music item, in `fade` or in `mix` are errors, so a typo never passes silently.
 - **Master:** the sum goes to `mix.loudness` LUFS integrated (default −14) with every true peak
   at or under `mix.truePeak` dBTP (default −1): one gain for the whole mix, and a true-peak
-  limiter (5 ms look-ahead, 50 ms release) only where a peak would pass the ceiling. Loudness is
-  measured as ITU-R BS.1770-4 does (K-weighted, gated, 4× oversampled true peak). "The speech"
-  above is the integrated loudness of the speech as cut; a program without speech measures from
-  `mix.loudness`.
+  limiter only where a peak would pass the ceiling. The limiter holds each frame's needed gain
+  over ±5 ms and smooths it over ±5 ms, so it starts 10 ms before a peak, and releases with a
+  50 ms time constant (about 195 ms back from a 6 dB dip). Where it takes a lot, the gain is
+  raised again until the loudness is reached; a result more than 0.5 LU off the target is a
+  warning. Loudness is measured as ITU-R BS.1770-4 does (K-weighted, gated, 4× oversampled true
+  peak). "The speech" above is the integrated loudness of the speech as cut; a program without
+  speech measures from `mix.loudness`.
+- **Delivery:** AAC raises peaks a little, so the mix is limited 0.5 dB under the ceiling,
+  encoded (AAC 192 kbit/s), decoded and measured; if the encoded true peak still passes the
+  ceiling, the mix is limited lower and encoded again. The video carries that encoded audio as
+  measured, and the render reports what it measures (`mix.delivered`). The sound is mixed and
+  encoded before any picture is drawn, so an unreadable sound file fails the render at once;
+  `check` mixes it too and prints its loudness (before encoding) and any warning.
 
 `--stems` also writes `<name>.speech.wav`, `<name>.sfx.wav` and `<name>.music.wav` beside the
 video: 48 kHz 32-bit float with the master gain and limiter applied, so they add up to the
-mix. The render result lists the mix: the speech loudness, each piece's gain, the master gain,
-the limiter's largest reduction, and the final loudness and true peak.
+mix before encoding (within float rounding, about 1e-5). A render without `--stems` removes
+stems of the same name left by an earlier render, since they no longer match the video. The
+render result lists the mix: the speech loudness, each piece's gain, the master gain, the
+limiter's largest reduction, the loudness and true peak of the mix and of the delivered audio,
+and warnings.
 
 ## How frames are made
 

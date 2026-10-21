@@ -222,6 +222,11 @@ export declare const MUSIC_FADE: {
 /** The project's frame, or another size given as "1080x1350". */
 export declare function programFormat(project: Pick<MotionProject, 'size' | 'safeZone'>, name?: string): ProgramFormat;
 /**
+ * Orders text by UTF-16 code units, the same on every machine (`localeCompare` follows the
+ * locale, which would make the order, and the mix, depend on where it runs).
+ */
+export declare const compareText: (a: string, b: string) => 0 | 1 | -1;
+/**
  * Resolves a project into its program for one format: cuts, shots (gaps framed `full`), clips,
  * transition windows with handles and held frames, keys, events, audio pieces and segments.
  * Pure: the same project and inputs give the same JSON, in Node and in the browser.

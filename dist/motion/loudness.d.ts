@@ -15,17 +15,19 @@ export declare const SILENT: number;
  */
 export declare function integratedLoudness(samples: Float32Array): number;
 /**
- * The loudest `window` seconds (default 100 ms) in LUFS, windows every 10 ms; a sound shorter
- * than the window counts over the whole window. The measure of short sounds (effects).
+ * The loudest `window` seconds (default 100 ms, a whole number of 10 ms hops) in LUFS, windows
+ * every 10 ms; a sound shorter than the window counts over the whole window. The measure of
+ * short sounds (effects).
  */
 export declare function maxShortLoudness(samples: Float32Array, window?: number): number;
 /** True peak in dBTP (sample peak included). */
 export declare function truePeak(samples: Float32Array): number;
 /**
  * Gain per sample frame (0–1) that keeps the true peak of `samples` at or under `ceiling` dBTP.
- * Each frame's needed gain is held over ±5 ms and averaged over ±5 ms, so the gain starts
- * falling 5 ms before a peak and is never above what any frame needs; it then rises back with
- * a 50 ms release. Null when nothing needs limiting.
+ * Each frame's needed gain is held (minimum) over ±5 ms and the result averaged over ±5 ms, so
+ * the gain starts falling 10 ms before a peak and is never above what any frame needs; it then
+ * rises back with a 50 ms release time constant (about 195 ms to recover from a 6 dB dip to
+ * within 0.1 dB). Null when nothing needs limiting.
  */
 export declare function limiterGain(samples: Float32Array, ceiling: number): Float32Array | null;
 export type Normalized = {
@@ -45,8 +47,10 @@ export type Normalized = {
 /**
  * Brings a mix to `target` LUFS integrated with its true peak at or under `ceiling` dBTP: one
  * gain for the whole mix, then the limiter where peaks would pass the ceiling, then the gain
- * corrected by what the limiter took (up to four rounds, until within 0.05 LU). A silent mix
- * stays silent.
+ * corrected for what the limiter took. The first correction adds the shortfall; later ones step
+ * along the secant of the last two rounds (limiting makes loudness grow slower than the gain),
+ * at most 12 dB a round and 30 dB over the plain gain, until within 0.05 LU or after eight
+ * rounds. A silent mix stays silent.
  */
 export declare function normalizeLoudness(samples: Float32Array, target: number, ceiling: number): Normalized;
 /** Multiplies interleaved stereo samples by a per-frame gain, in place. */

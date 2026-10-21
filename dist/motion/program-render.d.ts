@@ -42,7 +42,8 @@ export type ProgramRenderOptions = {
     fresh?: boolean;
     /**
      * Also write the stems beside the video (`<name>.speech.wav`, `.sfx.wav`, `.music.wav`):
-     * 48 kHz 32-bit float, with the master gain and limiter applied, so they add up to the mix.
+     * 48 kHz 32-bit float, with the master gain and limiter applied, so they add up to the mix
+     * before encoding (within about 1e-5). Without it, stems of that name are removed.
      */
     stems?: boolean;
     /**

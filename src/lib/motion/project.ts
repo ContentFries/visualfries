@@ -165,36 +165,40 @@ const musicId = z
  * keys on top. Corrections fix what the analyzer got wrong without touching the beats file, so
  * re-analysis keeps them.
  */
-export const MotionMusicShape = z.object({
-	/** Name for beat anchors (`"music": "bed"`) when several music items have beats. */
-	id: musicId.optional(),
-	src: z.string().min(1),
-	/** Beats file next to the music (`music.beats.json`), relative to the project. */
-	beats: z.string().min(1).optional(),
-	/** Program seconds at which the music file's first sample plays. Default 0. */
-	from: z.number().optional(),
-	/** Program seconds at which the music stops; beats after it do not exist. */
-	until: z.number().optional(),
-	/** Seconds added to every beat. */
-	shift: z.number().optional(),
-	/** Which beat of the bar is really beat 1 (counted after `tempo`). */
-	downbeat: z.number().int().min(1).optional(),
-	/** The analyzer found half (`double`) or twice (`half`) the real tempo. */
-	tempo: z.enum(['double', 'half']).optional(),
-	/** dB on top of the project's music level (`mix.music`). */
-	gain: z.number().optional(),
-	/** Seconds the music fades in at its start and out at its end. Default 0.01 and 1. */
-	fade: z
-		.object({ in: z.number().min(0).optional(), out: z.number().min(0).optional() })
-		.optional(),
-	/**
-	 * Explicit level changes, dB on top of `gain` (a music-only intro, say): the level moves in a
-	 * straight line (in dB) from key to key and holds before the first and after the last.
-	 */
-	keys: z.array(z.object({ at: MotionAnchorShape, gain: z.number() })).optional(),
-	/** Where generated music came from. */
-	provenance: timeline(() => ProvenanceShape).optional()
-});
+export const MotionMusicShape = z
+	.object({
+		/** Name for beat anchors (`"music": "bed"`) when several music items have beats. */
+		id: musicId.optional(),
+		src: z.string().min(1),
+		/** Beats file next to the music (`music.beats.json`), relative to the project. */
+		beats: z.string().min(1).optional(),
+		/** Program seconds at which the music file's first sample plays. Default 0. */
+		from: z.number().optional(),
+		/** Program seconds at which the music stops; beats after it do not exist. */
+		until: z.number().optional(),
+		/** Seconds added to every beat. */
+		shift: z.number().optional(),
+		/** Which beat of the bar is really beat 1 (counted after `tempo`). */
+		downbeat: z.number().int().min(1).optional(),
+		/** The analyzer found half (`double`) or twice (`half`) the real tempo. */
+		tempo: z.enum(['double', 'half']).optional(),
+		/** dB on top of the project's music level (`mix.music`). */
+		gain: z.number().optional(),
+		/** Seconds the music fades in at its start and out at its end. Default 0.01 and 1. */
+		fade: z
+			.object({ in: z.number().min(0).optional(), out: z.number().min(0).optional() })
+			.strict()
+			.optional(),
+		/**
+		 * Explicit level changes, dB on top of `gain` (a music-only intro, say): the level moves in a
+		 * straight line (in dB) from key to key and holds before the first and after the last.
+		 */
+		keys: z.array(z.object({ at: MotionAnchorShape, gain: z.number() }).strict()).optional(),
+		/** Where generated music came from. */
+		provenance: timeline(() => ProvenanceShape).optional()
+	})
+	// Unknown fields are errors: a typo ("gian") must not pass silently.
+	.strict();
 export type MotionMusic = z.infer<typeof MotionMusicShape>;
 
 export const MotionClipShape = z.object({

@@ -15,33 +15,38 @@ const SHELF = {
 };
 const HIGHPASS = { b: [1, -2, 1], a: [-1.99004745483398, 0.99007225036621] };
 /**
- * K-weighted power per sample frame: the sum over both channels of the squared K-weighted
- * signal. Float64 so long programs sum without drift.
+ * K-weighted power summed over both channels in consecutive hops of `hop` sample frames (a
+ * partial last hop is kept). Streams over the samples: no per-frame buffer.
  */
-function weightedPower(samples) {
+function weightedPowerSums(samples, hop) {
     const frames = samples.length >> 1;
-    const out = new Float64Array(frames);
+    const sums = new Float64Array(Math.ceil(frames / hop));
     for (let ch = 0; ch < 2; ch++) {
         // Two biquads in series (direct form I).
         let x1 = 0, x2 = 0, y1 = 0, y2 = 0, z1 = 0, z2 = 0;
-        for (let n = 0; n < frames; n++) {
-            const x = samples[2 * n + ch];
-            const y = SHELF.b[0] * x + SHELF.b[1] * x1 + SHELF.b[2] * x2 - SHELF.a[0] * y1 - SHELF.a[1] * y2;
-            x2 = x1;
-            x1 = x;
-            const z = HIGHPASS.b[0] * y +
-                HIGHPASS.b[1] * y1 +
-                HIGHPASS.b[2] * y2 -
-                HIGHPASS.a[0] * z1 -
-                HIGHPASS.a[1] * z2;
-            y2 = y1;
-            y1 = y;
-            z2 = z1;
-            z1 = z;
-            out[n] += z * z;
+        for (let k = 0; k < sums.length; k++) {
+            let sum = 0;
+            const to = Math.min(frames, (k + 1) * hop);
+            for (let n = k * hop; n < to; n++) {
+                const x = samples[2 * n + ch];
+                const y = SHELF.b[0] * x + SHELF.b[1] * x1 + SHELF.b[2] * x2 - SHELF.a[0] * y1 - SHELF.a[1] * y2;
+                x2 = x1;
+                x1 = x;
+                const z = HIGHPASS.b[0] * y +
+                    HIGHPASS.b[1] * y1 +
+                    HIGHPASS.b[2] * y2 -
+                    HIGHPASS.a[0] * z1 -
+                    HIGHPASS.a[1] * z2;
+                y2 = y1;
+                y1 = y;
+                z2 = z1;
+                z1 = z;
+                sum += z * z;
+            }
+            sums[k] += sum;
         }
     }
-    return out;
+    return sums;
 }
 const loudnessOf = (meanPower) => meanPower > 0 ? -0.691 + 10 * Math.log10(meanPower) : SILENT;
 /**
@@ -50,16 +55,10 @@ const loudnessOf = (meanPower) => meanPower > 0 ? -0.691 + 10 * Math.log10(meanP
  * silent: -Infinity.
  */
 export function integratedLoudness(samples) {
-    const power = weightedPower(samples);
     const step = RATE / 10;
-    const steps = Math.floor(power.length / step);
-    const sums = new Float64Array(steps);
-    for (let k = 0; k < steps; k++) {
-        let s = 0;
-        for (let n = k * step; n < (k + 1) * step; n++)
-            s += power[n];
-        sums[k] = s;
-    }
+    const sums = weightedPowerSums(samples, step);
+    // Whole 100 ms steps only.
+    const steps = Math.floor((samples.length >> 1) / step);
     const blocks = [];
     for (let j = 0; j + 4 <= steps; j++)
         blocks.push((sums[j] + sums[j + 1] + sums[j + 2] + sums[j + 3]) / (4 * step));
@@ -72,24 +71,24 @@ export function integratedLoudness(samples) {
     return loudnessOf(kept.reduce((a, b) => a + b, 0) / kept.length);
 }
 /**
- * The loudest `window` seconds (default 100 ms) in LUFS, windows every 10 ms; a sound shorter
- * than the window counts over the whole window. The measure of short sounds (effects).
+ * The loudest `window` seconds (default 100 ms, a whole number of 10 ms hops) in LUFS, windows
+ * every 10 ms; a sound shorter than the window counts over the whole window. The measure of
+ * short sounds (effects).
  */
 export function maxShortLoudness(samples, window = 0.1) {
-    const power = weightedPower(samples);
-    const size = Math.round(window * RATE);
     const hop = RATE / 100;
-    const prefix = new Float64Array(power.length + 1);
-    for (let n = 0; n < power.length; n++)
-        prefix[n + 1] = prefix[n] + power[n];
+    const hops = Math.max(1, Math.round(window * 100));
+    const sums = weightedPowerSums(samples, hop);
     let best = 0;
-    for (let start = 0; start === 0 || start + size <= power.length; start += hop) {
-        const end = Math.min(power.length, start + size);
-        best = Math.max(best, prefix[end] - prefix[start]);
-        if (end === power.length)
+    for (let start = 0; start === 0 || start + hops <= sums.length; start++) {
+        let sum = 0;
+        for (let k = start; k < Math.min(sums.length, start + hops); k++)
+            sum += sums[k];
+        best = Math.max(best, sum);
+        if (start + hops >= sums.length)
             break;
     }
-    return loudnessOf(best / size);
+    return loudnessOf(best / (hops * hop));
 }
 // BS.1770-4 annex 2: the 48-tap, 4-phase interpolation filter of the true-peak meter.
 const PHASES = [
@@ -125,7 +124,8 @@ function peakEnvelope(samples) {
         env[n] = Math.max(Math.abs(samples[2 * n]), Math.abs(samples[2 * n + 1]));
     const [h0, h1, h2, h3] = PHASES;
     // One channel at a time, with TAPS − 1 zeros before and DELAY after: no bounds checks below.
-    const x = new Float64Array(frames + TAPS - 1 + DELAY);
+    // Float32 holds the samples exactly; the products are taken in double precision.
+    const x = new Float32Array(frames + TAPS - 1 + DELAY);
     for (let ch = 0; ch < 2; ch++) {
         for (let n = 0; n < frames; n++)
             x[n + TAPS - 1] = samples[2 * n + ch];
@@ -161,24 +161,27 @@ export function truePeak(samples) {
             max = env[n];
     return db(max);
 }
-/** Lookahead and smoothing radius of the limiter (5 ms each side). */
+/** Hold and smoothing radius of the limiter: 5 ms each, so it looks 10 ms ahead. */
 const LIMIT_RADIUS = RATE / 200;
 /** Release time constant of the limiter. */
 const LIMIT_RELEASE = 0.05;
+/** The smoothing sum starts afresh this often, so rounding never accumulates. */
+const RESUM = 4096;
 /**
  * Gain per sample frame (0–1) that keeps the true peak of `samples` at or under `ceiling` dBTP.
- * Each frame's needed gain is held over ±5 ms and averaged over ±5 ms, so the gain starts
- * falling 5 ms before a peak and is never above what any frame needs; it then rises back with
- * a 50 ms release. Null when nothing needs limiting.
+ * Each frame's needed gain is held (minimum) over ±5 ms and the result averaged over ±5 ms, so
+ * the gain starts falling 10 ms before a peak and is never above what any frame needs; it then
+ * rises back with a 50 ms release time constant (about 195 ms to recover from a 6 dB dip to
+ * within 0.1 dB). Null when nothing needs limiting.
  */
 export function limiterGain(samples, ceiling) {
-    const env = peakEnvelope(samples);
+    // The envelope becomes the gain each frame needs, in place.
+    const need = peakEnvelope(samples);
     const c = linear(ceiling);
-    const frames = env.length;
+    const frames = need.length;
     let needed = false;
-    const need = new Float32Array(frames);
     for (let n = 0; n < frames; n++) {
-        need[n] = env[n] > c ? c / env[n] : 1;
+        need[n] = need[n] > c ? c / need[n] : 1;
         if (need[n] < 1)
             needed = true;
     }
@@ -187,34 +190,36 @@ export function limiterGain(samples, ceiling) {
     const r = LIMIT_RADIUS;
     // Minimum over [n − r, n + r] (monotonic queue).
     const held = new Float32Array(frames);
-    const queue = new Int32Array(frames);
-    let head = 0, tail = 0, next = 0;
-    for (let n = 0; n < frames; n++) {
-        for (; next < frames && next <= n + r; next++) {
-            while (tail > head && need[queue[tail - 1]] >= need[next])
-                tail--;
-            queue[tail++] = next;
+    {
+        const queue = new Int32Array(frames);
+        let head = 0, tail = 0, next = 0;
+        for (let n = 0; n < frames; n++) {
+            for (; next < frames && next <= n + r; next++) {
+                while (tail > head && need[queue[tail - 1]] >= need[next])
+                    tail--;
+                queue[tail++] = next;
+            }
+            while (queue[head] < n - r)
+                head++;
+            held[n] = need[queue[head]];
         }
-        while (queue[head] < n - r)
-            head++;
-        held[n] = need[queue[head]];
     }
-    // Mean over [n − r, n + r]; outside the signal the gain counts as the edge value.
-    const prefix = new Float64Array(frames + 1);
-    for (let n = 0; n < frames; n++)
-        prefix[n + 1] = prefix[n] + held[n];
-    const gain = new Float32Array(frames);
+    // Mean over [n − r, n + r]; outside the signal the gain counts as the edge value. The gain
+    // goes into `need`, which is no longer read.
+    const gain = need;
+    const at = (i) => held[i < 0 ? 0 : i >= frames ? frames - 1 : i];
     const release = 1 - Math.exp(-1 / (LIMIT_RELEASE * RATE));
     let previous = 1;
+    let sum = 0;
     for (let n = 0; n < frames; n++) {
-        const from = Math.max(0, n - r);
-        const to = Math.min(frames, n + r + 1);
-        const mean = (prefix[to] -
-            prefix[from] +
-            (n - r < 0 ? (r - n) * held[0] : 0) +
-            (n + r + 1 > frames ? (n + r + 1 - frames) * held[frames - 1] : 0)) /
-            (2 * r + 1);
-        const g = Math.min(mean, previous + (1 - previous) * release);
+        if (n % RESUM === 0) {
+            sum = 0;
+            for (let i = n - r; i <= n + r; i++)
+                sum += at(i);
+        }
+        else
+            sum += at(n + r) - at(n - r - 1);
+        const g = Math.min(sum / (2 * r + 1), previous + (1 - previous) * release);
         gain[n] = g;
         previous = g;
     }
@@ -222,11 +227,21 @@ export function limiterGain(samples, ceiling) {
 }
 /** Margin under the ceiling the limiter aims at: the gain curve rounds peaks slightly. */
 const CEILING_MARGIN = 0.05;
+/** Loudness within this many LU of the target is reached. */
+const TOLERANCE = 0.05;
+/** Rounds of gain, limiting and measuring at most. */
+const MAX_ROUNDS = 8;
+/** dB one round may change the gain by at most. */
+const MAX_STEP = 12;
+/** dB the limiter may be asked to make up at most, over the plain gain. */
+const MAX_MAKEUP = 30;
 /**
  * Brings a mix to `target` LUFS integrated with its true peak at or under `ceiling` dBTP: one
  * gain for the whole mix, then the limiter where peaks would pass the ceiling, then the gain
- * corrected by what the limiter took (up to four rounds, until within 0.05 LU). A silent mix
- * stays silent.
+ * corrected for what the limiter took. The first correction adds the shortfall; later ones step
+ * along the secant of the last two rounds (limiting makes loudness grow slower than the gain),
+ * at most 12 dB a round and 30 dB over the plain gain, until within 0.05 LU or after eight
+ * rounds. A silent mix stays silent.
  */
 export function normalizeLoudness(samples, target, ceiling) {
     const input = integratedLoudness(samples);
@@ -240,37 +255,51 @@ export function normalizeLoudness(samples, target, ceiling) {
             truePeak: truePeak(samples),
             samples: Float32Array.from(samples)
         };
-    let gain = target - input;
-    let out = new Float32Array(samples.length);
+    const out = new Float32Array(samples.length);
     let limiter = null;
-    let lufs = input;
-    for (let round = 0; round < 4; round++) {
+    const run = (gain) => {
         const g = linear(gain);
         for (let i = 0; i < samples.length; i++)
             out[i] = samples[i] * g;
         limiter = limiterGain(out, ceiling - CEILING_MARGIN);
         if (limiter)
             applyGain(out, limiter);
-        lufs = integratedLoudness(out);
-        // The last round keeps its gain: `gain` must stay the one `out` was made with.
-        if (Math.abs(lufs - target) < 0.05 || round === 3)
+        return integratedLoudness(out);
+    };
+    const start = target - input;
+    let gain = start;
+    let lufs = run(gain);
+    let previous = null;
+    for (let round = 1; round < MAX_ROUNDS && Math.abs(lufs - target) >= TOLERANCE; round++) {
+        // Loudness per dB of gain: 1 without limiting, less the more the limiter takes.
+        let slope = 1;
+        if (previous && gain !== previous.gain)
+            slope = Math.min(1, Math.max(0.05, (lufs - previous.lufs) / (gain - previous.gain)));
+        previous = { gain, lufs };
+        // Bounded: a sound the limiter cannot make louder (sparse clicks) must not run away.
+        const step = Math.max(-MAX_STEP, Math.min(MAX_STEP, (target - lufs) / slope));
+        const next = Math.min(start + MAX_MAKEUP, gain + step);
+        if (next === gain)
             break;
-        gain += target - lufs;
+        gain = next;
+        lufs = run(gain);
     }
     let reduction = 0;
-    if (limiter)
-        for (let n = 0; n < limiter.length; n++)
-            reduction = Math.min(reduction, db(limiter[n]));
+    const curve = limiter;
+    if (curve)
+        for (let n = 0; n < curve.length; n++)
+            reduction = Math.min(reduction, db(curve[n]));
     // A last safety net: the true peak after limiting must be under the ceiling.
     let peak = truePeak(out);
     if (peak > ceiling) {
         const trim = linear(ceiling - peak - 0.01);
-        out = out.map((x) => x * trim);
+        for (let i = 0; i < out.length; i++)
+            out[i] *= trim;
         gain += ceiling - peak - 0.01;
         lufs = integratedLoudness(out);
         peak = truePeak(out);
     }
-    return { input, gain, limiter, reduction, lufs, truePeak: peak, samples: out };
+    return { input, gain, limiter: curve, reduction, lufs, truePeak: peak, samples: out };
 }
 /** Multiplies interleaved stereo samples by a per-frame gain, in place. */
 export function applyGain(samples, gain) {

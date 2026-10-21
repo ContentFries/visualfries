@@ -377,3 +377,296 @@ describe.skipIf(!hasFfmpeg)('program audio mix', () => {
 		]);
 	});
 });
+
+const hasMp3 =
+	hasFfmpeg &&
+	String(spawnSync('ffmpeg', ['-hide_banner', '-encoders']).stdout).includes('libmp3lame');
+
+describe.skipIf(!hasFfmpeg)('program audio mix: review fixes', () => {
+	let dir: string;
+	let n = 0;
+	const ff = (args: string[]) => {
+		const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...args]);
+		if (r.status !== 0) throw new Error(String(r.stderr));
+	};
+	async function load(project: object) {
+		const file = path.join(dir, `r${++n}.vf.json`);
+		await fs.writeFile(file, JSON.stringify({ size: [320, 180], fps: FPS, ...project }));
+		return (await motionProgram(await loadMotionProject(file))).program;
+	}
+	async function resolve(project: object): Promise<ResolvedProgram> {
+		const program = await load(project);
+		expect(program.diagnostics.filter((d) => d.level === 'error')).toEqual([]);
+		return program;
+	}
+	const raw = async (project: object) =>
+		(await mixProgram(await resolve(project), { dir, normalize: false }))!.samples;
+
+	beforeAll(async () => {
+		dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-program-audio-fixes-'));
+		ff([
+			'-f',
+			'lavfi',
+			'-i',
+			'color=black:s=320x180:r=30:d=21',
+			'-pix_fmt',
+			'yuv420p',
+			path.join(dir, 'v.mp4')
+		]);
+		// A voice stand-in: tones and seeded noise, so a compressed copy is easy to compare.
+		let seed = 7;
+		const voice = stereo(14, (i) => {
+			seed = (seed * 1103515245 + 12345) >>> 0;
+			return (
+				0.15 * Math.sin((2 * Math.PI * 220 * i) / RATE) +
+				0.1 * Math.sin((2 * Math.PI * 1370 * i) / RATE) +
+				0.05 * (seed / 2 ** 32 - 0.5)
+			);
+		});
+		await writeWav(path.join(dir, 'voice.wav'), voice);
+		ff([
+			'-i',
+			path.join(dir, 'voice.wav'),
+			'-c:a',
+			'aac',
+			'-b:a',
+			'192k',
+			path.join(dir, 'voice.m4a')
+		]);
+		if (hasMp3)
+			ff([
+				'-i',
+				path.join(dir, 'voice.wav'),
+				'-c:a',
+				'libmp3lame',
+				'-b:a',
+				'192k',
+				path.join(dir, 'voice.mp3')
+			]);
+		await writeWav(path.join(dir, 'tone.wav'), sine(6, -20, 300));
+		await writeWav(path.join(dir, 'click.wav'), clicks(0.3, [0]));
+		// Loud noise bursts in quiet noise: normalising it takes heavy limiting.
+		seed = 1;
+		await writeWav(
+			path.join(dir, 'bursts.wav'),
+			stereo(20, (i) => {
+				seed = (seed * 1103515245 + 12345) >>> 0;
+				return (seed / 2 ** 32 - 0.5) * 0.05 * (i % 48000 < 2000 ? 12 : 1);
+			})
+		);
+	});
+	afterAll(async () => {
+		await fs.rm(dir, { recursive: true, force: true });
+	});
+
+	const cuts = [
+		{ source: 'v', in: 2, out: 4 },
+		{ source: 'v', in: 10.5, out: 13 },
+		{ source: 'v', in: 6.2, out: 8 }
+	];
+	const voiceOf = (audio: string) => ({ footage: { v: { src: 'v.mp4', audio } }, cuts });
+
+	it.each(hasMp3 ? ['voice.mp3', 'voice.m4a'] : ['voice.m4a'])(
+		'plays %s right from every edit point, in place',
+		async (file) => {
+			const ref = await raw(voiceOf('voice.wav'));
+			const coded = await raw(voiceOf(file));
+			for (const edit of [2, 4.5]) {
+				const e = Math.round(edit * RATE);
+				// Level in 5 ms windows over the first 50 ms after the edit (a decoder that starts
+				// cold is silent or ramps up there).
+				for (let b = 0; b < 2400; b += 240) {
+					let p = 0,
+						r = 0;
+					for (let i = e + b; i < e + b + 240; i++) {
+						p += coded[2 * i] ** 2;
+						r += ref[2 * i] ** 2;
+					}
+					expect(Math.abs(10 * Math.log10(p / r)), `${file} ${edit} s +${b / 48} ms`).toBeLessThan(
+						1
+					);
+				}
+				// In place: the best match with the uncompressed mix is at lag 0 (±1 sample).
+				let best = 0,
+					bestErr = Infinity;
+				for (let lag = -24; lag <= 24; lag++) {
+					let err = 0;
+					for (let i = e + 240; i < e + 2400; i++) err += (coded[2 * i] - ref[2 * (i + lag)]) ** 2;
+					if (err < bestErr) [best, bestErr] = [lag, err];
+				}
+				expect(Math.abs(best), `${file} lag at ${edit} s`).toBeLessThanOrEqual(1);
+			}
+		}
+	);
+
+	it('leaves a take split into two cuts exactly as one cut', async () => {
+		const footage = { v: { src: 'v.mp4', audio: 'voice.wav' } };
+		const one = await raw({ footage, cuts: [{ source: 'v', in: 2, out: 6 }] });
+		for (const crossfade of [0.01, 0.3]) {
+			const two = await raw({
+				footage,
+				cuts: [
+					{ source: 'v', in: 2, out: 4 },
+					{ source: 'v', in: 4, out: 6, transition: 'push', audio: { crossfade } }
+				]
+			});
+			expect(bytes(two).equals(bytes(one))).toBe(true);
+		}
+		// A real edit (the source jumps) still crossfades.
+		const edited = await resolve({
+			footage,
+			cuts: [
+				{ source: 'v', in: 2, out: 4 },
+				{ source: 'v', in: 5, out: 7 }
+			]
+		});
+		expect(edited.audio.speech[1].fadeIn).toBe(0.01);
+	});
+
+	it('orders effects at the same moment by code units, not by locale', async () => {
+		const { compareText } = await import('../../src/lib/motion/program.js');
+		expect(['b', 'a', 'Z', 'ch', 'h'].sort(compareText)).toEqual(['Z', 'a', 'b', 'ch', 'h']);
+		const program = await resolve({
+			footage: { v: { src: 'v.mp4', audio: 'tone.wav' } },
+			cuts: [{ source: 'v', in: 0, out: 3 }],
+			sfx: ['hit', 'chime', 'Zap'].map((id) => ({ id, at: 1, sound: 'click.wav' }))
+		});
+		expect(program.audio.sfx.map((s) => s.owner)).toEqual(['Zap', 'chime', 'hit']);
+	});
+
+	it('reaches the loudness under heavy limiting, and warns when it cannot', async () => {
+		const music = {
+			footage: { v: { src: 'v.mp4', audio: false } },
+			cuts: [{ source: 'v', in: 0, out: 3 }]
+		};
+		const { normalizeLoudness } = await import('../../src/lib/motion/loudness.js');
+		const bursts = await raw({
+			...music,
+			cuts: [],
+			shots: [{ shot: 'full', from: 0, until: 20 }],
+			duration: 20,
+			music: [{ src: 'bursts.wav', fade: { in: 0, out: 0 } }]
+		});
+		for (const target of [-14, -9]) {
+			const done = normalizeLoudness(bursts, target, -1);
+			expect(Math.abs(done.lufs - target), `target ${target}`).toBeLessThan(0.05);
+			expect(done.reduction).toBeLessThan(-6);
+			expect(done.truePeak).toBeLessThanOrEqual(-1);
+		}
+		// Sparse clicks cannot reach -3 LUFS under a -1 dBTP ceiling.
+		const sparse = await mixProgram(
+			await resolve({ ...music, sfx: [{ at: 1, sound: 'click.wav' }], mix: { loudness: -3 } }),
+			{ dir }
+		);
+		expect(sparse!.report.warnings).toEqual([expect.stringMatching(/LU off the -3 LUFS target/)]);
+	});
+
+	it('encodes the mix with its true peak under the ceiling, as measured on the encoded file', async () => {
+		const { encodeProgramMix } = await import('../../src/lib/motion/audio.js');
+		const program = await resolve({
+			footage: { v: { src: 'v.mp4', audio: false } },
+			shots: [{ shot: 'full', from: 0, until: 20 }],
+			duration: 20,
+			music: [{ src: 'bursts.wav' }]
+		});
+		const output = path.join(dir, 'mix.m4a');
+		const done = await encodeProgramMix(program, { dir, wav: path.join(dir, 'mix.wav'), output });
+		const encoded = await decodeFile(output);
+		expect(truePeak(encoded)).toBeLessThanOrEqual(-1);
+		expect(done!.report.delivered).toEqual({
+			lufs: Math.round(integratedLoudness(encoded) * 100) / 100,
+			truePeak: Math.round(truePeak(encoded) * 100) / 100
+		});
+		expect(Math.abs(done!.report.delivered!.lufs + 14)).toBeLessThanOrEqual(0.5);
+		expect(done!.report.warnings).toEqual([]);
+		const r = spawnSync('ffmpeg', [
+			'-hide_banner',
+			'-nostats',
+			'-i',
+			output,
+			'-af',
+			'ebur128=peak=true',
+			'-f',
+			'null',
+			'-'
+		]);
+		const log = String(r.stderr);
+		const peak = Number(/Peak:\s+(-?[\d.]+) dBFS/.exec(log.slice(log.lastIndexOf('Summary')))![1]);
+		expect(peak).toBeLessThanOrEqual(-1);
+	});
+
+	it('reports missing or unreadable music and sound files, and bad sound metadata', async () => {
+		await fs.writeFile(path.join(dir, 'text.wav'), 'not a sound');
+		await fs.mkdir(path.join(dir, 'broken', 'sounds'), { recursive: true });
+		await writeWav(path.join(dir, 'broken', 'sounds', 'a.wav'), clicks(0.3, [0]));
+		await fs.writeFile(path.join(dir, 'broken', 'sounds.json'), '{ "sounds": [');
+		await fs.mkdir(path.join(dir, 'odd', 'sounds'), { recursive: true });
+		await writeWav(path.join(dir, 'odd', 'sounds', 'b.wav'), clicks(0.3, [0]));
+		await fs.writeFile(
+			path.join(dir, 'odd', 'sounds.json'),
+			JSON.stringify({ sounds: [{ file: 'sounds/b.wav', hitMs: 900 }] })
+		);
+		const program = await load({
+			footage: { v: { src: 'v.mp4', audio: 'tone.wav' } },
+			cuts: [{ source: 'v', in: 0, out: 3 }],
+			music: [
+				{ id: 'gone', src: 'nope.mp3' },
+				{ id: 'text', src: 'text.wav' }
+			],
+			sfx: [
+				{ id: 'broken', at: 1, sound: 'broken/sounds/a.wav' },
+				{ id: 'odd', at: 1, sound: 'odd/sounds/b.wav' }
+			]
+		});
+		const by = (level: string) =>
+			program.diagnostics.filter((d) => d.level === level).map((d) => [d.item, d.message]);
+		expect(by('error')).toEqual([
+			['gone', expect.stringContaining('"nope.mp3" not found')],
+			['text', expect.stringContaining('"text.wav" has no sound')]
+		]);
+		expect(by('warning')).toEqual([
+			['broken', expect.stringMatching(/sounds\.json could not be read/)],
+			['odd', expect.stringMatching(/hitMs .* \(900\) is not a time inside the sound \(0–300 ms\)/)]
+		]);
+		expect(program.audio.sfx.map((s) => s.at)).toEqual([1, 1]);
+	});
+
+	it('rejects unknown fields in mix, music items and fades', async () => {
+		const { parseMotionProject } = await import('../../src/lib/motion/timeline.js');
+		expect(() =>
+			parseMotionProject({
+				size: [320, 180],
+				fps: 30,
+				clips: [{ id: 'a', block: 'A.svelte', from: 0, until: 1 }],
+				mix: { loudnes: -16 },
+				music: [{ src: 'm.wav', gian: 3, fade: { inn: 1 } }]
+			})
+		).toThrow(/mix: Unrecognized key: "loudnes"[\s\S]*/);
+		const error = (() => {
+			try {
+				parseMotionProject({
+					size: [320, 180],
+					fps: 30,
+					clips: [{ id: 'a', block: 'A.svelte', from: 0, until: 1 }],
+					music: [{ src: 'm.wav', gian: 3, fade: { inn: 1 } }]
+				});
+			} catch (e) {
+				return (e as Error).message;
+			}
+		})();
+		expect(error).toMatch(/music\[0\]: Unrecognized key: "gian"/);
+		expect(error).toMatch(/music\[0\]\.fade: Unrecognized key: "inn"/);
+	});
+});
+
+/** A whole sound file as interleaved stereo float at 48 kHz. */
+function decodeFile(file: string): Float32Array {
+	const r = spawnSync(
+		'ffmpeg',
+		['-v', 'error', '-i', file, '-ac', '2', '-ar', String(RATE), '-f', 'f32le', 'pipe:1'],
+		{ maxBuffer: 1 << 30 }
+	);
+	return new Float32Array(
+		r.stdout.buffer.slice(r.stdout.byteOffset, r.stdout.byteOffset + r.stdout.length)
+	);
+}

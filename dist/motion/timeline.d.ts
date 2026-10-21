@@ -234,7 +234,7 @@ export declare const MixShape: z.ZodObject<{
     music: z.ZodOptional<z.ZodNumber>;
     loudness: z.ZodOptional<z.ZodNumber>;
     truePeak: z.ZodOptional<z.ZodNumber>;
-}, z.core.$strip>;
+}, z.core.$strict>;
 export type Mix = z.infer<typeof MixShape>;
 /** Program mode: the project describes the whole program (a cut list or a shots track). */
 export declare function isProgramProject(project: Pick<MotionProject, 'cuts' | 'shots'>): boolean;

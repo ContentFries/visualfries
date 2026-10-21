@@ -101,7 +101,8 @@ const musicId = z
  * keys on top. Corrections fix what the analyzer got wrong without touching the beats file, so
  * re-analysis keeps them.
  */
-export const MotionMusicShape = z.object({
+export const MotionMusicShape = z
+    .object({
     /** Name for beat anchors (`"music": "bed"`) when several music items have beats. */
     id: musicId.optional(),
     src: z.string().min(1),
@@ -122,15 +123,18 @@ export const MotionMusicShape = z.object({
     /** Seconds the music fades in at its start and out at its end. Default 0.01 and 1. */
     fade: z
         .object({ in: z.number().min(0).optional(), out: z.number().min(0).optional() })
+        .strict()
         .optional(),
     /**
      * Explicit level changes, dB on top of `gain` (a music-only intro, say): the level moves in a
      * straight line (in dB) from key to key and holds before the first and after the last.
      */
-    keys: z.array(z.object({ at: MotionAnchorShape, gain: z.number() })).optional(),
+    keys: z.array(z.object({ at: MotionAnchorShape, gain: z.number() }).strict()).optional(),
     /** Where generated music came from. */
     provenance: timeline(() => ProvenanceShape).optional()
-});
+})
+    // Unknown fields are errors: a typo ("gian") must not pass silently.
+    .strict();
 export const MotionClipShape = z.object({
     id: z.string().regex(/^[A-Za-z0-9._-]+$/, 'clip id: letters, digits, dot, dash, underscore'),
     block: z.string().min(1),

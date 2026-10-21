@@ -171,16 +171,18 @@ export type Sfx = z.infer<typeof SfxShape>;
  * (its integrated loudness as cut); the finished video is then brought to `loudness` with its
  * true peak at or under `truePeak`.
  */
-export const MixShape = z.object({
-	/** dB of each effect's loudest 100 ms under the speech loudness. Default -10. */
-	sfx: z.number().optional(),
-	/** dB of each music item's integrated loudness under the speech loudness. Default -15. */
-	music: z.number().optional(),
-	/** Integrated loudness of the finished video, LUFS. Default -14. */
-	loudness: z.number().max(0).optional(),
-	/** True-peak ceiling of the finished video, dBTP. Default -1. */
-	truePeak: z.number().max(0).optional()
-});
+export const MixShape = z
+	.object({
+		/** dB of each effect's loudest 100 ms under the speech loudness. Default -10. */
+		sfx: z.number().optional(),
+		/** dB of each music item's integrated loudness under the speech loudness. Default -15. */
+		music: z.number().optional(),
+		/** Integrated loudness of the finished video, LUFS. Default -14. */
+		loudness: z.number().max(0).optional(),
+		/** True-peak ceiling of the finished video, dBTP. Default -1. */
+		truePeak: z.number().max(0).optional()
+	})
+	.strict();
 export type Mix = z.infer<typeof MixShape>;
 
 /** Program mode: the project describes the whole program (a cut list or a shots track). */

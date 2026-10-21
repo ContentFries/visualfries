@@ -99,18 +99,18 @@ export declare const MotionMusicShape: z.ZodObject<{
     fade: z.ZodOptional<z.ZodObject<{
         in: z.ZodOptional<z.ZodNumber>;
         out: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>>;
+    }, z.core.$strict>>;
     keys: z.ZodOptional<z.ZodArray<z.ZodObject<{
         at: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
         gain: z.ZodNumber;
-    }, z.core.$strip>>>;
+    }, z.core.$strict>>>;
     provenance: z.ZodOptional<z.ZodLazy<z.ZodObject<{
         provider: z.ZodString;
         model: z.ZodOptional<z.ZodString>;
         prompt: z.ZodOptional<z.ZodString>;
         seed: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
     }, z.core.$loose>>>;
-}, z.core.$strip>;
+}, z.core.$strict>;
 export type MotionMusic = z.infer<typeof MotionMusicShape>;
 export declare const MotionClipShape: z.ZodObject<{
     id: z.ZodString;
@@ -313,18 +313,18 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         fade: z.ZodOptional<z.ZodObject<{
             in: z.ZodOptional<z.ZodNumber>;
             out: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>>;
+        }, z.core.$strict>>;
         keys: z.ZodOptional<z.ZodArray<z.ZodObject<{
             at: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
             gain: z.ZodNumber;
-        }, z.core.$strip>>>;
+        }, z.core.$strict>>>;
         provenance: z.ZodOptional<z.ZodLazy<z.ZodObject<{
             provider: z.ZodString;
             model: z.ZodOptional<z.ZodString>;
             prompt: z.ZodOptional<z.ZodString>;
             seed: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
         }, z.core.$loose>>>;
-    }, z.core.$strip>>>;
+    }, z.core.$strict>>>;
     brand: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
         name: z.ZodOptional<z.ZodString>;
         colors: z.ZodObject<{
@@ -591,7 +591,7 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         music: z.ZodOptional<z.ZodNumber>;
         loudness: z.ZodOptional<z.ZodNumber>;
         truePeak: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>>>;
+    }, z.core.$strict>>>;
     duration: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>, z.ZodTransform<{
     size: [number, number];

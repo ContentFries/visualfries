@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { H264_FINAL, bundleMotionProject, chromiumExecutable, ffmpegFramePipe, launch, motionProgram, pipeFrames } from './node.js';
-import { STEMS, mixProgram, writeWav } from './audio.js';
+import { STEMS, encodeProgramMix, writeWav } from './audio.js';
 import { assertProgramRenders, openSegment } from './program-node.js';
 /**
  * `render --export video`: the whole program as one video. Each segment is drawn on its own
@@ -41,7 +41,7 @@ export async function renderProgramVideo(loaded, opts) {
     await fs.mkdir(cacheDir, { recursive: true });
     // Left by a render that was killed before it could clean up.
     await removeOrphans(cacheDir, /\.(?:partial|concat)-(\d+)-[^/]*\.(?:mkv|txt)$/);
-    await removeOrphans(path.dirname(file), /^\..+\.partial-(\d+)\.(?:mp4|wav)$/);
+    await removeOrphans(path.dirname(file), /^\..+\.partial-(\d+)\.(?:mp4|m4a|wav|(?:speech|sfx|music)\.wav)$/);
     const engine = await engineHash(opts.invalidate);
     const segments = program.segments.map((s) => {
         const cached = path.join(cacheDir, `${s.hash}-${engine}.mkv`);
@@ -57,57 +57,94 @@ export async function renderProgramVideo(loaded, opts) {
     });
     const todo = segments.filter((s) => !s.cached);
     const log = opts.onProgress ?? (() => { });
-    for (const s of segments.filter((x) => x.cached))
-        log(`${s.id}: frames ${span(s)} cached (${s.hash.slice(0, 12)})`);
-    let mode = 'cached';
-    if (todo.length) {
-        const bundle = await bundleMotionProject(loaded, program.clips);
-        const browser = await launch();
-        try {
-            mode = await renderSegments(browser, bundle, program, todo, {
-                jobs: opts.jobs ?? Math.min(6, os.cpus().length),
-                invalidate: opts.invalidate,
-                schedule: opts.schedule ?? 'auto',
-                log
-            });
+    // Sound first: a missing or unreadable sound file fails the render before any picture is
+    // drawn. The encoded audio and the stems wait in partial files beside the target.
+    const partial = path.join(path.dirname(file), `.${path.basename(file, '.mp4')}.partial-${process.pid}`);
+    const audioFile = `${partial}.m4a`;
+    const stemFile = (stem) => `${partial}.${stem}.wav`;
+    const temporary = [audioFile, `${partial}.wav`, ...STEMS.map(stemFile)];
+    const untrack = temporary.map(trackPartial);
+    try {
+        const tMix = Date.now();
+        const mixed = await encodeProgramMix(program, {
+            dir: loaded.dir,
+            stems: opts.stems,
+            wav: `${partial}.wav`,
+            output: audioFile
+        });
+        const mix = mixed?.report ?? null;
+        if (mixed?.stems)
+            for (const stem of STEMS)
+                await writeWav(stemFile(stem), mixed.stems[stem]);
+        if (mix) {
+            const d = mix.delivered;
+            log(`mix in ${((Date.now() - tMix) / 1000).toFixed(1)} s: speech ${mix.speech ?? '–'} LUFS, delivered ${d.lufs} LUFS and ${d.truePeak} dBTP after ${mix.gain} dB${mix.limiter ? ` (limiter ${mix.limiter} dB)` : ''}`);
+            for (const warning of mix.warnings)
+                log(`warning: ${warning}`);
         }
-        finally {
-            await browser.close();
-            await fs.rm(bundle.dir, { recursive: true, force: true });
-        }
+        return await renderPictures(mix);
     }
-    const tMix = Date.now();
-    const mixed = await mixProgram(program, { dir: loaded.dir, stems: opts.stems });
-    if (mixed)
-        log(`mix in ${((Date.now() - tMix) / 1000).toFixed(1)} s: speech ${mixed.report.speech ?? '–'} LUFS, ${mixed.report.lufs} LUFS and ${mixed.report.truePeak} dBTP after ${mixed.report.gain} dB${mixed.report.limiter ? ` (limiter ${mixed.report.limiter} dB)` : ''}`);
-    const t1 = Date.now();
-    await joinAndEncode(program, segments, file, mixed?.samples ?? null);
-    const encodeSeconds = (Date.now() - t1) / 1000;
-    let stems = null;
-    if (mixed?.stems) {
-        stems = {};
+    finally {
+        for (const f of temporary)
+            await fs.rm(f, { force: true });
+        for (const done of untrack)
+            done();
+    }
+    async function renderPictures(mix) {
+        for (const s of segments.filter((x) => x.cached))
+            log(`${s.id}: frames ${span(s)} cached (${s.hash.slice(0, 12)})`);
+        let mode = 'cached';
+        if (todo.length) {
+            const bundle = await bundleMotionProject(loaded, program.clips);
+            const browser = await launch();
+            try {
+                mode = await renderSegments(browser, bundle, program, todo, {
+                    jobs: opts.jobs ?? Math.min(6, os.cpus().length),
+                    invalidate: opts.invalidate,
+                    schedule: opts.schedule ?? 'auto',
+                    log
+                });
+            }
+            finally {
+                await browser.close();
+                await fs.rm(bundle.dir, { recursive: true, force: true });
+            }
+        }
+        const t1 = Date.now();
+        await joinAndEncode(program, segments, file, mix ? audioFile : null);
+        const encodeSeconds = (Date.now() - t1) / 1000;
+        // Stems beside the video replace earlier ones; without --stems earlier ones are removed, as
+        // they no longer match the video.
+        let stems = null;
+        if (mix && opts.stems)
+            stems = {};
         for (const stem of STEMS) {
-            stems[stem] = file.replace(/\.mp4$/i, `.${stem}.wav`);
-            await writeWav(stems[stem], mixed.stems[stem]);
+            const target = file.replace(/\.mp4$/i, `.${stem}.wav`);
+            if (stems) {
+                await fs.rename(stemFile(stem), target);
+                stems[stem] = target;
+            }
+            else
+                await fs.rm(target, { force: true });
         }
+        await fs.writeFile(sidecar, resolved);
+        await pruneSegments(cacheDir, loaded, program.format.name, segments, t0);
+        log(`final encode: ${program.frames} frames in ${encodeSeconds.toFixed(1)} s${mix ? '' : ' (silent)'}`);
+        return {
+            file,
+            program: sidecar,
+            format: program.format.name,
+            fps: program.fps,
+            frames: program.frames,
+            audio: mix ? 'mixed' : 'silent',
+            mix,
+            stems,
+            mode,
+            segments,
+            seconds: (Date.now() - t0) / 1000,
+            encodeSeconds
+        };
     }
-    await fs.writeFile(sidecar, resolved);
-    await pruneSegments(cacheDir, loaded, program.format.name, segments, t0);
-    log(`final encode: ${program.frames} frames in ${encodeSeconds.toFixed(1)} s${mixed ? '' : ' (silent)'}`);
-    return {
-        file,
-        program: sidecar,
-        format: program.format.name,
-        fps: program.fps,
-        frames: program.frames,
-        audio: mixed ? 'mixed' : 'silent',
-        mix: mixed?.report ?? null,
-        stems,
-        mode,
-        segments,
-        seconds: (Date.now() - t0) / 1000,
-        encodeSeconds
-    };
 }
 const span = (s) => `${s.startFrame}–${s.startFrame + s.frames - 1}`;
 function outputFile(loaded, opts) {
@@ -231,20 +268,16 @@ async function renderSegments(browser, bundle, program, todo, opts) {
 }
 /**
  * Joins the intermediates in order (stream copy through the concat demuxer, no decode between
- * segments) and encodes the result once, with the program mix when there is one (written beside
- * the target as a float WAV for the encode). Encodes beside the target and replaces it only on
- * success.
+ * segments) and encodes the result once, with the encoded program audio when there is one
+ * (copied as it is). Encodes beside the target and replaces it only on success.
  */
-async function joinAndEncode(program, segments, file, mix) {
+async function joinAndEncode(program, segments, file, audio) {
     const list = path.join(path.dirname(segments[0].file), `.concat-${process.pid}-${Date.now()}.txt`);
     const partial = path.join(path.dirname(file), `.${path.basename(file, '.mp4')}.partial-${process.pid}.mp4`);
-    const wav = partial.replace(/\.mp4$/, '.wav');
-    const untrack = [trackPartial(list), trackPartial(partial), trackPartial(wav)];
+    const untrack = [trackPartial(list), trackPartial(partial)];
     await fs.writeFile(list, segments.map((s) => `file '${s.file.replace(/'/g, "'\\''")}'`).join('\n') + '\n');
     const seconds = program.frames / program.fps;
     try {
-        if (mix)
-            await writeWav(wav, mix);
         await run([
             '-y',
             '-f',
@@ -253,9 +286,8 @@ async function joinAndEncode(program, segments, file, mix) {
             '0',
             '-i',
             list,
-            ...(mix
-                ? ['-i', wav, '-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-b:a', '192k']
-                : ['-map', '0:v']),
+            // The audio as encoded and measured before: copied, never encoded twice.
+            ...(audio ? ['-i', audio, '-map', '0:v', '-map', '1:a', '-c:a', 'copy'] : ['-map', '0:v']),
             // Number frames by count: timestamps of joined files must not drop or repeat a frame.
             '-vf',
             `setpts=N/(${program.fps}*TB)`,
@@ -272,7 +304,6 @@ async function joinAndEncode(program, segments, file, mix) {
     finally {
         await fs.rm(list, { force: true });
         await fs.rm(partial, { force: true });
-        await fs.rm(wav, { force: true });
         for (const done of untrack)
             done();
     }

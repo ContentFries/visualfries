@@ -259,6 +259,12 @@ function localGrid(beats: BeatContext, start: number): GridBeat[] | undefined {
 	}
 }
 
+/**
+ * Orders text by UTF-16 code units, the same on every machine (`localeCompare` follows the
+ * locale, which would make the order, and the mix, depend on where it runs).
+ */
+export const compareText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
 type Span = { startFrame: number; frames: number };
 const endOf = (s: Span) => s.startFrame + s.frames;
 const overlaps = (a: Span, b: Span) => a.startFrame < endOf(b) && b.startFrame < endOf(a);
@@ -371,7 +377,7 @@ export function resolveProgram(
 	const audio = {
 		speech: program ? speechPieces(project, cutList.cuts, sources, inputs, frames / fps) : [],
 		sfx: resolveSfx(project, transitions, inputs, at, diagnostics),
-		music: resolveMusic(project, frames / fps, at, diagnostics),
+		music: resolveMusic(project, frames / fps, inputs, at, diagnostics),
 		levels: { sfx: mix.sfx ?? MIX_DEFAULTS.sfx, music: mix.music ?? MIX_DEFAULTS.music },
 		master: {
 			lufs: mix.loudness ?? MIX_DEFAULTS.loudness,
@@ -1000,14 +1006,16 @@ function resolveEvents(shots: ProgramShot[], transitions: ProgramTransition[]): 
 		),
 		...transitions.flatMap((t) => transitionEvents(t).map((e) => ({ ...e, owner: t.id })))
 	];
-	return events.sort((a, b) => a.frame - b.frame || a.owner.localeCompare(b.owner));
+	return events.sort((a, b) => a.frame - b.frame || compareText(a.owner, b.owner));
 }
 
 /**
  * One piece per cut over its sound range [edit, next edit], widened by half the crossfade on
  * each side so equal-power fades centre on the edit points. A piece never reads outside the
  * source's sound: where the widening would start before it or run past its end, the piece starts
- * (or ends) with the sound and that fade is shorter. Transitions never touch it.
+ * (or ends) with the sound and that fade is shorter. Two cuts that continue the same take (same
+ * sound, the second starting where the first ends in the source, same gain) meet without a fade:
+ * the sound plays on unchanged, where a crossfade would swell by 3 dB. Transitions never touch it.
  */
 function speechPieces(
 	project: MotionProject,
@@ -1018,14 +1026,25 @@ function speechPieces(
 ): AudioPiece[] {
 	const fps = project.fps;
 	const pieces: AudioPiece[] = [];
+	const file = (cut: ResolvedCut) => sources[cut.source]?.audio ?? null;
+	const continues = (a: ResolvedCut | undefined, b: ResolvedCut | undefined) =>
+		!!a &&
+		!!b &&
+		!a.mute &&
+		!b.mute &&
+		a.source === b.source &&
+		file(a) === file(b) &&
+		a.gain === b.gain &&
+		a.srcOut === b.srcIn;
 	cuts.forEach((cut, i) => {
-		const file = sources[cut.source]?.audio;
-		if (!file || cut.mute) return;
+		if (!file(cut) || cut.mute) return;
 		const next = cuts[i + 1];
-		let from = i ? Math.max(0, cut.edit - cut.crossfade / 2) : 0;
-		let to = next ? Math.min(end, next.edit + next.crossfade / 2) : end;
-		let fadeIn = i ? cut.crossfade : 0;
-		let fadeOut = next ? next.crossfade : 0;
+		const xfIn = i && !continues(cuts[i - 1], cut) ? cut.crossfade : 0;
+		const xfOut = next && !continues(cut, next) ? next.crossfade : 0;
+		let from = i ? Math.max(0, cut.edit - xfIn / 2) : 0;
+		let to = next ? Math.min(end, next.edit + xfOut / 2) : end;
+		let fadeIn = xfIn;
+		let fadeOut = xfOut;
 		// Source seconds = program seconds + shift.
 		const shift = cut.srcIn / fps - cut.startFrame / fps;
 		const before = -(from + shift);
@@ -1040,7 +1059,7 @@ function speechPieces(
 		}
 		pieces.push({
 			owner: cut.id,
-			file,
+			file: file(cut)!,
 			srcIn: micro(Math.max(0, from + shift)),
 			dur: micro(Math.max(0, to - from)),
 			at: micro(from),
@@ -1078,6 +1097,12 @@ function resolveSfx(
 			});
 			return;
 		}
+		if (info?.error) {
+			diagnostics.push({ level: 'error', item: owner, field, message: info.error });
+			return;
+		}
+		if (info?.warning)
+			diagnostics.push({ level: 'warning', item: owner, field, message: info.warning });
 		const hit = info?.hit ?? 0;
 		out.push({
 			owner,
@@ -1111,7 +1136,7 @@ function resolveSfx(
 		const frame = transitionEvents(t)[0]?.frame ?? t.cutFrame;
 		place(`${t.id}.sound`, 'transition.sound', t.sound, frame / fps, 0);
 	}
-	return out.sort((a, b) => a.at - b.at || a.owner.localeCompare(b.owner));
+	return out.sort((a, b) => a.at - b.at || compareText(a.owner, b.owner));
 }
 
 /**
@@ -1122,11 +1147,22 @@ function resolveSfx(
 function resolveMusic(
 	project: MotionProject,
 	end: number,
+	inputs: ProgramInputs,
 	at: (anchor: MotionAnchor) => number,
 	diagnostics: ProgramDiagnostic[]
 ): AudioPiece[] {
 	return (project.music ?? []).map((music, i) => {
 		const owner = music.id ?? `music${i + 1}`;
+		if (inputs.sounds?.[music.src] === null)
+			diagnostics.push({
+				level: 'error',
+				item: owner,
+				field: `music[${i}].src`,
+				message: `Music file "${music.src}" not found (paths are relative to the project).`
+			});
+		const error = inputs.sounds?.[music.src]?.error;
+		if (error)
+			diagnostics.push({ level: 'error', item: owner, field: `music[${i}].src`, message: error });
 		const from = music.from ?? 0;
 		const start = Math.max(0, from);
 		const dur = Math.max(0, Math.min(music.until ?? end, end) - start);

@@ -96,7 +96,7 @@ export type LoadedMusic = {
 	bars: BarRow[];
 };
 
-/** Sound names of sfx items and of transitions that name a sound. */
+/** Sound files the program mixes besides footage: sfx, transition sounds and music. */
 function soundNames(project: MotionProject): string[] {
 	const transitions = [
 		...(project.cuts ?? []).map((c) => c.transition),
@@ -106,34 +106,43 @@ function soundNames(project: MotionProject): string[] {
 	return [
 		...new Set([
 			...(project.sfx ?? []).map((s) => s.sound),
-			...transitions.flatMap((t) => (t && typeof t === 'object' && t.sound ? [t.sound] : []))
+			...transitions.flatMap((t) => (t && typeof t === 'object' && t.sound ? [t.sound] : [])),
+			...(project.music ?? []).map((m) => m.src)
 		])
 	].sort();
 }
 
+type Manifest = { hits: Map<string, unknown> } | { error: string } | null;
+
 /**
- * Looks up each sound file: null when it does not exist, else its hit offset. A sound library
- * keeps the offsets in a `sounds.json` (`sounds: [{ file, hitMs }]`, `file` relative to it) in
- * the sound's folder or up to three folders above; without one the hit is the file start.
+ * Looks up each sound file: null when it does not exist, an error when it has no readable
+ * sound, else its hit offset. A sound library keeps the offsets in a `sounds.json` (`sounds:
+ * [{ file, hitMs }]`, `file` relative to it) in the sound's folder or up to three folders above;
+ * without one the hit is the file start. A manifest that cannot be read, or a `hitMs` that is not
+ * a time inside the sound, gives a warning and the file start.
  */
 async function loadSounds(
 	project: MotionProject,
 	dir: string
 ): Promise<Record<string, SoundInfo | null>> {
-	const manifests = new Map<string, Map<string, number> | null>();
-	const manifest = async (folder: string) => {
+	const manifests = new Map<string, Manifest>();
+	const manifest = async (folder: string): Promise<Manifest> => {
 		if (!manifests.has(folder)) {
-			let hits: Map<string, number> | null = null;
-			try {
-				const data = JSON.parse(await fs.readFile(path.join(folder, 'sounds.json'), 'utf8'));
-				hits = new Map();
-				for (const s of Array.isArray(data?.sounds) ? data.sounds : [])
-					if (typeof s?.file === 'string' && typeof s?.hitMs === 'number')
-						hits.set(path.resolve(folder, s.file), s.hitMs / 1000);
-			} catch {
-				hits = null;
+			const file = path.join(folder, 'sounds.json');
+			let found: Manifest = null;
+			if (existsSync(file)) {
+				try {
+					const data = JSON.parse(await fs.readFile(file, 'utf8'));
+					if (!Array.isArray(data?.sounds)) throw new Error('it has no "sounds" list');
+					const hits = new Map<string, unknown>();
+					for (const s of data.sounds)
+						if (typeof s?.file === 'string') hits.set(path.resolve(folder, s.file), s.hitMs);
+					found = { hits };
+				} catch (error) {
+					found = { error: `${file} could not be read (${(error as Error).message})` };
+				}
 			}
-			manifests.set(folder, hits);
+			manifests.set(folder, found);
 		}
 		return manifests.get(folder)!;
 	};
@@ -144,16 +153,29 @@ async function loadSounds(
 			out[name] = null;
 			continue;
 		}
-		let hit = 0;
+		const length = await probeSound(file).catch(() => null);
+		if (length === null) {
+			out[name] = { hit: 0, error: `"${name}" has no sound ffmpeg can read.` };
+			continue;
+		}
+		const info: SoundInfo = { hit: 0 };
 		for (let folder = path.dirname(file), up = 0; up <= 3; up++, folder = path.dirname(folder)) {
-			const hits = await manifest(folder);
-			if (hits?.has(file)) {
-				hit = hits.get(file)!;
+			const found = await manifest(folder);
+			if (found && 'error' in found) {
+				info.warning = `${found.error}; the hit of "${name}" is taken as its start.`;
+				break;
+			}
+			if (found?.hits.has(file)) {
+				const ms = found.hits.get(file);
+				if (typeof ms === 'number' && Number.isFinite(ms) && ms >= 0 && ms <= length * 1000)
+					info.hit = ms / 1000;
+				else
+					info.warning = `The hitMs of "${name}" in ${path.join(folder, 'sounds.json')} (${JSON.stringify(ms ?? null)}) is not a time inside the sound (0–${Math.round(length * 1000)} ms); its start is used.`;
 				break;
 			}
 			if (path.dirname(folder) === folder) break;
 		}
-		out[name] = { hit };
+		out[name] = info;
 	}
 	return out;
 }

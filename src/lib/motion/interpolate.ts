@@ -3,11 +3,13 @@ import {
 	TRANSPARENT,
 	formatColor,
 	formatNumber,
+	gamutMapToSrgb,
 	mixColors,
 	parseAngle,
 	parseColor,
 	shortestArc,
 	splitTopLevel,
+	srgbToOklab,
 	tryParseColor,
 	type ColorSpace,
 	type Oklab
@@ -33,8 +35,11 @@ export type AnimatableValue = {
 
 export type InterpolateOptions = {
 	/** Colour space for colours, gradient stops and shadow colours. Default `oklab`. */
-	mix?: ColorSpace;
-	/** Box a gradient is drawn in; corner directions (`to top right`) depend on its aspect. Default square. */
+	space?: ColorSpace;
+	/**
+	 * Box a gradient is drawn in. Required to turn a corner direction (`to top right`) into an
+	 * angle, because that angle depends on the box's aspect ratio; without it such a pair throws.
+	 */
 	box?: { width: number; height: number };
 };
 
@@ -246,7 +251,12 @@ function parseDirection(prelude: string | undefined, gradient: string): LinearDi
 function directionDegrees(direction: LinearDirection, box: InterpolateOptions['box']): number {
 	if ('angle' in direction) return direction.angle;
 	if (direction.to in SIDE_ANGLES) return SIDE_ANGLES[direction.to];
-	const corner = (Math.atan2(box?.height ?? 1, box?.width ?? 1) * 180) / Math.PI;
+	if (!box || !(box.width > 0 && box.height > 0)) {
+		throw new Error(
+			`Gradient direction "to ${direction.to}" points at a corner, so its angle depends on the box it is drawn in. Pass box: { width, height }, or use an angle at both keys.`
+		);
+	}
+	const corner = (Math.atan2(box.height, box.width) * 180) / Math.PI;
 	const [v, h] = direction.to.split(' ');
 	if (v === 'top') return h === 'right' ? corner : 360 - corner;
 	return h === 'right' ? 180 - corner : 180 + corner;
@@ -327,7 +337,11 @@ export function formatGradient(gradient: Gradient): string {
 	return `radial-gradient(${gradient.shape} ${size} at ${x} ${y}, ${stops})`;
 }
 
-/** The gradient's colour at `position` (right-hand limit at a hard stop), evaluated in OKLab. */
+/**
+ * The colour a browser draws at `position` of a gradient written by `formatGradient` (right-hand
+ * limit at a hard stop). Its stops are `rgb()` colours, so CSS blends them in gamma-encoded sRGB
+ * with premultiplied alpha, not in OKLab; a stop added there with this colour changes no pixel.
+ */
 function colorAt(stops: GradientStop[], position: number): Oklab {
 	let i = -1;
 	while (i + 1 < stops.length && stops[i + 1].position.value <= position) i++;
@@ -335,19 +349,21 @@ function colorAt(stops: GradientStop[], position: number): Oklab {
 	if (i === stops.length - 1 || stops[i].position.value === position) return stops[i].color;
 	const a = stops[i];
 	const b = stops[i + 1];
-	return mixColors(
-		a.color,
-		b.color,
-		(position - a.position.value) / (b.position.value - a.position.value)
-	);
+	const t = (position - a.position.value) / (b.position.value - a.position.value);
+	const x = gamutMapToSrgb(a.color);
+	const y = gamutMapToSrgb(b.color);
+	const alpha = lerp(x.alpha, y.alpha, t);
+	const mix = (p: number, q: number) =>
+		alpha > 0 ? lerp(p * x.alpha, q * y.alpha, t) / alpha : lerp(p, q, t);
+	return srgbToOklab({ r: mix(x.r, y.r), g: mix(x.g, y.g), b: mix(x.b, y.b), alpha });
 }
 
 type StopPair = { from: Oklab; to: Oklab; position: (t: number) => Length };
 
 /**
- * Pair the stops of two gradients. Equal counts pair in order and positions move. Otherwise the
- * gradient with fewer stops is evaluated at the other's stop positions (and the other at any
- * of its own positions the longer one lacks), so both keep their look at the keys.
+ * Pair the stops of two gradients. Equal counts pair in order and positions move. Otherwise each
+ * gradient gets a stop at every position only the other one has, coloured with what the browser
+ * draws there (`colorAt`), so both keep their exact look at the keys.
  */
 function pairStops(a: GradientStop[], b: GradientStop[]): StopPair[] {
 	if (a.length === b.length) {
@@ -390,7 +406,7 @@ function solidAs(color: Oklab, like: Gradient): Gradient {
 }
 
 function gradientMixer(from: Paint, to: Paint, options: InterpolateOptions): (t: number) => string {
-	const space = options.mix ?? 'oklab';
+	const space = options.space ?? 'oklab';
 	if (!isGradientPaint(from) && !isGradientPaint(to)) {
 		return (t) => formatColor(mixColors(from, to, t, space));
 	}
@@ -407,8 +423,8 @@ function gradientMixer(from: Paint, to: Paint, options: InterpolateOptions): (t:
 
 	if (a.type === 'linear' && b.type === 'linear') {
 		const same = JSON.stringify(a.direction) === JSON.stringify(b.direction);
-		const start = directionDegrees(a.direction, options.box);
-		const arc = shortestArc(start, directionDegrees(b.direction, options.box));
+		const start = same ? 0 : directionDegrees(a.direction, options.box);
+		const arc = same ? 0 : shortestArc(start, directionDegrees(b.direction, options.box));
 		return (t) =>
 			formatGradient({
 				type: 'linear',
@@ -463,7 +479,7 @@ export type Shadow = {
 
 /**
  * Parse a `box-shadow` or `text-shadow` list: per shadow optional `inset`, two to four px lengths
- * (x, y, blur, spread) and a colour. `none` is the empty list.
+ * (x, y, blur, spread; blur not negative) and a colour. `none` is the empty list.
  */
 export function parseShadows(input: string): Shadow[] {
 	const text = input.trim();
@@ -500,6 +516,9 @@ export function parseShadows(input: string): Shadow[] {
 			throw new Error(`Shadow "${part}" needs a colour so it can be keyframed.`);
 		}
 		const [x, y, blur = { value: 0, unit: 'px' }, spread] = lengths;
+		if (blur.value < 0) {
+			throw new Error(`Shadow "${part}": the blur radius cannot be negative.`);
+		}
 		return { inset, x, y, blur, spread, color };
 	});
 }
@@ -539,7 +558,7 @@ function shadowMixer(
 	to: Shadow[],
 	options: InterpolateOptions
 ): (t: number) => string {
-	const space = options.mix ?? 'oklab';
+	const space = options.space ?? 'oklab';
 	const count = Math.max(from.length, to.length);
 	const pairs = Array.from({ length: count }, (_, i) => {
 		const a = from[i] ?? emptyShadowLike(to[i]);
@@ -631,7 +650,7 @@ const codecs: Record<AnimatableKind, Codec<unknown, unknown>> = {
 		parse: (value) => parseColor(expectString(value, 'a colour')),
 		format: (c) => formatColor(c as Oklab),
 		prepare: (a, b, options) => (t) =>
-			formatColor(mixColors(a as Oklab, b as Oklab, t, options.mix))
+			formatColor(mixColors(a as Oklab, b as Oklab, t, options.space))
 	},
 	gradient: {
 		parse(value): Paint {
@@ -686,8 +705,8 @@ export function interpolate<K extends AnimatableKind>(
 
 // Tracks
 
-/** One keyframe. `ease` and `mix` shape the segment arriving at this key. */
-export type Key = { frame: number; value: unknown; ease?: string; mix?: ColorSpace };
+/** One keyframe. `ease` and `space` shape the segment arriving at this key. */
+export type Key = { frame: number; value: unknown; ease?: string; space?: ColorSpace };
 
 export type TrackOptions = InterpolateOptions & {
 	/** Ease for keys without one. Default `DEFAULT_EASE`. */
@@ -730,7 +749,7 @@ export function createTrack<K extends AnimatableKind>(
 			const mix =
 				from === key.frame
 					? () => c.format(parsed[i + 1])
-					: c.prepare(parsed[i], parsed[i + 1], { ...options, mix: key.mix ?? options.mix });
+					: c.prepare(parsed[i], parsed[i + 1], { ...options, space: key.space ?? options.space });
 			return { from, to: key.frame, ease, mix };
 		} catch (error) {
 			throw new Error(

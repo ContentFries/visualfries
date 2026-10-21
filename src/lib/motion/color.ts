@@ -143,6 +143,7 @@ export function gamutMapToSrgb(color: Oklab): Rgb {
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+const mod360 = (x: number) => ((x % 360) + 360) % 360;
 
 /**
  * Mix two colours at `t` (0 = `from`, 1 = `to`; values outside 0–1 extrapolate, as overshooting
@@ -157,7 +158,7 @@ export function mixColors(from: Oklab, to: Oklab, t: number, space: ColorSpace =
 		const y = oklabToOklch(to);
 		const hx = x.c < ACHROMATIC ? y.h : x.h;
 		const hy = y.c < ACHROMATIC ? x.h : y.h;
-		const h = (((hx + shortestArc(hx, hy) * t) % 360) + 360) % 360;
+		const h = mod360(hx + shortestArc(hx, hy) * t);
 		if (rawAlpha <= 0) {
 			return oklchToOklab({ l: lerp(x.l, y.l, t), c: Math.max(0, lerp(x.c, y.c, t)), h, alpha });
 		}
@@ -172,9 +173,14 @@ export function mixColors(from: Oklab, to: Oklab, t: number, space: ColorSpace =
 	return { l: mix(from.l, to.l), a: mix(from.a, to.a), b: mix(from.b, to.b), alpha };
 }
 
-/** Signed degrees from hue `a` to hue `b` along the shorter arc (−180 to 180). */
+/**
+ * Signed degrees from angle `a` to angle `b` along the shorter arc, the way CSS "shorter" hue
+ * interpolation picks it: both are taken to 0–360 first, and a half turn keeps the sign of that
+ * difference (0 to 180 is +180, 180 to 0 is −180).
+ */
 export function shortestArc(a: number, b: number): number {
-	return ((((b - a) % 360) + 540) % 360) - 180;
+	const d = mod360(b) - mod360(a);
+	return d > 180 ? d - 360 : d < -180 ? d + 360 : d;
 }
 
 /** `rgb(r g b / a)` after gamut mapping; channels to 3 decimals, alpha to 4. */
@@ -184,14 +190,19 @@ export function formatColor(color: Oklab): string {
 	return `rgb(${ch(r)} ${ch(g)} ${ch(b)} / ${formatNumber(clamp01(alpha), 4)})`;
 }
 
+export type ColorOptions = {
+	/** Colour space the two colours blend in. Default `oklab`. */
+	space?: ColorSpace;
+};
+
 /** Mix two CSS colours and write the result as `rgb(r g b / a)`. */
 export function interpolateColor(
 	from: string,
 	to: string,
 	t: number,
-	space: ColorSpace = 'oklab'
+	options: ColorOptions = {}
 ): string {
-	return formatColor(mixColors(parseColor(from), parseColor(to), t, space));
+	return formatColor(mixColors(parseColor(from), parseColor(to), t, options.space));
 }
 
 // Parsing

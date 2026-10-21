@@ -16,8 +16,11 @@ export type AnimatableValue = {
 };
 export type InterpolateOptions = {
     /** Colour space for colours, gradient stops and shadow colours. Default `oklab`. */
-    mix?: ColorSpace;
-    /** Box a gradient is drawn in; corner directions (`to top right`) depend on its aspect. Default square. */
+    space?: ColorSpace;
+    /**
+     * Box a gradient is drawn in. Required to turn a corner direction (`to top right`) into an
+     * angle, because that angle depends on the box's aspect ratio; without it such a pair throws.
+     */
     box?: {
         width: number;
         height: number;
@@ -84,7 +87,7 @@ export type Shadow = {
 };
 /**
  * Parse a `box-shadow` or `text-shadow` list: per shadow optional `inset`, two to four px lengths
- * (x, y, blur, spread) and a colour. `none` is the empty list.
+ * (x, y, blur, spread; blur not negative) and a colour. `none` is the empty list.
  */
 export declare function parseShadows(input: string): Shadow[];
 export declare function formatShadows(shadows: Shadow[]): string;
@@ -95,12 +98,12 @@ export declare function formatShadows(shadows: Shadow[]): string;
 export declare function interpolator<K extends AnimatableKind>(kind: K, from: unknown, to: unknown, options?: InterpolateOptions): (t: number) => AnimatableValue[K];
 /** One-off `interpolator(kind, from, to, options)(t)`. */
 export declare function interpolate<K extends AnimatableKind>(kind: K, from: unknown, to: unknown, t: number, options?: InterpolateOptions): AnimatableValue[K];
-/** One keyframe. `ease` and `mix` shape the segment arriving at this key. */
+/** One keyframe. `ease` and `space` shape the segment arriving at this key. */
 export type Key = {
     frame: number;
     value: unknown;
     ease?: string;
-    mix?: ColorSpace;
+    space?: ColorSpace;
 };
 export type TrackOptions = InterpolateOptions & {
     /** Ease for keys without one. Default `DEFAULT_EASE`. */

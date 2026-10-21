@@ -41,12 +41,20 @@ export declare function gamutMapToSrgb(color: Oklab): Rgb;
  * fades. `oklch` takes the shorter hue arc; a grey end adopts the other end's hue.
  */
 export declare function mixColors(from: Oklab, to: Oklab, t: number, space?: ColorSpace): Oklab;
-/** Signed degrees from hue `a` to hue `b` along the shorter arc (−180 to 180). */
+/**
+ * Signed degrees from angle `a` to angle `b` along the shorter arc, the way CSS "shorter" hue
+ * interpolation picks it: both are taken to 0–360 first, and a half turn keeps the sign of that
+ * difference (0 to 180 is +180, 180 to 0 is −180).
+ */
 export declare function shortestArc(a: number, b: number): number;
 /** `rgb(r g b / a)` after gamut mapping; channels to 3 decimals, alpha to 4. */
 export declare function formatColor(color: Oklab): string;
+export type ColorOptions = {
+    /** Colour space the two colours blend in. Default `oklab`. */
+    space?: ColorSpace;
+};
 /** Mix two CSS colours and write the result as `rgb(r g b / a)`. */
-export declare function interpolateColor(from: string, to: string, t: number, space?: ColorSpace): string;
+export declare function interpolateColor(from: string, to: string, t: number, options?: ColorOptions): string;
 /**
  * Parse a CSS colour: hex (3, 4, 6, 8 digits), `rgb()`/`rgba()` and `hsl()`/`hsla()` in comma or
  * space syntax, `oklab()`, `oklch()`, the CSS named colours and `transparent`.

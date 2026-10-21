@@ -1,6 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { gsap } from 'gsap';
-import { formatColor, mixColors, parseColor, type Oklab } from '../../src/lib/motion/color.js';
+import { chromium, type Browser } from 'playwright';
+import { findChromium } from '../../src/lib/motion/node.js';
+import {
+	formatColor,
+	gamutMapToSrgb,
+	mixColors,
+	parseColor,
+	srgbToOklab,
+	type Oklab
+} from '../../src/lib/motion/color.js';
 import {
 	createTrack,
 	formatGradient,
@@ -22,14 +31,24 @@ function expectSameNumbers(actual: string, expected: string, tol = 0.02) {
 	a.forEach((v, i) => expect(Math.abs(v - b[i]), `${actual} vs ${expected}`).toBeLessThan(tol));
 }
 
-/** The colour of a parsed gradient at `p` (OKLab between stops), as a test-side oracle. */
+/** CSS's blend between two `rgb()` gradient stops: gamma-encoded sRGB, premultiplied alpha. */
+function srgbBlend(from: Oklab, to: Oklab, t: number): Oklab {
+	const x = gamutMapToSrgb(from);
+	const y = gamutMapToSrgb(to);
+	const alpha = x.alpha + (y.alpha - x.alpha) * t;
+	const ch = (p: number, q: number) =>
+		alpha ? (p * x.alpha + (q * y.alpha - p * x.alpha) * t) / alpha : p + (q - p) * t;
+	return srgbToOklab({ r: ch(x.r, y.r), g: ch(x.g, y.g), b: ch(x.b, y.b), alpha });
+}
+
+/** The colour the browser draws at `p` of a parsed gradient, as a test-side oracle. */
 function sample(g: Gradient, p: number): Oklab {
 	const s = g.stops;
 	if (p <= s[0].position.value) return s[0].color;
 	for (let i = 0; i < s.length - 1; i++) {
 		const a = s[i].position.value;
 		const b = s[i + 1].position.value;
-		if (p >= a && p < b) return mixColors(s[i].color, s[i + 1].color, (p - a) / (b - a));
+		if (p >= a && p < b) return srgbBlend(s[i].color, s[i + 1].color, (p - a) / (b - a));
 	}
 	return s[s.length - 1].color;
 }
@@ -114,12 +133,12 @@ describe('createTrack', () => {
 		expect(track(0)).toMatch(/^radial-gradient/);
 	});
 
-	it('uses the arriving key mix for colours', () => {
+	it('uses the arriving key colour space for colours', () => {
 		const track = createTrack(
 			'color',
 			[
 				{ frame: 0, value: 'red' },
-				{ frame: 10, value: 'blue', mix: 'oklch' }
+				{ frame: 10, value: 'blue', space: 'oklch' }
 			],
 			{ ease: 'none' }
 		);
@@ -159,7 +178,7 @@ describe('createTrack', () => {
 					value: 'linear-gradient(45deg, #ff3366, gold 40%, teal)',
 					ease: 'back.out(2)'
 				},
-				{ frame: 30, value: 'linear-gradient(300deg, navy, white)', mix: 'oklch' }
+				{ frame: 30, value: 'linear-gradient(300deg, navy, white)', space: 'oklch' }
 			]);
 		const frames = Array.from({ length: 36 }, (_, i) => i - 2.5);
 		const forward = frames.map(make());
@@ -205,7 +224,8 @@ describe('gradients', () => {
 		const to = 'linear-gradient(90deg, white, lime 50%, black)';
 		const start = stopsOf(interpolate('gradient', from, to, 0));
 		expect(start.map((s) => s[1])).toEqual([0, 50, 100]);
-		expect(start[1][0]).toBe(formatColor(mixColors(parseColor('red'), parseColor('blue'), 0.5)));
+		// the added stop is what the browser draws there (sRGB), so the key frame looks the same
+		expect(start[1][0]).toBe('rgb(127.5 0 127.5 / 1)');
 		expectSameNumbers(interpolate('gradient', to, from, 1), interpolate('gradient', from, to, 0));
 		expectSameNumbers(
 			interpolate('gradient', from, to, 1),
@@ -213,9 +233,7 @@ describe('gradients', () => {
 		);
 		const mid = stopsOf(interpolate('gradient', from, to, 0.5));
 		expect(mid[1][0]).toBe(
-			formatColor(
-				mixColors(mixColors(parseColor('red'), parseColor('blue'), 0.5), parseColor('lime'), 0.5)
-			)
+			formatColor(mixColors(parseColor('rgb(127.5 0 127.5)'), parseColor('lime'), 0.5))
 		);
 	});
 
@@ -265,6 +283,13 @@ describe('gradients', () => {
 			box: { width: 16, height: 9 }
 		});
 		expect((angle(wide) as { angle: number }).angle).toBeCloseTo(29.3578, 3);
+		// without a box a corner has no angle, so the pair is refused instead of guessed
+		expect(() => interpolate('gradient', g('to top right'), g('90deg'), 0.5)).toThrow(
+			/depends on the box it is drawn in/
+		);
+		// a half turn goes clockwise from the smaller angle, like CSS "shorter" hues
+		expect(angle(interpolate('gradient', g('0deg'), g('180deg'), 0.5))).toEqual({ angle: 90 });
+		expect(angle(interpolate('gradient', g('180deg'), g('0deg'), 0.5))).toEqual({ angle: 90 });
 	});
 
 	it('moves radial geometry and refuses a shape or type change', () => {
@@ -286,6 +311,95 @@ describe('gradients', () => {
 		expect(() =>
 			interpolate('gradient', 'linear-gradient(red, blue)', 'radial-gradient(red, blue)', 0.5)
 		).toThrow(/Cannot interpolate a linear-gradient into a radial-gradient/);
+	});
+});
+
+describe('gradient keys in Chromium', () => {
+	let browser: Browser | undefined;
+	beforeAll(async () => {
+		browser = await chromium.launch({ executablePath: findChromium() }).catch(() => undefined);
+	});
+	afterAll(() => browser?.close());
+
+	const SIZE = 100;
+	const GRID = [5, 25, 40, 50, 60, 75, 95];
+
+	/** RGBA at a grid of points of each background, drawn the way a block's stage draws them. */
+	async function pixels(backgrounds: string[]): Promise<number[][]> {
+		const page = await browser!.newPage({
+			viewport: { width: SIZE, height: SIZE * backgrounds.length },
+			deviceScaleFactor: 1
+		});
+		const boxes = backgrounds
+			.map((bg) => `<div style="width:${SIZE}px;height:${SIZE}px;background:${bg}"></div>`)
+			.join('');
+		await page.setContent(`<body style="margin:0;background:#fff">${boxes}</body>`);
+		const png = (await page.screenshot()).toString('base64');
+		const data = await page.evaluate(
+			async ({ png, size, count, grid }) => {
+				const img = new Image();
+				img.src = `data:image/png;base64,${png}`;
+				await img.decode();
+				const canvas = document.createElement('canvas');
+				canvas.width = size;
+				canvas.height = size * count;
+				const ctx = canvas.getContext('2d')!;
+				ctx.drawImage(img, 0, 0);
+				return Array.from({ length: count }, (_, i) =>
+					grid.flatMap((y) =>
+						grid.flatMap((x) => Array.from(ctx.getImageData(x, i * size + y, 1, 1).data))
+					)
+				);
+			},
+			{ png, size: SIZE, count: backgrounds.length, grid: GRID }
+		);
+		await page.close();
+		return data;
+	}
+
+	// A segment starts from the previous key aligned to the next one; that aligned gradient must
+	// draw the same pixels as the key itself, or the gradient jumps on the segment's first frame.
+	const pairs: [string, string][] = [
+		['linear-gradient(90deg, red, blue)', 'linear-gradient(90deg, white, lime 50%, black)'],
+		['linear-gradient(90deg, red 0%, blue 30%)', 'linear-gradient(90deg, white, lime 50%, black)'],
+		[
+			'linear-gradient(90deg, rgb(0 0 255 / 0), red)',
+			'linear-gradient(90deg, white, lime 25%, gold 70%, black)'
+		],
+		[
+			'linear-gradient(45deg, oklch(0.7 0.35 145), #3366ff)',
+			'linear-gradient(45deg, red, white, red)'
+		],
+		[
+			'radial-gradient(circle 60px at 40% 50%, tomato, navy)',
+			'radial-gradient(circle 60px at 40% 50%, white 10%, teal 35%, black)'
+		]
+	];
+
+	it('draws the aligned key exactly like the key', async (ctx) => {
+		if (!browser) ctx.skip();
+		const keys: string[] = [];
+		const aligned: string[] = [];
+		for (const [a, b] of pairs) {
+			for (const [from, to] of [
+				[a, b],
+				[b, a]
+			]) {
+				const track = createTrack('gradient', [
+					{ frame: 0, value: from },
+					{ frame: 10, value: to }
+				]);
+				keys.push(track(-1));
+				aligned.push(track(0));
+			}
+		}
+		expect(aligned).not.toEqual(keys); // the alignment did add stops
+		const [want, got] = [await pixels(keys), await pixels(aligned)];
+		want.forEach((w, i) => {
+			const worst = Math.max(...w.map((v, k) => Math.abs(v - got[i][k])));
+			// 2 levels leave room for Skia's gradient dithering and 3-decimal rounding
+			expect(worst, `${keys[i]} vs ${aligned[i]}`).toBeLessThanOrEqual(2);
+		});
 	});
 });
 
@@ -322,6 +436,7 @@ describe('shadows', () => {
 		expect(() => parseShadows('0 0 4px')).toThrow(/needs a colour/);
 		expect(() => parseShadows('0 red')).toThrow(/two to four lengths/);
 		expect(() => parseShadows('0 0 1em red')).toThrow(/Lengths are px/);
+		expect(() => parseShadows('0 0 -4px red')).toThrow(/blur radius cannot be negative/);
 	});
 });
 
@@ -442,9 +557,9 @@ describe('properties', () => {
 			expect(interpolate('length', `${a}%`, `${b}%`, 0)).toBe(`${Math.round(a * 1e4) / 1e4}%`);
 
 			const [ca, cb] = [randomColor(), randomColor()];
-			for (const mix of ['oklab', 'oklch'] as const) {
-				expectSameNumbers(interpolate('color', ca, cb, 0, { mix }), formatColor(parseColor(ca)));
-				expectSameNumbers(interpolate('color', ca, cb, 1, { mix }), formatColor(parseColor(cb)));
+			for (const space of ['oklab', 'oklch'] as const) {
+				expectSameNumbers(interpolate('color', ca, cb, 0, { space }), formatColor(parseColor(ca)));
+				expectSameNumbers(interpolate('color', ca, cb, 1, { space }), formatColor(parseColor(cb)));
 			}
 
 			const [ga, gb] = randomGradientPair();
@@ -462,10 +577,10 @@ describe('properties', () => {
 		for (let i = 0; i < runs; i++) {
 			const [ga, gb] = randomGradientPair();
 			const t = random() * 1.4 - 0.2;
-			const mix = pick(['oklab', 'oklch'] as const);
-			const once = interpolator('gradient', ga, gb, { mix })(t);
-			expect(interpolator('gradient', ga, gb, { mix })(t)).toBe(once);
-			expect(interpolate('gradient', ga, gb, t, { mix })).toBe(once);
+			const space = pick(['oklab', 'oklch'] as const);
+			const once = interpolator('gradient', ga, gb, { space })(t);
+			expect(interpolator('gradient', ga, gb, { space })(t)).toBe(once);
+			expect(interpolate('gradient', ga, gb, t, { space })).toBe(once);
 		}
 	});
 });

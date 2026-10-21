@@ -121,7 +121,7 @@ describe('parseColor', () => {
 describe('mixColors', () => {
 	it('red → blue midpoint keeps more chroma than the RGB midpoint (OKLCH)', () => {
 		const rgbMid = parseColor('rgb(127.5 0 127.5)');
-		const oklchMid = parseColor(interpolateColor('red', 'blue', 0.5, 'oklch'));
+		const oklchMid = parseColor(interpolateColor('red', 'blue', 0.5, { space: 'oklch' }));
 		expect(chroma(oklchMid)).toBeGreaterThan(chroma(rgbMid) + 0.02);
 	});
 
@@ -143,7 +143,9 @@ describe('mixColors', () => {
 		expect(interpolateColor('transparent', 'red', 0.5)).toBe('rgb(255 0 0 / 0.5)');
 		expect(interpolateColor('rgb(0 0 255 / 0)', 'red', 0.25)).toBe('rgb(255 0 0 / 0.25)');
 		expect(interpolateColor('red', 'transparent', 1)).toBe('rgb(0 0 0 / 0)');
-		expect(interpolateColor('transparent', 'red', 0.5, 'oklch')).toBe('rgb(255 0 0 / 0.5)');
+		expect(interpolateColor('transparent', 'red', 0.5, { space: 'oklch' })).toBe(
+			'rgb(255 0 0 / 0.5)'
+		);
 	});
 
 	it('OKLCH takes the shorter hue arc', () => {
@@ -155,6 +157,11 @@ describe('mixColors', () => {
 		expect(mid.h).toBeGreaterThan(300); // through magenta, not through green
 		expect(shortestArc(350, 10)).toBe(20);
 		expect(shortestArc(10, 350)).toBe(-20);
+		// a half turn goes the way CSS "shorter" picks it: by the sign after both are taken to 0–360
+		expect(shortestArc(0, 180)).toBe(180);
+		expect(shortestArc(180, 0)).toBe(-180);
+		expect(shortestArc(-90, 90)).toBe(-180);
+		expect(shortestArc(90, 630)).toBe(180);
 	});
 
 	it('OKLCH keeps the chromatic hue when one end is grey', () => {

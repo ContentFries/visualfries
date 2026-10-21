@@ -321,8 +321,10 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		await fs.writeFile(name('a'), 'x');
 		await fs.writeFile(name('b'), 'x');
 		await fs.utimes(name('b'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
+		const loaded = await loadMotionProject(file);
+		// The render takes its start time synchronously, right after this.
 		await fs.utimes(name('a'), new Date(Date.now() - 4), new Date(Date.now() - 4));
-		await renderProgramVideo(await loadMotionProject(file), { output: out('again.mp4') });
+		await renderProgramVideo(loaded, { output: out('again.mp4') });
 		expect(existsSync(name('a'))).toBe(true);
 		expect(existsSync(name('b'))).toBe(false);
 		await fs.rm(name('a'));

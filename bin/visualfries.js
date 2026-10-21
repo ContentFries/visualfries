@@ -53,6 +53,8 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]
   visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
+  visualfries cache <project.vf.json> [--clear]
+                    size of the project's .visualfries/ cache; --clear drops extracted footage frames
   visualfries matte <video> --output <matte.mp4> [--provider fal|command] [options]
                     subject matte (white = subject) for "footage". Default provider: BiRefNet v2
                     on fal.ai (FAL_KEY; --model Matting, --resolution 1024x1024). Any local tool:
@@ -1694,6 +1696,66 @@ async function motionStillCommand(args) {
 	);
 }
 
+/** Size of a project's `.visualfries/` cache (footage frames), and `--clear` to drop the footage frames. */
+async function cacheCommand(args) {
+	const file = args[0];
+	if (!file) throw new Error('Usage: visualfries cache <project.vf.json> [--clear]');
+	const stat = await fs.stat(file).catch(() => null);
+	if (!stat?.isFile()) throw new Error(`${file} is not a project file.`);
+	const dir = path.join(path.dirname(path.resolve(file)), '.visualfries');
+	const size = async (p) => {
+		let total = 0;
+		let entries = [];
+		try {
+			entries = await fs.readdir(p, { withFileTypes: true });
+		} catch {
+			return 0;
+		}
+		for (const e of entries) {
+			const q = path.join(p, e.name);
+			total += e.isDirectory() ? await size(q) : ((await fs.stat(q).catch(() => null))?.size ?? 0);
+		}
+		return total;
+	};
+	const gb = (n) => `${(n / 1e9).toFixed(2)} GB`;
+	const footage = path.join(dir, 'footage');
+	let folders = [];
+	try {
+		folders = await fs.readdir(footage);
+	} catch {
+		folders = [];
+	}
+	const before = await size(dir);
+	if (hasFlag(args, '--clear')) {
+		await fs.rm(footage, { recursive: true, force: true });
+		console.log(
+			JSON.stringify(
+				{
+					cache: dir,
+					before: gb(before),
+					after: gb(await size(dir)),
+					removedFootageExtractions: folders.length
+				},
+				null,
+				2
+			)
+		);
+	} else {
+		console.log(
+			JSON.stringify(
+				{
+					cache: dir,
+					size: gb(before),
+					footageExtractions: folders.length,
+					hint: 'visualfries cache <project> --clear removes the footage frames; the next render extracts what it needs again.'
+				},
+				null,
+				2
+			)
+		);
+	}
+}
+
 async function matteCommand(args) {
 	const input = args[0];
 	const output = readFlag(args, '--output');
@@ -1808,6 +1870,7 @@ async function main() {
 	if (command === 'still') return motionStillCommand(args);
 	if (command === 'check') return motionCheckCommand(args);
 	if (command === 'matte') return matteCommand(args);
+	if (command === 'cache') return cacheCommand(args);
 	if (command === 'render' && args[0] && (await isMotionProjectFile(args[0])))
 		return motionRenderCommand(args);
 	if (command === 'render') return renderCommand(args);

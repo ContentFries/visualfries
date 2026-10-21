@@ -456,9 +456,12 @@ export async function prepareFootage(loaded, clips) {
         const direct = info.constant && Math.abs(info.fps - fps) < 0.01;
         const total = direct ? info.frames : Math.round(info.duration * fps);
         const startFrame = Math.round((spec.start ?? 0) * fps);
-        const margin = Math.round((spec.margin ?? FOOTAGE_MARGIN_SECONDS) * fps);
-        // Clips that never overlap the footage hold its nearest edge frame.
-        const range = footageFrameRange(clips, startFrame, total, margin) ?? edgeFrame(clips, startFrame, total);
+        const margin = spec.margin === 'all' ? total : Math.round((spec.margin ?? FOOTAGE_MARGIN_SECONDS) * fps);
+        // Clips that never overlap the footage hold its nearest edge frame; "all" extracts every frame.
+        const range = spec.margin === 'all'
+            ? { first: 0, last: Math.max(0, total - 1) }
+            : (footageFrameRange(clips, startFrame, total, margin) ??
+                edgeFrame(clips, startFrame, total));
         const stats = await Promise.all([src, matte].map((f) => (f ? fs.stat(f) : null)));
         const key = createHash('sha1')
             .update(JSON.stringify({

@@ -39,7 +39,8 @@ my-video/
   (`from`) or its last word's end (`until`). Also: program seconds (`12.5`), `{ "frame": 274 }`,
   or `{ "say": "…", "edge": "start"|"last"|"end", "occurrence": 2, "offset": -0.1 }`
   (`last` = when the phrase's last word starts).
-- **`cues`** are named moments inside the clip. Phrases are searched only inside the clip;
+- **`cues`** are named moments inside the clip. Names may use any language and inner spaces
+  (`"nových odberateľov": "nových odberateľov"`), but not start with a digit or contain `+ - .`. Phrases are searched only inside the clip;
   numbers and `{ "frame": n }` are clip-local. `start` and `end` are built in and cannot be
   redefined. A missing phrase suggests the closest spoken ones ("Did you mean …"); an
   ambiguous phrase lists every occurrence with its time. Nothing is ever matched silently.
@@ -83,7 +84,7 @@ Transcripts: Soniox-style `{ "words": [{ "text", "startMs", "endMs" }] }` or
 | `clip.words.row`, `clip.props`                  | bound words, props from the project                  |
 
 `at` uses the same grammar everywhere (blocks and `still --at`): a cue (`'extra'`), a cue
-edge (`'extra.end'`), a cue with offset (`'extra+0.4'`, `'extra.end-0.2'`), `'2.5s'`, `'f120'`,
+edge (`'extra.end'`), a cue with offset (`'extra+0.4'`, `'extra.end-0.2'`), `'2.5s'` or `'2.5'`, `'f120'`,
 `'mid'`, or clip-local seconds as a number. `start` and `end` always exist, so an exit written
 as `'end-0.3'` follows the clip when a new voiceover makes it longer. Eases are GSAP names or
 functions; an unknown name is an error, never a silent linear ease.
@@ -143,6 +144,10 @@ white = subject) for cutting the subject out:
 <Footage name="talk" layer="subject" offset={-0.4} />
 <!-- 0.4 s earlier: an echo -->
 ```
+
+Frames are extracted around the clips that use a footage (2 s margin); a block that jumps far
+into it (video tiles with big `offset`s) sets `"margin": 12` or `"margin": "all"`. The cache lives in
+`.visualfries/`; `visualfries cache <project>` shows its size and `--clear` drops the footage frames.
 
 `start` is the program second at which the footage's first frame plays; `offset` shifts a layer
 in seconds. A clip's `audio` muxes that footage's sound into the rendered clip. Frames are

@@ -488,11 +488,15 @@ are portrait). The clip root has `data-format="portrait"` (etc.) for CSS, and sa
 
 The default zone is `all`: safe on TikTok, Instagram/Facebook (Meta) and YouTube at once. At
 1080×1920 that is top 288, bottom 672, left 120, right 300 (192 above y 840, where TikTok's
-button column starts). 1:1 is 106/236/501/101, 16:9 184/424/386/200 and 4:5 68/65/68/65
-(top/right/bottom/left). Other sizes scale from the nearest reference of their class (1440×2560
-gets ×4/3). `"safeZone": "tiktok" | "meta" | "youtube"` uses one platform's zone; where a
-platform publishes none for the ratio, `all` is used and `clips`/`check` warn. The figures are
-one dated table (`SAFE_ZONES`, checked 2026-10-20, from the platforms' ad safe-zone specs).
+button column starts). 1:1 is 106/236/501/101 and 4:5 68/65/68/65 (top/right/bottom/left).
+16:9 is 184/162/386/38: landscape players only, which means YouTube's player, the one that
+publishes a figure; LinkedIn, X and Facebook feed video publish none and are not measured.
+`"safeZone": "tiktok"` on 16:9 gives the zone of a landscape video inside TikTok's vertical feed
+(right 424, left 200). 4:5 is not measured either: no platform publishes a 4:5 zone. Other sizes
+scale from the nearest reference of their class (1440×2560 gets ×4/3).
+`"safeZone": "tiktok" | "meta" | "youtube"` uses one platform's zone; where a platform publishes
+none for the ratio, `all` is used and `clips`/`check` warn once. The figures are one dated table
+(`SAFE_ZONES`, read 2026-10-20 from the platforms' ad safe-zone specs, each with its source).
 
 ```css
 .title {

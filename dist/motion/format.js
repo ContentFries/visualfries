@@ -43,7 +43,10 @@ export function mergeZones(zones) {
 }
 function zoneAt(aspect, zone) {
     const table = SAFE_ZONES[aspect];
-    const all = () => table.all ?? mergeZones(Object.values(table.platforms));
+    const all = () => table.all ??
+        mergeZones(table.allFrom
+            ? table.allFrom.flatMap((p) => table.platforms[p] ?? [])
+            : Object.values(table.platforms));
     if (zone === 'all')
         return { insets: all() };
     const own = table.platforms[zone];

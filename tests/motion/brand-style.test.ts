@@ -228,7 +228,25 @@ describe('format class and safe insets', () => {
 			aspect: '4:5',
 			safe: { top: 68, right: 65, bottom: 68, left: 65, notchY: 1282, rightUpper: 65 }
 		});
-		expect(resolveFormat([1920, 1080]).safe).toMatchObject({ top: 184, left: 200 });
+		expect(resolveFormat([1920, 1080]).safe).toMatchObject({ top: 184, left: 38 });
+	});
+
+	it('keeps the landscape zone to landscape players', () => {
+		// TikTok's 16:9 figure is a landscape video inside its vertical feed: only on request.
+		expect(SAFE_ZONES['16:9'].allFrom).toEqual(['youtube']);
+		expect(resolveFormat([1920, 1080]).safe).toEqual({
+			top: 184,
+			right: 162,
+			bottom: 386,
+			left: 38,
+			notchY: 694,
+			rightUpper: 162
+		});
+		expect(resolveFormat([1920, 1080], 'tiktok').safe).toMatchObject({ right: 424, left: 200 });
+		expect(resolveFormat([1280, 720]).safe).toMatchObject({ top: 123, right: 108 });
+		expect(SAFE_ZONES['16:9'].notMeasured).toEqual(
+			expect.arrayContaining(['LinkedIn feed video', 'X timeline video', 'Facebook feed video'])
+		);
 	});
 
 	it('scales from the reference size and picks the nearest ratio of the class', () => {

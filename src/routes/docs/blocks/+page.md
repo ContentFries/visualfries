@@ -1,7 +1,7 @@
 ---
 title: Motion blocks
 description: A motion block is a Svelte 5 component that reads clip time. Write animation as live markup with clip.p, as a paused GSAP timeline with useTimeline, or as per-frame drawing with useFrame.
-updated: 2026-09-27
+updated: 2026-10-21
 ---
 
 A **motion block** is a Svelte 5 component that draws one clip. It reads the clip's time from `useClip()`; VisualFries sets that time before every frame, so a block that follows the [determinism rules](/docs/determinism) gives the same frame in a contact sheet and in the final video.
@@ -59,6 +59,8 @@ VisualFries owns the timeline: it is paused, primed once so every tween records 
 ```
 
 The CF004 example drives a hand-written filmstrip engine this way, unchanged, and maps its internal time onto the voice with `clip.map`.
+
+A block can also own a WebGL canvas. To run a shader over the block's own HTML, make it a `<canvas layoutsubtree>` with the HTML inside; in `useFrame`, call `canvas.requestPaint()`, await its `paint` event, upload the children with `gl.texElementImage2D(gl.TEXTURE_2D, gl.RGBA8, element)` and draw. Keep CSS `filter` and `mask` off that canvas and every element around it: Chromium crashes on them, so the frame fails and names the element. Filter the canvas's children or do the effect in the shader. On a server without a GPU, WebGL runs on the CPU and roughly doubles the cost of a 1080p frame.
 
 ## Data and styling
 

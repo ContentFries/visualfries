@@ -130,8 +130,13 @@ export async function bundleMotionProject(
 	const esbuild = await import('esbuild');
 	const { compile, compileModule } = await import('svelte/compiler');
 	const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-motion-'));
-	const stageModule = path.join(HERE, 'stage.js');
-	const motionIndex = path.join(HERE, 'index.js');
+	// The package ships .js; tests bundle straight from the TypeScript source.
+	const own = (name: string) =>
+		existsSync(path.join(HERE, `${name}.js`))
+			? path.join(HERE, `${name}.js`)
+			: path.join(HERE, `${name}.ts`);
+	const stageModule = own('stage');
+	const motionIndex = own('index');
 	// Blocks may import anything VisualFries depends on (svelte, gsap) without their own node_modules.
 	const packageRoot = path.resolve(HERE, '..', '..');
 	const nodePaths = [
@@ -272,7 +277,7 @@ type PageLike = {
 	locator(sel: string): {
 		screenshot(opts: { omitBackground?: boolean; type?: 'png' }): Promise<Buffer>;
 	};
-	on(event: 'pageerror' | 'console', fn: (e: any) => void): void;
+	on(event: 'pageerror' | 'console' | 'crash', fn: (e: any) => void): void;
 	close(): Promise<void>;
 };
 type BrowserLike = { newPage(opts: object): Promise<PageLike>; close(): Promise<void> };
@@ -303,11 +308,27 @@ export type MotionPage = {
 	close(): Promise<void>;
 };
 
-async function openClip(
+/**
+ * Longest a page may take to load a clip or render one frame. A frame normally takes well under a
+ * second; past this the page is stuck (a block that never returns, a renderer that stopped).
+ */
+const PAGE_TIMEOUT_MS = 60_000;
+
+/** The page's own message, without Playwright's prefix and the bundle stack trace. */
+function pageMessage(error: unknown): string {
+	return (error as Error).message.replace(/^page\.evaluate: (Error: )?/, '').split('\n    at ')[0];
+}
+
+/**
+ * One page with one clip loaded. Every call fails as soon as the page crashes or stops
+ * answering: Playwright leaves a call to a crashed page pending forever, so without this a
+ * renderer crash would hang `render` instead of failing it. Exported for tests.
+ */
+export async function openClip(
 	browser: BrowserLike,
 	bundle: BundleResult,
 	clip: ResolvedClip,
-	invalidate?: string
+	opts: { invalidate?: string; timeout?: number } = {}
 ): Promise<MotionPage> {
 	const page = await browser.newPage({
 		viewport: { width: clip.size[0], height: clip.size[1] },
@@ -316,33 +337,92 @@ async function openClip(
 	const errors: string[] = [];
 	page.on('pageerror', (e) => errors.push(String(e)));
 	page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+	let crashed = false;
+	let onCrash: (() => void) | null = null;
+	page.on('crash', () => {
+		crashed = true;
+		onCrash?.();
+	});
+	const timeout = opts.timeout ?? PAGE_TIMEOUT_MS;
+	/** `work`, or an error as soon as the page crashes or `ms` pass. One call at a time. */
+	async function settle<T>(what: string, work: Promise<T>, ms = timeout): Promise<T> {
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const failure = new Promise<never>((_, reject) => {
+			const crash = () =>
+				reject(
+					new Error(
+						`Clip "${clip.id}": the browser page crashed during ${what} (Chromium's renderer process died).`
+					)
+				);
+			if (crashed) return crash();
+			onCrash = crash;
+			timer = setTimeout(
+				() =>
+					reject(
+						new Error(
+							`Clip "${clip.id}": ${what} did not finish within ${ms / 1000} s; the page stopped responding (a useFrame or useReady promise that never settles, or an endless loop).`
+						)
+					),
+				ms
+			);
+		});
+		work.catch(() => {}); // still pending when the page crashed; it may reject after the race
+		try {
+			return await Promise.race([work, failure]);
+		} finally {
+			clearTimeout(timer);
+			onCrash = null;
+		}
+	}
 	await page.route(`${ORIGIN}/**`, (route) => serveAllowed(route, bundle, errors));
-	await page.goto(originUrl(bundle.html) + (invalidate ? `?invalidate=${invalidate}` : ''));
+	await settle(
+		'loading',
+		page.goto(originUrl(bundle.html) + (opts.invalidate ? `?invalidate=${opts.invalidate}` : ''))
+	);
 	let info: { mode: 'html-in-canvas' | 'dom' };
 	try {
-		info = await page.evaluate((data) => (window as any).__vfMotionStage.load(data), clip);
+		info = await settle(
+			'loading',
+			page.evaluate((data) => (window as any).__vfMotionStage.load(data), clip)
+		);
 	} catch (error) {
-		// Keep the page's message, drop Playwright's prefix and the bundle stack trace.
-		const message = (error as Error).message
-			.replace(/^page\.evaluate: (Error: )?/, '')
-			.split('\n    at ')[0];
-		throw new Error([`Clip "${clip.id}" failed to load: ${message}`, ...errors].join('\n'));
+		throw new Error(
+			[`Clip "${clip.id}" failed to load: ${pageMessage(error)}`, ...errors].join('\n')
+		);
 	}
 	return {
 		mode: info.mode,
 		async capture(frame) {
 			if (errors.length) throw new Error(`Clip "${clip.id}" page errors:\n${errors.join('\n')}`);
-			const r = await page.evaluate(
-				(n) => (window as any).__vfMotionStage.frame(n, true) as Promise<{ image?: string }>,
-				frame
-			);
+			let r: { image?: string };
+			try {
+				r = await settle(
+					`frame ${frame}`,
+					page.evaluate(
+						(n) => (window as any).__vfMotionStage.frame(n, true) as Promise<{ image?: string }>,
+						frame
+					)
+				);
+			} catch (error) {
+				const message = pageMessage(error);
+				throw new Error(
+					message.startsWith(`Clip "${clip.id}"`)
+						? message
+						: `Clip "${clip.id}", frame ${frame}: ${message}`
+				);
+			}
 			if (r.image) return Buffer.from(r.image.slice(r.image.indexOf(',') + 1), 'base64');
-			return page.locator('#vf-stage').screenshot({ omitBackground: clip.alpha, type: 'png' });
+			return settle(
+				`frame ${frame}`,
+				page.locator('#vf-stage').screenshot({ omitBackground: clip.alpha, type: 'png' })
+			);
 		},
 		async check(frames) {
-			const found = await page.evaluate(
-				(list) => (window as any).__vfMotionStage.check(list),
-				frames
+			// One call runs the whole list, so it gets the frame budget per ten frames.
+			const found = await settle(
+				'check',
+				page.evaluate((list) => (window as any).__vfMotionStage.check(list), frames),
+				timeout * Math.max(1, Math.ceil(frames.length / 10))
 			);
 			for (const e of errors) found.errors.push({ frame: -1, message: e });
 			return found;
@@ -907,7 +987,7 @@ export async function renderStills(
 	const out: { clip: string; at: string; frame: number; png: Buffer; mode: string }[] = [];
 	try {
 		for (const clip of clips) {
-			const page = await openClip(browser, bundle, clip, opts.invalidate);
+			const page = await openClip(browser, bundle, clip, { invalidate: opts.invalidate });
 			for (const r of requests.filter((q) => q.clip === clip.id)) {
 				const frame = frameForAt(clip, r.at);
 				out.push({
@@ -1300,7 +1380,7 @@ export async function renderMotionClips(
 			const encode = [...audioInput(loaded, clip), ...codec, partial];
 			let mode = '';
 			const open = async () => {
-				const page = await openClip(browser, bundle, clip, opts.invalidate);
+				const page = await openClip(browser, bundle, clip, { invalidate: opts.invalidate });
 				mode = page.mode;
 				return page;
 			};

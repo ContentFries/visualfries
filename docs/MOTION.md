@@ -120,6 +120,13 @@ for one-off setup), text layout measured after mount (fonts are loaded
 before blocks mount). Svelte drops leading whitespace inside an element: write
 `<span>{' / FCPXML'}</span>`, not `<span> / FCPXML</span>`.
 
+A block can own a WebGL canvas, also a `<canvas layoutsubtree>` whose shader samples the
+block's own HTML: in `useFrame`, `requestPaint()` the canvas and await its `paint` event, then
+`texElementImage2D` and draw (`tests/motion/fixtures/webgl-block`). Put no CSS `filter` or
+`mask` on such a canvas or any element around it (Chromium crashes on that, so the frame fails
+with the element's name); filter its children or in the shader instead. Without a GPU WebGL runs
+on the CPU and roughly doubles the cost of a 1080p frame.
+
 ## Footage and mattes
 
 A project can declare a video the blocks draw frame by frame, with an optional matte (greyscale,
@@ -202,8 +209,10 @@ The page renders the block into a `<canvas layoutsubtree>` and captures it with
 HTML-in-Canvas (`drawElementImage`, Chromium flag `CanvasDrawElement`). Without it the
 stage falls back to DOM screenshots. Each frame: set time → flush Svelte → seek GSAP
 timelines → run `useFrame` callbacks and wait for the promises they return (footage frames)
-→ force a fresh raster → wait for the paint (an error after 2 s, never a silent timeout) →
-capture. The page loads the bundle, fonts and footage from one origin served from disk, because
+→ force a fresh raster (a filter toggled on the stage, or re-inserting the stage before the seek
+when a block nests a `<canvas layoutsubtree>`) → wait for the paint (an error after 2 s, never a
+silent timeout) → capture. A page that crashes or stops answering fails the render with the clip
+and frame; it never hangs it. The page loads the bundle, fonts and footage from one origin served from disk, because
 HTML-in-Canvas leaves cross-origin images out of the capture. Any frame can be rendered in any order with
 identical pixels; `render` deals frames out to several pages and pipes them to ffmpeg in order,
 holding only a few frames in memory (frame files on disk are the fallback, and `--keep-frames`).

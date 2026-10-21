@@ -1,7 +1,7 @@
 ---
 title: Troubleshooting
 description: The VisualFries errors you are most likely to meet and how to fix them. Chromium or Playwright not found, fonts that fail to load, phrases not found or ambiguous, unknown cues and eases, paint timeouts, frames that change with seek order, stale renders.
-updated: 2026-09-27
+updated: 2026-10-21
 ---
 
 Every VisualFries error names what went wrong and, where possible, what to change. This page collects the common ones with their fixes.
@@ -17,13 +17,13 @@ Every VisualFries error names what went wrong and, where possible, what to chang
 
 ## Timing
 
-| Message                                                               | Fix                                                                                    |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Message                                                             | Fix                                                                                    |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `Phrase "extra" not found inside the clip. Did you mean "spare" …?` | The words changed. Use the suggested phrase, or check you passed the right transcript. |
-| `Phrase "small" is ambiguous: #1 at 79.09s …; #2 at 83.61s …`          | Use a longer phrase, or `{ "say": "small", "occurrence": 2 }`.                          |
-| `One-word anchor "things" … easily becomes ambiguous`                   | A warning. Anchor `from`/`until` with two or three words.                              |
-| `Cue at 65.10s is never shown`                                        | The cue lands after the last frame. Move it, or extend the clip with `tail`.           |
-| `Unknown clip "B". Clips: …`                                          | A typo in `--clip`. The message lists the ids that exist.                              |
+| `Phrase "small" is ambiguous: #1 at 79.09s …; #2 at 83.61s …`       | Use a longer phrase, or `{ "say": "small", "occurrence": 2 }`.                         |
+| `One-word anchor "things" … easily becomes ambiguous`               | A warning. Anchor `from`/`until` with two or three words.                              |
+| `Cue at 65.10s is never shown`                                      | The cue lands after the last frame. Move it, or extend the clip with `tail`.           |
+| `Unknown clip "B". Clips: …`                                        | A typo in `--clip`. The message lists the ids that exist.                              |
 
 ## Blocks
 
@@ -38,8 +38,11 @@ Every VisualFries error names what went wrong and, where possible, what to chang
 
 ## Rendering
 
-| Message                                      | Fix                                                                                                |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `Paint did not happen within 2000 ms`        | The page is overloaded or stuck. Lower `--jobs`, and check the block for heavy work in `useFrame`. |
-| `rendered 470 of 471 frames`                 | A capture failed mid-render. Re-run the clip; the error above it names the cause.                  |
-| `… were rendered against another transcript` | Stale clips in `manifest.json`. Re-render the listed clips.                                        |
+| Message                                                 | Fix                                                                                                                                                  |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Paint did not happen within 2000 ms`                   | The page is overloaded or stuck. Lower `--jobs`, and check the block for heavy work in `useFrame`.                                                   |
+| `rendered 470 of 471 frames`                            | A capture failed mid-render. Re-run the clip; the error above it names the cause.                                                                    |
+| `… has a CSS filter and holds a <canvas layoutsubtree>` | Chromium crashes on a filter or mask on a nested HTML-in-Canvas canvas or around it. Filter the canvas's children or apply the effect in the shader. |
+| `the browser page crashed during frame …`               | Chromium's renderer died. Render that frame alone with `still --at f<n>` and remove parts of the block until it stops.                               |
+| `frame … did not finish within 60 s`                    | A `useFrame` or `useReady` promise never settles, or the block loops forever.                                                                        |
+| `… were rendered against another transcript`            | Stale clips in `manifest.json`. Re-render the listed clips.                                                                                          |

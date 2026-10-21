@@ -60,22 +60,17 @@ function createMock2DContext() {
 	};
 }
 
-// Mock HTMLCanvasElement.prototype.getContext
-const originalGetContext = HTMLCanvasElement.prototype.getContext;
-
-HTMLCanvasElement.prototype.getContext = function (
-	contextType: string,
-	options?: any
-): any {
-	if (contextType === '2d') {
-		return createMock2DContext();
-	}
-	if (contextType === 'webgl' || contextType === 'experimental-webgl') {
+// Mock HTMLCanvasElement.prototype.getContext (absent in files that run with
+// `@vitest-environment node`, such as the motion tests that drive a real browser)
+if (typeof HTMLCanvasElement !== 'undefined') {
+	HTMLCanvasElement.prototype.getContext = function (contextType: string): any {
+		if (contextType === '2d') {
+			return createMock2DContext();
+		}
 		// Return null for WebGL - PIXI will fallback to canvas renderer
 		return null;
-	}
-	return null;
-};
+	} as typeof HTMLCanvasElement.prototype.getContext;
+}
 
 // Mock WebGL for PIXI (forces it to use canvas fallback)
 if (typeof WebGLRenderingContext === 'undefined') {

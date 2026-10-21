@@ -123,6 +123,7 @@ export function createMotionStage(options: StageOptions) {
 		});
 		flushSync();
 		active = { controller, instance, data };
+		assertNoEffectOverNestedCanvas();
 		await Promise.all(controller.ready);
 		await document.fonts.ready;
 		return { mode, frames: data.frames, fps: data.fps };
@@ -137,6 +138,8 @@ export function createMotionStage(options: StageOptions) {
 		controller.clip.frame = frame;
 		flushSync();
 		for (const tl of controller.timelines) seekTimeline(tl, t);
+		// Before `useFrame`: a block that awaits its own canvas's paint would crash there.
+		assertNoEffectOverNestedCanvas();
 		const pending: Promise<unknown>[] = [];
 		for (const fn of controller.frameFns) {
 			const result = fn({ t, frame, clip: controller.clip });
@@ -177,15 +180,51 @@ export function createMotionStage(options: StageOptions) {
 		});
 	}
 
+	/** `<canvas layoutsubtree>` elements a block nests inside the stage's own canvas. */
+	function nestedCanvases(): HTMLCanvasElement[] {
+		return canvas && stage
+			? [...stage.querySelectorAll<HTMLCanvasElement>('canvas[layoutsubtree]')]
+			: [];
+	}
+
+	/**
+	 * Chromium's renderer crashes when a nested `<canvas layoutsubtree>`, or anything between it
+	 * and the stage's canvas, has a CSS filter or mask. Name the element instead, and unload the
+	 * clip first so the browser's next paint does not crash the page anyway.
+	 */
+	function assertNoEffectOverNestedCanvas() {
+		for (const nested of nestedCanvases()) {
+			for (let el: Element | null = nested; el && el !== canvas; el = el.parentElement) {
+				const style = getComputedStyle(el);
+				const effect =
+					style.filter !== 'none' ? 'filter' : style.maskImage !== 'none' ? 'mask' : null;
+				if (!effect) continue;
+				const where = describe(el);
+				unload();
+				throw new Error(
+					`${where} has a CSS ${effect} and holds a <canvas layoutsubtree>; Chromium crashes on that. Move the ${effect} inside the canvas, onto its children, or into the canvas drawing.`
+				);
+			}
+		}
+	}
+
 	/** Seek, repaint, draw. With `capture`, returns a PNG data URL (html-in-canvas mode only). */
 	async function frame(n: number, capture = false): Promise<FrameResult> {
 		const t0 = performance.now();
-		const t = await applyTime(n);
 		// Force a fresh raster of the whole subtree: Chromium otherwise reuses cached raster for
 		// transform-animated layers and the pixels depend on seek history.
 		const how = options.invalidate ?? 'filters';
-		if (how === 'filters') stage!.style.filter = ++seeks % 2 ? 'saturate(1)' : 'contrast(1)';
-		else if (how === 'reattach' && canvas) canvas.appendChild(stage!);
+		// A filter on the stage would crash Chromium once a block nests a `<canvas layoutsubtree>`
+		// (a WebGL canvas sampling its children), so such a stage is re-inserted instead. The
+		// re-insert comes before the seek: a nested canvas re-inserted after its own paint is left
+		// out of the next paint of the stage's canvas, and the frame would come out without it.
+		const reattach = how === 'reattach' || (how === 'filters' && nestedCanvases().length > 0);
+		if (reattach && canvas) canvas.appendChild(stage!);
+		const t = await applyTime(n);
+		if (how === 'filters')
+			stage!.style.filter =
+				nestedCanvases().length > 0 ? '' : ++seeks % 2 ? 'saturate(1)' : 'contrast(1)';
+		assertNoEffectOverNestedCanvas();
 		await nextPaint();
 		const paintMs = performance.now() - t0;
 		let image: string | undefined;
@@ -225,6 +264,7 @@ export function createMotionStage(options: StageOptions) {
 			} catch (error) {
 				const message = (error as Error).message;
 				if (!errors.some((e) => e.message === message)) errors.push({ frame: n, message });
+				if (!active) break; // unloaded to keep the page alive
 				continue;
 			}
 			// broken math renders nothing and throws nothing: NaN/undefined in styles and SVG geometry
@@ -252,9 +292,7 @@ export function createMotionStage(options: StageOptions) {
 				.slice(0, 3)
 				.map((a) => {
 					const el = (a.effect as KeyframeEffect | null)?.target as Element | null;
-					return el
-						? `<${el.tagName.toLowerCase()}${el.className ? ` class="${el.className}"` : ''}>`
-						: 'element';
+					return el ? describe(el) : 'element';
 				})
 				.join(', ');
 			warnings.push({
@@ -266,4 +304,8 @@ export function createMotionStage(options: StageOptions) {
 	}
 
 	return { mode, load, frame, check, unload };
+}
+
+function describe(el: Element): string {
+	return `<${el.tagName.toLowerCase()}${el.className ? ` class="${el.className}"` : ''}>`;
 }

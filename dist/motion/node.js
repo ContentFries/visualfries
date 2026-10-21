@@ -353,22 +353,23 @@ export async function loadMotionProject(file, opts = {}) {
         inputs.sounds = await loadSounds(project, dir);
     const common = { file: abs, dir, project, music, musicHash, brand, style, inputs, hashes };
     const cutList = resolveCutList(project, inputs);
-    const musicBeats = placeLoadedMusic(music, project, inputs, cutList.mode === 'inserts' ? words : cutList.words);
+    const placement = placeLoadedMusic(music, project, inputs, cutList.mode === 'inserts' ? words : cutList.words);
+    const musicBeats = placement.beats;
+    // A music item that cannot be placed is an error of the project, as in the program.
+    const musicDiagnostics = placement.diagnostics
+        .filter((d) => d.level !== 'info')
+        .map((d) => ({ level: d.level, field: d.field, message: d.message }));
     if (cutList.mode === 'inserts') {
-        return {
-            ...common,
-            words,
-            transcriptHash: hashes.transcript,
-            resolved: resolveMotionProject(project, words, musicBeats, look),
-            cutList
-        };
+        const resolved = resolveMotionProject(project, words, musicBeats, look);
+        resolved.diagnostics.unshift(...musicDiagnostics);
+        return { ...common, words, transcriptHash: hashes.transcript, resolved, cutList };
     }
     // Program mode: clips resolve against the program transcript, and a broken cut list is an
     // error of the project (program time is undefined without it).
     const resolved = resolveMotionProject(project, cutList.words, musicBeats, look);
     resolved.diagnostics.unshift(...cutList.diagnostics
         .filter((d) => d.level !== 'info')
-        .map((d) => ({ level: d.level, field: d.field, message: d.message })));
+        .map((d) => ({ level: d.level, field: d.field, message: d.message })), ...musicDiagnostics);
     return {
         ...common,
         words: cutList.words,
@@ -379,10 +380,11 @@ export async function loadMotionProject(file, opts = {}) {
 }
 /**
  * Places the loaded music in the program against its words, as the program resolver does, and
- * fills in each item's place, beats and bar grid. Returns the beats for the clips.
+ * fills in each item's place, beats and bar grid. Returns the beats for the clips and why an
+ * item could not be placed.
  */
 function placeLoadedMusic(music, project, inputs, words) {
-    const { placed, beats } = placeMusic(project, {
+    const { placed, beats, diagnostics } = placeMusic(project, {
         tracks: inputs.tracks,
         words,
         sounds: inputs.sounds,
@@ -395,7 +397,7 @@ function placeLoadedMusic(music, project, inputs, words) {
         if (m.beats && m.analysis)
             m.bars = barRows(m.beats.grid, m.analysis.bars, corrected);
     });
-    return beats;
+    return { beats, diagnostics };
 }
 /**
  * The bar grid of each music item with beats, as text for `check`: one line per bar with its

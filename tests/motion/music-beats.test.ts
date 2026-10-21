@@ -443,6 +443,28 @@ describe.skipIf(!hasFfmpeg)('music on beats through the node tooling', () => {
 		expect(expected).toContain(198 * 1600);
 	});
 
+	it('keeps a music item that cannot be placed an error of the loaded project', async () => {
+		const file = path.join(dir, 'inserts.vf.json');
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [320, 180],
+				fps: 30,
+				music: [{ ...BED, src: 'bed.wav', from: { frame: 3, offset: '1b', music: 'none' } }],
+				clips: [{ id: 'c', block: 'b.svelte', from: 0, until: 1 }]
+			})
+		);
+		const loaded = await loadMotionProject(file);
+		// Its own beats do not exist yet where it starts; nothing earlier has beats.
+		expect(loaded.resolved.diagnostics).toEqual([
+			expect.objectContaining({
+				level: 'error',
+				field: 'music[0].from',
+				message: expect.stringMatching(/^Beat anchors need music with beats/)
+			})
+		]);
+	});
+
 	it('re-snaps the music end when a cut changes', async () => {
 		const shorter = await load(2.5);
 		expect(shorter.frames).toBe(243);

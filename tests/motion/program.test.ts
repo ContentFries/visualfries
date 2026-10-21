@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { parseMotionProject } from '$lib/motion/timeline.js';
 import { parseTranscriptWords } from '$lib/motion/transcript.js';
 import { resolveProgram, type ProgramInputs, type ResolvedProgram } from '$lib/motion/program.js';
@@ -245,6 +246,86 @@ describe('shots, clips, keys and events', () => {
 		expect(p.audio.music[0].dur).toBeCloseTo(p.frames / 30, 9);
 	});
 
+	describe('speech never reads outside the source sound', () => {
+		const twoCuts = (cuts: unknown[]) => ({
+			size: [1920, 1080],
+			fps: 30,
+			footage: { talk: { src: 'talk.mp4' }, broll: { src: 'broll.mp4' } },
+			cuts
+		});
+
+		it('starts a cut at source 0 with its sound and shortens the fade-in', () => {
+			const p = program(
+				twoCuts([
+					{ source: 'talk', in: 1, out: 2 },
+					{ source: 'broll', in: 0, out: 1 }
+				])
+			);
+			expect(errors(p)).toEqual([]);
+			const [first, second] = p.audio.speech;
+			// The crossfade centres on 1.0 s: the outgoing piece fades 0.995–1.005 s.
+			expect(first).toMatchObject({ at: 0, srcIn: 1, dur: 1.005, fadeOut: 0.01 });
+			// broll has no sound before 0: it starts at the edit with half the fade left.
+			expect(second).toMatchObject({ at: 1, srcIn: 0, dur: 1, fadeIn: 0.005, fadeOut: 0 });
+		});
+
+		it('ends a cut at the end of its sound and shortens the fade-out', () => {
+			const sources = { talk: source(400), broll: source(30) };
+			const p = program(
+				twoCuts([
+					{ source: 'broll', in: 0, out: 1 },
+					{ source: 'talk', in: 2, out: 3 }
+				]),
+				{ sources }
+			);
+			const [first, second] = p.audio.speech;
+			expect(first).toMatchObject({ at: 0, srcIn: 0, dur: 1, fadeOut: 0.005 });
+			expect(second).toMatchObject({ at: 0.995, srcIn: 1.995, fadeIn: 0.01 });
+			// A separate audio file shorter than the picture ends the piece earlier.
+			const shortSound = program(
+				twoCuts([
+					{ source: 'broll', in: 0, out: 1 },
+					{ source: 'talk', in: 2, out: 3 }
+				]),
+				{ sources: { ...sources, broll: { ...source(30), audioDuration: 0.9 } } }
+			);
+			expect(shortSound.audio.speech[0]).toMatchObject({ dur: 0.9, fadeOut: 0 });
+		});
+	});
+
+	it('keeps segment hashes when only the sound changes', () => {
+		const json = read('handles.vf.json');
+		json.cuts[3].audio = { gain: -6, crossfade: 0.05 };
+		json.cuts[1].transition.sound = 'whoosh';
+		json.footage.talk.audio = 'talk.wav';
+		const changed = program(json);
+		expect(changed.audio.speech[3].gain).toBe(-6);
+		expect(changed.segments.map((s) => s.hash)).toEqual(p.segments.map((s) => s.hash));
+	});
+
+	it('frames a shot source from its first frame unless the shot gives "in"', () => {
+		const json = read('handles.vf.json');
+		json.shots[0].source = 'broll';
+		expect(program(json).shots.find((s) => s.id === 'punch')!.source).toEqual({
+			name: 'broll',
+			srcIn: 0
+		});
+	});
+
+	it('reports a shot that starts after the program ends once', () => {
+		const json = read('handles.vf.json');
+		json.shots = [{ id: 'late', shot: 'punch', from: 60, until: 61 }];
+		const late = program(json).diagnostics.filter((d) => d.item === 'late');
+		expect(late).toEqual([
+			{
+				level: 'error',
+				item: 'late',
+				field: 'shots[0].from',
+				message: `Shot starts at 60.00 s, after the program ends (${(p.frames / 30).toFixed(2)} s).`
+			}
+		]);
+	});
+
 	it('validates shot and transition names against the registry, and accepts custom files', () => {
 		const json = read('retake.vf.json');
 		json.shots[0].shot = 'zoom';
@@ -292,6 +373,80 @@ describe('inserts mode', () => {
 		expect(p.diagnostics).toContainEqual(
 			expect.objectContaining({ level: 'warning', clip: 'late', field: 'transition' })
 		);
+	});
+});
+
+const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
+
+describe.skipIf(!hasFfmpeg)('loading a program', () => {
+	const ffmpeg = (args: string[]) => {
+		const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...args]);
+		if (r.status !== 0) throw new Error(String(r.stderr));
+	};
+	const setup = () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vf-load-'));
+		ffmpeg([
+			...['-f', 'lavfi', '-i', 'color=black:s=32x32:r=30:d=2'],
+			...['-f', 'lavfi', '-i', 'sine=frequency=440:duration=2'],
+			...['-pix_fmt', 'yuv420p', '-shortest', path.join(dir, 'talk.mp4')]
+		]);
+		ffmpeg(['-f', 'lavfi', '-i', 'sine=frequency=440:duration=1.5', path.join(dir, 'voice.wav')]);
+		fs.copyFileSync(path.join(DIR, 'take1.transcript.json'), path.join(dir, 'take1.json'));
+		const project = (audio?: string) => {
+			const file = path.join(dir, 'p.vf.json');
+			fs.writeFileSync(
+				file,
+				JSON.stringify({
+					size: [32, 32],
+					fps: 30,
+					footage: {
+						talk: { src: 'talk.mp4', transcript: 'take1.json', ...(audio ? { audio } : {}) }
+					},
+					cuts: [{ source: 'talk', in: 0, out: 1 }]
+				})
+			);
+			return file;
+		};
+		return { dir, project };
+	};
+
+	it('refuses --transcript, which would replace the footage transcripts', async () => {
+		const { project } = setup();
+		await expect(
+			loadMotionProject(project(), { transcript: path.join(DIR, 'take2.transcript.json') })
+		).rejects.toThrow(/--transcript cannot replace the words of p\.vf\.json/);
+	});
+
+	it('probes the sound length of a separate audio file, outside the picture hash', async () => {
+		const { project } = setup();
+		const own = await loadMotionProject(project());
+		expect(own.inputs.sources!.talk.audioDuration).toBeCloseTo(2, 1);
+		const separate = await loadMotionProject(project('voice.wav'));
+		expect(separate.inputs.sources!.talk).toMatchObject({ audio: true });
+		expect(separate.inputs.sources!.talk.audioDuration).toBeCloseTo(1.5, 2);
+		expect(separate.hashes.sources.talk).toBe(own.hashes.sources.talk);
+	});
+});
+
+describe('item ids', () => {
+	const json = {
+		size: [100, 100],
+		fps: 30,
+		music: [{ id: 'quote', src: 'bed.mp3' }],
+		clips: [{ id: 'quote', block: 'b.svelte', from: 0, until: 1 }]
+	};
+
+	it('lets music and clips share an id in inserts mode, as before cut lists', () => {
+		const p = program(json, { words: null, transcripts: {} });
+		expect(p.mode).toBe('inserts');
+		expect(errors(p)).toEqual([]);
+	});
+
+	it('needs unique ids across kinds in a program', () => {
+		const p = program({ ...json, shots: [{ shot: 'full', from: 0, until: 1 }] });
+		expect(errors(p).map((d) => d.message)).toEqual([
+			'The music id "quote" is also used by a clip; item ids must be unique.'
+		]);
 	});
 });
 

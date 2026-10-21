@@ -16,6 +16,7 @@ import { resolveMotionProject, type ResolvedClip } from './resolve.js';
 import {
 	micro,
 	resolveCutList,
+	soundLength,
 	type ProgramDiagnostic,
 	type ProgramInputs,
 	type ProgramWord,
@@ -96,8 +97,11 @@ export type ProgramShot = {
 	implicit: boolean;
 	startFrame: number;
 	frames: number;
-	/** Footage framed instead of the cut list's, from source frame `srcIn` at the shot start. */
-	source: { name: string; srcIn: number | null } | null;
+	/**
+	 * Footage framed instead of the cut list's: source frame `srcIn` (0 unless the shot gives
+	 * `in`) at the shot start.
+	 */
+	source: { name: string; srcIn: number } | null;
 	params: Record<string, unknown>;
 	/** Frames the layout moves from the previous shot's, from the shot start; 0: hard. */
 	morphFrames: number;
@@ -344,12 +348,13 @@ export function resolveProgram(
 		: [];
 	const events = resolveEvents(shots, transitions);
 	const audio = {
-		speech: program ? speechPieces(project, cutList.cuts, sources, frames / fps) : [],
+		speech: program ? speechPieces(project, cutList.cuts, sources, inputs, frames / fps) : [],
 		sfx: resolveSfx(project, at, diagnostics),
 		music: resolveMusic(project, frames / fps),
 		master: { ...MASTER }
 	};
-	checkIds(project, cuts, shots, clips, diagnostics);
+	// Clips, music and sfx share one id space only in a program (inserts mode keeps them apart).
+	if (program) checkIds(project, cuts, shots, clips, diagnostics);
 
 	const hashes = {
 		project: inputs.hashes?.project ?? null,
@@ -514,6 +519,13 @@ function resolveShots(
 			return;
 		}
 		const startFrame = Math.max(0, Math.round(start * fps));
+		if (startFrame >= frames) {
+			fail(
+				'from',
+				`Shot starts at ${start.toFixed(2)} s, after the program ends (${(frames / fps).toFixed(2)} s).`
+			);
+			return;
+		}
 		let endFrame = Math.round(end * fps);
 		if (endFrame > frames) {
 			diagnostics.push({
@@ -540,7 +552,7 @@ function resolveShots(
 				);
 				return;
 			}
-			let srcIn: number | null = null;
+			let srcIn = 0;
 			if (srcTime !== undefined) {
 				try {
 					srcIn = Math.round(
@@ -879,12 +891,15 @@ function resolveEvents(shots: ProgramShot[], transitions: ProgramTransition[]): 
 
 /**
  * One piece per cut over its sound range [edit, next edit], widened by half the crossfade on
- * each side so equal-power fades centre on the edit points. Transitions never touch it.
+ * each side so equal-power fades centre on the edit points. A piece never reads outside the
+ * source's sound: where the widening would start before it or run past its end, the piece starts
+ * (or ends) with the sound and that fade is shorter. Transitions never touch it.
  */
 function speechPieces(
 	project: MotionProject,
 	cuts: ResolvedCut[],
 	sources: Record<string, ProgramSource>,
+	inputs: ProgramInputs,
 	end: number
 ): AudioPiece[] {
 	const fps = project.fps;
@@ -893,16 +908,30 @@ function speechPieces(
 		const file = sources[cut.source]?.audio;
 		if (!file || cut.mute) return;
 		const next = cuts[i + 1];
-		const from = i ? Math.max(0, cut.edit - cut.crossfade / 2) : 0;
-		const to = next ? Math.min(end, next.edit + next.crossfade / 2) : end;
+		let from = i ? Math.max(0, cut.edit - cut.crossfade / 2) : 0;
+		let to = next ? Math.min(end, next.edit + next.crossfade / 2) : end;
+		let fadeIn = i ? cut.crossfade : 0;
+		let fadeOut = next ? next.crossfade : 0;
+		// Source seconds = program seconds + shift.
+		const shift = cut.srcIn / fps - cut.startFrame / fps;
+		const before = -(from + shift);
+		if (before > 0) {
+			from += before;
+			fadeIn = Math.max(0, fadeIn - before);
+		}
+		const after = to + shift - soundLength(inputs.sources?.[cut.source]);
+		if (after > 0) {
+			to -= after;
+			fadeOut = Math.max(0, fadeOut - after);
+		}
 		pieces.push({
 			owner: cut.id,
 			file,
-			srcIn: micro(cut.srcIn / fps + (from - cut.startFrame / fps)),
-			dur: micro(to - from),
+			srcIn: micro(Math.max(0, from + shift)),
+			dur: micro(Math.max(0, to - from)),
 			at: micro(from),
-			fadeIn: i ? cut.crossfade : 0,
-			fadeOut: next ? next.crossfade : 0,
+			fadeIn: micro(fadeIn),
+			fadeOut: micro(fadeOut),
 			gain: cut.gain
 		});
 	});
@@ -1046,14 +1075,18 @@ function resolveSegments(
 				format: program.format,
 				fps: program.fps,
 				background: program.background,
-				sources: sourceNames.map((n) => [n, program.sources[n], program.hashes.sources[n] ?? null]),
+				sources: sourceNames.map((n) => [
+					n,
+					picture(program.sources[n]),
+					program.hashes.sources[n] ?? null
+				]),
 				assets: assets.map((a) => [a, program.hashes.assets[a] ?? null]),
 				look: [program.hashes.brand, program.hashes.style],
-				cuts,
+				cuts: cuts.map(picture),
 				// The shot a morph starts from shapes the first frames too.
 				shots: shotsDuring(program.shots, span),
 				clips,
-				transitions
+				transitions: transitions.map(picture)
 			})
 		);
 		segments.push({
@@ -1064,6 +1097,20 @@ function resolveSegments(
 		});
 	}
 	return segments;
+}
+
+/**
+ * An item without its sound (a cut's audio edit, gain and crossfade, a source's audio file, a
+ * transition's sound): the final mix lays the sound fresh on every render, so a segment's
+ * pictures do not depend on it.
+ */
+function picture<T extends object>(item: T): Omit<T, 'audio' | 'sound'> {
+	const {
+		audio: _audio,
+		sound: _sound,
+		...rest
+	} = item as T & { audio?: unknown; sound?: unknown };
+	return rest;
 }
 
 /** The shots overlapping `span`, and the shot the first of them morphs from. */

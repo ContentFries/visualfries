@@ -84,12 +84,12 @@ describe.skipIf(!hasFfmpeg)('footage by source range (numbered frames)', () => {
 		const roots = await prepareFootage(loaded, loaded.resolved.clips);
 		const clip = loaded.resolved.clips[0];
 		const frames = clip.footage!.num;
-		expect(frames.ranges.map(({ first, last }) => ({ first, last }))).toEqual([
+		expect(frames.ranges!.map(({ first, last }) => ({ first, last }))).toEqual([
 			{ first: 30, last: 59 },
 			{ first: 240, last: 269 }
 		]);
 		expect(roots).toHaveLength(2);
-		for (const range of frames.ranges) {
+		for (const range of frames.ranges!) {
 			const folder = fromUrl(range.url);
 			const plates = (await fs.readdir(path.join(folder, 'plate'))).sort();
 			expect(plates).toHaveLength(range.last - range.first + 1);
@@ -139,7 +139,7 @@ describe.skipIf(!hasFfmpeg)('footage by source range (numbered frames)', () => {
 		expect(views(30)).toEqual(['num3', 'num299!']);
 		expect(views(35)).toEqual(['num8', 'num299!']);
 		expect(views(36)).toEqual(['num9']);
-		expect(num.ranges.map(({ first, last }) => ({ first, last }))).toEqual([
+		expect(num.ranges!.map(({ first, last }) => ({ first, last }))).toEqual([
 			{ first: 0, last: 29 },
 			{ first: 270, last: 299 }
 		]);
@@ -166,7 +166,7 @@ describe.skipIf(!hasFfmpeg)('footage by source range (numbered frames)', () => {
 		const loaded = await loadMotionProject(path.join(dir, 'half.vf.json'));
 		await prepareFootage(loaded, loaded.resolved.clips);
 		const clip = loaded.resolved.clips[0];
-		expect(clip.footage!.num.ranges.map(({ first, last }) => [first, last])).toEqual([
+		expect(clip.footage!.num.ranges!.map(({ first, last }) => [first, last])).toEqual([
 			[15, 29],
 			[120, 134]
 		]);

@@ -4,7 +4,7 @@ import { pickMusic } from './beat-grid.js';
 import { resolveFormat } from './format.js';
 import { resolveMoment } from './moment.js';
 import { resolveMotionProject } from './resolve.js';
-import { micro, resolveCutList } from './cutlist.js';
+import { micro, resolveCutList, soundLength } from './cutlist.js';
 import { sha1 } from './sha1.js';
 import { parseEase } from './ease.js';
 /** Seconds a transition not drawn yet lasts when the project does not say. */
@@ -115,12 +115,14 @@ export function resolveProgram(project, inputs, opts = {}) {
         : [];
     const events = resolveEvents(shots, transitions);
     const audio = {
-        speech: program ? speechPieces(project, cutList.cuts, sources, frames / fps) : [],
+        speech: program ? speechPieces(project, cutList.cuts, sources, inputs, frames / fps) : [],
         sfx: resolveSfx(project, at, diagnostics),
         music: resolveMusic(project, frames / fps),
         master: { ...MASTER }
     };
-    checkIds(project, cuts, shots, clips, diagnostics);
+    // Clips, music and sfx share one id space only in a program (inserts mode keeps them apart).
+    if (program)
+        checkIds(project, cuts, shots, clips, diagnostics);
     const hashes = {
         project: inputs.hashes?.project ?? null,
         transcript: inputs.hashes?.transcript ?? null,
@@ -251,6 +253,10 @@ function resolveShots(project, inputs, words, cuts, frames, at, diagnostics) {
             return;
         }
         const startFrame = Math.max(0, Math.round(start * fps));
+        if (startFrame >= frames) {
+            fail('from', `Shot starts at ${start.toFixed(2)} s, after the program ends (${(frames / fps).toFixed(2)} s).`);
+            return;
+        }
         let endFrame = Math.round(end * fps);
         if (endFrame > frames) {
             diagnostics.push({
@@ -273,7 +279,7 @@ function resolveShots(project, inputs, words, cuts, frames, at, diagnostics) {
                 fail('source', `Unknown footage "${name}". Footage: ${Object.keys(project.footage ?? {}).join(', ') || 'none'}`);
                 return;
             }
-            let srcIn = null;
+            let srcIn = 0;
             if (srcTime !== undefined) {
                 try {
                     srcIn = Math.round(resolveAnchor(srcTime, {
@@ -525,9 +531,11 @@ function resolveEvents(shots, transitions) {
 }
 /**
  * One piece per cut over its sound range [edit, next edit], widened by half the crossfade on
- * each side so equal-power fades centre on the edit points. Transitions never touch it.
+ * each side so equal-power fades centre on the edit points. A piece never reads outside the
+ * source's sound: where the widening would start before it or run past its end, the piece starts
+ * (or ends) with the sound and that fade is shorter. Transitions never touch it.
  */
-function speechPieces(project, cuts, sources, end) {
+function speechPieces(project, cuts, sources, inputs, end) {
     const fps = project.fps;
     const pieces = [];
     cuts.forEach((cut, i) => {
@@ -535,16 +543,30 @@ function speechPieces(project, cuts, sources, end) {
         if (!file || cut.mute)
             return;
         const next = cuts[i + 1];
-        const from = i ? Math.max(0, cut.edit - cut.crossfade / 2) : 0;
-        const to = next ? Math.min(end, next.edit + next.crossfade / 2) : end;
+        let from = i ? Math.max(0, cut.edit - cut.crossfade / 2) : 0;
+        let to = next ? Math.min(end, next.edit + next.crossfade / 2) : end;
+        let fadeIn = i ? cut.crossfade : 0;
+        let fadeOut = next ? next.crossfade : 0;
+        // Source seconds = program seconds + shift.
+        const shift = cut.srcIn / fps - cut.startFrame / fps;
+        const before = -(from + shift);
+        if (before > 0) {
+            from += before;
+            fadeIn = Math.max(0, fadeIn - before);
+        }
+        const after = to + shift - soundLength(inputs.sources?.[cut.source]);
+        if (after > 0) {
+            to -= after;
+            fadeOut = Math.max(0, fadeOut - after);
+        }
         pieces.push({
             owner: cut.id,
             file,
-            srcIn: micro(cut.srcIn / fps + (from - cut.startFrame / fps)),
-            dur: micro(to - from),
+            srcIn: micro(Math.max(0, from + shift)),
+            dur: micro(Math.max(0, to - from)),
             at: micro(from),
-            fadeIn: i ? cut.crossfade : 0,
-            fadeOut: next ? next.crossfade : 0,
+            fadeIn: micro(fadeIn),
+            fadeOut: micro(fadeOut),
             gain: cut.gain
         });
     });
@@ -660,14 +682,18 @@ function resolveSegments(program, project) {
             format: program.format,
             fps: program.fps,
             background: program.background,
-            sources: sourceNames.map((n) => [n, program.sources[n], program.hashes.sources[n] ?? null]),
+            sources: sourceNames.map((n) => [
+                n,
+                picture(program.sources[n]),
+                program.hashes.sources[n] ?? null
+            ]),
             assets: assets.map((a) => [a, program.hashes.assets[a] ?? null]),
             look: [program.hashes.brand, program.hashes.style],
-            cuts,
+            cuts: cuts.map(picture),
             // The shot a morph starts from shapes the first frames too.
             shots: shotsDuring(program.shots, span),
             clips,
-            transitions
+            transitions: transitions.map(picture)
         }));
         segments.push({
             id: `seg${segments.length + 1}`,
@@ -677,6 +703,15 @@ function resolveSegments(program, project) {
         });
     }
     return segments;
+}
+/**
+ * An item without its sound (a cut's audio edit, gain and crossfade, a source's audio file, a
+ * transition's sound): the final mix lays the sound fresh on every render, so a segment's
+ * pictures do not depend on it.
+ */
+function picture(item) {
+    const { audio: _audio, sound: _sound, ...rest } = item;
+    return rest;
 }
 /** The shots overlapping `span`, and the shot the first of them morphs from. */
 function shotsDuring(shots, span) {

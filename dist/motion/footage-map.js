@@ -18,7 +18,7 @@ export function footageMap(program, totals) {
                     source: s.source.name,
                     startFrame: s.startFrame,
                     frames: s.frames,
-                    srcIn: s.source.srcIn ?? 0
+                    srcIn: s.source.srcIn
                 }
             ]
             : [])

@@ -827,7 +827,7 @@
 			"startFrame": 0,
 			"frames": 96,
 			"items": ["cut1", "broll", "full-0", "broll.transition"],
-			"hash": "e244c0cc07fbf7f360cbb3626590f6be1c79ee48"
+			"hash": "7a9c7e03e30226e1a66ed6650284e4de4df6c81f"
 		},
 		{
 			"id": "seg2",
@@ -844,7 +844,7 @@
 				"whip.transition",
 				"cut5.transition"
 			],
-			"hash": "9ae0a3a6f3ed59e5e710a6b26ec56636720446cd"
+			"hash": "f9f3449be25fe0c0f2469dda4df87173a1031ae6"
 		}
 	],
 	"diagnostics": [

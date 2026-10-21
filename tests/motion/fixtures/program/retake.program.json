@@ -792,7 +792,7 @@
 			"startFrame": 0,
 			"frames": 39,
 			"items": ["cut1", "full-0"],
-			"hash": "8d90433310cff6215e5716fddbfef1b969b8c450"
+			"hash": "1a9c60fbd4592989404e389656c028092f784d43"
 		},
 		{
 			"id": "seg2",
@@ -808,14 +808,14 @@
 				"cut3.transition",
 				"codec.transition"
 			],
-			"hash": "76413cb8b6cc90d960e730d14b87698693f799f5"
+			"hash": "f8db2db84f88e1fe0363e83b9716284b068bd461"
 		},
 		{
 			"id": "seg3",
 			"startFrame": 147,
 			"frames": 42,
 			"items": ["cut4", "full-99", "codec"],
-			"hash": "fc751f414f458d912b1136fe0395dd137ca9c7b7"
+			"hash": "a51649cc568c5974a30ff38a08b6be3a984a736b"
 		}
 	],
 	"diagnostics": []

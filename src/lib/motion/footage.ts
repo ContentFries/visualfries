@@ -3,11 +3,18 @@ import { programFootageAt, sourceFrameAt, type FootageMap } from './footage-map.
 
 export type FootageLayer = 'plate' | 'subject';
 
+/** The extracted ranges; footage frames without `ranges` have the one in their own fields. */
+function rangesOf(footage: FootageFrames): FootageRange[] {
+	if (footage.ranges) return footage.ranges;
+	const { url, first, last, boxes } = footage;
+	return [{ url, first, last, ...(boxes ? { boxes } : {}) }];
+}
+
 /** The extracted range holding source frame `frame`, or the nearest one. */
 function rangeNear(footage: FootageFrames, frame: number): FootageRange | null {
 	let best: FootageRange | null = null;
 	let distance = Infinity;
-	for (const range of footage.ranges) {
+	for (const range of rangesOf(footage)) {
 		const d =
 			frame < range.first ? range.first - frame : frame > range.last ? frame - range.last : 0;
 		if (d < distance) [best, distance] = [range, d];
@@ -20,9 +27,10 @@ function rangeNear(footage: FootageFrames, frame: number): FootageRange | null {
  * raise the footage's `margin` (it happens with an `offset` larger than the margin).
  */
 export function sourceFrameUrl(footage: FootageFrames, frame: number, layer: FootageLayer): string {
-	const range = footage.ranges.find((r) => frame >= r.first && frame <= r.last);
+	const ranges = rangesOf(footage);
+	const range = ranges.find((r) => frame >= r.first && frame <= r.last);
 	if (!range) {
-		const have = footage.ranges.map((r) => `${r.first}–${r.last}`).join(', ') || 'none';
+		const have = ranges.map((r) => `${r.first}–${r.last}`).join(', ') || 'none';
 		throw new Error(
 			`Footage frame ${frame} was not extracted (frames ${have}). Raise the footage's "margin" to cover the offset.`
 		);

@@ -32,7 +32,10 @@ export type LoadedMotionProject = {
      * footage files whose lengths the cut list needs.
      */
     inputs: ProgramInputs;
-    /** Short hashes: project file, transcripts by source, footage files (size and time). */
+    /**
+     * Short hashes: project file, transcripts by source, footage picture files (video and matte,
+     * size and time; the sound is mixed fresh on every render).
+     */
     hashes: {
         project: string;
         transcript: string | null;

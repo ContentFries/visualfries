@@ -40,7 +40,16 @@ export type SourceInfo = {
 	fps: number;
 	/** Whether it has a sound track. */
 	audio: boolean;
+	/**
+	 * Seconds of sound: the length of the footage's `audio` file when it has one, else of the
+	 * file's own sound track. Unknown: the picture's length.
+	 */
+	audioDuration?: number;
 };
+
+/** Seconds of sound a probed source has; Infinity when it was not probed. */
+export const soundLength = (info: SourceInfo | undefined) =>
+	info ? (info.audioDuration ?? info.duration) : Infinity;
 
 export type ProgramInputs = {
 	/** Project-level transcript, in program time. */
@@ -217,7 +226,12 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 			return;
 		}
 		const srcIn = Math.round(inSec * fps);
-		const srcOut = Math.round(outSec * fps);
+		// The end edge rounds up, so the frame holding the last word's end stays in the cut; a
+		// word ending inside the source's last frame keeps the source end.
+		const srcOut = Math.min(
+			Math.ceil(outSec * fps - 1e-6),
+			Math.max(Math.round(outSec * fps), info?.frames ?? Infinity)
+		);
 		if (srcIn < 0) {
 			fail('in', `${cutName(index)}: "in" lands before the source starts (${inSec.toFixed(2)} s).`);
 			return;
@@ -325,7 +339,7 @@ function checkEdits(
 				: [
 						prev.source,
 						cut.split,
-						(inputs.sources?.[prev.source]?.frames ?? Infinity) / fps - prev.srcOut / fps,
+						soundLength(inputs.sources?.[prev.source]) - prev.srcOut / fps,
 						'after "out" of the previous cut'
 					];
 		if (need > have + 1e-9)
@@ -371,6 +385,30 @@ function programWords(
 	const out: ProgramWord[] = [];
 	// Frame-rounded cut points may clip a word by up to half a frame; that is not worth a warning.
 	const slack = 0.5 / fps + 1e-6;
+	/** Warns that the edge of cut `i`'s sound range at `at` cuts through a word. */
+	const cutThrough = (
+		i: number,
+		side: 'start' | 'end',
+		at: number,
+		w: MotionWord,
+		shift: number,
+		dropped: boolean
+	) => {
+		const edit = side === 'start' ? i : i + 1;
+		const edge =
+			edit === 0
+				? `"in" of ${cutName(0)}`
+				: edit === cuts.length
+					? `"out" of ${cutName(cuts.length - 1)}`
+					: `the audio edit point at ${at.toFixed(2)} s`;
+		const owner = Math.min(edit, cuts.length - 1);
+		diagnostics.push({
+			level: 'warning',
+			item: cuts[owner].id,
+			field: `cuts[${owner}]`,
+			message: `${cutName(owner)}: ${edge} cuts through "${w.text}" (${(w.start + shift).toFixed(2)}–${(w.end + shift).toFixed(2)} s)${dropped ? '; only part of it is heard, and it is left out of the program transcript' : ''}.`
+		});
+	};
 	cuts.forEach((cut, i) => {
 		const words = inputs.transcripts?.[cut.source];
 		if (!words) return;
@@ -378,30 +416,23 @@ function programWords(
 		const from = cut.edit;
 		const to = editAfter(cuts, i, end);
 		for (const w of words) {
-			const mid = (w.start + w.end) / 2 + shift;
-			if (mid < from || mid >= to) continue;
-			const start = Math.min(to, Math.max(from, w.start + shift));
-			const wEnd = Math.min(to, Math.max(from, w.end + shift));
-			if (i > 0 && w.start + shift < from - slack)
-				diagnostics.push({
-					level: 'warning',
-					item: cut.id,
-					field: `cuts[${i}]`,
-					message: `${cutName(i)}: the audio edit point at ${from.toFixed(2)} s cuts through "${w.text}" (${(w.start + shift).toFixed(2)}–${(w.end + shift).toFixed(2)} s).`
-				});
-			if (i + 1 < cuts.length && w.end + shift > to + slack)
-				diagnostics.push({
-					level: 'warning',
-					item: cuts[i + 1].id,
-					field: `cuts[${i + 1}]`,
-					message: `${cutName(i + 1)}: the audio edit point at ${to.toFixed(2)} s cuts through "${w.text}" (${(w.start + shift).toFixed(2)}–${(w.end + shift).toFixed(2)} s).`
-				});
+			const wStart = w.start + shift;
+			const wEnd = w.end + shift;
+			const mid = (wStart + wEnd) / 2;
+			if (mid < from || mid >= to) {
+				// Mostly outside this cut's sound, but a part longer than the slack is heard.
+				if (Math.min(wEnd, to) - Math.max(wStart, from) > slack)
+					cutThrough(i, mid < from ? 'start' : 'end', mid < from ? from : to, w, shift, true);
+				continue;
+			}
+			if (wStart < from - slack) cutThrough(i, 'start', from, w, shift, false);
+			if (wEnd > to + slack) cutThrough(i, 'end', to, w, shift, false);
 			out.push({
 				...w,
 				id: `w${out.length}`,
 				index: out.length,
-				start,
-				end: wEnd,
+				start: Math.min(to, Math.max(from, wStart)),
+				end: Math.min(to, Math.max(from, wEnd)),
 				source: cut.source,
 				sourceIndex: w.index,
 				cut: i,

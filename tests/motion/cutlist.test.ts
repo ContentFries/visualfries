@@ -61,14 +61,17 @@ describe('cut list', () => {
 			const b = resolve(fixture(), take(2));
 			expect(errors(b.cutList.diagnostics)).toEqual([]);
 			expect(errors(b.resolved.diagnostics)).toEqual([]);
-			// Cut points follow the words (t' = 1.2 + 1.1 t), frame-rounded.
+			// Cut points follow the words (t' = 1.2 + 1.1 t): "in" frame-rounded, "out" rounded up
+			// so the frame holding the end of the last word stays in.
 			const src = (t: number) => Math.round((1.2 + 1.1 * t) * 30);
+			const end = (t: number) => Math.ceil((1.2 + 1.1 * t) * 30 - 1e-6);
 			expect(b.cutList.cuts.map((c) => [c.srcIn, c.srcOut])).toEqual([
-				[src(0.5), src(1.8)],
-				[src(3.0), src(5.0)],
-				[src(8.0), src(9.6)],
-				[src(10.5), src(11.9)]
+				[src(0.5), end(1.8)],
+				[src(3.0), end(5.0)],
+				[src(8.0), end(9.6)],
+				[src(10.5), end(11.9)]
 			]);
+			expect(end(1.8)).toBe(96);
 			expect(b.cutList.frames).not.toBe(a.cutList.frames);
 			expect(b.cutList.frames).toBe(b.cutList.cuts.reduce((n, c) => n + c.frames, 0));
 			// Clips still start on their words, which now sit later in the program.
@@ -160,6 +163,40 @@ describe('cut list', () => {
 			expect(cutList.words!.map((w) => w.text)).toContain('we');
 		});
 
+		it('warns about the outgoing last word a J cut leaves partly heard', () => {
+			const { cutList } = split(-0.3);
+			// "back." plays 0.95–1.30 s; the incoming sound takes over at 1.00 s.
+			expect(cutList.words!.map((w) => w.text)).not.toContain('back');
+			expect(cutList.diagnostics).toContainEqual({
+				level: 'warning',
+				item: 'cut2',
+				field: 'cuts[1]',
+				message:
+					'cut 2: the audio edit point at 1.00 s cuts through "back" (0.95–1.30 s); only part of it is heard, and it is left out of the program transcript.'
+			});
+		});
+
+		it("limits an L cut by the length of the footage's audio file", () => {
+			const json = fixture();
+			json.cuts = [
+				{ source: 'talk', in: 0.2, out: 1 },
+				{ source: 'talk', in: 3, out: 4, audio: { split: 0.3 } }
+			];
+			json.clips = [];
+			json.shots = undefined;
+			json.sfx = undefined;
+			const info = { frames: 400, duration: 400 / 30, width: 1, height: 1, fps: 30, audio: true };
+			const { cutList } = resolve(json, take(1), {
+				sources: { talk: { ...info, audioDuration: 1.1 } }
+			});
+			expect(errors(cutList.diagnostics)[0].message).toBe(
+				'cut 2: the L cut needs 0.30 s of "talk" sound after "out" of the previous cut, 0.10 s available.'
+			);
+			expect(
+				errors(resolve(json, take(1), { sources: { talk: info } }).cutList.diagnostics)
+			).toEqual([]);
+		});
+
 		it('refuses a split beyond the source sound', () => {
 			const json = fixture();
 			json.cuts = [
@@ -174,6 +211,39 @@ describe('cut list', () => {
 				'cut 2: the J cut needs 0.30 s of "talk" sound before "in", 0.10 s available.'
 			);
 		});
+	});
+
+	it('warns about a word whose tail is heard after an "in" set mid-word', () => {
+		const json = fixture();
+		json.cuts = [
+			{ source: 'talk', in: 0.5, out: 1.8 },
+			{ source: 'talk', in: 4.3, out: 5 }
+		];
+		json.clips = [];
+		json.shots = undefined;
+		json.sfx = undefined;
+		const { cutList } = resolve(json, take(1));
+		expect(cutList.words!.map((w) => w.text)).not.toContain('slow');
+		expect(cutList.diagnostics).toContainEqual({
+			level: 'warning',
+			item: 'cut2',
+			field: 'cuts[1]',
+			message:
+				'cut 2: the audio edit point at 1.30 s cuts through "slow" (1.00–1.40 s); only part of it is heard, and it is left out of the program transcript.'
+		});
+	});
+
+	it('rounds "out" up so the frame with the end of the last word stays, within the source', () => {
+		const json = fixture();
+		json.cuts = [{ source: 'talk', in: 0.5, out: 1.81 }];
+		json.clips = [];
+		json.shots = undefined;
+		json.sfx = undefined;
+		expect(resolve(json, take(1)).cutList.cuts[0].srcOut).toBe(55);
+		const info = { frames: 54, duration: 1.8, width: 1, height: 1, fps: 30, audio: true };
+		const short = resolve(json, take(1), { sources: { talk: info } }).cutList;
+		expect(errors(short.diagnostics)).toEqual([]);
+		expect(short.cuts[0].srcOut).toBe(54);
 	});
 
 	it('reports a repeated range as ambiguous', () => {

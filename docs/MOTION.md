@@ -203,9 +203,12 @@ A project can also describe the whole program. `cuts` lists ranges of raw footag
 `{ "source": "talk", "in": "today we fix", "out": "the slow export" }`: `in` and `out` are
 seconds of that file or words of its own transcript (`footage.talk.transcript`), and every
 other second, frame or phrase in the project then means program time. The program transcript
-comes from the cut list, so a re-take that keeps the words keeps every cue. A cut's
-`transition` belongs to the incoming range and never changes program time or sound;
-`audio: { split }` makes a J or L cut. `visualfries program` resolves cuts, program words,
+comes from the cut list, so a re-take that keeps the words keeps every cue; for a new take,
+point `footage.<name>.transcript` at its transcript (`--transcript` only replaces the transcript
+of a project without `cuts` or `shots`). `in` rounds to the nearest frame and `out` up to the
+next, so the last word is never clipped. A cut's `transition` belongs to the incoming range and
+never changes program time or sound; `audio: { split }` makes a J or L cut, and `check` warns
+about a word an audio edit point cuts through. `visualfries program` resolves cuts, program words,
 shots, clips, transitions, audio pieces and segments into `.visualfries/program/<format>.json`,
 and `check` reports what is wrong with them (a phrase that moved, a transition longer than its
 neighbour, missing handles).

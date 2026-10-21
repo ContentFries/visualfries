@@ -79,10 +79,13 @@ export type ProgramShot = {
     implicit: boolean;
     startFrame: number;
     frames: number;
-    /** Footage framed instead of the cut list's, from source frame `srcIn` at the shot start. */
+    /**
+     * Footage framed instead of the cut list's: source frame `srcIn` (0 unless the shot gives
+     * `in`) at the shot start.
+     */
     source: {
         name: string;
-        srcIn: number | null;
+        srcIn: number;
     } | null;
     params: Record<string, unknown>;
     /** Frames the layout moves from the previous shot's, from the shot start; 0: hard. */

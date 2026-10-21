@@ -65,7 +65,10 @@ export type LoadedMotionProject = {
 	 * footage files whose lengths the cut list needs.
 	 */
 	inputs: ProgramInputs;
-	/** Short hashes: project file, transcripts by source, footage files (size and time). */
+	/**
+	 * Short hashes: project file, transcripts by source, footage picture files (video and matte,
+	 * size and time; the sound is mixed fresh on every render).
+	 */
 	hashes: {
 		project: string;
 		transcript: string | null;
@@ -241,10 +244,26 @@ export function loadStyle(project: MotionProject, dir: string): LoadedStyle {
 const wordsHash = (words: MotionWord[]) =>
 	shortHash(JSON.stringify(words.map((w) => [w.raw, w.start, w.end])));
 
-/** Size, frame count and sound of a footage file, with frames counted at the project rate. */
-async function probeSource(file: string, fps: number): Promise<SourceInfo> {
+/** Seconds of the first sound track of a file; null without one. */
+async function probeSound(file: string): Promise<number | null> {
+	const info = await ffprobeJson(file, [
+		'-select_streams',
+		'a:0',
+		'-show_entries',
+		'stream=index,duration:format=duration'
+	]);
+	if (!info.streams?.length) return null;
+	const seconds = Number(info.streams[0].duration ?? info.format?.duration);
+	return Number.isFinite(seconds) ? seconds : null;
+}
+
+/**
+ * Size, frame count and sound of a footage file, with frames counted at the project rate. With
+ * `audio` (the footage's separate sound file) the sound and its length come from that file.
+ */
+async function probeSource(file: string, fps: number, audio?: string): Promise<SourceInfo> {
 	const info = await probeVideo(file);
-	const sound = await ffprobeJson(file, ['-select_streams', 'a', '-show_entries', 'stream=index']);
+	const sound = await probeSound(audio ?? file).catch(() => null);
 	// Counted like prepareFootage counts them, so cut lengths and extracted frames agree.
 	const direct = info.constant && Math.abs(info.fps - fps) < 0.01;
 	return {
@@ -253,7 +272,8 @@ async function probeSource(file: string, fps: number): Promise<SourceInfo> {
 		width: info.width,
 		height: info.height,
 		fps: info.fps,
-		audio: !!sound.streams?.length
+		audio: sound !== null,
+		...(sound !== null ? { audioDuration: sound } : {})
 	};
 }
 
@@ -268,6 +288,10 @@ export async function loadMotionProject(
 		JSON.parse(await fs.readFile(abs, 'utf8')),
 		path.basename(abs)
 	);
+	if (opts.transcript && isProgramProject(project))
+		throw new Error(
+			`--transcript cannot replace the words of ${path.basename(abs)}: it has "cuts" or "shots", so its words come from the footage transcripts ("footage.<name>.transcript", source time) through the cut list. Point those at the new transcript instead.`
+		);
 	const transcriptPath = opts.transcript
 		? path.resolve(opts.transcript)
 		: project.transcript
@@ -309,7 +333,7 @@ export async function loadMotionProject(
 			transcripts[name] = parseTranscriptWords(JSON.parse(await fs.readFile(file, 'utf8')));
 			hashes.transcripts[name] = wordsHash(transcripts[name]);
 		}
-		const files = [footage.src, footage.matte, footage.audio || undefined]
+		const files = [footage.src, footage.matte]
 			.filter((f): f is string => !!f)
 			.map((f) => path.resolve(dir, f));
 		const stats = await Promise.all(files.map((f) => fs.stat(f).catch(() => null)));
@@ -317,8 +341,12 @@ export async function loadMotionProject(
 			JSON.stringify(stats.map((st, i) => [path.relative(dir, files[i]), st?.size, st?.mtimeMs]))
 		);
 		if (isProgramProject(project) && stats[0]) {
-			const info = await probeSource(files[0], project.fps);
-			if (footage.audio !== undefined) info.audio = !!footage.audio;
+			const audio = typeof footage.audio === 'string' ? path.resolve(dir, footage.audio) : null;
+			const info = await probeSource(files[0], project.fps, audio ?? undefined);
+			if (footage.audio === false) {
+				info.audio = false;
+				delete info.audioDuration;
+			} else if (audio) info.audio = true;
 			sources[name] = info;
 		}
 	}

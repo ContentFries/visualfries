@@ -86,9 +86,10 @@ export type FootageFrames = {
 	last: number;
 	/**
 	 * Every extracted range, in order. Inserts mode extracts one; program mode one per stretch of
-	 * the source the program shows (none for a source it never shows).
+	 * the source the program shows (none for a source it never shows). Without it the one range
+	 * is `url`, `first`, `last` and `boxes`.
 	 */
-	ranges: FootageRange[];
+	ranges?: FootageRange[];
 	/** Frames in the whole footage (at the project frame rate). */
 	total: number;
 	width: number;

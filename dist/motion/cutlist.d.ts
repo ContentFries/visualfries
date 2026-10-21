@@ -36,7 +36,14 @@ export type SourceInfo = {
     fps: number;
     /** Whether it has a sound track. */
     audio: boolean;
+    /**
+     * Seconds of sound: the length of the footage's `audio` file when it has one, else of the
+     * file's own sound track. Unknown: the picture's length.
+     */
+    audioDuration?: number;
 };
+/** Seconds of sound a probed source has; Infinity when it was not probed. */
+export declare const soundLength: (info: SourceInfo | undefined) => number;
 export type ProgramInputs = {
     /** Project-level transcript, in program time. */
     words: MotionWord[] | null;

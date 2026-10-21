@@ -1,7 +1,7 @@
 ---
 title: The clip object
 description: Reference for useClip() in VisualFries motion blocks. Clip time and frame, eased progress from cues, steps, piecewise maps, word helpers, bound words and props, plus the moment grammar and eases.
-updated: 2026-10-20
+updated: 2026-10-21
 ---
 
 `useClip()` returns the clip a block is drawing. Its time and frame are reactive, so anything computed from them in markup or in `$derived` follows the video.
@@ -27,7 +27,7 @@ updated: 2026-10-20
 | `clip.props`                                              | object    | The clip's `props`.                                                                                                                                                                                                                                                     |
 | `clip.pulse(on = 'beat')`                                 | 0 → 1     | Phase within the current beat of the music (`'bar'`: within the bar): 0 on the beat, rising to 1 before the next. The frame nearest a beat is 0. Needs music with beats.                                                                                                |
 | `clip.beats`                                              | list      | Every beat of the clip's music: `index`, program `time`, clip-local `local`, `bar`, `beat` (1 = downbeat).                                                                                                                                                              |
-| `clip.energy`                                             | string    | `calm`, `balanced` or `punchy`: the clip's `props.energy`, `balanced` when unset. Scales the defaults of [motion primitives](/docs/motion).                                                                                                                             |
+| `clip.energy`                                             | string    | `calm`, `balanced` or `punchy`: the clip's `props.energy`, `balanced` when unset or another value. Scales the defaults of [motion primitives](/docs/motion).                                                                                                            |
 | `clip.event(name, at, detail?)`                           | function  | Records an event (for sound effects) at a moment, e.g. one per stagger item. Call it at setup; it returns a function that removes the event.                                                                                                                            |
 | `clip.events()`                                           | list      | Every recorded event in time order: `{ name, t, frame, move?, phase?, item?, items?, intensity? }`. See [Events for sound](/docs/motion#events-for-sound).                                                                                                              |
 | `clip.programStart`                                       | seconds   | Where the clip starts in the program.                                                                                                                                                                                                                                   |

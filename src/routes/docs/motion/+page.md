@@ -1,7 +1,7 @@
 ---
 title: Motion primitives
 description: Named entrances, exits and emphasis moves for motion blocks in one line with use:motion. Text splits with stagger, typewriter, SVG draw-on and counters, scaled by the clip's energy, seek-safe, and recorded as events for sound effects.
-updated: 2026-10-20
+updated: 2026-10-21
 ---
 
 `use:motion` gives any element of a [motion block](/docs/blocks) a named entrance, exit or emphasis, timed by a [moment](/docs/clip-api#moments). No GSAP to write, and every frame is a pure function of clip time, so it renders the same in any seek order.
@@ -51,7 +51,7 @@ Unknown names are errors listing the valid ones, never a silent default.
 
 ## Energy
 
-Defaults come from the clip's energy: `"props": { "energy": "punchy" }` in the project file, `balanced` when it is not set. One table (`ENERGY`, exported from `visualfries/motion`) holds every number energy changes:
+Defaults come from the clip's energy: `"props": { "energy": "punchy" }` in the project file, `balanced` when it is not set. Any other value of `props.energy` (say a block's own `0.8`) is left to the block and counts as `balanced`. One table (`ENERGY`, exported from `visualfries/motion`) holds every number energy changes:
 
 | Energy     | Entrance | Word stagger | Amount | Ease         |
 | ---------- | -------- | ------------ | ------ | ------------ |
@@ -74,9 +74,9 @@ Names describe what happens: `enter`, `exit`, `pop`, `whoosh` (slide), `slam` (a
 
 ## Rules
 
-- `use:motion` owns the element's `transform`, `opacity`, `filter`, `clip-path` and `visibility` (and those of its split items). Inline values the block sets itself are kept underneath; do not also animate them from markup or a timeline. Put a second motion on a wrapper element.
+- `use:motion` owns these properties of its element and of its split items: `transform`, `transform-box`, `transform-origin`, `opacity`, `filter`, `clip-path`, `visibility`, `display` (inline elements become `inline-block`), `stroke-dasharray` and `stroke-dashoffset` (with `draw`), and `background-image`, `background-size`, `background-position`, `background-repeat` and `box-decoration-break` (with `highlight`, `underline`, `strike`). Each is written on every frame. Inline transform, opacity and filter values the block sets itself are kept underneath, and the others return to the block's inline value while no move uses them; do not also animate any of them from markup or a timeline. Put a second motion on a wrapper element.
 - The first start state is applied when the element mounts, so frame 0 never flashes the finished layout. Keep elements with motion mounted for the whole clip (no `{#if}` around them): their events are recorded when they mount.
-- Split text is read once, when the element mounts. Inline markup such as `<em>` is kept.
+- Split text is read once, when the element mounts. Inline markup such as `<em>` is kept, `&nbsp;` and a word split by markup (`foo<em>bar</em>`) stay on one line, and the element gets the text as its `aria-label` while the pieces are `aria-hidden`.
 - Masks reach 0.35em past the element's box, so italic overhang and descenders are not cut.
 - Transforms need a box: inline elements become `inline-block`. Highlight, underline and strike draw across the element's box, so use them on an inline element or one sized to its text.
 - `draw` sets `pathLength="1"` on each shape and owns its `stroke-dasharray`.

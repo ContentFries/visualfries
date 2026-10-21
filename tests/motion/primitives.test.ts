@@ -8,6 +8,7 @@ import {
 import { motion } from '../../src/lib/motion/motion.js';
 import { ENERGY, planMotion, type MotionOptions } from '../../src/lib/motion/primitives.js';
 import type { ResolvedClip } from '../../src/lib/motion/resolve.js';
+import { clipEnergy } from '../../src/lib/motion/energy.js';
 import MotionBlock from './fixtures/MotionBlock.svelte';
 
 const FPS = 30;
@@ -98,6 +99,17 @@ const CASES: [string, string, MotionOptions][] = [
 		'<span>marked</span>',
 		{ emphasis: ['highlight', { move: 'underline', at: 'list' }, { move: 'strike', at: 'stat' }] }
 	],
+	[
+		'marks that start late',
+		'<span>marked</span>',
+		{
+			emphasis: [
+				{ move: 'highlight', at: 'stat' },
+				{ move: 'underline', at: 'list' },
+				{ move: 'strike', at: 'end-0.5' }
+			]
+		}
+	],
 	['punch', '<span>Hit</span>', { emphasis: 'punch', at: 'hit', intensity: 1.5 }],
 	[
 		'draw and erase',
@@ -183,6 +195,37 @@ describe('use:motion determinism', () => {
 		expect(s.el.style.opacity).toBe('0.5');
 	});
 
+	it('clears late marks when seeking back before them', () => {
+		const s = stage('<span>marked</span>');
+		motion(s.el, { emphasis: [{ move: 'highlight', at: 'stat' }, 'underline'], at: 'list' });
+		s.seek(3);
+		expect(s.el.style.backgroundImage).toContain('linear-gradient');
+		s.seek(0.2);
+		for (const p of [
+			'background-image',
+			'background-size',
+			'background-position',
+			'background-repeat',
+			'box-decoration-break',
+			'-webkit-box-decoration-break'
+		])
+			expect(s.el.style.getPropertyValue(p)).toBe('');
+		s.seek(1.2);
+		expect(s.el.style.backgroundImage.match(/linear-gradient/g)).toHaveLength(1);
+		s.seek(3);
+		expect(s.el.style.backgroundImage.match(/linear-gradient/g)).toHaveLength(2);
+	});
+
+	it('returns to the block’s own background when no mark is drawn', () => {
+		const s = stage('<span style="background-image: linear-gradient(red, red)">x</span>');
+		motion(s.el, { emphasis: 'highlight', at: 'stat' });
+		s.seek(3);
+		expect(s.el.style.backgroundImage).not.toContain('red');
+		s.seek(0.2);
+		expect(s.el.style.backgroundImage).toBe('linear-gradient(red, red)');
+		expect(s.el.style.backgroundRepeat).toBe('');
+	});
+
 	it('restores the element when removed', () => {
 		const html = '<p>one <em>two</em> three</p>';
 		const s = stage(html);
@@ -193,6 +236,77 @@ describe('use:motion determinism', () => {
 		expect(s.root.innerHTML).toBe(html);
 		expect(s.controller.frameFns).toHaveLength(0);
 		expect(s.clip.events()).toEqual([]);
+	});
+});
+
+describe('use:motion action', () => {
+	it('does not undo the old setup twice when an update fails', () => {
+		const html = '<p>one <em>two</em> three</p>';
+		const s = stage(html);
+		const action = motion(s.el, { enter: 'rise', split: 'words' })!;
+		expect(() => action.update!({ enter: 'zoom' as never, split: 'words' })).toThrow(
+			/unknown entrance "zoom"/
+		);
+		expect(s.root.innerHTML).toBe(html);
+		expect(() => action.destroy!()).not.toThrow();
+		expect(s.root.innerHTML).toBe(html);
+		expect(s.controller.frameFns).toHaveLength(0);
+	});
+});
+
+describe('use:motion text splitting', () => {
+	const split = (html: string, mode: 'words' | 'chars' = 'words') => {
+		const s = stage(html);
+		const action = motion(s.el, { enter: 'rise', split: mode })!;
+		return { ...s, action };
+	};
+	const words = (el: Element) => [...el.querySelectorAll('.vf-word')].map((w) => w.textContent);
+
+	it('keeps no-break spaces inside their word', () => {
+		const s = split('<p>10&nbsp;km away</p>');
+		expect(words(s.el)).toEqual(['10\u00a0km', 'away']);
+		const c = split('<p>10&nbsp;km</p>', 'chars');
+		expect(c.el.querySelectorAll('.vf-word')).toHaveLength(1);
+		expect(c.el.querySelectorAll('.vf-char')).toHaveLength(5);
+	});
+
+	it('keeps a word split by inline markup on one line', () => {
+		const html = '<p>say foo<em>bar</em>baz now</p>';
+		const s = split(html);
+		const glue = s.el.querySelectorAll<HTMLElement>('.vf-nowrap');
+		expect(glue).toHaveLength(1);
+		expect(glue[0].style.whiteSpace).toBe('nowrap');
+		expect(words(glue[0])).toEqual(['foo', 'bar', 'baz']);
+		expect(words(s.el)).toEqual(['say', 'foo', 'bar', 'baz', 'now']);
+		s.action.destroy!();
+		expect(s.root.innerHTML).toBe(html);
+	});
+
+	it('does not glue across spaces, breaks or markup holding a space', () => {
+		for (const html of [
+			'<p>foo <em>bar</em></p>',
+			'<p>foo<br>bar</p>',
+			'<p>fo<em>o b</em>ar</p>',
+			'<p>foo<span style="display: block">bar</span></p>'
+		]) {
+			const s = split(html);
+			expect(s.el.querySelector('.vf-nowrap'), html).toBeNull();
+			s.action.destroy!();
+			expect(s.root.innerHTML).toBe(html);
+		}
+	});
+
+	it('gives screen readers the text once', () => {
+		const s = split('<p>one <em>two</em>\n three</p>', 'chars');
+		expect(s.el.getAttribute('aria-label')).toBe('one two three');
+		const pieces = [...s.el.querySelectorAll('.vf-word')];
+		expect(pieces.every((w) => w.getAttribute('aria-hidden') === 'true')).toBe(true);
+		s.action.destroy!();
+		expect(s.el.hasAttribute('aria-label')).toBe(false);
+		const own = split('<p aria-label="Own">one two</p>');
+		expect(own.el.getAttribute('aria-label')).toBe('Own');
+		own.action.destroy!();
+		expect(own.el.getAttribute('aria-label')).toBe('Own');
 	});
 });
 
@@ -269,8 +383,18 @@ describe('motion energy', () => {
 		expect(plan(undefined, { enter: 'pop', intensity: 2 }).amount).toBe(2);
 	});
 
+	it('leaves other values of props.energy to the block', () => {
+		expect(new Clip(resolved({ energy: 0.8 })).energy).toBe('balanced');
+		expect(new Clip(resolved({ energy: 'loud' })).energy).toBe('balanced');
+		expect(new Clip(resolved({ energy: 'punchy' })).energy).toBe('punchy');
+		expect(clipEnergy({ props: { energy: 'calm' } })).toBe('calm');
+		expect(clipEnergy({})).toBe('balanced');
+	});
+
 	it('rejects unknown names instead of guessing', () => {
-		expect(() => new Clip(resolved({ energy: 'loud' }))).toThrow(/unknown energy "loud"/);
+		expect(() => plan(undefined, { enter: 'pop', energy: 'loud' as never })).toThrow(
+			/unknown energy "loud"/
+		);
 		expect(() => plan(undefined, { enter: 'zoom' as never })).toThrow(/unknown entrance "zoom"/);
 		expect(() => plan(undefined, { emphasis: 'bounce' as never })).toThrow(
 			/unknown emphasis "bounce"/

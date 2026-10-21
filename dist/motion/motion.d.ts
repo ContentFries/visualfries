@@ -9,7 +9,8 @@ import { type MotionOptions } from './primitives.js';
  * <span use:motion={{ count: 12400, at: 'stat' }}>0</span>
  * ```
  *
- * It owns the element's transform, opacity, filter, clip-path and visibility (and the split
- * items'), so do not set those from markup or a timeline on the same element.
+ * It owns the `OWNED` properties of the element (and of the split items): transform, opacity,
+ * filter, clip-path, visibility, display, transform-box/-origin, stroke-dash*, background-* and
+ * box-decoration-break. Do not set those from markup or a timeline on the same element.
  */
 export declare const motion: Action<Element, MotionOptions | undefined>;

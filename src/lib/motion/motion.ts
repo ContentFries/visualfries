@@ -47,14 +47,17 @@ const ACCENT = 'var(--brand-accent, #fbc42d)';
  * <span use:motion={{ count: 12400, at: 'stat' }}>0</span>
  * ```
  *
- * It owns the element's transform, opacity, filter, clip-path and visibility (and the split
- * items'), so do not set those from markup or a timeline on the same element.
+ * It owns the `OWNED` properties of the element (and of the split items): transform, opacity,
+ * filter, clip-path, visibility, display, transform-box/-origin, stroke-dash*, background-* and
+ * box-decoration-break. Do not set those from markup or a timeline on the same element.
  */
 export const motion: Action<Element, MotionOptions | undefined> = (node, options) => {
 	let undo = setup(node, options ?? {});
 	return {
 		update(next) {
 			undo();
+			// If the new options throw, a later destroy must not undo the old setup twice.
+			undo = () => {};
 			undo = setup(node, next ?? {});
 		},
 		destroy() {
@@ -63,7 +66,14 @@ export const motion: Action<Element, MotionOptions | undefined> = (node, options
 	};
 };
 
-type Base = { transform: string; opacity: number; filter: string };
+/** The block's own inline values under the motion. */
+type Base = {
+	transform: string;
+	opacity: number;
+	filter: string;
+	/** Every owned property as the block set it inline ('' = not set). */
+	inline: Record<string, string>;
+};
 
 function setup(node: Element, options: MotionOptions): () => void {
 	const c = controllerOf(node);
@@ -72,15 +82,14 @@ function setup(node: Element, options: MotionOptions): () => void {
 	const bases = new Map<Element, Base>();
 	const remember = (el: Element) => {
 		const style = (el as Styled).style;
-		const before = OWNED.map((p) => [p, style.getPropertyValue(p)] as const);
-		restore.push(() =>
-			before.forEach(([p, v]) => (v ? style.setProperty(p, v) : style.removeProperty(p)))
-		);
+		const inline = Object.fromEntries(OWNED.map((p) => [p, style.getPropertyValue(p)]));
+		restore.push(() => setInline(style, inline, OWNED));
 		// Inline values the block set itself are kept under the motion.
 		bases.set(el, {
 			transform: style.transform,
 			opacity: style.opacity === '' ? 1 : Number(style.opacity),
-			filter: style.filter
+			filter: style.filter,
+			inline
 		});
 	};
 
@@ -170,6 +179,29 @@ function prepareTransform(el: Styled) {
 	}
 }
 
+/**
+ * Set inline values, removing properties without one. A value the engine rejects leaves the
+ * property unset rather than keeping an older frame's value.
+ */
+function setInline(style: CSSStyleDeclaration, values: Record<string, string>, props: string[]) {
+	for (const p of props) {
+		const v = values[p];
+		if (v && style.getPropertyValue(p) === v) continue;
+		style.removeProperty(p);
+		if (v) style.setProperty(p, v);
+	}
+}
+
+const DASH = ['stroke-dasharray', 'stroke-dashoffset'];
+const MARK_PROPS = [
+	'background-image',
+	'background-size',
+	'background-position',
+	'background-repeat',
+	'box-decoration-break',
+	'-webkit-box-decoration-break'
+];
+
 const num = (n: number) => String(Math.round(n * 1000) / 1000);
 const MARK_LAYOUT = {
 	strike: { height: '0.08em', y: '58%' },
@@ -177,7 +209,11 @@ const MARK_LAYOUT = {
 	highlight: { height: '60%', y: '85%' }
 };
 
-/** Write a pose over the element's own inline values. Every owned property is written each frame. */
+/**
+ * Write a pose over the element's own inline values. Every property a pose can change is written
+ * on every frame, also when the pose leaves it alone (then back to the block's value), so a seek
+ * back in time never keeps what a later frame drew.
+ */
 function paint(el: Styled, pose: Pose, base: Base) {
 	const s = el.style;
 	const own =
@@ -194,35 +230,38 @@ function paint(el: Styled, pose: Pose, base: Base) {
 	]
 		.filter(Boolean)
 		.join(' ');
-	s.visibility = pose.hidden ? 'hidden' : '';
+	s.visibility = pose.hidden ? 'hidden' : base.inline.visibility;
 	// The mask reaches past the box so italic overhang and descenders are not cut off.
 	s.clipPath = pose.hide.some((h) => h > 0)
 		? `inset(${pose.hide.map((h) => `calc(${num(h)} * (100% + 2 * ${MASK_OVERHANG}) - ${MASK_OVERHANG})`).join(' ')})`
-		: '';
+		: base.inline['clip-path'];
 	if (pose.draw) {
 		const [a, b] = pose.draw;
 		s.strokeDasharray = `${num(Math.max(0, b - a))} 2`;
 		s.strokeDashoffset = num(-a);
 		// A zero-length dash still paints round caps.
 		if (b - a <= 0) s.opacity = '0';
-	}
+	} else setInline(s, base.inline, DASH);
 	if (pose.marks.length) {
 		const marks = [...pose.marks].sort((m, n) => order(m.kind) - order(n.kind));
 		const color = (k: keyof typeof MARK_LAYOUT) =>
 			pose.markColor?.[k] ?? (k === 'strike' ? 'currentColor' : ACCENT);
-		s.backgroundImage = marks
-			.map((m) => `linear-gradient(${color(m.kind)}, ${color(m.kind)})`)
-			.join(', ');
-		s.backgroundSize = marks
-			.map((m) => `${num(m.f * 100)}% ${MARK_LAYOUT[m.kind].height}`)
-			.join(', ');
-		s.backgroundPosition = marks
-			.map((m) => `${m.from === 'right' ? '100%' : '0%'} ${MARK_LAYOUT[m.kind].y}`)
-			.join(', ');
-		s.backgroundRepeat = 'no-repeat';
-		s.setProperty('box-decoration-break', 'clone');
-		s.setProperty('-webkit-box-decoration-break', 'clone');
-	}
+		const layers = (f: (m: (typeof marks)[number]) => string) => marks.map(f).join(', ');
+		setInline(
+			s,
+			{
+				'background-image': layers((m) => `linear-gradient(${color(m.kind)}, ${color(m.kind)})`),
+				'background-size': layers((m) => `${num(m.f * 100)}% ${MARK_LAYOUT[m.kind].height}`),
+				'background-position': layers(
+					(m) => `${m.from === 'right' ? '100%' : '0%'} ${MARK_LAYOUT[m.kind].y}`
+				),
+				'background-repeat': 'no-repeat',
+				'box-decoration-break': 'clone',
+				'-webkit-box-decoration-break': 'clone'
+			},
+			MARK_PROPS
+		);
+	} else setInline(s, base.inline, MARK_PROPS);
 }
 
 const order = (kind: string) => ['strike', 'underline', 'highlight'].indexOf(kind);
@@ -234,26 +273,49 @@ const segmenter =
 const graphemes = (text: string) =>
 	segmenter ? Array.from(segmenter.segment(text), (s) => s.segment) : Array.from(text);
 
+/** Whitespace a line may break at; no-break spaces (`&nbsp;`) stay inside their word. */
+const SPACE = '[^\\S\\u00a0\\u2007\\u202f\\ufeff]';
+const SPACES = new RegExp(`(${SPACE}+)`);
+const ONLY_SPACE = new RegExp(`^${SPACE}+$`);
+const STARTS_SPACE = new RegExp(`^${SPACE}`);
+const ENDS_SPACE = new RegExp(`${SPACE}$`);
+
 /**
  * Wrap the element's words (and characters) in inline-block spans, keeping inline markup such
  * as `<em>`. Returns the animated items in reading order; a line is a group of word spans.
- * The text is read once: later changes to it are not split.
+ * The text is read once: later changes to it are not split. Screen readers get the text as the
+ * element's `aria-label`; the pieces are `aria-hidden`.
  */
 function splitText(root: Element, mode: Split, restore: (() => void)[]): Styled[][] {
 	const doc = root.ownerDocument;
 	const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
 	const texts: Text[] = [];
 	while (walker.nextNode()) texts.push(walker.currentNode as Text);
+	const label = (root.textContent ?? '').replace(/\s+/g, ' ').trim();
+	// Whether a text continues the word the previous text ended in (`foo<em>bar</em>`).
+	const continues: boolean[] = [];
+	let open: Text | null = null;
+	for (const text of texts) {
+		if (!text.data) {
+			continues.push(false);
+			continue;
+		}
+		continues.push(!!open && !STARTS_SPACE.test(text.data) && inlineBetween(open, text, root));
+		open = ENDS_SPACE.test(text.data) ? null : text;
+	}
+
 	const words: HTMLSpanElement[] = [];
 	const chars: HTMLSpanElement[] = [];
-	for (const text of texts) {
-		if (!text.data.trim()) continue;
-		const parts = text.data.split(/(\s+)/).filter(Boolean);
-		const nodes = parts.map((part) => {
-			if (/^\s+$/.test(part)) return doc.createTextNode(part);
+	const joined = new Set<HTMLSpanElement>();
+	texts.forEach((text, t) => {
+		if (!text.data || ONLY_SPACE.test(text.data)) return;
+		const parts = text.data.split(SPACES).filter(Boolean);
+		const nodes = parts.map((part, i) => {
+			if (ONLY_SPACE.test(part)) return doc.createTextNode(part);
 			const word = doc.createElement('span');
 			word.className = 'vf-word';
 			word.style.display = 'inline-block';
+			word.setAttribute('aria-hidden', 'true');
 			if (mode === 'chars') {
 				for (const g of graphemes(part)) {
 					const ch = doc.createElement('span');
@@ -264,6 +326,7 @@ function splitText(root: Element, mode: Split, restore: (() => void)[]): Styled[
 					chars.push(ch);
 				}
 			} else word.textContent = part;
+			if (i === 0 && continues[t]) joined.add(word);
 			words.push(word);
 			return word;
 		});
@@ -274,6 +337,11 @@ function splitText(root: Element, mode: Split, restore: (() => void)[]): Styled[
 			parent.insertBefore(text, nodes[0]);
 			for (const n of nodes) n.parentNode?.removeChild(n);
 		});
+	});
+	keepTogether(words, joined, restore);
+	if (words.length && label && !root.hasAttribute('aria-label')) {
+		root.setAttribute('aria-label', label);
+		restore.push(() => root.removeAttribute('aria-label'));
 	}
 	if (mode === 'chars') return chars.map((ch) => [ch]);
 	if (mode === 'words') return words.map((w) => [w]);
@@ -309,4 +377,67 @@ function splitText(root: Element, mode: Split, restore: (() => void)[]): Styled[
 		});
 		return [box];
 	});
+}
+
+// '' is what DOMs without a user-agent stylesheet (jsdom) report for inline elements.
+const isInline = (el: Element) => ['inline', 'contents', ''].includes(getComputedStyle(el).display);
+
+/** Only edges of inline elements lie between text `a` and the later text `b` (no `<br>`, image or block). */
+function inlineBetween(a: Text, b: Text, root: Element): boolean {
+	for (let el = a.parentElement; el && !el.contains(b); el = el.parentElement)
+		if (!isInline(el)) return false;
+	const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+	walker.currentNode = a;
+	for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+		if (!(b.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_PRECEDING)) break;
+		if (!n.contains(b) || !isInline(n as Element)) return false;
+	}
+	return true;
+}
+
+/**
+ * Inline-block pieces of one word (`foo<em>bar</em>`) could break onto two lines; a
+ * `white-space: nowrap` wrapper keeps them together. Markup that also holds a space
+ * (`fo<em>o b</em>ar`) is left alone, since the wrapper would glue that space too.
+ */
+function keepTogether(
+	words: HTMLSpanElement[],
+	joined: Set<HTMLSpanElement>,
+	restore: (() => void)[]
+) {
+	const runs: HTMLSpanElement[][] = [];
+	for (const w of words) {
+		if (joined.has(w) && runs.length) runs.at(-1)!.push(w);
+		else runs.push([w]);
+	}
+	for (const run of runs) {
+		if (run.length < 2) continue;
+		const last = run.at(-1)!;
+		let parent: Node = run[0].parentNode!;
+		while (!parent.contains(last)) parent = parent.parentNode!;
+		const top = (n: Node) => {
+			while (n.parentNode !== parent) n = n.parentNode!;
+			return n;
+		};
+		const from = top(run[0]);
+		const to = top(last);
+		const span: Node[] = [];
+		for (let n: Node | null = from; n; n = n === to ? null : n.nextSibling) span.push(n);
+		const foreign = (n: Node): boolean =>
+			n.nodeType === Node.TEXT_NODE
+				? (n as Text).data !== ''
+				: (n as Element).classList?.contains('vf-word')
+					? !run.includes(n as HTMLSpanElement)
+					: Array.from(n.childNodes).some(foreign);
+		if (span.some(foreign)) continue;
+		const box = run[0].ownerDocument.createElement('span');
+		box.className = 'vf-nowrap';
+		box.style.whiteSpace = 'nowrap';
+		parent.insertBefore(box, from);
+		for (const n of span) box.appendChild(n);
+		restore.push(() => {
+			for (const n of span) parent.insertBefore(n, box);
+			box.remove();
+		});
+	}
 }

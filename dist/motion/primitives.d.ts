@@ -2,7 +2,8 @@
  * Motion primitives: named entrances, exits and emphasis moves as pure functions of clip time.
  * Nothing here touches the DOM; `motion.ts` splits text, applies poses and records events.
  */
-import { type At, type Ease, type Energy } from './runtime.svelte.js';
+import { type At, type Ease } from './runtime.svelte.js';
+import { type Energy } from './energy.js';
 export type Entrance = 'fade' | 'pop' | 'slide' | 'scale' | 'rise' | 'drop' | 'reveal' | 'blur-in' | 'spring' | 'typewriter' | 'draw';
 export type Emphasis = 'pulse' | 'shake' | 'wiggle' | 'punch' | 'highlight' | 'underline' | 'strike' | 'glow';
 /** The side a move comes from. */

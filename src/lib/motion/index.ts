@@ -11,10 +11,10 @@ export {
 	noise,
 	type At,
 	type Ease,
-	type Energy,
 	type ClipEvent
 } from './runtime.svelte.js';
 export type { MotionBeatRef } from './beat-grid.js';
+export { ENERGIES, type Energy } from './energy.js';
 export { motion } from './motion.js';
 export {
 	ENERGY,

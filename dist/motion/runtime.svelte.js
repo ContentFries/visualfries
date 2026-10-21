@@ -3,7 +3,7 @@ import { gsap } from 'gsap';
 import { resolveMoment } from './moment.js';
 import { subjectBox } from './footage.js';
 import { NO_MUSIC_BEATS, beatPhase } from './beat-grid.js';
-export const ENERGIES = ['calm', 'balanced', 'punchy'];
+import { clipEnergy } from './energy.js';
 const CONTEXT_KEY = Symbol.for('visualfries.motion.clip');
 export class Clip {
     /** Clip-local time in seconds. Reactive: use it directly in markup. */
@@ -33,7 +33,10 @@ export class Clip {
     #noBeats;
     /** The beats in clip-local seconds, for moments and `pulse`. */
     #grid;
-    /** Motion energy for `use:motion` defaults: the clip's `props.energy`, else "balanced". */
+    /**
+     * Motion energy for `use:motion` defaults: the clip's `props.energy` when it is `calm`,
+     * `balanced` or `punchy`, else `balanced` (other values belong to the block).
+     */
     energy;
     #events = [];
     constructor(data) {
@@ -56,10 +59,7 @@ export class Clip {
             bar: b.bar,
             beat: b.beat
         }));
-        const energy = data.props.energy ?? 'balanced';
-        if (!ENERGIES.includes(energy))
-            throw new Error(`Clip "${this.id}": unknown energy ${JSON.stringify(energy)}. Use ${ENERGIES.join(', ')}.`);
-        this.energy = energy;
+        this.energy = clipEnergy(data);
     }
     /**
      * Record an event at moment `at`, e.g. one per stagger item: `clip.event('pop', 'list+0.2')`.

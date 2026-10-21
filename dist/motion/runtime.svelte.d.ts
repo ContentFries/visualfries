@@ -1,5 +1,6 @@
 import type { FootageFrames, MotionWordRef, ResolvedClip, ResolvedCue, SubjectBox } from './resolve.js';
 import { type MotionBeatRef } from './beat-grid.js';
+import { type Energy } from './energy.js';
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
  * a cue with an offset ("extra+0.4", "extra.end-0.2"), the built-in "start"/"end",
@@ -8,9 +9,6 @@ import { type MotionBeatRef } from './beat-grid.js';
  */
 export type At = string | number;
 export type Ease = string | ((x: number) => number);
-/** How much a clip's style moves: scales the defaults of `use:motion`. */
-export type Energy = 'calm' | 'balanced' | 'punchy';
-export declare const ENERGIES: readonly Energy[];
 /**
  * Something visual that happens at a moment and may carry a sound: an element entering, one
  * item of a stagger, a counter tick. Collected per clip for the SFX model; nothing plays here.
@@ -58,7 +56,10 @@ export declare class Clip {
      * clip-local `local`, `bar` and `beat` (1 = downbeat). Empty without music.
      */
     readonly beats: MotionBeatRef[];
-    /** Motion energy for `use:motion` defaults: the clip's `props.energy`, else "balanced". */
+    /**
+     * Motion energy for `use:motion` defaults: the clip's `props.energy` when it is `calm`,
+     * `balanced` or `punchy`, else `balanced` (other values belong to the block).
+     */
     readonly energy: Energy;
     constructor(data: ResolvedClip);
     /**

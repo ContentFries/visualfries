@@ -149,14 +149,16 @@ Entrances `fade`, `pop`, `slide`, `scale`, `rise`, `drop`, `reveal` (mask from a
 `end`). Emphasis `pulse`, `shake`, `wiggle`, `punch`, `highlight`, `underline`, `strike`, `glow`
 (a name, `{ move, at }` or a list). Text splits by `words`, `chars` or `lines` with `stagger`.
 Also `duration`, `direction`, `intensity`, `color`, `ease`. Defaults scale with the clip's
-energy, `"props": { "energy": "calm" | "balanced" | "punchy" }` (default `balanced`).
+energy, `"props": { "energy": "calm" | "balanced" | "punchy" }` (default `balanced`; other
+values are left to the block).
 
 Each frame is computed from clip time alone; the first start state is applied when the element
-mounts. `use:motion` owns its element's transform, opacity, filter, clip-path and visibility,
-so do not animate those from markup or a timeline on the same element. Every move records
-events (`pop`, `slam`, `whoosh`, `type`, a counter `tick` …, one per stagger item) that
-`clip.events()` lists for sound effects; `clip.event(name, at)` adds your own. Worked example:
-`static/demo/motion`.
+mounts. `use:motion` owns its element's transform (with transform-box/-origin), opacity,
+filter, clip-path, visibility, display, stroke-dash\* and, for marks, background-\* and
+box-decoration-break, so do not animate those from markup or a timeline on the same element.
+Every move records events (`pop`, `slam`, `whoosh`, `type`, a counter `tick` …, one per stagger
+item) that `clip.events()` lists for sound effects; `clip.event(name, at)` adds your own.
+Worked example: `static/demo/motion`.
 
 ## Footage and mattes
 

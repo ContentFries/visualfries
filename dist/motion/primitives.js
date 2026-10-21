@@ -3,6 +3,7 @@
  * Nothing here touches the DOM; `motion.ts` splits text, applies poses and records events.
  */
 import { clamp, easeFn, lerp } from './runtime.svelte.js';
+import { ENERGIES } from './energy.js';
 /** The one place where style energy changes motion. */
 export const ENERGY = {
     calm: {
@@ -261,9 +262,7 @@ function known(clipId, what, value, list) {
 }
 /** Every default the options leave open, resolved once at setup. */
 export function planMotion(clip, o, items) {
-    const energy = o.energy
-        ? known(clip.id, 'energy', o.energy, Object.keys(ENERGY))
-        : clip.energy;
+    const energy = o.energy ? known(clip.id, 'energy', o.energy, [...ENERGIES]) : clip.energy;
     const row = ENERGY[energy];
     const amount = row.amount * (o.intensity ?? 1);
     const unit = Math.min(clip.width, clip.height);

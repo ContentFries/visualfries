@@ -2,7 +2,8 @@
  * Motion primitives: named entrances, exits and emphasis moves as pure functions of clip time.
  * Nothing here touches the DOM; `motion.ts` splits text, applies poses and records events.
  */
-import { clamp, easeFn, lerp, type At, type Ease, type Energy } from './runtime.svelte.js';
+import { clamp, easeFn, lerp, type At, type Ease } from './runtime.svelte.js';
+import { ENERGIES, type Energy } from './energy.js';
 
 export type Entrance =
 	| 'fade'
@@ -461,9 +462,7 @@ function known<T extends string>(clipId: string, what: string, value: unknown, l
 
 /** Every default the options leave open, resolved once at setup. */
 export function planMotion(clip: PlanClip, o: MotionOptions, items: number): MotionPlan {
-	const energy = o.energy
-		? known(clip.id, 'energy', o.energy, Object.keys(ENERGY) as Energy[])
-		: clip.energy;
+	const energy = o.energy ? known(clip.id, 'energy', o.energy, [...ENERGIES]) : clip.energy;
 	const row = ENERGY[energy];
 	const amount = row.amount * (o.intensity ?? 1);
 	const unit = Math.min(clip.width, clip.height);

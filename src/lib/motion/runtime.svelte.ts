@@ -10,6 +10,7 @@ import type {
 import { resolveMoment } from './moment.js';
 import { subjectBox } from './footage.js';
 import { NO_MUSIC_BEATS, beatPhase, type GridBeat, type MotionBeatRef } from './beat-grid.js';
+import { clipEnergy, type Energy } from './energy.js';
 
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
@@ -19,9 +20,6 @@ import { NO_MUSIC_BEATS, beatPhase, type GridBeat, type MotionBeatRef } from './
  */
 export type At = string | number;
 export type Ease = string | ((x: number) => number);
-/** How much a clip's style moves: scales the defaults of `use:motion`. */
-export type Energy = 'calm' | 'balanced' | 'punchy';
-export const ENERGIES: readonly Energy[] = ['calm', 'balanced', 'punchy'];
 
 /**
  * Something visual that happens at a moment and may carry a sound: an element entering, one
@@ -74,7 +72,10 @@ export class Clip {
 	readonly #noBeats: string | undefined;
 	/** The beats in clip-local seconds, for moments and `pulse`. */
 	readonly #grid: GridBeat[];
-	/** Motion energy for `use:motion` defaults: the clip's `props.energy`, else "balanced". */
+	/**
+	 * Motion energy for `use:motion` defaults: the clip's `props.energy` when it is `calm`,
+	 * `balanced` or `punchy`, else `balanced` (other values belong to the block).
+	 */
 	readonly energy: Energy;
 	#events: ClipEvent[] = [];
 
@@ -98,12 +99,7 @@ export class Clip {
 			bar: b.bar,
 			beat: b.beat
 		}));
-		const energy = data.props.energy ?? 'balanced';
-		if (!ENERGIES.includes(energy as Energy))
-			throw new Error(
-				`Clip "${this.id}": unknown energy ${JSON.stringify(energy)}. Use ${ENERGIES.join(', ')}.`
-			);
-		this.energy = energy as Energy;
+		this.energy = clipEnergy(data);
 	}
 
 	/**

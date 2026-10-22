@@ -84,6 +84,10 @@ export declare const MotionFootageShape: z.ZodObject<{
         seed: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
     }, z.core.$loose>>>;
     audio: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodLiteral<false>]>>;
+    clean: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<true>, z.ZodObject<{
+        image: z.ZodOptional<z.ZodString>;
+        grow: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strict>]>>;
 }, z.core.$strip>;
 export type MotionFootage = z.infer<typeof MotionFootageShape>;
 /**
@@ -307,6 +311,10 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
             seed: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
         }, z.core.$loose>>>;
         audio: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodLiteral<false>]>>;
+        clean: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<true>, z.ZodObject<{
+            image: z.ZodOptional<z.ZodString>;
+            grow: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strict>]>>;
     }, z.core.$strip>>>;
     music: z.ZodOptional<z.ZodArray<z.ZodObject<{
         id: z.ZodOptional<z.ZodString>;
@@ -774,6 +782,10 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
             seed?: string | number | undefined;
         } | undefined;
         audio?: string | false | undefined;
+        clean?: true | {
+            image?: string | undefined;
+            grow?: number | undefined;
+        } | undefined;
     }> | undefined;
     music?: {
         src: string;
@@ -1097,6 +1109,10 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
             seed?: string | number | undefined;
         } | undefined;
         audio?: string | false | undefined;
+        clean?: true | {
+            image?: string | undefined;
+            grow?: number | undefined;
+        } | undefined;
     }> | undefined;
     music?: {
         src: string;

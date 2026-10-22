@@ -163,7 +163,24 @@ export const MotionFootageShape = z.object({
 	/** Where generated footage came from. */
 	provenance: timeline(() => ProvenanceShape).optional(),
 	/** A separate sound file for this source (e.g. the microphone), or false: no sound. */
-	audio: z.union([z.string().min(1), z.literal(false)]).optional()
+	audio: z.union([z.string().min(1), z.literal(false)]).optional(),
+	/**
+	 * A clean plate: every frame with the subject removed, for subject layers that leave a hole
+	 * (needs `matte`). `true` fills where the subject was from the background around it;
+	 * `{ "image": "empty.jpg" }` shows a still of the empty scene there instead. `grow`: pixels
+	 * the hole reaches past the matte's soft edge (default about 1.1 % of the short side).
+	 */
+	clean: z
+		.union([
+			z.literal(true),
+			z
+				.object({
+					image: z.string().min(1).optional(),
+					grow: z.number().int().min(0).max(200).optional()
+				})
+				.strict()
+		])
+		.optional()
 });
 export type MotionFootage = z.infer<typeof MotionFootageShape>;
 

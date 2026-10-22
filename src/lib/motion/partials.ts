@@ -55,8 +55,9 @@ const alive = (pid: number) => {
 };
 
 /**
- * Removes temporary files (partial intermediates and encodes, join lists) whose name carries
- * the id of a process no longer running: `pattern` captures it.
+ * Removes temporary files and folders (partial intermediates and encodes, join lists, footage
+ * being extracted) whose name carries the id of a process no longer running: `pattern`
+ * captures it.
  */
 export async function removeOrphans(dir: string, pattern: RegExp) {
 	const names = await fs.readdir(dir).catch(() => [] as string[]);
@@ -64,7 +65,7 @@ export async function removeOrphans(dir: string, pattern: RegExp) {
 		names.map(async (name) => {
 			const m = pattern.exec(name);
 			if (!m || Number(m[1]) === process.pid || alive(Number(m[1]))) return;
-			await fs.rm(path.join(dir, name), { force: true });
+			await fs.rm(path.join(dir, name), { force: true, recursive: true });
 		})
 	);
 }

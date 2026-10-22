@@ -1765,7 +1765,7 @@ async function motionProgramCommand(args) {
 	const file = args[0];
 	if (!file)
 		throw new Error('Usage: visualfries program <project.vf.json> [--format <WxH>] [--json]');
-	const { loadMotionProject, motionProgram } = await motionModule();
+	const { loadMotionProject, motionProgram, cleanPlateWarnings } = await motionModule();
 	const loaded = await loadMotionProject(file, {
 		transcript: readFlag(args, '--transcript'),
 		editPoints: true
@@ -1807,6 +1807,9 @@ async function motionProgramCommand(args) {
 			);
 		for (const d of program.diagnostics)
 			console.log(`${d.level.toUpperCase()} ${d.item ?? d.clip ?? '-'} ${d.field}: ${d.message}`);
+		// Clean plates already built (check and render build them and say the same).
+		for (const message of await cleanPlateWarnings(loaded))
+			console.log(`WARNING footage clean: ${message}`);
 		console.log(`Saved ${path.relative(process.cwd(), saved)}`);
 	}
 	if (program.diagnostics.some((d) => d.level === 'error')) process.exitCode = 1;

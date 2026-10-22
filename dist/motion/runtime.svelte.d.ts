@@ -1,4 +1,5 @@
 import type { FootageFrames, MotionWordRef, ResolvedClip, ResolvedCue, SubjectBox } from './resolve.js';
+import { type FootageLayer } from './footage.js';
 import { type FootageMap } from './footage-map.js';
 import { type MotionBeatRef } from './beat-grid.js';
 import { type Energy } from './energy.js';
@@ -32,6 +33,37 @@ export type ClipEvent = {
     items?: number;
     /** Strength relative to a balanced default (1). */
     intensity?: number;
+};
+/**
+ * Where the stage shows the footage, in the clip's own pixels: the footage frame scaled to
+ * `width` × `height` at `x`, `y`, turned `rotation` degrees about `pivot` (a shot's keys).
+ */
+export type CameraView = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+    pivot: {
+        x: number;
+        y: number;
+    };
+    /** The footage's own size in pixels. */
+    source: {
+        width: number;
+        height: number;
+    };
+};
+/** One footage frame ready to draw on a canvas (see `clip.picture()`). */
+export type FootagePicture = {
+    /** Decoded: `ctx.drawImage(pic.image, …)` draws it at once. */
+    image: HTMLImageElement;
+    /** The footage and its frame (the source frame the cut list shows, holds included). */
+    source: string;
+    frame: number;
+    width: number;
+    height: number;
+    layer: FootageLayer;
 };
 declare const CONTEXT_KEY: unique symbol;
 export declare class Clip {
@@ -83,6 +115,24 @@ export declare class Clip {
     readonly format: ResolvedFormat;
     /** With a cut list: which source frame the program shows when; null in inserts mode. */
     readonly footageMap: FootageMap | null;
+    /**
+     * Program mode: where the stage shows the footage at the current frame, in this clip's pixels
+     * (set on every seek; it moves with shot keys and morphs). Null in inserts mode and while no
+     * footage is on screen. `<Subject>` uses it to sit exactly on the picture.
+     */
+    camera: CameraView | null;
+    /**
+     * Program mode: the point (clip pixels) the clip's placement keys scale and turn about, or a
+     * function giving it at the current frame; null: the clip's centre. `@visualfries/subject`
+     * sets it to the middle of its region, so `rotation` keys spin the region in place.
+     */
+    pivot: {
+        x: number;
+        y: number;
+    } | (() => {
+        x: number;
+        y: number;
+    } | null) | null;
     constructor(data: ResolvedClip);
     /**
      * Record an event at moment `at`, e.g. one per stagger item: `clip.event('pop', 'list+0.2')`.
@@ -98,6 +148,28 @@ export declare class Clip {
      * while the program does not show that footage.
      */
     subject(name: string, frame?: number, smooth?: number): SubjectBox | null;
+    /**
+     * Which footage frame is on screen at clip frame `frame` (default: the current frame): the
+     * source and its frame through the cut list, holds and transition handles included. With
+     * `name`, that footage's frame (null while the program does not show it). In inserts mode the
+     * footage plays from its `start`.
+     */
+    shown(name?: string, frame?: number): {
+        source: string;
+        frame: number;
+    } | null;
+    /**
+     * A footage frame as a decoded picture for canvas drawing, so a block never builds footage
+     * URLs: `layer` `plate` (the picture), `subject` (cut out by the matte: its alpha is the
+     * matte) or `clean` (the subject removed, `footage.<name>.clean`). `frame` is a clip frame
+     * (default: the current one) and `offset` shifts inside the source in seconds; `name` picks a
+     * footage (default: whatever the program shows). Await it inside `useFrame`.
+     */
+    picture(layer?: FootageLayer, opts?: {
+        name?: string;
+        frame?: number;
+        offset?: number;
+    }): Promise<FootagePicture>;
     /**
      * Resolve an `At` to clip-local seconds. Besides project cues, `start` (0) and `end`
      * (clip length) always exist, so exits follow the clip when a new voiceover stretches it.
@@ -158,12 +230,40 @@ type FrameFn = (ctx: {
     frame: number;
     clip: Clip;
 }) => void | Promise<unknown>;
+/**
+ * A hole a clip cuts into the subject on the stage while it is on screen (see `<Subject hole>`):
+ * for the source frame a side shows, the region in footage pixels, and how its rim looks.
+ */
+export type HoleSource = (view: {
+    source: string;
+    frame: number;
+}) => {
+    shape: import('./subject-region.js').RegionShape;
+    mask: string | null;
+    rim: import('./subject-canvas.js').Rim | null;
+    /** The point an opening rim is centred near (the head), footage pixels. */
+    near: {
+        x: number;
+        y: number;
+    } | null;
+    /** The hole is everything but `shape` (`<Subject outside>`). */
+    outside: boolean;
+} | null;
+/** What a region layer reports to `check`: the share of the subject its region holds. */
+export type RegionProbe = () => Promise<{
+    share: number;
+    what: string;
+} | null>;
 export type ClipController = {
     clip: Clip;
     root: HTMLElement;
     timelines: gsap.core.Timeline[];
     frameFns: FrameFn[];
     ready: Promise<unknown>[];
+    /** Program mode: holes the clip's `<Subject hole>` layers cut. */
+    holes?: HoleSource[];
+    /** Program mode: region layers `check` measures. */
+    probes?: RegionProbe[];
 };
 /** Called by the stage for every mounted clip. */
 export declare function registerClipRoot(c: ClipController): void;
@@ -181,6 +281,8 @@ export declare function useTimeline(build: TimelineBuild): void;
  * when the frame needs something loaded first; VisualFries waits for it before capturing.
  */
 export declare function useFrame(fn: FrameFn): void;
+/** The clip's controller, for components that talk to the stage (`<Subject>`). */
+export declare function useController(): ClipController;
 /** Delay the first frame until `promise` settles (asset decoding, engine setup). */
 export declare function useReady(promise: Promise<unknown>): void;
 export { CONTEXT_KEY as MOTION_CONTEXT_KEY };

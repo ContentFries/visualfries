@@ -97,6 +97,8 @@ export async function renderProgramVideo(loaded, opts) {
         let mode = 'cached';
         if (todo.length) {
             const bundle = await bundleMotionProject(loaded, program.clips);
+            for (const message of bundle.footage.warnings ?? [])
+                log(`warning: ${message}`);
             const browser = await launch();
             try {
                 mode = await renderSegments(browser, bundle, program, todo, {

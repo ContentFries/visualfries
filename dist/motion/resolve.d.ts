@@ -65,6 +65,8 @@ export type FootageRange = {
     last: number;
     /** Subject box of every frame of the range (`first`…`last`), measured on the matte. */
     boxes?: (SubjectBox | null)[];
+    /** URL prefix of the clean plates (`<clean>000123.jpg`), with `footage.<name>.clean`. */
+    clean?: string;
 };
 /** Extracted frames of one footage, served to the page (see `<Footage>`). */
 export type FootageFrames = {
@@ -87,6 +89,8 @@ export type FootageFrames = {
     startFrame: number;
     /** Whether a matte was given, so `subject` frames exist. */
     subject: boolean;
+    /** Whether clean plates exist (`footage.<name>.clean`); absent: none. */
+    clean?: boolean;
     /** Subject boxes of the first range (see `ranges`). */
     boxes?: (SubjectBox | null)[];
 };

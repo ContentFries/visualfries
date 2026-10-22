@@ -1,7 +1,8 @@
 <!--
 	Draws one frame of a project footage per video frame.
 	layer="plate": the original picture. layer="subject": only the subject, cut out by the
-	footage's matte (transparent elsewhere). `offset` shifts time in seconds (negative = earlier),
+	footage's matte (transparent elsewhere). layer="clean": the picture with the subject removed
+	(the footage's "clean" plate). `offset` shifts time in seconds (negative = earlier),
 	e.g. a delayed echo of the speaker. Size and position it like an <img>.
 	With a cut list, `name` draws that source while the program shows it (an error elsewhere) and
 	`program` draws whatever the program shows; `offset` then shifts inside the source.
@@ -39,6 +40,11 @@
 	if (footage && layer === 'subject' && !footage.subject) {
 		throw new Error(
 			`Footage "${name}" has no matte, so it has no subject layer. Add "matte" to it.`
+		);
+	}
+	if (footage && layer === 'clean' && !footage.clean) {
+		throw new Error(
+			`Footage "${name}" has no clean plate. Add "clean": true to it (it needs a matte).`
 		);
 	}
 	// The image takes the size of the source it shows; a cut to another source resizes it.

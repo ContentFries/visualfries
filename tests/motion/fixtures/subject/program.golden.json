@@ -1,0 +1,20 @@
+{
+	"toolchain": {
+		"ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+		"chromium": "Chromium 155.0.8059.79 built on Debian GNU/Linux 13 (trixie)"
+	},
+	"hashes": {
+		"0": "cd5a6e8b7ca8d0fd1c6508e5d8f3882dccfbf235",
+		"12": "85e50568a6cae22b7253868946ccd9c47a3fbad4",
+		"23": "b4722b609d812273a8614d3ea68076b9eb4cdca9",
+		"24": "be11d8983ba40b7259077ad820d581e2f47ae57d",
+		"30": "30ff63de8d6294c097c10b3fdbc5d3b3790a7802",
+		"33": "8e53c931f8da9e33a9672ab252ae22a80dd69bbe",
+		"36": "b7c3b0a61bb3805a14be359af3d137bb335c8136",
+		"40": "d028a7b152365b9fd399037a68a54210569aace4",
+		"48": "98fff992ec74f00c00bcfc0134bc0d97b2384564",
+		"56": "9ee17a3549190b7c996cc4e51e7c6688aa1dad00",
+		"70": "99cbb0f94d4bea9ac213b5a547b19a061c075def",
+		"77": "4d0f618121ea4975bba39ef975f65963d7087ebe"
+	}
+}

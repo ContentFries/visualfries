@@ -1,7 +1,11 @@
 import type { FootageFrames, FootageRange, SubjectBox } from './resolve.js';
 import { programFootageAt, sourceFrameAt, type FootageMap } from './footage-map.js';
 
-export type FootageLayer = 'plate' | 'subject';
+/**
+ * `plate`: the picture; `subject`: the subject cut out by the matte (its alpha is the matte);
+ * `clean`: the picture with the subject removed (`footage.<name>.clean`).
+ */
+export type FootageLayer = 'plate' | 'subject' | 'clean';
 
 /** The extracted ranges; footage frames without `ranges` have the one in their own fields. */
 function rangesOf(footage: FootageFrames): FootageRange[] {
@@ -36,6 +40,13 @@ export function sourceFrameUrl(footage: FootageFrames, frame: number, layer: Foo
 		);
 	}
 	const name = String(frame).padStart(6, '0');
+	if (layer === 'clean') {
+		if (!range.clean)
+			throw new Error(
+				'The footage has no clean plate. Add "clean": true to it (it needs a matte), see "Subject layers" in docs/MOTION.md.'
+			);
+		return `${range.clean}${name}.jpg`;
+	}
 	return layer === 'subject' ? `${range.url}subject/${name}.png` : `${range.url}plate/${name}.jpg`;
 }
 
@@ -100,8 +111,8 @@ export function subjectBox(
 	return sourceSubjectBox(footage, at, smooth);
 }
 
-/** What `<Footage>` draws at a program frame. */
-export type FootageFrame = { source: string; footage: FootageFrames; url: string };
+/** What `<Footage>` draws at a program frame: the source, its frame and the file's URL. */
+export type FootageFrame = { source: string; footage: FootageFrames; url: string; frame: number };
 
 /**
  * The frame `<Footage>` draws at `programFrame`: source `name`, or with `name` null whatever
@@ -126,11 +137,11 @@ export function footageFrameAt(
 				`<Footage program> needs a cut list ("cuts") to know what is on screen, or exactly one footage (the project has ${names.length}).`
 			);
 		const frames = known(footage, source);
-		return {
-			source,
-			footage: frames,
-			url: footageFrameUrl(frames, programFrame + offsetFrames, layer)
-		};
+		const frame = Math.min(
+			frames.total - 1,
+			Math.max(0, programFrame + offsetFrames - frames.startFrame)
+		);
+		return { source, footage: frames, url: sourceFrameUrl(frames, frame, layer), frame };
 	}
 	const view =
 		name === null ? programFootageAt(map, programFrame) : sourceFrameAt(map, name, programFrame);
@@ -147,8 +158,12 @@ export function footageFrameAt(
 		throw new Error(
 			`Footage "${view.source}" has no matte, so it has no subject layer. Add "matte" to it.`
 		);
+	if (layer === 'clean' && !frames.clean)
+		throw new Error(
+			`Footage "${view.source}" has no clean plate. Add "clean": true to it (it needs a matte).`
+		);
 	const frame = Math.min(frames.total - 1, Math.max(0, view.frame + offsetFrames));
-	return { source: view.source, footage: frames, url: sourceFrameUrl(frames, frame, layer) };
+	return { source: view.source, footage: frames, url: sourceFrameUrl(frames, frame, layer), frame };
 }
 
 function known(footage: Record<string, FootageFrames>, name: string): FootageFrames {

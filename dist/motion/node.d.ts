@@ -122,10 +122,14 @@ export type BundleResult = {
     html: string;
     roots: string[];
     files: string[];
-    /** Extracted footage and, in program mode, the map from program to source frames. */
+    /**
+     * Extracted footage and, in program mode, the map from program to source frames; `warnings`
+     * about frames that could not be made (a clean plate without background).
+     */
     footage: {
         frames: Record<string, FootageFrames>;
         map: FootageMap | null;
+        warnings?: string[];
     };
     /** The project's brand; the program stage sets its tokens on the whole stage. */
     brand: ResolvedBrand;
@@ -236,6 +240,12 @@ export declare function footageCacheKey(input: {
  * matte, frame rate and range.
  */
 export declare function prepareFootage(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<string[]>;
+/**
+ * The clean plate warnings of the plates already built for the project's current footage and
+ * settings (`program` tells them without extracting anything; `check` and `render` build the
+ * plates and tell theirs).
+ */
+export declare function cleanPlateWarnings(loaded: LoadedMotionProject): Promise<string[]>;
 /** Subject box of one greyscale matte frame, in 0–1 coordinates. Exported for tests. */
 export declare function measureSubject(gray: Uint8Array, w: number, h: number): SubjectBox | null;
 export type StillRequest = {

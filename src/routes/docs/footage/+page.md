@@ -146,6 +146,24 @@ The built-in block `@visualfries/speaker-depth` does the whole edit from JSON: t
 
 The demo project `static/demo/speaker-depth/template.vf.json` is the full 17-second edit in about 40 lines of JSON.
 
+## Take a part of the speaker
+
+A region of the speaker (above a forehead line, inside a path) can be its own layer that flies away, and the speaker is then left with a hole that shows the background: add `"clean": true` to the footage (a plate with the speaker removed, built once and cached) and use the built-in `"block": "@visualfries/subject"` with a `region` and placement keys, or `<Subject>` in a block. Needs a program (`cuts` or `shots`). Full guide: `docs/MOTION.md`, "Subject layers".
+
+```json
+{
+	"id": "lid",
+	"block": "@visualfries/subject",
+	"from": "blew my lid",
+	"until": "end",
+	"props": { "region": { "above": 0.3 }, "rim": { "opening": 0.2 } },
+	"keys": [
+		{ "at": 0, "x": 0, "y": 0, "rotation": 0 },
+		{ "at": 0.9, "x": -500, "y": -1500, "rotation": -700, "ease": "power1.in" }
+	]
+}
+```
+
 ## Speaker depth, step by step
 
 1. **Pick a stretch without cutaways.** A matte of a screen recording or B-roll is meaningless.
@@ -158,5 +176,5 @@ The demo project `static/demo/speaker-depth/template.vf.json` is the full 17-sec
 ## Rules
 
 - The subject layer is only as good as the matte: hands moving fast, hair against a busy background and a microphone in front of the face are the usual problems. Look at a still at every cue.
-- Draw footage only through `<Footage>`. A `<video>` element plays on wall-clock time and gives different frames per render.
+- Draw footage only through `<Footage>`, `<Subject>` or `clip.picture()`. A `<video>` element plays on wall-clock time and gives different frames per render.
 - Filters on the subject (`drop-shadow`, `blur`) follow the matte's outline; that is how the rim light in the demo works.

@@ -141,6 +141,11 @@ function clipNotes(
 	const info: string[] = [];
 	const warnings: string[] = [];
 	const seconds = (f: number) => `${(f / program.fps).toFixed(2)} s`;
+	// The hole a subject layer leaves is drawn into the footage picture, which inserts leave out.
+	if (clip.block === '@visualfries/subject' && (clip.props as { hole?: unknown }).hole !== false)
+		info.push(
+			'Its hole in the speaker (the clean plate where the piece was) is drawn only in the program render; the insert carries the piece alone, so the rough cut shows the speaker whole under it.'
+		);
 	for (const t of program.transitions) {
 		if (!transitionModule(t.type)) continue;
 		if (t.kind === 'clip' && t.owner === clip.id)

@@ -1610,6 +1610,15 @@ async function extractFootageRange(
 		}
 	}
 	const done = JSON.parse(await fs.readFile(path.join(dir, 'done.json'), 'utf8'));
+	// Boxes measured before heads had a size: measure them again in place, keeping the frames
+	// (the cache key, and so every cached frame, stays valid).
+	const boxes = done.boxes as (SubjectBox | null)[] | undefined;
+	if (matte && boxes?.some((b) => b && b.headHeight === undefined)) {
+		done.boxes = await matteBoxes(matte, info, fps, range, done.last - done.first + 1);
+		const tmp = path.join(dir, `done.json.tmp-${process.pid}-${randomUUID()}`);
+		await fs.writeFile(tmp, JSON.stringify(done));
+		await fs.rename(tmp, path.join(dir, 'done.json'));
+	}
 	return {
 		dir,
 		range: { url: originUrl(dir) + '/', first: done.first, last: done.last, boxes: done.boxes }
@@ -1653,6 +1662,15 @@ async function matteBoxes(
 	return boxes;
 }
 
+/**
+ * A head from its top to the chin is about this many times its width (ears and hair included),
+ * measured on talking-head mattes: the line lands between the lower lip and the chin, so a beard
+ * may reach a little below it.
+ */
+const HEAD_RATIO = 1.4;
+/** Rows below the top of the head searched for its widest row, in head widths. */
+const HEAD_SPAN = 1.2;
+
 /** Subject box of one greyscale matte frame, in 0–1 coordinates. Exported for tests. */
 export function measureSubject(gray: Uint8Array, w: number, h: number): SubjectBox | null {
 	let x0 = w,
@@ -1678,6 +1696,19 @@ export function measureSubject(gray: Uint8Array, w: number, h: number): SubjectB
 				sum += x;
 				n++;
 			}
+	// The head's size: its widest row from the top down, until the rows reach HEAD_SPAN times
+	// that width below the top (past the widest row of a head, short of the shoulders).
+	let widest = 0;
+	for (let y = y0; y < h && !(widest && y - y0 >= HEAD_SPAN * widest); y++) {
+		let first = -1,
+			last = -1;
+		for (let x = 0; x < w; x++)
+			if (gray[y * w + x] >= 128) {
+				if (first < 0) first = x;
+				last = x;
+			}
+		if (first >= 0) widest = Math.max(widest, last + 1 - first);
+	}
 	const r = (v: number) => Math.round(v * 10000) / 10000;
 	return {
 		x: r(x0 / w),
@@ -1685,7 +1716,9 @@ export function measureSubject(gray: Uint8Array, w: number, h: number): SubjectB
 		width: r((x1 + 1 - x0) / w),
 		height: r((y1 + 1 - y0) / h),
 		headX: r((sum / n + 0.5) / w),
-		headY: r(y0 / h)
+		headY: r(y0 / h),
+		// Pixels of the downscaled matte are square: its width over its height is the footage's.
+		headHeight: r(Math.min(1 - y0 / h, (HEAD_RATIO * widest) / h))
 	};
 }
 

@@ -268,7 +268,11 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
   it), so neither sits under platform buttons or in the caption band. `params.size` is the
   window's width as a share of the frame (default 0.3 landscape, 0.4 square, 0.44 portrait),
   `params.zoom` how much closer the camera goes inside it (1.2), `params.ring` the ring's width
-  in pixels at 1080 px of the frame's shorter side (default 4; 0: none).
+  in pixels at 1080 px of the frame's shorter side (default 4; 0: none). `params.aspect` is the
+  window's width over height: `"4:5"`, `"1:1"`, `"16:9"` or a number (default 16:9 in
+  landscape, 1:1 in square and portrait); without `size` a window of another aspect keeps the
+  default window's area, so `"4:5"` gives a close selfie's head more height at the same size on
+  screen.
 - `behind`: the stage for a word behind the speaker's head. The footage stays framed like
   `full` (`params.scale` goes closer), the room dims and blurs (`params.dim`, default 0.55;
   `params.blur`, 12 px at 1080 px) while the speaker, cut out by the matte, stays sharp in front,
@@ -287,6 +291,29 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
   Inside a transition window there is no motion blur (the transition owns the move). Without a
   clip in the slot the style's surface shows. A whip right after a whip does not move, so it
   has no event and `check` warns.
+
+**Keeping the head in.** Shots frame the face a third from the top of their camera window
+(`full`, `punch`, `strip`, `window`, `behind`, `whip`). That suits most footage, but a close
+handheld selfie, where the head fills half the frame, can lose the top of the head in a strip or
+a small window. `params.headroom` (off by default; 0.06 is a good start) keeps the whole head in
+the shot's camera window, from the matte: the footage moves down until that share of the window
+is free above the head (or up until the chin is in), a head too tall for the window makes the
+camera back off (to 0.7 of covering it at most), and where the footage then leaves the window
+open, the same footage fills it, blurred and dimmed, never the fill. Footage with less room
+above the head than asked keeps covering the window: the head touches its top, uncut. A punch
+with `headroom` goes no closer than keeps the head in. A portrait `strip` with `headroom` and no
+`size` grows from 0.45 to at most 0.55 of the frame height for a tall head, so the footage keeps
+filling the strip's width. The head's size is measured once per shot (a high percentile over its
+frames, so the framing does not breathe with every lean); the headroom is kept above how high
+the head gets within half a second of each frame, so a bob of a handheld shot stays in. Keys
+compose on top: a `scale` key can still push the head out, which is the program's choice.
+
+`check` warns wherever a shot's camera window cuts the speaker's head for more than a few frames,
+keys included, from each frame's matte: the top of the head past the window's top edge or
+touching it, or the face cut at the bottom (more than a quarter of the head below the window).
+It names the shot, the time range, how much is cut and what to try (`headroom`, a taller window
+`aspect`, a larger strip `size`, a lower `zoom`, `scale` or `scale` key). It stays a warning:
+look at a still and decide, since some creators want a tight crop.
 
 The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full`,
 `strip` and `window`, 0.3 s into `behind` from `full` (0.7 s from a framed shot), 0.16 s into
@@ -872,8 +899,11 @@ check in `program` that they end on the program's last frame: `out` rounds up to
 while `from` and `until` round to the nearest, so they can end one frame short (add up to
 0.033 s to their offset), and a clip that runs past the program is cut there without a warning.
 Give every shot that holds longer than about two seconds `keys` that keep the camera moving (a
-slow `scale` from 1 to 1.08), and frame a close phone shot with a `y` key when the strip or
-window cuts the mouth off.
+slow `scale` from 1 to 1.08). What depends on the footage (framing and headroom, window
+aspect, strip size, text placement against the face, caption size) is decided per video from
+stills of every shot; defaults are a starting point and `check` warnings are hints. A face that
+fills half the frame needs `headroom`, a taller window `aspect` or a bigger strip `size`; a small
+face needs nothing ([Keeping the head in](#footage-and-mattes)).
 Shot layouts and defaults are under [Footage and mattes](#footage-and-mattes), keys under
 [Keys](#keys).
 

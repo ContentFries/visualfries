@@ -2,7 +2,7 @@ import type { ProgramShot } from '../program.js';
 import { type Placement } from '../keys.js';
 import { type Morph, type ShotEvent, type ShotInput, type ShotLayout, type ShotModule } from './layout.js';
 export type { Energy, FormatClass, Morph, Rect, ShotEvent, ShotInput, ShotLayout, ShotModule } from './layout.js';
-export { facePoint, frameOnHead } from './layout.js';
+export { facePoint, frameOnHead, HEADROOM } from './layout.js';
 export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
 /**
  * The shot engine: the registry of built-in shots and the layout on screen at any program frame,
@@ -27,7 +27,16 @@ export declare function defaultMorph(prev: string | null, next: string): Morph |
  * and the shot's other events inside the morph move to its end, where the camera lands.
  */
 export declare function shotEvents(shot: ShotSpan, prev: string | null): ShotEvent[];
-type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys'>;
+type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys'> & {
+    id?: string;
+};
+/**
+ * What the engine needs to lay out shots at a frame: a shot's input without its params, and
+ * `headOf`, the head size over a whole shot (see `ShotInput.head`; absent: each frame's own).
+ */
+export type LayoutInput = Omit<ShotInput, 'params' | 'head'> & {
+    headOf?: (shot: Framed) => number | null;
+};
 /**
  * The shot on screen at program frame `f`, the one it morphs from, and how far the morph has
  * gone (eased, 0–1). Frames outside every shot are framed `full`; a shot after a gap morphs
@@ -48,14 +57,16 @@ export declare function shotsDuring<T extends ShotSpan>(shots: readonly T[], spa
 }): T[];
 /**
  * The layout of one shot, alone. Shots not built yet are framed `full`. With program frame `f`
- * the shot's keys at that frame move its camera (see `keyCamera`).
+ * the shot's keys at that frame move its camera (see `keyCamera`). In a shot with `headroom`,
+ * footage that leaves the camera window open (backed off to fit the head, or scaled down by a
+ * key) gets a blurred copy under it (`backdrop`).
  */
-export declare function shotLayout(shot: Framed, input: Omit<ShotInput, 'params'>, f?: number): ShotLayout;
+export declare function shotLayout(shot: Framed, input: LayoutInput, f?: number): ShotLayout;
 /**
  * The layout on screen at program frame `f` (see `shotAt`), keys included: inside a morph both
  * shots' keys apply at `f` (a shot's keys hold their last value after its last key).
  */
-export declare function shotLayoutAt(shots: readonly ShotSpan[], f: number, input: Omit<ShotInput, 'params'>): ShotLayout;
+export declare function shotLayoutAt(shots: readonly ShotSpan[], f: number, input: LayoutInput): ShotLayout;
 /**
  * Shot keys composed on the camera: the footage scaled by `scale` about the face (the subject's
  * head, else the point a shot frames when there is no matte), moved by `x`/`y`, turned by

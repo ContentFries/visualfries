@@ -1,5 +1,12 @@
 import { fullLayout } from './full.js';
-import { checkKnown, checkNumber, numberParam, type Energy, type ShotModule } from './layout.js';
+import {
+	checkHeadroom,
+	checkKnown,
+	checkNumber,
+	numberParam,
+	type Energy,
+	type ShotModule
+} from './layout.js';
 
 /** How much closer a punch-in goes, by the style's energy. */
 export const PUNCH_SCALE: Record<Energy, number> = { calm: 1.25, balanced: 1.45, punchy: 1.6 };
@@ -8,7 +15,8 @@ export const DEFAULT_PUNCH_SCALE = 1.45;
 
 /**
  * A punch-in: the full frame, `params.scale` times closer, toward the head. In fast and out
- * slower; the hit is the first frame.
+ * slower; the hit is the first frame. With `headroom` it goes no closer than keeps the whole
+ * head in (see `frameOnHead`).
  */
 export const punch: ShotModule = {
 	name: 'punch',
@@ -24,5 +32,9 @@ export const punch: ShotModule = {
 			)
 		),
 	events: () => [{ kind: 'punch', frame: 0 }],
-	check: (params) => [...checkKnown(params, ['scale']), ...checkNumber(params, 'scale', 1, 4)]
+	check: (params) => [
+		...checkKnown(params, ['scale', 'headroom']),
+		...checkNumber(params, 'scale', 1, 4),
+		...checkHeadroom(params)
+	]
 };

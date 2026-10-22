@@ -223,6 +223,11 @@ describe('window', () => {
 		expect(low.clip).toEqual({ x: 303, y: 773, width: 475, height: 475 });
 		expect(low.slots.panel).toEqual({ x: 0, y: 288, width: 1080, height: 431 });
 		expect(low.closed.panel.y).toBe(-431);
+		// A 4:5 window keeps the square's area: taller, a little narrower, the panel shorter.
+		const tall = layout('window', PORTRAIT, { safe: ALL, params: { aspect: '4:5' } });
+		expect(tall.clip).toEqual({ x: 328, y: 288, width: 425, height: 531 });
+		expect(tall.slots.panel).toEqual({ x: 0, y: 873, width: 1080, height: 375 });
+		expect(tall.slots.panel.y + tall.slots.panel.height).toBe(1920 - 672);
 	});
 
 	it('scales the ring with the frame, like the blur of behind', () => {
@@ -256,16 +261,44 @@ describe('window', () => {
 		expect(covers(l.camera, l.clip)).toBe(true);
 	});
 
+	it('takes an aspect as width:height or a number, keeping the area without a size', () => {
+		const wide = layout('window', PORTRAIT, { params: { aspect: '16:9' } });
+		expect(wide.clip.width / wide.clip.height).toBeCloseTo(16 / 9, 1);
+		expect((wide.clip.width * wide.clip.height) / (475 * 475)).toBeCloseTo(1, 1);
+		expect(layout('window', PORTRAIT, { params: { aspect: 0.8 } }).clip).toEqual(
+			layout('window', PORTRAIT, { params: { aspect: '4:5' } }).clip
+		);
+		expect(layout('window', PORTRAIT, { params: { aspect: '1:1' } }).clip).toEqual(
+			layout('window', PORTRAIT).clip
+		);
+		// With a size the width is the size and the height follows the aspect.
+		const sized = layout('window', LANDSCAPE, { params: { size: 0.25, aspect: '4:5' } });
+		expect(sized.clip).toMatchObject({ width: 480, height: 600 });
+	});
+
 	it('checks its params', () => {
 		expect(
-			SHOT_MODULES.window.check!({ corner: 'middle', size: 0.9, zoom: 0.5, ring: -1, tilt: 2 })
+			SHOT_MODULES.window.check!({
+				corner: 'middle',
+				size: 0.9,
+				zoom: 0.5,
+				ring: -1,
+				tilt: 2,
+				aspect: 'tall',
+				headroom: 0.5
+			})
 		).toEqual([
-			'Unknown param "tilt". Known: corner, size, zoom, ring.',
+			'Unknown param "tilt". Known: corner, size, aspect, zoom, ring, headroom.',
 			'"corner" must be one of top-left, top-right, bottom-left, bottom-right (got "middle").',
 			'"size" must be a number from 0.15 to 0.7 (got 0.9).',
 			'"zoom" must be a number from 1 to 3 (got 0.5).',
-			'"ring" must be a number from 0 to 40 (got -1).'
+			'"ring" must be a number from 0 to 40 (got -1).',
+			'"aspect" must be width:height like "4:5", "1:1" or "16:9", or a number (width over height), from 0.5 to 2.5 (got "tall").',
+			'"headroom" must be a number from 0 to 0.3: the share of the camera window kept free above the head, 0.06 is a good start (got 0.5).'
 		]);
+		expect(SHOT_MODULES.window.check!({ aspect: '4:5', headroom: 0.06 })).toEqual([]);
+		expect(SHOT_MODULES.window.check!({ aspect: 3 })).toHaveLength(1);
+		expect(SHOT_MODULES.strip.check!({ headroom: false })).toHaveLength(1);
 	});
 });
 
@@ -753,7 +786,7 @@ describe('shots in the program', () => {
 				level: 'error',
 				item: 'hit',
 				field: 'shots[0].params',
-				message: 'Unknown param "zoom". Known: scale.'
+				message: 'Unknown param "zoom". Known: scale, headroom.'
 			})
 		);
 		expect(d).toContainEqual(

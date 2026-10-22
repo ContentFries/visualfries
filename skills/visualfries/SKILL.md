@@ -316,6 +316,12 @@ effects land on words, music ends on a bar, all in one `.vf.json`. Guide: `docs/
 VisualFries repository (README, project, blocks, fonts, sample transcript); it is not in the npm
 package, so fetch it from GitHub.
 
+Decisions that depend on the footage (framing and headroom, window aspect, strip size, text
+placement against the face, caption size) are made per video by looking at stills of every
+shot. Defaults are a starting point and `check` warnings are hints; you decide. Example: a close
+handheld selfie whose face fills half the frame needs `"headroom": 0.06`, a taller window
+(`"aspect": "4:5"`) or a bigger strip `size`; footage where the face is small needs none of it.
+
 Work like an editor, in this order; each step ends on its criterion:
 
 1. **Brief.** What the reel is for, its platform and formats, the brand. If the creator gave no
@@ -335,14 +341,22 @@ Work like an editor, in this order; each step ends on its criterion:
 4. **Check.** Run `visualfries program <project>` and `visualfries check <project>
 --determinism`. Done when `program` prints no error, you can say why each warning is
    acceptable, and `check` reports every segment as passing.
-5. **Frames.** Stills of every cut, the first, middle and last frame of every transition window,
+5. **Framing.** Before the final render, look at a still of every shot, at its middle and its
+   end, where its keys have moved the camera furthest (`visualfries still <project> --at 7.5s`).
+   Judge the framing for this footage: is the whole head in, is there a little room above it,
+   does the face read at the window's size? Fix a cut head with the shot's params (`headroom`,
+   `aspect` on a window, `size` on a strip) rather than `y` keys, and keep keys for motion.
+   `check` warns where a shot cuts the head, at the top or the face below (shot, time range, how
+   much, what to try); treat it as a hint and decide from the still, since a tight crop can be the
+   creator's choice. Done when every shot frames the speaker the way you would defend.
+6. **Frames.** Stills of every cut, the first, middle and last frame of every transition window,
    every event and every shot move, about ten moments per `still` call. Done when you have looked
    at each one and can answer for each: no text over a face, no text cut by the frame, accents and
    descenders whole, no empty slot, no flash of a bright colour longer than a few frames, no frame
    standing still.
-6. **Fix.** Change the project or a block, then repeat from 4 for what changed. Done when a
+7. **Fix.** Change the project or a block, then repeat from 4 for what changed. Done when a
    fresh pass of 4 and 5 over everything the change touched finds nothing to fix.
-7. **Render.** `visualfries render <project> --output out/` (and `--format WxH` for other
+8. **Render.** `visualfries render <project> --output out/` (and `--format WxH` for other
    formats). Done when the video plays to its last frame, a contact sheet of it shows what the
    stills showed, and the hand-over names the render time, the segments drawn and cached, the
    delivered loudness and the cut points the creator should listen to.

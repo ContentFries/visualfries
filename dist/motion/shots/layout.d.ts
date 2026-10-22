@@ -25,6 +25,19 @@ export type ShotInput = {
     footage: [number, number] | null;
     /** Where the subject is in that footage (smoothed); null without a matte. */
     subject: SubjectBox | null;
+    /**
+     * How tall the subject's head is over the whole shot (top to chin, a high percentile of the
+     * matte's measure, in fractions of the footage height): one size per shot, so a shot that
+     * backs off to fit the head does not breathe with every lean. Absent, layouts take the
+     * subject's own (smoothed) `headHeight`.
+     */
+    head?: number | null;
+    /**
+     * How high the top of the head gets around this frame (fractions of the footage height): a
+     * quick lean or bob the smoothed `subject` lags behind still keeps its headroom. Absent,
+     * layouts take the subject's (smoothed) `headY`.
+     */
+    headTop?: number | null;
     params: Record<string, unknown>;
     /** The style's energy; null without a style. */
     energy?: Energy | null;
@@ -90,6 +103,17 @@ export type ShotLayout = {
         x: number;
         y: number;
     };
+    /**
+     * Where the footage leaves part of the camera window open (backed off to fit a head, or a
+     * key that scales down): the same footage at `camera`, covering the window, blurred by `blur`
+     * pixels and darkened by `dim` (0–1), under the sharp picture. Absent while the footage
+     * covers the window.
+     */
+    backdrop?: {
+        camera: Rect;
+        blur: number;
+        dim: number;
+    };
 };
 /** A program frame where something happens in a shot (a sound can land on it). */
 export type ShotEvent = {
@@ -142,6 +166,37 @@ export type ShotModule = {
  * camera follows the head calmly instead of every twitch of the matte.
  */
 export declare const SUBJECT_SMOOTH = 0.5;
+/**
+ * A good `headroom` to start from (the share of the camera window's height kept above the
+ * head); shots keep the whole head only when a program sets it.
+ */
+export declare const HEADROOM = 0.06;
+/** The blurred copy under footage that leaves its window open: blur per 1080 px, and dimming. */
+export declare const BACKDROP: {
+    blur: number;
+    dim: number;
+};
+/**
+ * How a shot keeps the head in its camera window: `headroom` is the share of the window kept
+ * above the head (false: the face mark alone, the default); `head` the head's height over the
+ * shot (see `ShotInput.head`).
+ */
+export type HeadFraming = {
+    headroom: number | false;
+    head?: number | null;
+    /** See `ShotInput.headTop`. */
+    top?: number | null;
+};
+/**
+ * The `headroom` param of a shot (see `HeadFraming`): off (false) unless the program sets it.
+ * Whether a head needs it depends on the footage (a close selfie does, a medium shot does not),
+ * so the program decides per shot; `check` warns where a head is cut.
+ */
+export declare function headroomParam(params: Record<string, unknown>): number | false;
+/** The head framing of a shot's input: its `headroom` param and the shot's head size. */
+export declare const headFraming: (input: ShotInput) => HeadFraming;
+/** Messages for a `headroom` that is not a share from 0 to 0.3. */
+export declare function checkHeadroom(params: Record<string, unknown>): string[];
 export declare const roundRect: (r: Rect) => Rect;
 /** The face in 0–1 fractions of the footage frame. */
 export declare function facePoint(subject: SubjectBox | null): {
@@ -152,8 +207,24 @@ export declare function facePoint(subject: SubjectBox | null): {
  * The footage covering `clip`, `zoom` times closer, with the face centred and a third from the
  * top. The footage never leaves an edge of the window uncovered, so near an edge the face moves
  * off its mark instead. Same aspect and no zoom: the footage fills the window exactly.
+ *
+ * With a `headroom` (see `HeadFraming`; a shot's `headroom` param, off by default) and a matte
+ * the whole head stays in the window: the
+ * footage moves down until `headroom` of the window is free above the head, or up until the chin
+ * is in, whichever the face mark breaks. A head too tall for the window at that scale makes the
+ * camera back off (to `MIN_FIT` of covering at most), and a window the footage then leaves open
+ * gets a blurred copy under it (see `ShotLayout.backdrop`). Footage with less room above the
+ * head than `headroom` keeps covering the window: the head touches its top, uncut.
  */
-export declare function frameOnHead(clip: Rect, footage: [number, number] | null, subject: SubjectBox | null, zoom?: number): Rect;
+export declare function frameOnHead(clip: Rect, footage: [number, number] | null, subject: SubjectBox | null, zoom?: number, framing?: HeadFraming): Rect;
+/** Whether the footage at `camera` covers the camera window `clip` (to a hundredth of a pixel). */
+export declare const coversClip: (camera: Rect, clip: Rect) => boolean;
+/**
+ * Where the blurred copy goes under footage at `camera` that leaves part of `clip` open: the
+ * footage scaled about its own centre until it covers the window with a margin, so what is
+ * blurred around the picture continues what is in it and the blur's soft edge stays outside.
+ */
+export declare function backdropCamera(camera: Rect, clip: Rect): Rect;
 /** The frame as a rectangle. */
 export declare const frameRect: ([width, height]: [number, number]) => Rect;
 /** A number param, or `fallback`; the check reports anything else. */

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { bundleMotionProject, frameForAt, launch, openStagePage } from './node.js';
 import { resolveProgram } from './program.js';
 import { resolveMoment } from './moment.js';
+import { headCropMessage, headCrops } from './framing.js';
 import { edgeFrames, scrambled, segmentAt, segmentCheckFrames, segmentStage, wholeProgram } from './segments.js';
 /** One page with a segment of the program loaded; `capture` takes program frames. */
 export async function openSegment(browser, bundle, program, segment, opts = {}) {
@@ -168,6 +169,7 @@ export async function checkProgram(loaded, opts = {}) {
                 const found = await page.check(list);
                 result.errors.push(...found.errors);
                 result.warnings.push(...found.warnings);
+                result.warnings.push(...headCropWarnings(page.segment));
                 if (!opts.determinism || found.errors.length)
                     continue;
                 const sample = determinismSample(program, segment, list);
@@ -206,6 +208,16 @@ export async function checkProgram(loaded, opts = {}) {
     for (const r of results)
         r.ok = r.errors.length === 0;
     return results;
+}
+/**
+ * Warnings for every stretch of a segment where a shot's camera window cuts off the top of the
+ * speaker's head (see `headCrops`), each at its first frame.
+ */
+export function headCropWarnings(segment) {
+    return headCrops(segment, segment).map((crop) => ({
+        frame: crop.from,
+        message: headCropMessage(crop, segment.shots.find((s) => s.id === crop.shot), segment.fps)
+    }));
 }
 /** Up to about a dozen evenly spread frames plus the frames on both sides of every change. */
 function determinismSample(program, segment, list) {

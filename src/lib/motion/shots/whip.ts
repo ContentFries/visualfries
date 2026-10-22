@@ -1,5 +1,12 @@
 import { fullLayout } from './full.js';
-import { checkKnown, checkNumber, frameRect, numberParam, type ShotModule } from './layout.js';
+import {
+	checkHeadroom,
+	checkKnown,
+	checkNumber,
+	frameRect,
+	numberParam,
+	type ShotModule
+} from './layout.js';
 import { screenDirection } from '../transitions/index.js';
 
 /** Peak motion blur (standard deviation, px) over a 1920 px move. */
@@ -59,12 +66,13 @@ export const whip: ShotModule = {
 			? 'A whip right after a whip does not move: the camera stays away and the card changes in place. Put another shot between them, or make it one whip.'
 			: null,
 	check: (params) => [
-		...checkKnown(params, ['direction', 'blur']),
+		...checkKnown(params, ['direction', 'blur', 'headroom']),
 		...(params.direction === undefined || DIRECTIONS.includes(params.direction as string)
 			? []
 			: [
 					`"direction" must be one of ${DIRECTIONS.join(', ')} (got ${JSON.stringify(params.direction)}).`
 				]),
-		...checkNumber(params, 'blur', 0, 400)
+		...checkNumber(params, 'blur', 0, 400),
+		...checkHeadroom(params)
 	]
 };

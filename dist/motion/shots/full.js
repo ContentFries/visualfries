@@ -1,8 +1,9 @@
-import { checkKnown, frameOnHead, frameRect, roundRect } from './layout.js';
+import { checkHeadroom, checkKnown, frameOnHead, headFraming, frameRect, roundRect } from './layout.js';
 /**
  * The footage fills the frame. When its aspect differs from the format's, it is cropped around
- * the subject's head (smoothed). Portrait footage in a landscape frame is never cropped to a
- * sliver: it stands in a full-height window over the style's surface.
+ * the subject's head (smoothed); `headroom` keeps the whole head in (see `frameOnHead`).
+ * Portrait footage in a landscape frame is never cropped to a sliver: it stands in a full-height
+ * window over the style's surface.
  */
 export function fullLayout(input, zoom = 1) {
     const frame = frameRect(input.size);
@@ -11,7 +12,7 @@ export function fullLayout(input, zoom = 1) {
         const width = (footage[0] / footage[1]) * frame.height;
         const clip = roundRect({ x: (frame.width - width) / 2, y: 0, width, height: frame.height });
         return {
-            camera: frameOnHead(clip, footage, input.subject, zoom),
+            camera: frameOnHead(clip, footage, input.subject, zoom, headFraming(input)),
             clip,
             radius: 0,
             slots: {},
@@ -20,7 +21,7 @@ export function fullLayout(input, zoom = 1) {
         };
     }
     return {
-        camera: frameOnHead(frame, footage, input.subject, zoom),
+        camera: frameOnHead(frame, footage, input.subject, zoom, headFraming(input)),
         clip: frame,
         radius: 0,
         slots: {},
@@ -40,5 +41,5 @@ export const full = {
     enter: { seconds: 0.7, ease: 'expo.inOut' },
     layout: (input) => fullLayout(input),
     events: fullEvents,
-    check: (params) => checkKnown(params, [])
+    check: (params) => [...checkKnown(params, ['headroom']), ...checkHeadroom(params)]
 };

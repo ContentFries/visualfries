@@ -51,6 +51,8 @@ export function sourceSubjectBox(footage, frame, smooth = 0) {
     const keys = ['x', 'y', 'width', 'height', 'headX', 'headY'];
     const sum = { x: 0, y: 0, width: 0, height: 0, headX: 0, headY: 0 };
     let n = 0;
+    let head = 0;
+    let sized = 0;
     for (let f = frame - smooth; f <= frame + smooth; f++) {
         const i = Math.min(range.last, Math.max(range.first, f)) - range.first;
         const box = range.boxes[i];
@@ -59,11 +61,17 @@ export function sourceSubjectBox(footage, frame, smooth = 0) {
         for (const k of keys)
             sum[k] += box[k];
         n++;
+        if (box.headHeight !== undefined) {
+            head += box.headHeight;
+            sized++;
+        }
     }
     if (!n)
         return null;
     for (const k of keys)
         sum[k] /= n;
+    if (sized)
+        sum.headHeight = head / sized;
     return sum;
 }
 /**

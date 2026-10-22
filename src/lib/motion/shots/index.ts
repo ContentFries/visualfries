@@ -8,7 +8,11 @@ import { whip } from './whip.js';
 import { easeOf } from '../ease.js';
 import { keyTracks, type Placement } from '../keys.js';
 import {
+	BACKDROP,
+	backdropCamera,
+	coversClip,
 	facePoint,
+	headroomParam,
 	roundRect,
 	type Morph,
 	type Rect,
@@ -28,7 +32,7 @@ export type {
 	ShotLayout,
 	ShotModule
 } from './layout.js';
-export { facePoint, frameOnHead } from './layout.js';
+export { facePoint, frameOnHead, HEADROOM } from './layout.js';
 export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
 
 /**
@@ -96,7 +100,15 @@ export function shotEvents(shot: ShotSpan, prev: string | null): ShotEvent[] {
 	return local.map((e) => ({ kind: e.kind, frame: shot.startFrame + e.frame }));
 }
 
-type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys'>;
+type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys'> & { id?: string };
+
+/**
+ * What the engine needs to lay out shots at a frame: a shot's input without its params, and
+ * `headOf`, the head size over a whole shot (see `ShotInput.head`; absent: each frame's own).
+ */
+export type LayoutInput = Omit<ShotInput, 'params' | 'head'> & {
+	headOf?: (shot: Framed) => number | null;
+};
 const FULL: Framed = { shot: 'full', params: {} };
 const endOf = (s: { startFrame: number; frames: number }) => s.startFrame + s.frames;
 
@@ -133,13 +145,35 @@ export function shotsDuring<T extends ShotSpan>(
 
 /**
  * The layout of one shot, alone. Shots not built yet are framed `full`. With program frame `f`
- * the shot's keys at that frame move its camera (see `keyCamera`).
+ * the shot's keys at that frame move its camera (see `keyCamera`). In a shot with `headroom`,
+ * footage that leaves the camera window open (backed off to fit the head, or scaled down by a
+ * key) gets a blurred copy under it (`backdrop`).
  */
-export function shotLayout(shot: Framed, input: Omit<ShotInput, 'params'>, f?: number): ShotLayout {
-	const layout = (shotModule(shot.shot) ?? full).layout({ ...input, params: shot.params });
-	if (f === undefined || !shot.keys?.length) return layout;
-	const placement = keyTracks(shot.keys, { size: input.size }).placement;
-	return placement ? keyCamera(layout, placement(f), input.subject) : layout;
+export function shotLayout(shot: Framed, input: LayoutInput, f?: number): ShotLayout {
+	const { headOf, ...rest } = input;
+	let layout = (shotModule(shot.shot) ?? full).layout({
+		...rest,
+		head: headOf?.(shot) ?? null,
+		params: shot.params
+	});
+	if (f !== undefined && shot.keys?.length) {
+		const placement = keyTracks(shot.keys, { size: input.size }).placement;
+		if (placement) layout = keyCamera(layout, placement(f), input.subject);
+	}
+	return headroomParam(shot.params) === false ? layout : withBackdrop(layout, input);
+}
+
+/** `layout` with a backdrop where its footage leaves the camera window open. */
+function withBackdrop(layout: ShotLayout, input: Pick<ShotInput, 'footage' | 'size'>) {
+	if (!input.footage || coversClip(layout.camera, layout.clip)) return layout;
+	return {
+		...layout,
+		backdrop: {
+			camera: backdropCamera(layout.camera, layout.clip),
+			blur: px((BACKDROP.blur * Math.min(...input.size)) / 1080),
+			dim: BACKDROP.dim
+		}
+	};
 }
 
 /**
@@ -149,7 +183,7 @@ export function shotLayout(shot: Framed, input: Omit<ShotInput, 'params'>, f?: n
 export function shotLayoutAt(
 	shots: readonly ShotSpan[],
 	f: number,
-	input: Omit<ShotInput, 'params'>
+	input: LayoutInput
 ): ShotLayout {
 	const { shot, prev, p } = shotAt(shots, f);
 	const to = shotLayout(shot, input, f);
@@ -279,5 +313,16 @@ export function mixLayouts(a: ShotLayout, b: ShotLayout, t: number): ShotLayout 
 			dim: mix(a.room?.dim ?? 0, b.room?.dim ?? 0, t),
 			blur: mix(a.room?.blur ?? 0, b.room?.blur ?? 0, t)
 		};
+	// The blurred copy under footage that leaves its window open moves with it; a side without
+	// one counts as a copy covering its window, so the open edge never shows the fill mid-move.
+	if (a.backdrop || b.backdrop) {
+		const copy = (l: ShotLayout) => l.backdrop?.camera ?? backdropCamera(l.camera, l.clip);
+		const look = (a.backdrop ?? b.backdrop)!;
+		out.backdrop = {
+			camera: mixRect(copy(a), copy(b), t),
+			blur: a.backdrop && b.backdrop ? mix(a.backdrop.blur, b.backdrop.blur, t) : look.blur,
+			dim: a.backdrop && b.backdrop ? mix(a.backdrop.dim, b.backdrop.dim, t) : look.dim
+		};
+	}
 	return out;
 }

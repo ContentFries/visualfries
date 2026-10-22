@@ -1,8 +1,10 @@
-import { checkKnown, checkNumber, frameOnHead, numberParam, roundRect } from './layout.js';
-/** Width of the window as a share of the frame width, by format class. */
+import { checkHeadroom, checkKnown, checkNumber, frameOnHead, headFraming, numberParam, roundRect } from './layout.js';
+/** Width of a window of the default `ASPECT` as a share of the frame width, by format class. */
 const SHARE = { landscape: 0.3, square: 0.4, portrait: 0.44 };
 /** Width over height of the window, by format class. */
 const ASPECT = { landscape: 16 / 9, square: 1, portrait: 1 };
+/** The widest and the tallest window `aspect` takes, as width over height. */
+const ASPECT_RANGE = [0.5, 2.5];
 /** Space between the window and the frame edge or the panel, of the frame's shorter side. */
 const MARGIN = 0.05;
 /**
@@ -11,6 +13,8 @@ const MARGIN = 0.05;
  */
 const PORTRAIT_TOP = 0.15;
 const PORTRAIT_BOTTOM = 0.35;
+/** In portrait the panel keeps at least this share of the safe area, however big the window. */
+const MIN_PANEL = 0.15;
 /** How much closer the camera goes inside the window, so the face reads at its small size. */
 const ZOOM = 1.2;
 /** Corner radius as a share of the window's shorter side. */
@@ -18,6 +22,20 @@ const RADIUS = 0.08;
 /** The ring around the window in pixels at 1080 px of the frame's shorter side. */
 const RING = 4;
 const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+/**
+ * Width over height from an `aspect` param: `"4:5"`, `"16:9"`, or a number; null for anything
+ * else (the check reports it).
+ */
+export function aspectParam(v) {
+    if (typeof v === 'number')
+        return Number.isFinite(v) && v > 0 ? v : null;
+    if (typeof v !== 'string')
+        return null;
+    const m = /^\s*(\d+(?:\.\d+)?)\s*[:/]\s*(\d+(?:\.\d+)?)\s*$/.exec(v);
+    if (!m || !Number(m[1]) || !Number(m[2]))
+        return null;
+    return Number(m[1]) / Number(m[2]);
+}
 /**
  * The speaker in a framed window over the style's surface, with a `panel` slot beside it for a
  * clip (a list, tiles, a screenshot). Landscape and square: the window sits in a corner
@@ -29,11 +47,18 @@ const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
  * UI on the corners. `size` is the window's width as a share of the frame, `zoom` how much
  * closer the camera goes inside it, `ring` the width of its brand-coloured ring in pixels at
  * 1080 px of the frame's shorter side (0: none), so it scales with the frame like `blur`.
+ * `aspect` is the window's width over height (`"4:5"`, `"1:1"`, `"16:9"` or a number; default
+ * 16:9 in landscape, 1:1 in square and portrait); without `size` a window of another aspect
+ * keeps the default window's area, so `"4:5"` gives a close selfie's head more height without a
+ * bigger window. A window that would leave the frame (or, in portrait, the safe area less 15 %
+ * of it for the panel) shrinks to fit, keeping its aspect. `headroom` keeps the whole head in
+ * the window (see `frameOnHead`).
  */
 export const windowShot = {
     name: 'window',
     enter: { seconds: 0.7, ease: 'expo.inOut' },
-    layout({ cls, size: [W, H], footage, subject, params, safe }) {
+    layout(input) {
+        const { cls, size: [W, H], footage, subject, params, safe } = input;
         const corner = CORNERS.includes(params.corner)
             ? params.corner
             : cls === 'portrait'
@@ -43,14 +68,31 @@ export const windowShot = {
         const left = corner.endsWith('left');
         const short = Math.min(W, H);
         const m = Math.round(short * MARGIN);
-        const width = Math.round(W * numberParam(params, 'size', SHARE[cls]));
-        const height = Math.round(width / ASPECT[cls]);
+        const aspect = aspectParam(params.aspect) ?? ASPECT[cls];
+        // Without `size` a window of another aspect keeps the default window's area.
+        const share = numberParam(params, 'size', SHARE[cls] * Math.sqrt(aspect / ASPECT[cls]));
+        const high = Math.round(safe?.top ?? H * PORTRAIT_TOP);
+        const low = H - Math.round(safe?.bottom ?? H * PORTRAIT_BOTTOM);
+        // The window never leaves its room, whatever `size` and `aspect` ask: in portrait the safe
+        // area less the margin and a `MIN_PANEL` share of it for the panel, elsewhere the frame
+        // less its margins. A window too big shrinks, keeping its aspect.
+        const room = cls === 'portrait'
+            ? { width: W - 2 * m, height: Math.floor((low - high) * (1 - MIN_PANEL)) - m }
+            : { width: W - 2 * m, height: H - 2 * m };
+        let width = Math.round(W * share);
+        let height = Math.round(width / aspect);
+        if (height > room.height) {
+            height = room.height;
+            width = Math.round(height * aspect);
+        }
+        if (width > room.width) {
+            width = room.width;
+            height = Math.round(width / aspect);
+        }
         let clip;
         let panel;
         let closed;
         if (cls === 'portrait') {
-            const high = Math.round(safe?.top ?? H * PORTRAIT_TOP);
-            const low = H - Math.round(safe?.bottom ?? H * PORTRAIT_BOTTOM);
             const y = top ? high : low - height;
             clip = { x: Math.round((W - width) / 2), y, width, height };
             // The panel takes the rest of the safe area on the other side of the window.
@@ -69,7 +111,7 @@ export const windowShot = {
         }
         clip = roundRect(clip);
         return {
-            camera: frameOnHead(clip, footage, subject, numberParam(params, 'zoom', ZOOM)),
+            camera: frameOnHead(clip, footage, subject, numberParam(params, 'zoom', ZOOM), headFraming(input)),
             clip,
             radius: Math.round(Math.min(width, height) * RADIUS),
             slots: { panel: roundRect(panel) },
@@ -82,12 +124,24 @@ export const windowShot = {
     // Nothing moves on the program's first frame.
     events: ({ prev, morphFrames }) => prev === null ? [] : [{ kind: 'shot', frame: Math.floor(morphFrames / 2) }],
     check: (params) => [
-        ...checkKnown(params, ['corner', 'size', 'zoom', 'ring']),
+        ...checkKnown(params, ['corner', 'size', 'aspect', 'zoom', 'ring', 'headroom']),
         ...(params.corner === undefined || CORNERS.includes(params.corner)
             ? []
             : [`"corner" must be one of ${CORNERS.join(', ')} (got ${JSON.stringify(params.corner)}).`]),
         ...checkNumber(params, 'size', 0.15, 0.7),
         ...checkNumber(params, 'zoom', 1, 3),
-        ...checkNumber(params, 'ring', 0, 40)
+        ...checkNumber(params, 'ring', 0, 40),
+        ...checkAspect(params.aspect),
+        ...checkHeadroom(params)
     ]
 };
+function checkAspect(v) {
+    if (v === undefined)
+        return [];
+    const a = aspectParam(v);
+    return a !== null && a >= ASPECT_RANGE[0] && a <= ASPECT_RANGE[1]
+        ? []
+        : [
+            `"aspect" must be width:height like "4:5", "1:1" or "16:9", or a number (width over height), from ${ASPECT_RANGE[0]} to ${ASPECT_RANGE[1]} (got ${JSON.stringify(v)}).`
+        ];
+}

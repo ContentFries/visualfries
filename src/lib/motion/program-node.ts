@@ -13,6 +13,7 @@ import {
 } from './node.js';
 import { resolveProgram, type ProgramSegment, type ResolvedProgram } from './program.js';
 import { resolveMoment } from './moment.js';
+import { headCropMessage, headCrops } from './framing.js';
 import {
 	edgeFrames,
 	scrambled,
@@ -210,6 +211,12 @@ export async function checkProgram(
 		return results;
 	}
 	const bundle = await bundleMotionProject(loaded, program.clips);
+	// Over the whole program: a crop across a hard cut is one crop, reported in the segment it
+	// starts in.
+	const crops = headCropWarnings(
+		segmentStage(program, wholeProgram(program), bundle.footage, bundle.brand)
+	);
+	const within = (s: Span, f: number) => f >= s.startFrame && f < s.startFrame + s.frames;
 	const browser = await launch();
 	/** Hash of every sampled frame on its segment's page, by segment. */
 	const sampled = new Map<string, Map<number, string>>();
@@ -224,6 +231,7 @@ export async function checkProgram(
 				const found = await page.check(list);
 				result.errors.push(...found.errors);
 				result.warnings.push(...found.warnings);
+				result.warnings.push(...crops.filter((w) => within(segment, w.frame)));
 				if (!opts.determinism || found.errors.length) continue;
 				const sample = determinismSample(program, segment, list);
 				const first = new Map<number, string>();
@@ -254,6 +262,17 @@ export async function checkProgram(
 	}
 	for (const r of results) r.ok = r.errors.length === 0;
 	return results;
+}
+
+/**
+ * Warnings for every stretch where a shot's camera window cuts the speaker's head (see
+ * `headCrops`), each at its first frame.
+ */
+export function headCropWarnings(segment: StageSegment): { frame: number; message: string }[] {
+	return headCrops(segment, segment).map((crop) => ({
+		frame: crop.from,
+		message: headCropMessage(crop, segment.shots.find((s) => s.id === crop.shot)!, segment.fps)
+	}));
 }
 
 /** Up to about a dozen evenly spread frames plus the frames on both sides of every change. */

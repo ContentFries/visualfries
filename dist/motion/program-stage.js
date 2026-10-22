@@ -4,10 +4,11 @@ import { brandTokens } from './brand.js';
 import { formatTokens } from './format.js';
 import { seekTimeline } from './seek.js';
 import { programFootageAt, transitionSidesAt } from './footage-map.js';
-import { sourceFrameUrl, sourceSubjectBox } from './footage.js';
+import { sourceFrameUrl } from './footage.js';
+import { programFraming } from './framing.js';
 import { clipFrameAt } from './segments.js';
-import { shotLayout, shotLayoutAt, shotModule } from './shots/index.js';
-import { facePoint, SUBJECT_SMOOTH } from './shots/layout.js';
+import { shotModule } from './shots/index.js';
+import { facePoint } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
 import { keyTracks, placementTransform } from './keys.js';
 /**
@@ -37,23 +38,32 @@ function layer(parent, className, style = LAYER) {
     parent.appendChild(el);
     return el;
 }
-/** An `<img>` in its own clipped box (the camera window); empty images stay hidden. */
-function picture(parent, className) {
+/**
+ * An `<img>` in its own clipped box (the camera window), with `backdrop` a second one under it
+ * for a blurred copy; empty images stay hidden.
+ */
+function picture(parent, className, backdrop = false) {
     // Placed by `frameBox` alone: an `inset` here would fight its left and top.
     const box = layer(parent, className, 'position:absolute;overflow:hidden;isolation:isolate');
-    const img = document.createElement('img');
-    img.alt = '';
-    img.draggable = false;
-    img.style.cssText = 'position:absolute;display:none;max-width:none';
-    box.appendChild(img);
-    return { box, img };
+    const image = () => {
+        const img = document.createElement('img');
+        img.alt = '';
+        img.draggable = false;
+        img.style.cssText = 'position:absolute;display:none;max-width:none';
+        box.appendChild(img);
+        return img;
+    };
+    const back = backdrop ? image() : undefined;
+    if (back)
+        back.className = 'vf-backdrop';
+    return { box, img: image(), back };
 }
 function side(stage, name) {
     const el = layer(stage, 'vf-side', ISOLATED);
     el.dataset.side = name;
     const fill = layer(el, 'vf-fill');
     const group = layer(el, 'vf-picture');
-    const plate = picture(group, 'vf-plate');
+    const plate = picture(group, 'vf-plate', true);
     // Painted over their whole box (see `TransitionSides`).
     for (const solid of [el, fill, plate.box])
         solid.dataset.solid = '';
@@ -144,7 +154,10 @@ function shotFilters(stage) {
         dispose() {
             svg?.remove();
         },
-        /** `filter` value for the plate of a room and a motion blur; '' when it is untouched. */
+        /**
+         * `filter` value for the plate (or its backdrop, `side` `a-back`) of a room and a motion
+         * blur; '' when it is untouched.
+         */
         plate(side, room, streak) {
             const dim = room && room.dim > 0 ? room.dim : 0;
             const r = room?.blur ?? 0;
@@ -292,6 +305,7 @@ function clipError(id, error) {
     return new Error(message.startsWith(`Clip "${id}"`) ? message : `Clip "${id}": ${message}`);
 }
 const endOf = (s) => s.startFrame + s.frames;
+const px = (v) => Math.round(v * 100) / 100;
 /**
  * The eyes below the top of the head the matte gives, in fractions of the footage height
  * (measured 0.21 and 0.24 on a medium and a close shot; the shots' face point, 0.1 down, is the
@@ -396,20 +410,9 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     let last = null;
     /** The extracted frames of the source a view shows; null without them. */
     const framesOf = (view) => (view ? (seg.footage[view.source] ?? null) : null);
+    const framing = programFraming(seg);
     /** The layout of a side showing `view`: the shot track at `f`, or `shot` alone. */
-    function layoutFor(f, view, shot) {
-        const frames = framesOf(view);
-        const input = {
-            cls: seg.cls,
-            size: seg.size,
-            footage: frames ? [frames.width, frames.height] : null,
-            safe: seg.format.safe,
-            subject: frames && view
-                ? sourceSubjectBox(frames, view.frame, Math.round(SUBJECT_SMOOTH * seg.fps))
-                : null
-        };
-        return shot ? shotLayout(shot, input, f) : shotLayoutAt(seg.shots, f, input);
-    }
+    const layoutFor = (f, view, shot) => framing.layoutFor(f, view, shot);
     /** Which side a clip rides in transition `t`: out when it ends on the cut, in when it starts on it. */
     function rides(data, t) {
         if (!t)
@@ -496,10 +499,9 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
      * transition centres on. Without a matte, the frame centre slightly high (see `facePoint`).
      */
     function faceOf(side) {
-        const frames = framesOf(side.view);
-        if (!frames || !side.view)
+        if (!framesOf(side.view) || !side.view)
             return null;
-        const subject = sourceSubjectBox(frames, side.view.frame, Math.round(SUBJECT_SMOOTH * seg.fps));
+        const subject = framing.subjectOf(side.view);
         const face = subject
             ? { x: subject.headX, y: Math.min(1, subject.headY + EYES_DROP) }
             : facePoint(null);
@@ -565,16 +567,35 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         s.subject.img.style.filter = filters.subject(s.name, layout.room?.dim ?? 0, layout.motionBlur);
         s.behind.style.filter = filters.streak(`behind-${s.name}`, layout.motionBlur);
         const frames = framesOf(view.view);
+        const back = s.plate.back;
         if (!view.view || !frames) {
             hide(s.plate.img);
+            hide(back);
             hide(s.subject.img);
             return;
         }
-        const plate = seg.insert
-            ? null
-            : show(s.plate.img, sourceFrameUrl(frames, view.view.frame, 'plate'));
+        const url = sourceFrameUrl(frames, view.view.frame, 'plate');
+        const plate = seg.insert ? null : show(s.plate.img, url);
         if (plate)
             pending.push(plate);
+        if (layout.backdrop && !seg.insert) {
+            // The blurred copy under footage that leaves the camera window open (see `backdrop`).
+            const { camera, blur, dim } = layout.backdrop;
+            const { clip } = layout;
+            place(back, { ...camera, x: px(camera.x - clip.x), y: px(camera.y - clip.y) });
+            // Under a dimmed room the copy is part of the room: dimmed and blurred with it too.
+            const roomDim = layout.room?.dim ?? 0;
+            const look = {
+                dim: px(1 - (1 - dim) * (1 - roomDim)),
+                blur: px(Math.hypot(blur, layout.room?.blur ?? 0))
+            };
+            back.style.filter = filters.plate(`${s.name}-back`, look, layout.motionBlur);
+            const copy = show(back, url);
+            if (copy)
+                pending.push(copy);
+        }
+        else
+            hide(back);
         // The subject covers behind clips only while one is on screen, or a dimmed room; in an
         // insert it is only what a holdout cuts out.
         if ((seg.insert ? seg.insert.holdout && behind : behind || room) && frames.subject) {

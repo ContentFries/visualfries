@@ -106,7 +106,9 @@ export type FootageFrames = {
 
 /**
  * Where the subject is in a footage frame, from its matte. Coordinates are fractions of the
- * footage frame (0–1, origin top left). `headX`/`headY` is the top of the subject's head.
+ * footage frame (0–1, origin top left). `headX`/`headY` is the top of the subject's head,
+ * `headHeight` how far down from there the chin is, in fractions of the footage height
+ * (estimated from the head's width; absent in boxes measured before it existed).
  */
 export type SubjectBox = {
 	x: number;
@@ -115,6 +117,7 @@ export type SubjectBox = {
 	height: number;
 	headX: number;
 	headY: number;
+	headHeight?: number;
 };
 
 export type MotionDiagnostic = {

@@ -131,9 +131,58 @@ describe('subject boxes', () => {
 			width: 1,
 			height: 0.8,
 			headX: 0.5,
-			headY: 0.2
+			headY: 0.2,
+			// The head is two columns wide: about 1.4 times that from the top to the chin.
+			headHeight: 0.28
 		});
 		expect(measureSubject(new Uint8Array(w * h), w, h)).toBeNull();
+	});
+
+	it('measures the head size by its widest row above the shoulders', () => {
+		// A 40 × 80 matte: an ellipse head 16 wide and 22 tall from row 10, shoulders from row 36.
+		const w = 40,
+			h = 80;
+		const gray = new Uint8Array(w * h);
+		for (let y = 0; y < h; y++)
+			for (let x = 0; x < w; x++) {
+				const head = ((x + 0.5 - 20) / 8) ** 2 + ((y + 0.5 - 21) / 11) ** 2 <= 1;
+				if (head || y >= 36) gray[y * w + x] = 255;
+			}
+		const box = measureSubject(gray, w, h)!;
+		expect(box.headY).toBeCloseTo(10 / 80, 3);
+		// 1.4 × 16 px of 80: the shoulders never count, however wide.
+		expect(box.headHeight).toBeCloseTo((1.4 * 16) / 80, 3);
+	});
+
+	it('measures the head alone beside a hand or a second person, and past a speck above it', () => {
+		const w = 80,
+			h = 80;
+		/** The ellipse head of the test above at column `cx`, from row 10, plus `more`. */
+		const matte = (cx: number, more: (x: number, y: number) => boolean) => {
+			const gray = new Uint8Array(w * h);
+			for (let y = 0; y < h; y++)
+				for (let x = 0; x < w; x++) {
+					const head = ((x + 0.5 - cx) / 8) ** 2 + ((y + 0.5 - 21) / 11) ** 2 <= 1;
+					if (head || more(x, y)) gray[y * w + x] = 255;
+				}
+			return measureSubject(gray, w, h)!;
+		};
+		const alone = matte(20, () => false).headHeight!;
+		expect(alone).toBeCloseTo((1.4 * 16) / 80, 3);
+		// A raised hand a few pixels beside the face, as tall as the head.
+		expect(matte(20, (x, y) => x >= 32 && x < 44 && y >= 14 && y < 34).headHeight).toBeCloseTo(
+			alone,
+			3
+		);
+		// A second person's head at the same height further right.
+		expect(
+			matte(20, (x, y) => ((x + 0.5 - 60) / 8) ** 2 + ((y + 0.5 - 21) / 11) ** 2 <= 1).headHeight
+		).toBeCloseTo(alone, 3);
+		// A speck of matte six rows above the head: the head's top is the speck's, the size still
+		// reaches the chin.
+		const speck = matte(20, (x, y) => x === 20 && y === 4);
+		expect(speck.headY).toBeCloseTo(4 / 80, 3);
+		expect(speck.headHeight).toBeCloseTo((10 - 4 + 1.4 * 16) / 80, 3);
 	});
 
 	it('looks up and smooths the box for a program frame', () => {
@@ -154,6 +203,11 @@ describe('subject boxes', () => {
 		expect(subjectBox(withBoxes, 15 + 32, 1)?.x).toBeCloseTo(0.25);
 		expect(subjectBox(withBoxes, 15 + 200)?.x).toBe(0.3);
 		expect(subjectBox(frames, 60)).toBeNull();
+		// The head's height averages over the boxes that have one (older extractions lack it).
+		const sized = [{ ...box(0.1), headHeight: 0.3 }, { ...box(0.1), headHeight: 0.5 }, box(0.1)];
+		const withSizes = { ...frames, ranges: [{ url, first: 30, last: 32, boxes: sized }] };
+		expect(subjectBox(withSizes, 15 + 31, 1)?.headHeight).toBeCloseTo(0.4);
+		expect(subjectBox(withSizes, 15 + 32)?.headHeight).toBeUndefined();
 	});
 });
 
@@ -206,6 +260,35 @@ describe('prepareFootage subject boxes', () => {
 		expect(box.x).toBeCloseTo(0.25, 1);
 		expect(box.width).toBeCloseTo(0.5, 1);
 		expect(box.headY).toBeCloseTo(0.375, 1);
+		expect(box.headHeight).toBeGreaterThan(0);
+		// A cache from before heads had a size is measured again in place, its frames kept.
+		const cache = path.join(dir, '.visualfries', 'footage');
+		const [folder] = await fs.readdir(cache);
+		const donePath = path.join(cache, folder, 'done.json');
+		const done = JSON.parse(await fs.readFile(donePath, 'utf8'));
+		const old = done.boxes.map((b: Record<string, unknown> | null) => {
+			if (!b) return b;
+			const { headHeight: _, ...rest } = b;
+			return rest;
+		});
+		// As written before the measure had a version.
+		const { measure: _measure, ...unversioned } = done;
+		expect(_measure).toBeGreaterThan(1);
+		await fs.writeFile(donePath, JSON.stringify({ ...unversioned, boxes: old }));
+		const again = await loadMotionProject(path.join(dir, 'p.vf.json'));
+		await prepareFootage(again, again.resolved.clips);
+		expect(await fs.readdir(cache)).toEqual([folder]);
+		expect(again.resolved.clips[0].footage!.talk.boxes).toEqual(done.boxes);
+		// A cache that cannot be written still gives this run the new boxes.
+		await fs.writeFile(donePath, JSON.stringify({ ...unversioned, boxes: old }));
+		await fs.chmod(path.join(cache, folder), 0o555);
+		try {
+			const locked = await loadMotionProject(path.join(dir, 'p.vf.json'));
+			await prepareFootage(locked, locked.resolved.clips);
+			expect(locked.resolved.clips[0].footage!.talk.boxes).toEqual(done.boxes);
+		} finally {
+			await fs.chmod(path.join(cache, folder), 0o755);
+		}
 		await fs.rm(dir, { recursive: true, force: true });
 	});
 });

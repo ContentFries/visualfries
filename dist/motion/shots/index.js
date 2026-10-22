@@ -6,8 +6,8 @@ import { behind } from './behind.js';
 import { whip } from './whip.js';
 import { easeOf } from '../ease.js';
 import { keyTracks } from '../keys.js';
-import { facePoint, roundRect } from './layout.js';
-export { facePoint, frameOnHead } from './layout.js';
+import { BACKDROP, backdropCamera, coversClip, facePoint, headroomParam, roundRect } from './layout.js';
+export { facePoint, frameOnHead, HEADROOM } from './layout.js';
 export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
 /**
  * The shot engine: the registry of built-in shots and the layout on screen at any program frame,
@@ -92,14 +92,36 @@ export function shotsDuring(shots, span) {
 }
 /**
  * The layout of one shot, alone. Shots not built yet are framed `full`. With program frame `f`
- * the shot's keys at that frame move its camera (see `keyCamera`).
+ * the shot's keys at that frame move its camera (see `keyCamera`). In a shot with `headroom`,
+ * footage that leaves the camera window open (backed off to fit the head, or scaled down by a
+ * key) gets a blurred copy under it (`backdrop`).
  */
 export function shotLayout(shot, input, f) {
-    const layout = (shotModule(shot.shot) ?? full).layout({ ...input, params: shot.params });
-    if (f === undefined || !shot.keys?.length)
+    const { headOf, ...rest } = input;
+    let layout = (shotModule(shot.shot) ?? full).layout({
+        ...rest,
+        head: headOf?.(shot) ?? null,
+        params: shot.params
+    });
+    if (f !== undefined && shot.keys?.length) {
+        const placement = keyTracks(shot.keys, { size: input.size }).placement;
+        if (placement)
+            layout = keyCamera(layout, placement(f), input.subject);
+    }
+    return headroomParam(shot.params) === false ? layout : withBackdrop(layout, input);
+}
+/** `layout` with a backdrop where its footage leaves the camera window open. */
+function withBackdrop(layout, input) {
+    if (!input.footage || coversClip(layout.camera, layout.clip))
         return layout;
-    const placement = keyTracks(shot.keys, { size: input.size }).placement;
-    return placement ? keyCamera(layout, placement(f), input.subject) : layout;
+    return {
+        ...layout,
+        backdrop: {
+            camera: backdropCamera(layout.camera, layout.clip),
+            blur: px((BACKDROP.blur * Math.min(...input.size)) / 1080),
+            dim: BACKDROP.dim
+        }
+    };
 }
 /**
  * The layout on screen at program frame `f` (see `shotAt`), keys included: inside a morph both
@@ -228,5 +250,16 @@ export function mixLayouts(a, b, t) {
             dim: mix(a.room?.dim ?? 0, b.room?.dim ?? 0, t),
             blur: mix(a.room?.blur ?? 0, b.room?.blur ?? 0, t)
         };
+    // The blurred copy under footage that leaves its window open moves with it; a side without
+    // one counts as a copy covering its window, so the open edge never shows the fill mid-move.
+    if (a.backdrop || b.backdrop) {
+        const copy = (l) => l.backdrop?.camera ?? backdropCamera(l.camera, l.clip);
+        const look = (a.backdrop ?? b.backdrop);
+        out.backdrop = {
+            camera: mixRect(copy(a), copy(b), t),
+            blur: a.backdrop && b.backdrop ? mix(a.backdrop.blur, b.backdrop.blur, t) : look.blur,
+            dim: a.backdrop && b.backdrop ? mix(a.backdrop.dim, b.backdrop.dim, t) : look.dim
+        };
+    }
     return out;
 }

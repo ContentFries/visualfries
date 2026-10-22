@@ -1,5 +1,6 @@
 import { FULL_FRAMED, fullEvents, fullLayout } from './full.js';
 import {
+	checkHeadroom,
 	checkKnown,
 	checkNumber,
 	facePoint,
@@ -64,9 +65,10 @@ export const behind: ShotModule = {
 	},
 	events: fullEvents,
 	check: (params) => [
-		...checkKnown(params, ['scale', 'dim', 'blur']),
+		...checkKnown(params, ['scale', 'dim', 'blur', 'headroom']),
 		...checkNumber(params, 'scale', 1, 4),
 		...checkNumber(params, 'dim', 0, 0.9),
-		...checkNumber(params, 'blur', 0, 40)
+		...checkNumber(params, 'blur', 0, 40),
+		...checkHeadroom(params)
 	]
 };

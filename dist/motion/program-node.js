@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { bundleMotionProject, frameForAt, launch, openStagePage } from './node.js';
 import { resolveProgram } from './program.js';
 import { resolveMoment } from './moment.js';
+import { headCropMessage, headCrops } from './framing.js';
 import { edgeFrames, scrambled, segmentAt, segmentCheckFrames, segmentStage, wholeProgram } from './segments.js';
 /** One page with a segment of the program loaded; `capture` takes program frames. */
 export async function openSegment(browser, bundle, program, segment, opts = {}) {
@@ -154,6 +155,10 @@ export async function checkProgram(loaded, opts = {}) {
         return results;
     }
     const bundle = await bundleMotionProject(loaded, program.clips);
+    // Over the whole program: a crop across a hard cut is one crop, reported in the segment it
+    // starts in.
+    const crops = headCropWarnings(segmentStage(program, wholeProgram(program), bundle.footage, bundle.brand));
+    const within = (s, f) => f >= s.startFrame && f < s.startFrame + s.frames;
     const browser = await launch();
     /** Hash of every sampled frame on its segment's page, by segment. */
     const sampled = new Map();
@@ -168,6 +173,7 @@ export async function checkProgram(loaded, opts = {}) {
                 const found = await page.check(list);
                 result.errors.push(...found.errors);
                 result.warnings.push(...found.warnings);
+                result.warnings.push(...crops.filter((w) => within(segment, w.frame)));
                 if (!opts.determinism || found.errors.length)
                     continue;
                 const sample = determinismSample(program, segment, list);
@@ -206,6 +212,16 @@ export async function checkProgram(loaded, opts = {}) {
     for (const r of results)
         r.ok = r.errors.length === 0;
     return results;
+}
+/**
+ * Warnings for every stretch where a shot's camera window cuts the speaker's head (see
+ * `headCrops`), each at its first frame.
+ */
+export function headCropWarnings(segment) {
+    return headCrops(segment, segment).map((crop) => ({
+        frame: crop.from,
+        message: headCropMessage(crop, segment.shots.find((s) => s.id === crop.shot), segment.fps)
+    }));
 }
 /** Up to about a dozen evenly spread frames plus the frames on both sides of every change. */
 function determinismSample(program, segment, list) {

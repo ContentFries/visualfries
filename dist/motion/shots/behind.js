@@ -1,5 +1,5 @@
 import { FULL_FRAMED, fullEvents, fullLayout } from './full.js';
-import { checkKnown, checkNumber, facePoint, numberParam, roundRect } from './layout.js';
+import { checkHeadroom, checkKnown, checkNumber, facePoint, numberParam, roundRect } from './layout.js';
 /** Dimming the room over the same framing: fast in. */
 const BEHIND_ENTER = { seconds: 0.3, ease: 'expo.out' };
 /** How much darker the room gets (0–1). The approved look: 0.55. */
@@ -52,9 +52,10 @@ export const behind = {
     },
     events: fullEvents,
     check: (params) => [
-        ...checkKnown(params, ['scale', 'dim', 'blur']),
+        ...checkKnown(params, ['scale', 'dim', 'blur', 'headroom']),
         ...checkNumber(params, 'scale', 1, 4),
         ...checkNumber(params, 'dim', 0, 0.9),
-        ...checkNumber(params, 'blur', 0, 40)
+        ...checkNumber(params, 'blur', 0, 40),
+        ...checkHeadroom(params)
     ]
 };

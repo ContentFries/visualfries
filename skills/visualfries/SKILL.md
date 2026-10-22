@@ -382,6 +382,15 @@ Program tools for common needs:
   `clip.at(events.land)`, and anchor the `sfx` on `{ "event": "land", "clip": "kick" }`.
 - Edit points: where the footage has sound, `program` measures the voice at every audio edit
   point and says how far to move a cut's `in` or `out`; listen to the ones it names.
+- Gags on the speaker's body (the top of the head flying off, a hole through the body, a word
+  passing through the head, the speaker shrinking away from the background): a subject layer,
+  not a canvas compositor. Add `"clean": true` to the footage, then a clip
+  `"block": "@visualfries/subject"` with a `region` (`{ "above": { "head": 0.3 } }` cuts at the
+  forehead and follows the head) and placement keys to send the piece flying; the stage leaves a
+  hole with the background in it (`"rim": { "opening": 0.2 }` for a cartoon open head). In a
+  block, `<Subject region freeze hole x y rotation>` does the same, and `clip.picture()` gives
+  footage frames for a canvas. Look at stills of the hole's first frames. Guide: `docs/MOTION.md`
+  → "Subject layers".
 - Images in blocks: keep every picture mounted and switch with `opacity`; never swap `src` per
   frame (it decodes late and fails `check --determinism`).
 - Brand `extra` colour names are kebab case (`wood-dark`).

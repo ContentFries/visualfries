@@ -100,6 +100,9 @@ Transcripts: Soniox-style `{ "words": [{ "text", "startMs", "endMs" }] }` or
 | `clip.cue.extra`                                | `{ start, end, frame, words }`                       |
 | `clip.words.row`, `clip.props`                  | bound words, props from the project                  |
 | `clip.pulse(on = 'beat')`, `clip.beats`         | phase in the beat (or `'bar'`), the music's beats    |
+| `clip.shown(name?, frame?)`                     | the footage frame on screen (cut list, holds)        |
+| `clip.picture(layer, opts?)`                    | that frame decoded, for a canvas (Subject layers)    |
+| `clip.camera`                                   | where the stage shows the footage (program mode)     |
 
 `at` uses the same grammar everywhere (blocks and `still --at`): a cue (`'extra'`), a cue
 edge (`'extra.end'`), a cue with offset (`'extra+0.4'`, `'extra.end-0.2'`), `'2.5s'` or `'2.5'`, `'f120'`,
@@ -571,6 +574,130 @@ no effect on a project without `cuts` or `shots` (a warning).
 `--command "tool {input} {output}"`, and any `MatteProvider` in Node. It splits, checks and
 joins the pieces frame-exact. Worked example: `static/demo/speaker-depth`.
 
+## Subject layers
+
+A matte cuts out the whole speaker. A **subject layer** takes a part of the speaker, a
+**region**, as its own layer that can move, spin and fly away, and the stage can leave a
+**hole** where that part was, filled with the background. That is the lid coming off a
+head, a hole through the body, a word passing through the head, or the speaker shrinking away
+from their own background. Subject layers need a program (`cuts` or `shots`) for the hole; the
+region layer itself also works in inserts mode.
+
+**Clean plate.** The hole shows the footage with the subject removed. Ask for it on the footage:
+
+```json
+"footage": { "talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "clean": true } }
+```
+
+`true` fills every frame from its own background: the matte's soft edge is grown by about 1 %
+of the short side (12 px at 1080 × 1920, `"grow"` to change it), so the hair fringe and a
+phone's sharpening halo go too, and the hole is filled by push-pull from all around it, then
+relaxed so a gradient (sky toward the horizon) runs straight through. Outside the grown hole the
+plate is the footage pixel for pixel, so a hole never leaves a seam or an outline where the
+speaker was. It suits sky, walls, out-of-focus backgrounds and handheld footage (each frame is
+filled from itself, so camera shake and parallax cost nothing); detail does not continue into the
+hole (a branch behind the head comes out as soft green). `{ "image": "empty.jpg" }` shows a
+still of the empty scene in the hole instead, scaled to cover the frame: best for a tripod shot
+where you filmed the empty set. The plates are built in Node once, on worker threads, and cached
+next to the extracted footage frames (about 50–150 ms a 1080 × 1920 frame on one thread); a
+new matte, source, image or `grow` builds them again. `check` warns about frames where the matte
+covers the whole picture, which have no background to fill from.
+
+**Regions** are in footage pixels:
+
+| Region                                                    | What it takes                                                                          |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `"all"`                                                   | the whole subject                                                                      |
+| `{ "above": 0.3 }`, `{ "below": 0.6 }`                    | the subject above or below a level line 0.3 head heights under the top of the head     |
+| `{ "above": { "head": 0.3, "tilt": -8 } }`                | the same line turned 8° anticlockwise; it follows the head from frame to frame         |
+| `{ "above": { "through": [[x1, y1], [x2, y2]] } }`        | above a line through two points                                                        |
+| `{ "path": "M 300 900 L 700 900 … Z", "origin": "head" }` | inside an SVG path; with `origin: "head"` its coordinates start at the top of the head |
+| `{ "mask": url, "x", "y", "width", "height" }`            | where a picture is opaque (blocks; `origin: "head"` as for a path)                     |
+
+A head line counts head heights down from the top of the head the matte measures: 0.3 is about
+the forehead, 0.45 the eyes. The head is averaged over 0.1 s so the line does not jitter.
+
+**In JSON**, the built-in block takes a region at the clip's first frame, keeps those pixels,
+and leaves the hole while the clip is on screen. Placement keys move the piece and turn it about
+the middle of the region, not the frame:
+
+```json
+{
+	"id": "lid",
+	"block": "@visualfries/subject",
+	"from": "blew my lid",
+	"until": "end",
+	"props": { "region": { "above": { "head": 0.32, "tilt": -6 } }, "rim": { "opening": 0.2 } },
+	"keys": [
+		{ "at": 0, "x": 0, "y": 0, "rotation": 0 },
+		{ "at": 0.9, "x": -500, "y": -1500, "rotation": -700, "ease": "power1.in" }
+	]
+}
+```
+
+Props: `region`, `footage`, `freeze` (the moment whose pixels the piece keeps, default
+`"start"`; `false` keeps it live), `hole` (`false`: the speaker stays whole and a copy flies),
+`rim` and `layer` (`"clean"` takes the background instead of the speaker). `check` reports a
+missing matte or clean plate before anything is drawn.
+
+**Rim.** `"rim": true` darkens the cut edge on the speaker that stays (a band of `width` px in
+`color`, both optional). On a line, `{ "opening": 0.2 }` draws the open top of a cartoon head
+instead: an ellipse across the speaker as wide as the cut, 0.2 times as tall, dark `inside` and
+a ring in the speaker's own colour just below the cut.
+
+**In a block**, `<Subject>` is the same layer:
+
+```svelte
+<script>
+	import { Subject, useClip } from 'visualfries/motion';
+	const clip = useClip();
+	const hit = clip.at('kicked');
+	const off = $derived(clip.t >= hit);
+	const k = $derived(Math.max(0, clip.t - hit));
+</script>
+
+<Subject
+	region={{ above: { head: 0.3, tilt: -6 } }}
+	freeze={hit}
+	hole={off && { rim: { opening: 0.2 } }}
+	x={-900 * k}
+	y={-2300 * k + 1800 * k * k}
+	rotation={-760 * k}
+	opacity={off ? 1 : 0}
+/>
+```
+
+It sits exactly on the picture the stage shows (`clip.camera`: the camera window, shot keys and
+morphs included), so effects drawn in footage pixels can ride the camera too. Props: `region`
+(or a function of `{ source, frame, clipFrame }` returning one per frame, e.g. a line from your
+own face tracking), `name`, `layer` (`subject`, `clean`, `plate`),
+`outside` (everything but the region), `freeze`, `hole`, `smooth` (seconds, default 0.1),
+`pivot` (`[x, y]` footage pixels), `place` (`false`: fill the parent box), and the moves `x`, `y`
+(clip pixels), `rotation`, `scale`, `opacity`. While `hole` is on, the stage draws, for the frame
+it shows, the clean plate inside the region under the clips behind the speaker, and the speaker
+without the region over them, so a word behind the speaker shows through the hole. The hole
+follows the live frame; the piece keeps its frozen pixels. In inserts mode there is no stage
+picture: draw `<Footage layer="plate">` and `<Subject layer="clean" region={…}>` yourself.
+
+**Canvas drawing.** Blocks never build footage URLs:
+
+```js
+useFrame(async () => {
+	const pic = await clip.picture('plate'); // or 'subject' (alpha = matte), 'clean'
+	ctx.drawImage(pic.image, 0, 0); // decoded, the frame on screen
+});
+```
+
+`clip.picture(layer, { name, frame, offset })` gives the source frame the cut list shows at a
+clip frame, holds and transition handles included, as a decoded image with its `source`, `frame`
+and size; `clip.shown(name?, frame?)` gives just the source frame. Draw pictures at their own
+size and scale the canvas with CSS: a `drawImage` that scales may resample differently
+depending on what was drawn before, which fails `check --determinism`. The region helpers are
+exported too (`placeRegion`, `drawRegion`, `drawRim`) for blocks that draw their own canvas.
+
+`check` warns when a region holds none of the speaker for half a second or more (a line above
+the head, a path off the body), with the time it starts.
+
 ## Music and beats
 
 A music-driven edit times clips to the beats of a track the way a talking-head edit times them
@@ -775,7 +902,8 @@ Snap warnings are left out while the cut list itself has errors.
 
 ## Built-in blocks and captions
 
-`"block": "@visualfries/captions"` and `"block": "@visualfries/speaker-depth"` ship with
+`"block": "@visualfries/captions"`, `"block": "@visualfries/speaker-depth"` and
+`"block": "@visualfries/subject"` (see [Subject layers](#subject-layers)) ship with
 VisualFries; their `props` replace a hand-written block. In your own blocks, `<Captions>`
 (`import { Captions } from 'visualfries/motion'`) draws word-timed captions with the presets
 `bold`, `karaoke`, `pill`, `punch` and `neon`, and `clip.subject('talk')` returns where the

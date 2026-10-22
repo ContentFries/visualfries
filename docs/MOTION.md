@@ -1,7 +1,8 @@
 # Motion projects
 
 Explainer inserts, lower thirds and title cards written as Svelte components ("blocks"),
-timed by the words of a transcript instead of hand-typed seconds.
+timed by the words of a transcript instead of hand-typed seconds. A project can also describe
+a whole edit, from raw takes to a finished reel: see [Programs](#programs).
 
 ```
 my-video/
@@ -801,6 +802,107 @@ none for the ratio, `all` is used and `clips`/`check` warn once. The figures are
 `null` when the project names none) in `manifest.json` and on every rendered clip. The brand hash
 covers its values and the contents of its font and logo files, not where they are. Re-rendering
 some clips with another brand or style warns about the clips left from before.
+
+## Programs
+
+A program is one project that describes a whole edit: the cut list over the raw takes, how the
+footage is framed (shots), what is drawn over and behind it (clips), the handoffs (transitions),
+captions, sound effects and music. It renders as one video per format, and because every timing
+is a phrase of the transcript, a retake or a re-cut follows without touching anything else. The
+pieces are described above and below; this section is the order to use them in, from a raw take
+to a finished reel. Worked example: [`static/demo/reel`](../static/demo/reel) (a 9:16 reel from
+one 45-second take, also rendered as 16:9).
+
+```
+reel/
+  reel.vf.json          cuts, shots, clips, sfx, music
+  talk.mp4              the raw take (whole, uncut), its matte and its transcript
+  blocks/…              the panel, card, end card and behind-word blocks
+  music/bed.mp3         with bed.beats.json
+  sfx/…                 sound effects
+```
+
+**1. Prepare the take.** Keep each take as one file; the cut list picks the ranges. Phone
+recordings often have a variable frame rate: footage plays fine, but `matte` needs a constant
+one, so make a copy with `ffmpeg -i take.mov -vf fps=30 … talk.mp4` first (rotation is handled).
+Transcribe it into words with times ([transcript formats](#the-project-file)) and correct
+misheard names in the transcript itself (`"Visual FRIESE"` → one word `"VisualFries"`): captions
+show the transcript's words. Make the matte ([Footage and mattes](#footage-and-mattes)) if the
+reel puts anything behind the speaker, and analyse the music once ([Music and
+beats](#music-and-beats)).
+
+**2. Plan.** Read the transcript and write the outline before the JSON: the hook, the sections,
+which phrase each move lands on. A reel holds attention when the frame keeps moving and every
+section changes how the speaker is framed: a word behind the head on the hook's key word, a strip
+or window with a panel where they list or explain, a whip to a full-screen card for the one thing
+worth showing, a punch-in on a claim, an end card on the call to action. Plan one move per spoken
+beat, and say where captions sit and where they make way for a panel that repeats the words.
+
+**3. Cut list.** One cut per kept range, `in` and `out` as phrases of that take (see [Footage
+and mattes](#footage-and-mattes)). Leave a breath at each edge: `"offset": -0.1` on `in`,
+`0.1` on `out` (transcripts often time a word's start a little late). For a sentence said
+several times, `occurrence` picks the try on `in`; `out` is searched from `in`, but a phrase that
+appears again later in the take is still ambiguous, so give `out` an `occurrence` too (`1` is the
+first after `in`). A cut cannot run past the end of its source, so the last cut's `out` offset is
+limited by what the camera recorded after the last word. `visualfries program` prints every cut
+with its source range.
+
+**4. Shots.** Chain shots end to start: give the next shot's `from` the same anchor as the
+previous shot's `until`. A gap of a few frames between them is a `full` shot of its own, and the
+move into it is squeezed into those frames. In `until` a phrase means the end of its last word;
+to end a shot where a phrase starts, write `{ "say": …, "edge": "start" }`. End the last shot
+and the clips that run to the end on the same anchor and offset as the last cut's `out`, then
+check in `program` that they end on the program's last frame: `out` rounds up to the next frame
+while `from` and `until` round to the nearest, so they can end one frame short (add up to
+0.033 s to their offset), and a clip that runs past the program is cut there without a warning.
+Give every shot that holds longer than about two seconds `keys` that keep the camera moving (a
+slow `scale` from 1 to 1.08), and frame a close phone shot with a `y` key when the strip or
+window cuts the mouth off.
+Shot layouts and defaults are under [Footage and mattes](#footage-and-mattes), keys under
+[Keys](#keys).
+
+**5. Clips.** A clip in a slot (`panel`, `card`, `word`) shows while a shot frees that slot and
+rides the slot out: end it when the next shot's move is over, not when the shot ends, or the
+panel slides away empty (`check` warns about frames where the slot is closed). Fade a panel's
+content out just before the shot ends, so it never sits under the captions that come back.
+Captions are a `@visualfries/captions` clip per stretch of speech they cover: put them low on
+the chest (`"y": 0.85` in portrait, below the face of a phone close-up), give them a fixed `size`
+when the project renders several formats (the default scales with the frame width), and leave
+them out where a panel repeats the words. Blocks that render in several formats read
+`clip.format.class` or style `[data-format='landscape']`; a slotted clip's `clip.width` and
+`clip.height` are the frame's, so size its content in CSS (container units or percentages).
+Use the brand's tokens for colours and fonts, and declare the font files: the neutral brand names
+Anton and Inter but loads neither. See [Brand, style and format](#brand-style-and-format).
+
+**6. Transitions and sound.** A `transition` with `"sound"` plays it on the transition's event
+(see the built-ins above). Shots emit events too (`program --json` lists them under `events` with
+their frames) but carry no sound yet: put an `sfx` item on the shot's anchor plus half its move
+(a whip 0.21 s, a strip or window 0.35 s; a punch hits on its first frame). Sound effects from a
+library whose `sounds.json` lists hit offsets land their hit on the moment ([Program
+sound](#program-sound)). Music plays at a steady level under the speech and ends on a bar
+([Music in the program](#music-in-the-program)); its `in` places a downbeat on a visual hit.
+
+**7. Check and look.** `visualfries program` after every edit until it shows no errors; then
+`check --determinism`; then look at stills: every cut, the first, middle and last frame of every
+transition window (`program` prints them), every event, and the first frames of every shot
+move. Ask of each frame: is any text over the face, cut by the frame or covered where it should
+be read, does a slot ever show empty, does the frame stand still for more than two seconds, do
+accents and descenders keep their room. A sheet of about ten moments per `still` call stays
+quick. `still` and `check` draw the project's own size; to look at another format, copy the
+project with another `size`.
+
+**8. Render.** `visualfries render reel.vf.json --output out/`, and `--format 1920x1080` for
+16:9 from the same project. The render reports each segment as drawn or cached, the mix and the
+time; the resolved program is saved beside the video. The cache works per segment (the range
+between two hard cuts): an edit redraws the segments whose content changed. A clip that spans
+several segments (a captions clip over the whole program) puts every one of them in play, and a
+cut that gets longer or shorter moves everything after it, so those segments are drawn again.
+
+**9. Retake.** Point the footage at the new take and its transcript, or change which try a cut
+keeps (`occurrence`), and render again. Cut points, shots, clips, captions, keys, sound effects
+and transitions move with their words, and the music re-snaps to a bar. A phrase the new take no
+longer says fails with the closest spoken ones; numbers in source seconds do not follow, so keep
+cut points as phrases.
 
 ## CLI
 

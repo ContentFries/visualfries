@@ -1,0 +1,394 @@
+{
+ "words": [
+  {
+   "text": "This",
+   "startMs": 750,
+   "endMs": 953
+  },
+  {
+   "text": "whole",
+   "startMs": 1004,
+   "endMs": 1207
+  },
+  {
+   "text": "video",
+   "startMs": 1258,
+   "endMs": 1461
+  },
+  {
+   "text": "was",
+   "startMs": 1512,
+   "endMs": 1715
+  },
+  {
+   "text": "edited",
+   "startMs": 1765,
+   "endMs": 1968
+  },
+  {
+   "text": "by",
+   "startMs": 2019,
+   "endMs": 2222
+  },
+  {
+   "text": "AI,",
+   "startMs": 2273,
+   "endMs": 2476
+  },
+  {
+   "text": "and",
+   "startMs": 2527,
+   "endMs": 2730
+  },
+  {
+   "text": "I",
+   "startMs": 2781,
+   "endMs": 2984
+  },
+  {
+   "text": "used",
+   "startMs": 3035,
+   "endMs": 3238
+  },
+  {
+   "text": "just",
+   "startMs": 3288,
+   "endMs": 3492
+  },
+  {
+   "text": "one",
+   "startMs": 3542,
+   "endMs": 3745
+  },
+  {
+   "text": "prompt.",
+   "startMs": 3796,
+   "endMs": 3999
+  },
+  {
+   "text": "AI",
+   "startMs": 9570,
+   "endMs": 9865
+  },
+  {
+   "text": "cut",
+   "startMs": 9939,
+   "endMs": 10233
+  },
+  {
+   "text": "the",
+   "startMs": 10307,
+   "endMs": 10602
+  },
+  {
+   "text": "silences,",
+   "startMs": 10676,
+   "endMs": 10971
+  },
+  {
+   "text": "edited",
+   "startMs": 11044,
+   "endMs": 11339
+  },
+  {
+   "text": "this",
+   "startMs": 11413,
+   "endMs": 11708
+  },
+  {
+   "text": "video.",
+   "startMs": 11781,
+   "endMs": 12076
+  },
+  {
+   "text": "AI",
+   "startMs": 14550,
+   "endMs": 14838
+  },
+  {
+   "text": "cut",
+   "startMs": 14910,
+   "endMs": 15198
+  },
+  {
+   "text": "the",
+   "startMs": 15270,
+   "endMs": 15558
+  },
+  {
+   "text": "silences.",
+   "startMs": 15630,
+   "endMs": 15918
+  },
+  {
+   "text": "AI",
+   "startMs": 17970,
+   "endMs": 18222
+  },
+  {
+   "text": "cut",
+   "startMs": 18285,
+   "endMs": 18537
+  },
+  {
+   "text": "the",
+   "startMs": 18600,
+   "endMs": 18852
+  },
+  {
+   "text": "silences,",
+   "startMs": 18915,
+   "endMs": 19167
+  },
+  {
+   "text": "removed",
+   "startMs": 19650,
+   "endMs": 20130
+  },
+  {
+   "text": "duplicate",
+   "startMs": 20250,
+   "endMs": 20730
+  },
+  {
+   "text": "takes,",
+   "startMs": 20850,
+   "endMs": 21330
+  },
+  {
+   "text": "added",
+   "startMs": 21450,
+   "endMs": 21930
+  },
+  {
+   "text": "different",
+   "startMs": 22050,
+   "endMs": 22530
+  },
+  {
+   "text": "effects.",
+   "startMs": 22650,
+   "endMs": 23130
+  },
+  {
+   "text": "Basically",
+   "startMs": 23550,
+   "endMs": 23769
+  },
+  {
+   "text": "everything",
+   "startMs": 23824,
+   "endMs": 24044
+  },
+  {
+   "text": "you",
+   "startMs": 24099,
+   "endMs": 24318
+  },
+  {
+   "text": "see",
+   "startMs": 24373,
+   "endMs": 24592
+  },
+  {
+   "text": "in",
+   "startMs": 24647,
+   "endMs": 24867
+  },
+  {
+   "text": "this",
+   "startMs": 24921,
+   "endMs": 25141
+  },
+  {
+   "text": "video,",
+   "startMs": 25196,
+   "endMs": 25415
+  },
+  {
+   "text": "I",
+   "startMs": 25710,
+   "endMs": 25933
+  },
+  {
+   "text": "just",
+   "startMs": 25988,
+   "endMs": 26211
+  },
+  {
+   "text": "shot",
+   "startMs": 26266,
+   "endMs": 26489
+  },
+  {
+   "text": "it",
+   "startMs": 26545,
+   "endMs": 26767
+  },
+  {
+   "text": "on",
+   "startMs": 26823,
+   "endMs": 27045
+  },
+  {
+   "text": "a",
+   "startMs": 27101,
+   "endMs": 27323
+  },
+  {
+   "text": "walk",
+   "startMs": 27379,
+   "endMs": 27602
+  },
+  {
+   "text": "around",
+   "startMs": 27657,
+   "endMs": 27880
+  },
+  {
+   "text": "the",
+   "startMs": 27935,
+   "endMs": 28158
+  },
+  {
+   "text": "block,",
+   "startMs": 28214,
+   "endMs": 28436
+  },
+  {
+   "text": "handheld.",
+   "startMs": 28492,
+   "endMs": 28714
+  },
+  {
+   "text": "What",
+   "startMs": 35730,
+   "endMs": 36022
+  },
+  {
+   "text": "I",
+   "startMs": 36095,
+   "endMs": 36388
+  },
+  {
+   "text": "used",
+   "startMs": 36461,
+   "endMs": 36753
+  },
+  {
+   "text": "is",
+   "startMs": 36826,
+   "endMs": 37119
+  },
+  {
+   "text": "the",
+   "startMs": 37192,
+   "endMs": 37484
+  },
+  {
+   "text": "open-source",
+   "startMs": 37557,
+   "endMs": 37850
+  },
+  {
+   "text": "library",
+   "startMs": 37923,
+   "endMs": 38215
+  },
+  {
+   "text": "VisualFries",
+   "startMs": 38288,
+   "endMs": 38581
+  },
+  {
+   "text": "and",
+   "startMs": 38654,
+   "endMs": 38946
+  },
+  {
+   "text": "Opus",
+   "startMs": 39019,
+   "endMs": 39311
+  },
+  {
+   "text": "5.5.",
+   "startMs": 39385,
+   "endMs": 39677
+  },
+  {
+   "text": "Let",
+   "startMs": 40290,
+   "endMs": 40527
+  },
+  {
+   "text": "me",
+   "startMs": 40586,
+   "endMs": 40823
+  },
+  {
+   "text": "know",
+   "startMs": 40882,
+   "endMs": 41119
+  },
+  {
+   "text": "what",
+   "startMs": 41178,
+   "endMs": 41415
+  },
+  {
+   "text": "you",
+   "startMs": 41474,
+   "endMs": 41711
+  },
+  {
+   "text": "think,",
+   "startMs": 41770,
+   "endMs": 42007
+  },
+  {
+   "text": "and",
+   "startMs": 42066,
+   "endMs": 42303
+  },
+  {
+   "text": "follow",
+   "startMs": 42362,
+   "endMs": 42599
+  },
+  {
+   "text": "my",
+   "startMs": 42658,
+   "endMs": 42895
+  },
+  {
+   "text": "channel",
+   "startMs": 42954,
+   "endMs": 43191
+  },
+  {
+   "text": "for",
+   "startMs": 43250,
+   "endMs": 43487
+  },
+  {
+   "text": "more",
+   "startMs": 43546,
+   "endMs": 43783
+  },
+  {
+   "text": "tips",
+   "startMs": 43842,
+   "endMs": 44079
+  },
+  {
+   "text": "like",
+   "startMs": 44138,
+   "endMs": 44375
+  },
+  {
+   "text": "this.",
+   "startMs": 44434,
+   "endMs": 44671
+  }
+ ]
+}

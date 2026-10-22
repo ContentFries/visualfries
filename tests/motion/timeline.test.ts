@@ -50,11 +50,10 @@ describe('timeline schema: backward compatibility', () => {
 
 	it('keeps projects without cuts or shots in inserts mode', () => {
 		for (const file of projectFiles()) {
-			if (file.includes('fixtures/program')) continue;
-			const project = parseMotionProject(
-				JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8'))
-			);
-			expect(isProgramProject(project), file).toBe(false);
+			const json = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8'));
+			// Projects with a cut list or shots describe whole programs on purpose.
+			if (json.cuts !== undefined || json.shots !== undefined) continue;
+			expect(isProgramProject(parseMotionProject(json)), file).toBe(false);
 		}
 	});
 });

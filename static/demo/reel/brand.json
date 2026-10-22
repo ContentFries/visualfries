@@ -1,0 +1,17 @@
+{
+	"name": "Example",
+	"colors": {
+		"primary": "#f43f5e",
+		"accent": "#fbc42d",
+		"background": "#08090c",
+		"surface": "#12141b",
+		"text": "#ffffff",
+		"muted": "#c9ced8"
+	},
+	"fonts": {
+		"heading": { "family": "Anton", "src": "fonts/Anton-Regular.ttf" },
+		"body": { "family": "Inter", "src": "fonts/Inter.ttf", "weight": "100 900" },
+		"mono": { "family": "JetBrains Mono", "src": "fonts/JetBrainsMono.ttf", "weight": "100 800" }
+	},
+	"radius": 24
+}

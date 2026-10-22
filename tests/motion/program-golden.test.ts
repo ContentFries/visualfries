@@ -98,7 +98,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('programs without subject layers', (
 		const frames = await captureProgramFrames(loaded, GOLDEN_FRAMES);
 		const hashes = Object.fromEntries(GOLDEN_FRAMES.map((f) => [f, sha1(frames.get(f)!)]));
 		if (process.env.VF_WRITE_GOLDEN) {
-			await fs.writeFile(GOLDEN, JSON.stringify({ toolchain: here, hashes }, null, 2) + '\n');
+			await fs.writeFile(GOLDEN, JSON.stringify({ toolchain: here, hashes }, null, '\t') + '\n');
 			return;
 		}
 		const golden = JSON.parse(await fs.readFile(GOLDEN, 'utf8'));

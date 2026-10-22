@@ -567,7 +567,17 @@ function checkBehind(clips, cuts, shots, project, diagnostics) {
     for (const shot of shots) {
         if (!shotModule(shot.shot)?.needsMatte)
             continue;
-        const names = new Set(shot.source ? [shot.source.name] : cuts.filter((c) => overlaps(c, shot)).map((c) => c.source));
+        // A cut transition at either edge of the shot (or inside it) shows the cut before it
+        // under the shot's layout too.
+        const handedOver = (c) => project.cuts?.[c.index]?.transition !== undefined &&
+            c.startFrame >= shot.startFrame &&
+            c.startFrame <= endOf(shot);
+        const names = new Set(shot.source
+            ? [shot.source.name]
+            : cuts.flatMap((c, i) => [
+                ...(overlaps(c, shot) ? [c.source] : []),
+                ...(handedOver(c) && cuts[i - 1] ? [cuts[i - 1].source, c.source] : [])
+            ]));
         const bare = [...names].filter((n) => !project.footage?.[n]?.matte);
         if (bare.length || !names.size)
             diagnostics.push({

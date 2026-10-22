@@ -817,6 +817,31 @@ describe('shots in the program', () => {
 		]);
 	});
 
+	it('needs a matte on footage a cut transition hands over to the behind shot', () => {
+		const json = structuredClone(PROJECT) as Record<string, unknown>;
+		Object.assign(json, {
+			footage: { ...PROJECT.footage, bare: { src: 'bare.mp4' } },
+			cuts: [
+				{ source: 'bare', in: 0, out: 1 },
+				{ source: 'talk', in: 1, out: 5, transition: 'push' }
+			],
+			shots: [{ id: 'word', shot: 'behind', from: 1, until: 2 }],
+			clips: []
+		});
+		const inputs = {
+			...INPUTS,
+			sources: { ...INPUTS.sources, bare: INPUTS.sources!.talk }
+		};
+		const p = resolveProgram(parseMotionProject(json), inputs);
+		expect(p.diagnostics).toContainEqual(
+			expect.objectContaining({
+				level: 'error',
+				item: 'word',
+				message: 'The "behind" shot needs a matte, but footage "bare" has none (visualfries matte).'
+			})
+		);
+	});
+
 	it('needs a matte for the behind shot', () => {
 		const json = structuredClone(PROJECT) as typeof PROJECT & { shots: object[] };
 		json.footage.talk.matte = undefined as unknown as string;

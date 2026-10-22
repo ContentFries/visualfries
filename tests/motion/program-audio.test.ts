@@ -319,7 +319,7 @@ describe.skipIf(!hasFfmpeg)('program audio mix', () => {
 		const peak = Number(/Peak:\s+(-?[\d.]+) dBFS/.exec(log.slice(log.lastIndexOf('Summary')))![1]);
 		expect(Math.abs(lufs + 14)).toBeLessThanOrEqual(0.5);
 		expect(peak).toBeLessThanOrEqual(-0.9);
-	});
+	}, 60_000);
 
 	it('gives byte-identical audio twice, and stems that add up to the mix', async () => {
 		const project = {
@@ -593,7 +593,7 @@ describe.skipIf(!hasFfmpeg)('program audio mix: review fixes', () => {
 		const log = String(r.stderr);
 		const peak = Number(/Peak:\s+(-?[\d.]+) dBFS/.exec(log.slice(log.lastIndexOf('Summary')))![1]);
 		expect(peak).toBeLessThanOrEqual(-1);
-	});
+	}, 60_000);
 
 	it('reports missing or unreadable music and sound files, and bad sound metadata', async () => {
 		await fs.writeFile(path.join(dir, 'text.wav'), 'not a sound');

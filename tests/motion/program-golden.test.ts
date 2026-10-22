@@ -54,7 +54,16 @@ async function goldenProject(dir: string): Promise<string> {
 				{ source: 'talk', in: 1.5, out: 2.9, transition: { type: 'push', duration: 0.3 } }
 			],
 			shots: [
-				{ id: 'open', shot: 'full', from: 0, until: 0.8, keys: [{ at: 0, scale: 1 }, { at: 0.8, scale: 1.1 }] },
+				{
+					id: 'open',
+					shot: 'full',
+					from: 0,
+					until: 0.8,
+					keys: [
+						{ at: 0, scale: 1 },
+						{ at: 0.8, scale: 1.1 }
+					]
+				},
 				{ id: 'room', shot: 'behind', from: 0.8, until: 1.2 },
 				{ id: 'close', shot: 'punch', from: 1.2, until: 2.6 }
 			],

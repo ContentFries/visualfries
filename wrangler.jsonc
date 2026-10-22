@@ -11,5 +11,8 @@
 		// /docs/install -> build/docs/install.html, matching trailingSlash = 'never'
 		"html_handling": "drop-trailing-slash"
 	},
-	"routes": [{ "pattern": "visualfries.com", "custom_domain": true }]
+	"routes": [
+		{ "pattern": "visualfries.com", "custom_domain": true },
+		{ "pattern": "www.visualfries.com", "custom_domain": true }
+	]
 }

@@ -3,7 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
-import { commandMatte, createSubjectMatte, falBiRefNet, rvmMatte } from '../../src/lib/motion/matte.js';
+import {
+	commandMatte,
+	createSubjectMatte,
+	falBiRefNet,
+	rvmMatte
+} from '../../src/lib/motion/matte.js';
 import { probeVideo } from '../../src/lib/motion/node.js';
 
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -30,18 +35,237 @@ describe('rvmMatte', () => {
 		await expect(fs.access(path.resolve('scripts/rvm-matte.py'))).resolves.toBeUndefined();
 	});
 
-	// The real model run needs uv + network for torch on first use; opt in with VF_TEST_RVM=1.
-	it.skipIf(!hasFfmpeg || !process.env.VF_TEST_RVM)('mattes a short clip locally', async () => {
-		const dir = await tempDir();
-		const input = path.join(dir, 'talk.mp4');
-		ffmpeg(['-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=25:duration=1', '-pix_fmt', 'yuv420p', input]);
-		const output = path.join(dir, 'matte.mp4');
-		const result = await createSubjectMatte(input, { output, provider: rvmMatte({ threads: 2 }) });
-		expect(result.frames).toBe(25);
-		const out = await probeVideo(output);
-		expect([out.width, out.height, out.frames]).toEqual([320, 180, 25]);
-		await fs.rm(dir, { recursive: true, force: true });
-	}, 600_000);
+	it.skipIf(!hasFfmpeg || process.platform === 'win32')(
+		'`visualfries matte --provider rvm` runs the bundled script through uv',
+		async () => {
+			const dir = await tempDir();
+			const input = path.join(dir, 'talk.mp4');
+			ffmpeg([
+				'-f',
+				'lavfi',
+				'-i',
+				'testsrc2=size=160x90:rate=25:duration=1',
+				'-pix_fmt',
+				'yuv420p',
+				input
+			]);
+			// A stand-in `uv` on PATH: logs its arguments and writes a grey matte of the piece.
+			const bin = path.join(dir, 'bin');
+			await fs.mkdir(bin);
+			await fs.writeFile(
+				path.join(bin, 'uv'),
+				[
+					'#!/bin/sh',
+					'for a; do printf \'%s\\n\' "$a"; done >> "$VF_FAKE_UV_LOG"',
+					'shift $(($# - 3))',
+					'exec ffmpeg -y -loglevel error -i "$1" -vf format=gray -pix_fmt yuv420p "$2"',
+					''
+				].join('\n'),
+				{ mode: 0o755 }
+			);
+			const log = path.join(dir, 'uv.log');
+			const output = path.join(dir, 'talk.matte.mp4');
+			const r = spawnSync(
+				process.execPath,
+				[
+					path.resolve('bin/visualfries.js'),
+					'matte',
+					input,
+					'--output',
+					output,
+					'--provider',
+					'rvm',
+					'--threads',
+					'3'
+				],
+				{
+					encoding: 'utf8',
+					env: {
+						...process.env,
+						PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+						VF_FAKE_UV_LOG: log
+					}
+				}
+			);
+			expect(r.status, r.stderr).toBe(0);
+			expect(JSON.parse(r.stdout)).toMatchObject({
+				frames: 25,
+				provider: 'rvm (local CPU, 3 threads)'
+			});
+			const args = (await fs.readFile(log, 'utf8')).trim().split('\n');
+			const script = args[args.indexOf('python') + 1];
+			expect(args.slice(0, 2)).toEqual(['run', '-q']);
+			expect(args).toEqual(expect.arrayContaining(['--with', 'torch', 'torchvision', 'numpy']));
+			expect(path.basename(script)).toBe('rvm-matte.py');
+			await expect(fs.access(script)).resolves.toBeUndefined();
+			expect(args.at(-1)).toBe('3');
+			await fs.rm(dir, { recursive: true, force: true });
+		},
+		60_000
+	);
+
+	// Slow: the real model run needs uv, and network on first use for torch, the model code and
+	// the weights (a few hundred MB, cached afterwards). Opt in with VF_TEST_RVM=1.
+	it.skipIf(!hasFfmpeg || !process.env.VF_TEST_RVM)(
+		'mattes a short clip locally',
+		async () => {
+			const dir = await tempDir();
+			const input = path.join(dir, 'talk.mp4');
+			ffmpeg([
+				'-f',
+				'lavfi',
+				'-i',
+				'testsrc2=size=320x180:rate=25:duration=1',
+				'-pix_fmt',
+				'yuv420p',
+				input
+			]);
+			const output = path.join(dir, 'matte.mp4');
+			const result = await createSubjectMatte(input, {
+				output,
+				provider: rvmMatte({ threads: 2 })
+			});
+			expect(result.frames).toBe(25);
+			const out = await probeVideo(output);
+			expect([out.width, out.height, out.frames]).toEqual([320, 180, 25]);
+			await fs.rm(dir, { recursive: true, force: true });
+		},
+		600_000
+	);
+});
+
+const python = ['python3', 'python'].find((cmd) => spawnSync(cmd, ['--version']).status === 0);
+
+/**
+ * Runs scripts/rvm-matte.py's helpers against stand-in torch and torchvision packages, so the
+ * torchvision compatibility and the weight checks are tested without installing torch.
+ */
+async function rvmScript(torchvision: 'current' | 'old' | 'missing', body: string) {
+	const dir = await tempDir();
+	const write = async (file: string, text: string) => {
+		await fs.mkdir(path.dirname(path.join(dir, file)), { recursive: true });
+		await fs.writeFile(path.join(dir, file), text);
+	};
+	await write('stubs/torch/__init__.py', 'from . import hub\n');
+	await write(
+		'stubs/torch/hub.py',
+		[
+			'import os',
+			'calls = []',
+			'def load_state_dict_from_url(url, **kwargs): return {}',
+			'def get_dir(): return os.environ["VF_STUB_HUB"]',
+			'def download_url_to_file(url, dst, hash_prefix=None, progress=True):',
+			'    calls.append((url, dst, hash_prefix))',
+			'    open(dst, "wb").write(b"weights")',
+			''
+		].join('\n')
+	);
+	if (torchvision !== 'missing') {
+		await write('stubs/torchvision/__init__.py', '');
+		await write('stubs/torchvision/models/__init__.py', '');
+		if (torchvision === 'old')
+			await write(
+				'stubs/torchvision/models/utils.py',
+				'def load_state_dict_from_url(url): return "old"\n'
+			);
+	}
+	await write(
+		'probe.py',
+		[
+			'import importlib.util, json, sys',
+			'sys.path.insert(0, sys.argv[1])',
+			'spec = importlib.util.spec_from_file_location("rvm_matte", sys.argv[2])',
+			'rvm = importlib.util.module_from_spec(spec)',
+			'spec.loader.exec_module(rvm)',
+			'loaded = sorted(m for m in ("torch", "numpy") if m in sys.modules)',
+			'import torch',
+			body,
+			''
+		].join('\n')
+	);
+	const r = spawnSync(
+		python!,
+		[path.join(dir, 'probe.py'), path.join(dir, 'stubs'), path.resolve('scripts/rvm-matte.py')],
+		{
+			encoding: 'utf8',
+			env: { ...process.env, VF_STUB_HUB: path.join(dir, 'hub'), PYTHONDONTWRITEBYTECODE: '1' }
+		}
+	);
+	await fs.rm(dir, { recursive: true, force: true });
+	return r;
+}
+
+describe.skipIf(!python)('scripts/rvm-matte.py', () => {
+	it('adds torchvision.models.utils when torchvision no longer has it', async () => {
+		const r = await rvmScript(
+			'current',
+			[
+				'added = rvm.install_torchvision_compat(torch)',
+				'from torchvision.models.utils import load_state_dict_from_url',
+				'import torchvision.models',
+				'print(json.dumps({"loaded": loaded, "added": added,',
+				'  "same": load_state_dict_from_url is torch.hub.load_state_dict_from_url,',
+				'  "attr": torchvision.models.utils.load_state_dict_from_url is torch.hub.load_state_dict_from_url}))'
+			].join('\n')
+		);
+		expect(r.status, r.stderr).toBe(0);
+		// Importing the script loads neither torch nor numpy; only main() does.
+		expect(JSON.parse(r.stdout)).toEqual({ loaded: [], added: true, same: true, attr: true });
+	});
+
+	it('leaves a torchvision that still has the module alone', async () => {
+		const r = await rvmScript(
+			'old',
+			[
+				'added = rvm.install_torchvision_compat(torch)',
+				'from torchvision.models.utils import load_state_dict_from_url',
+				'print(json.dumps([added, load_state_dict_from_url("x")]))'
+			].join('\n')
+		);
+		expect(r.status, r.stderr).toBe(0);
+		expect(JSON.parse(r.stdout)).toEqual([false, 'old']);
+	});
+
+	it('does not hide a missing torchvision', async () => {
+		const r = await rvmScript(
+			'missing',
+			[
+				'try:',
+				'    rvm.install_torchvision_compat(torch)',
+				'except ModuleNotFoundError as e:',
+				'    print(e.name)'
+			].join('\n')
+		);
+		expect(r.stdout.trim()).toBe('torchvision');
+	});
+
+	it('pins the model code to v1.0.0 and downloads the official weights verified', async () => {
+		const r = await rvmScript(
+			'current',
+			[
+				'import os',
+				'path = rvm.fetch_weights(torch)',
+				'try:',
+				'    rvm.fetch_weights(torch)',
+				'    again = "accepted"',
+				'except SystemExit as e:',
+				'    again = str(e)',
+				'print(json.dumps({"repo": rvm.HUB_REPO, "calls": torch.hub.calls, "again": again,',
+				'  "path": os.path.relpath(path, os.environ["VF_STUB_HUB"])}))'
+			].join('\n')
+		);
+		expect(r.status, r.stderr).toBe(0);
+		const out = JSON.parse(r.stdout);
+		const url =
+			'https://github.com/PeterL1n/RobustVideoMatting/releases/download/v1.0.0/rvm_mobilenetv3.pth';
+		const sha = '3c7c1d92033f7c38d6577c481d13a195d7d80a159b960f4f3119ac7b534cf4f8';
+		expect(out.repo).toBe('PeterL1n/RobustVideoMatting:v1.0.0');
+		expect(out.path).toBe(path.join('checkpoints', 'rvm_mobilenetv3.pth'));
+		// Downloaded from the GitHub release with its SHA-256 checked before it is kept.
+		expect(out.calls).toEqual([[url, expect.stringContaining('rvm_mobilenetv3.pth'), sha]]);
+		// A cached file that is not the release file (here the stand-in's bytes) is refused.
+		expect(out.again).toMatch(/SHA-256 mismatch.*Delete it/);
+	});
 });
 
 describe('commandMatte', () => {

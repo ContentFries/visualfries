@@ -142,8 +142,10 @@ function bundledScript(name) {
 }
 /**
  * Local matte with RobustVideoMatting (mobilenetv3) on the CPU: no API key, no account, temporally
- * stable. Runs the bundled `scripts/rvm-matte.py` through `uv`, which brings torch, torchvision and
- * numpy on first use (CPU wheels); the model is fetched once by torch.hub. Needs `uv` and `ffmpeg`.
+ * stable. Runs the bundled `scripts/rvm-matte.py` through `uv`, which brings Python, torch,
+ * torchvision and numpy on first use (current CPU wheels); the model code (v1.0.0 tag) and the
+ * weights (its GitHub release, SHA-256 checked) are fetched once into torch.hub's cache.
+ * Needs `uv` and `ffmpeg`, and network on the first run.
  * About 3 fps at 1080p and 16 fps at 540p on a 12-core server. RVM is recurrent, so long chunks keep
  * it stable; 480 frames per chunk by default.
  */

@@ -912,7 +912,9 @@ project with another `size`.
 time; the resolved program is saved beside the video. The cache works per segment (the range
 between two hard cuts): an edit redraws the segments whose content changed. A clip that spans
 several segments (a captions clip over the whole program) puts every one of them in play, and a
-cut that gets longer or shorter moves everything after it, so those segments are drawn again.
+cut that gets longer or shorter moves everything after it, so those segments are drawn again. To
+finish the edit in an editor instead, `--export inserts` renders each clip as its own file to lay over
+the rough cut (see [Inserts from a program](#inserts-from-a-program)).
 
 **9. Retake.** Point the footage at the new take and its transcript, or change which try a cut
 keeps (`occurrence`), and render again. Cut points, shots, clips, captions, keys, sound effects

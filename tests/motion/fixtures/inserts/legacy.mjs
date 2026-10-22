@@ -87,3 +87,57 @@ export async function renderLegacy(node, root, fixture, out) {
 	}
 	return result;
 }
+
+/** Every project file under `root` without "cuts" or "shots", repository-relative and sorted. */
+export async function legacyProjects(root) {
+	const skip = new Set(['node_modules', 'dist', '.git', '.svelte-kit', '.visualfries']);
+	const walk = async (dir) =>
+		(await fs.readdir(dir, { withFileTypes: true })).flatMap((e) =>
+			skip.has(e.name) ? [] : [[dir, e]]
+		);
+	const found = [];
+	const queue = [root];
+	while (queue.length) {
+		for (const [dir, e] of await walk(queue.pop())) {
+			const abs = path.join(dir, e.name);
+			if (e.isDirectory()) queue.push(abs);
+			else if (e.name.endsWith('.vf.json')) {
+				const json = JSON.parse(await fs.readFile(abs, 'utf8'));
+				if (!json.cuts && !json.shots) found.push(path.relative(root, abs));
+			}
+		}
+	}
+	return found.sort();
+}
+
+/**
+ * What the per-clip render hands on for every clip of every legacy project: the clip data the
+ * page loads (footage frames aside, which the render attaches later), the project diagnostics,
+ * and the ffmpeg arguments `encode(loaded, clip)` adds to the encode (sound, holdout). Paths
+ * under `root` read `<root>`.
+ */
+export async function legacyStageData(node, root, files, encode) {
+	const out = {};
+	const strip = (value) => JSON.parse(JSON.stringify(value).split(root).join('<root>'));
+	for (const rel of files) {
+		try {
+			const loaded = await node.loadMotionProject(path.join(root, rel));
+			const args = {};
+			for (const clip of loaded.resolved.clips) {
+				try {
+					args[clip.id] = encode(loaded, clip);
+				} catch (error) {
+					args[clip.id] = { error: error.message };
+				}
+			}
+			out[rel] = strip({
+				diagnostics: loaded.resolved.diagnostics,
+				clips: loaded.resolved.clips,
+				encode: args
+			});
+		} catch (error) {
+			out[rel] = strip({ error: error.message });
+		}
+	}
+	return out;
+}

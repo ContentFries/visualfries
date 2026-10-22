@@ -12,7 +12,7 @@ A program is one project that describes a whole edit:
 - the handoffs (transitions);
 - captions, sound effects and music.
 
-It renders as one video per format. Every timing is a phrase of the transcript, so a retake or a re-cut follows without touching anything else.
+It renders as one video per format. Write the timings as phrases of the transcript: then a retake or a re-cut follows without touching anything else. Anchors in seconds or frames stay where they are, and beat anchors stay on their beat.
 
 A project becomes a program as soon as it has `cuts` or `shots`. Without them it stays a set of clips that render one by one ([CLI](/docs/cli)), exactly as before.
 

@@ -36,6 +36,7 @@ In a program, `check` first lists the program's warnings and errors, mixes the s
 
 ```bash
 npx visualfries still project.vf.json --clip <id> [--at <moment>]... [--columns <n>] --output sheet.png
+npx visualfries still program.vf.json [--clip <id>] [--at <moment>]... [--columns <n>] --output sheet.png   # a program
 ```
 
 Without `--at` it renders frame 0, frame 10, each cue plus 0.6 s and the last frame as one labelled contact sheet. With one `--at` it writes a single frame. Moments use the [clip moment grammar](/docs/clip-api): `extra`, `extra.end+0.3`, `2.5s`, `f120`, `mid`, `end`. In a program, `still` draws the whole program (footage and every clip on screen), `--clip` is optional and `--at` takes program moments (`2.5s`, `f120`, `end`); with `--clip`, the moments are that clip's.

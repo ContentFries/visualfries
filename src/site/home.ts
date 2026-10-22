@@ -124,16 +124,29 @@ export function initHome(root: HTMLElement): () => void {
 	const tl = $('#tl');
 	if (reel && tl) {
 		let praf = 0;
-		const draw = () => {
+		const inner = $('.tl-in', tl);
+		// Set the playhead; where the timeline scrolls sideways (narrow screens), keep it in view.
+		const set = () => {
 			const d = reel.duration || 0;
-			tl.style.setProperty('--p', d ? (reel.currentTime / d).toFixed(4) : '0');
+			const p = d ? reel.currentTime / d : 0;
+			tl.style.setProperty('--p', p.toFixed(4));
+			if (inner && tl.scrollWidth > tl.clientWidth + 1) {
+				const lab = parseFloat(getComputedStyle(tl).getPropertyValue('--lab')) || 0;
+				const left = inner.getBoundingClientRect().left - tl.getBoundingClientRect().left + tl.scrollLeft;
+				const x = left + lab + (inner.offsetWidth - lab) * p;
+				const view = tl.clientWidth;
+				if (x < tl.scrollLeft + 40 || x > tl.scrollLeft + view - 40) tl.scrollLeft = x - view / 2;
+			}
+		};
+		const draw = () => {
+			set();
 			praf = reel.paused ? 0 : requestAnimationFrame(draw);
 		};
 		on(reel, 'play', () => {
 			if (!praf) praf = requestAnimationFrame(draw);
 		});
-		on(reel, 'seeked', draw);
-		on(reel, 'pause', draw);
+		on(reel, 'seeked', set);
+		on(reel, 'pause', set);
 		cleanups.push(() => cancelAnimationFrame(praf));
 	}
 

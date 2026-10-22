@@ -4,7 +4,7 @@ description: A program render mixes its own sound. Speech comes from the cut lis
 updated: 2026-10-22
 ---
 
-A [program](/docs/programs) render mixes its own sound. The mix depends only on the program: never on segments, the cache or transitions. The same project gives the same samples on every render.
+A [program](/docs/programs) render mixes its own sound. The mix depends only on the program: never on segments, the cache or how a transition looks (a transition's `sound` is an effect like any other). The same project gives the same samples on every render.
 
 ```json
 "footage": { "talk": { "src": "talk.mp4", "audio": "talk.mic.wav" } },

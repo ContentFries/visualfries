@@ -155,6 +155,10 @@ export async function checkProgram(loaded, opts = {}) {
         return results;
     }
     const bundle = await bundleMotionProject(loaded, program.clips);
+    // Over the whole program: a crop across a hard cut is one crop, reported in the segment it
+    // starts in.
+    const crops = headCropWarnings(segmentStage(program, wholeProgram(program), bundle.footage, bundle.brand));
+    const within = (s, f) => f >= s.startFrame && f < s.startFrame + s.frames;
     const browser = await launch();
     /** Hash of every sampled frame on its segment's page, by segment. */
     const sampled = new Map();
@@ -169,7 +173,7 @@ export async function checkProgram(loaded, opts = {}) {
                 const found = await page.check(list);
                 result.errors.push(...found.errors);
                 result.warnings.push(...found.warnings);
-                result.warnings.push(...headCropWarnings(page.segment));
+                result.warnings.push(...crops.filter((w) => within(segment, w.frame)));
                 if (!opts.determinism || found.errors.length)
                     continue;
                 const sample = determinismSample(program, segment, list);
@@ -210,8 +214,8 @@ export async function checkProgram(loaded, opts = {}) {
     return results;
 }
 /**
- * Warnings for every stretch of a segment where a shot's camera window cuts off the top of the
- * speaker's head (see `headCrops`), each at its first frame.
+ * Warnings for every stretch where a shot's camera window cuts the speaker's head (see
+ * `headCrops`), each at its first frame.
  */
 export function headCropWarnings(segment) {
     return headCrops(segment, segment).map((crop) => ({

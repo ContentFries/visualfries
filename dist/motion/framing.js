@@ -224,6 +224,9 @@ export function headCropMessage(crop, shot, fps) {
         tries.push('a lower "scale" key');
     if (keyed('y'))
         tries.push(crop.edge === 'top' ? 'a "y" key further down (a larger number)' : 'a "y" key closer to 0');
+    // Nothing left on this shot: the footage itself has no more room around the head.
+    if (!tries.length)
+        tries.push('framing the speaker in a "window" or a "strip", where the camera can back off; the footage has no more room around the head in this shot');
     const share = crop.share === null ? '' : `, ${Math.round(crop.share * 100)} % of the head`;
     const what = crop.edge === 'face'
         ? `cuts the speaker's face off at the bottom (up to ${crop.pixels} px of the head below the window${share})`

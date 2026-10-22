@@ -412,6 +412,21 @@ describe('head crop check', () => {
 		).toEqual([]);
 	});
 
+	it('always suggests something, even where the shot has nothing left to change', () => {
+		const touching = { ...SELFIE, headY: 0, headHeight: 0.4 };
+		const shot = span('full', { params: { headroom: 0.06 } });
+		const [crop] = headCrops(
+			data(
+				[shot],
+				Array.from({ length: 60 }, () => touching)
+			)
+		);
+		expect(crop).toMatchObject({ edge: 'top', pixels: 0 });
+		expect(headCropMessage(crop, shot, 30)).toContain(
+			'try: framing the speaker in a "window" or a "strip", where the camera can back off'
+		);
+	});
+
 	it('ignores a crop shorter than a few frames', () => {
 		const near = { ...SELFIE, headY: 0.3, headHeight: 0.2 };
 		const shot = span('strip', { params: { size: 0.25 }, frames: 4 });

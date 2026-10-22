@@ -252,6 +252,21 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('subject layers on the stage', () =>
 		expect(warnings.some((m) => m.includes('"lid"'))).toBe(false);
 	}, 600_000);
 
+	it('draws from the footage on screen, whatever other footage lacks', async () => {
+		await fs.writeFile(path.join(dir, 'Gag.svelte'), GAG);
+		// "broll" has no matte; the gag only runs while "talk" is on screen.
+		const loaded = await write(dir, 'broll.vf.json', {
+			footage: { ...footage, broll: { src: 'talk.mp4' } },
+			cuts: [
+				{ source: 'talk', in: 0, out: 1.5 },
+				{ source: 'broll', in: 0, out: 1 }
+			],
+			clips: [{ id: 'gag', block: 'Gag.svelte', from: 0.5, until: 1.4 }]
+		});
+		const results = await checkProgram(loaded);
+		expect(results.flatMap((r) => r.errors.map((e) => e.message))).toEqual([]);
+	}, 300_000);
+
 	it('tells what is missing: a matte, a clean plate', async () => {
 		const clip = {
 			id: 'lid',

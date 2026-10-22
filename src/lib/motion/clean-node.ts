@@ -146,6 +146,11 @@ export async function buildCleanRange(
 		);
 		procs.push(encoder);
 		const encoded = exited(encoder, 'Clean plate encoder');
+		// An encoder that dies mid-range fails the build at once: its exit is watched from the
+		// start, a broken pipe is not an uncaught error, and a write waiting to drain gives up.
+		let stopped: unknown = null;
+		encoded.catch((error) => (stopped ??= error));
+		encoder.stdin!.on('error', (error) => (stopped ??= error));
 		const pictures = frames(picture, w * h * 3);
 		const mattes = frames(matte, w * h);
 		const full: number[] = [];
@@ -154,10 +159,17 @@ export async function buildCleanRange(
 		let n = 0;
 		const write = async (job: Promise<{ rgb: Uint8Array; full: boolean }>) => {
 			const done = await job;
-			if (done.full) full.push(range.first + n);
+			if (stopped) throw stopped;
+			// With a picture of the empty scene, a frame the matte covers still gets a plate.
+			if (done.full && !spec.image) full.push(range.first + n);
 			n++;
 			if (!encoder.stdin!.write(done.rgb))
-				await new Promise((r) => encoder.stdin!.once('drain', r));
+				await Promise.race([
+					new Promise((r) => encoder.stdin!.once('drain', r)),
+					encoded.then(() => {
+						throw new Error('Clean plate encoder ended before every frame was written.');
+					})
+				]);
 		};
 		for (;;) {
 			const [rgb, gray] = await Promise.all([pictures.next(), mattes.next()]);
@@ -166,6 +178,7 @@ export async function buildCleanRange(
 			if (inFlight.length >= pool.size * 2) await write(inFlight.shift()!);
 		}
 		while (inFlight.length) await write(inFlight.shift()!);
+		if (stopped) throw stopped;
 		encoder.stdin!.end();
 		await encoded;
 		const written = (await fs.readdir(tmp)).filter((f) => f.endsWith('.jpg')).length;

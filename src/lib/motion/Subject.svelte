@@ -82,12 +82,18 @@
 		throw new Error(
 			`Unknown footage "${name}". Footage: ${Object.keys(clip.footage).join(', ') || 'none (add "footage" to the project)'}`
 		);
-	const needsMatte = layer === 'subject' || region !== 'all' || !!hole;
-	for (const [key, footage] of Object.entries(clip.footage))
-		if ((!name || key === name) && needsMatte && !footage.subject)
+	const needsMatte = $derived(layer === 'subject' || region !== 'all' || !!hole);
+	/**
+	 * A footage the layer draws must have a matte: a named one is checked at once, otherwise the
+	 * one the program shows when a frame is drawn (other footage in the project may have none).
+	 */
+	function assertMatte(source: string) {
+		if (needsMatte && !clip.footage[source]?.subject)
 			throw new Error(
-				`<Subject> needs footage with a matte; "${key}" has none. Add "matte" to it (visualfries matte).`
+				`<Subject> needs footage with a matte; "${source}" has none. Add "matte" to it (visualfries matte).`
 			);
+	}
+	if (name) assertMatte(name);
 	if (hole && !clip.footageMap)
 		throw new Error(
 			'<Subject hole> needs a program ("cuts" or "shots"): the stage draws the hole. Without one, draw <Footage layer="plate">, then <Subject layer="clean" region={…}> over it yourself.'
@@ -105,6 +111,7 @@
 
 	/** The region at a source frame, in footage pixels; null without one. */
 	function shapeAt(source: string, frame: number, clipFrame: number) {
+		assertMatte(source);
 		const footage = clip.footage[source];
 		const box = sourceSubjectBox(footage, frame, smoothFrames);
 		const spec = typeof region === 'function' ? region({ source, frame, clipFrame }) : region;

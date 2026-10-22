@@ -28,14 +28,17 @@ export function fullLayout(input, zoom = 1) {
         fill: null
     };
 }
+/** Shots framed like `full`: moving between them is no shot change. */
+export const FULL_FRAMED = ['full', 'punch', 'behind'];
+/**
+ * Events of a shot framed like `full`: the camera moving back from a strip (or another framed
+ * shot) is a shot change; settling out of a punch-in or a room dimmed behind a word is not.
+ */
+export const fullEvents = ({ prev, morphFrames }) => prev && !FULL_FRAMED.includes(prev) ? [{ kind: 'shot', frame: Math.floor(morphFrames / 2) }] : [];
 export const full = {
     name: 'full',
     enter: { seconds: 0.7, ease: 'expo.inOut' },
     layout: (input) => fullLayout(input),
-    // The camera moving back from a strip (or another framed shot) is a shot change; settling
-    // out of a punch-in is not.
-    events: ({ prev, morphFrames }) => prev && prev !== 'full' && prev !== 'punch'
-        ? [{ kind: 'shot', frame: Math.floor(morphFrames / 2) }]
-        : [],
+    events: fullEvents,
     check: (params) => checkKnown(params, [])
 };

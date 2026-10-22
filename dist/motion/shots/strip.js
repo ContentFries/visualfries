@@ -41,7 +41,8 @@ export const strip = {
             fill: 'surface'
         };
     },
-    events: ({ morphFrames }) => [{ kind: 'shot', frame: Math.floor(morphFrames / 2) }],
+    // Nothing moves on the program's first frame.
+    events: ({ prev, morphFrames }) => prev === null ? [] : [{ kind: 'shot', frame: Math.floor(morphFrames / 2) }],
     check: (params) => [
         ...checkKnown(params, ['side', 'size']),
         ...(params.side === undefined || params.side === 'left' || params.side === 'right'

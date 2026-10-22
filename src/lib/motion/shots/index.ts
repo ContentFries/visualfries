@@ -2,6 +2,9 @@ import type { ProgramShot } from '../program.js';
 import { full } from './full.js';
 import { punch } from './punch.js';
 import { strip } from './strip.js';
+import { windowShot } from './window.js';
+import { behind } from './behind.js';
+import { whip } from './whip.js';
 import { easeOf } from '../ease.js';
 import { keyTracks, type Placement } from '../keys.js';
 import {
@@ -34,8 +37,15 @@ export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
  * every frame is a function of the shot track, the frame and the subject at that frame.
  */
 
-/** Built-in shots that are drawn. The other names `SHOTS` lists draw as `full` until built. */
-export const SHOT_MODULES: Readonly<Record<string, ShotModule>> = { full, punch, strip };
+/** Built-in shots that are drawn. */
+export const SHOT_MODULES: Readonly<Record<string, ShotModule>> = {
+	full,
+	punch,
+	strip,
+	window: windowShot,
+	behind,
+	whip
+};
 
 /** The module drawing `name`; null for a shot not built yet or a custom file. */
 export function shotModule(name: string): ShotModule | null {
@@ -56,15 +66,33 @@ export type ShotSpan = Pick<
  */
 export function defaultMorph(prev: string | null, next: string): Morph | null {
 	if (prev === null) return null;
-	return shotModule(prev)?.leave ?? (shotModule(next) ?? full).enter;
+	const into = shotModule(next) ?? full;
+	return shotModule(prev)?.leave ?? into.enterFrom?.(prev) ?? into.enter;
 }
 
-/** Events of a shot in program frames (see `ShotModule.events`). */
+/**
+ * Events of a shot in program frames (see `ShotModule.events`). After a shot with a
+ * `leaveEvent` (a whip) that event marks the middle of the morph in place of a `shot` event,
+ * and the shot's other events inside the morph move to its end, where the camera lands.
+ */
 export function shotEvents(shot: ShotSpan, prev: string | null): ShotEvent[] {
 	const module = shotModule(shot.shot);
-	const local = module
+	let local = module
 		? module.events({ prev, morphFrames: shot.morphFrames, frames: shot.frames })
-		: [{ kind: shot.shot === 'whip' ? 'whip' : 'shot', frame: 0 }];
+		: [{ kind: 'shot', frame: 0 }];
+	// The same shot again does not move (a whip into a whip): no whip back.
+	const leave = prev && prev !== shot.shot ? shotModule(prev)?.leaveEvent : undefined;
+	if (leave && shot.morphFrames > 0) {
+		const inMorph = (e: ShotEvent) => e.frame < shot.morphFrames;
+		const lands = Math.min(shot.morphFrames, shot.frames - 1);
+		const mid = { kind: leave, frame: Math.floor(shot.morphFrames / 2) };
+		local = [
+			...(local.some((e) => e.kind === leave && inMorph(e)) ? [] : [mid]),
+			...local
+				.filter((e) => !(e.kind === 'shot' && inMorph(e)))
+				.map((e) => (inMorph(e) && e.kind !== leave ? { ...e, frame: lands } : e))
+		];
+	}
 	return local.map((e) => ({ kind: e.kind, frame: shot.startFrame + e.frame }));
 }
 
@@ -125,7 +153,25 @@ export function shotLayoutAt(
 ): ShotLayout {
 	const { shot, prev, p } = shotAt(shots, f);
 	const to = shotLayout(shot, input, f);
-	return prev ? mixLayouts(shotLayout(prev, input, f), to, p) : to;
+	if (!prev) return to;
+	const from = shotLayout(prev, input, f);
+	const out = mixLayouts(from, to, p);
+	// A shot that blurs its moves blurs the morphs into and out of it, most at the middle.
+	const peak = (s: Framed) => shotModule(s.shot)?.blur?.({ ...input, params: s.params });
+	const a = peak(prev);
+	const b = peak(shot);
+	// Only a camera window that moves blurs.
+	if ((a || b) && !sameRect(from.clip, to.clip)) {
+		// Whole pixels: the camera window and the card meet on a pixel edge, so no half-covered
+		// pixel lets the fill show through the seam.
+		out.clip = snap(out.clip);
+		for (const name of Object.keys(out.slots)) out.slots[name] = snap(out.slots[name]);
+		const rise = Math.sin(Math.PI * Math.min(1, Math.max(0, p)));
+		const x = px(Math.max(a?.x ?? 0, b?.x ?? 0) * rise);
+		const y = px(Math.max(a?.y ?? 0, b?.y ?? 0) * rise);
+		if (x > 0 || y > 0) out.motionBlur = { x, y };
+	}
+	return out;
 }
 
 /**
@@ -157,6 +203,27 @@ export function keyCamera(
 }
 
 const px = (v: number) => Math.round(v * 100) / 100;
+const sameRect = (a: Rect, b: Rect) =>
+	a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+
+/** `r` with its edges on whole pixels. */
+const snap = (r: Rect): Rect => {
+	const x = Math.round(r.x);
+	const y = Math.round(r.y);
+	return { x, y, width: Math.round(r.x + r.width) - x, height: Math.round(r.y + r.height) - y };
+};
+
+/** `r` carried from camera `from` to camera `to`: moved and scaled with the footage. */
+const ride = (r: Rect, from: Rect, to: Rect): Rect => {
+	const kx = to.width / from.width;
+	const ky = to.height / from.height;
+	return roundRect({
+		x: to.x + (r.x - from.x) * kx,
+		y: to.y + (r.y - from.y) * ky,
+		width: r.width * kx,
+		height: r.height * ky
+	});
+};
 
 const mix = (a: number, b: number, t: number) => Math.round((a + (b - a) * t) * 100) / 100;
 const mixRect = (a: Rect, b: Rect, t: number): Rect => ({
@@ -175,8 +242,13 @@ export function mixLayouts(a: ShotLayout, b: ShotLayout, t: number): ShotLayout 
 	const slots: Record<string, Rect> = {};
 	const closed: Record<string, Rect> = {};
 	for (const name of new Set([...Object.keys(a.slots), ...Object.keys(b.slots)])) {
-		const from = a.slots[name] ?? b.closed[name] ?? b.slots[name];
-		const to = b.slots[name] ?? a.closed[name] ?? a.slots[name];
+		const rides = (l: ShotLayout) => !!l.riding?.includes(name);
+		const from =
+			a.slots[name] ??
+			(rides(b) ? ride(b.slots[name], b.camera, a.camera) : (b.closed[name] ?? b.slots[name]));
+		const to =
+			b.slots[name] ??
+			(rides(a) ? ride(a.slots[name], a.camera, b.camera) : (a.closed[name] ?? a.slots[name]));
 		slots[name] = mixRect(from, to, t);
 		const shut = b.closed[name] ?? a.closed[name];
 		if (shut) closed[name] = shut;
@@ -199,5 +271,13 @@ export function mixLayouts(a: ShotLayout, b: ShotLayout, t: number): ShotLayout 
 	}
 	if (a.opacity !== undefined || b.opacity !== undefined)
 		out.opacity = mix(a.opacity ?? 1, b.opacity ?? 1, t);
+	// A window's ring and shadow, and a dimmed room, fade in and out with the move.
+	if (a.ring || b.ring) out.ring = mix(a.ring ?? 0, b.ring ?? 0, t);
+	if (a.lift || b.lift) out.lift = mix(a.lift ?? 0, b.lift ?? 0, t);
+	if (a.room || b.room)
+		out.room = {
+			dim: mix(a.room?.dim ?? 0, b.room?.dim ?? 0, t),
+			blur: mix(a.room?.blur ?? 0, b.room?.blur ?? 0, t)
+		};
 	return out;
 }

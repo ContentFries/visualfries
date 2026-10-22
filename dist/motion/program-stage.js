@@ -6,7 +6,7 @@ import { seekTimeline } from './seek.js';
 import { programFootageAt, transitionSidesAt } from './footage-map.js';
 import { sourceFrameUrl, sourceSubjectBox } from './footage.js';
 import { clipFrameAt } from './segments.js';
-import { shotLayout, shotLayoutAt } from './shots/index.js';
+import { shotLayout, shotLayoutAt, shotModule } from './shots/index.js';
 import { SUBJECT_SMOOTH } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
 import { keyTracks, placementTransform } from './keys.js';
@@ -59,7 +59,195 @@ function side(stage, name) {
         solid.dataset.solid = '';
     const behind = layer(group, 'vf-behind', ISOLATED);
     const subject = picture(group, 'vf-subject');
-    return { el, fill, picture: group, plate, behind, subject };
+    return { el, fill, picture: group, plate, behind, subject, name };
+}
+const SVG = 'http://www.w3.org/2000/svg';
+function svgEl(parent, tag, attrs) {
+    const el = document.createElementNS(SVG, tag);
+    for (const [k, v] of Object.entries(attrs))
+        el.setAttribute(k, v);
+    parent.appendChild(el);
+    return el;
+}
+/** Motion blur clips' content gets, of the footage's (the approved look). */
+const CLIP_STREAK = 0.6;
+/** Below this a blur is not drawn at all. */
+const BLUR_MIN = 0.4;
+/**
+ * In a dimmed room the subject's semi-transparent edge (which carries some of the room) is
+ * dimmed with it, by `1 - alpha^EDGE`: the matte's fringe never outlines the speaker.
+ */
+const EDGE = 3;
+/** Alpha kept as fully opaque after a blur: anything the blur reached at all. */
+const OPAQUE = `0${' 1'.repeat(15)}`;
+const seen = (a) => !!a && (a.x >= BLUR_MIN || a.y >= BLUR_MIN);
+const deviation = (a) => `${a.x.toFixed(2)} ${a.y.toFixed(2)}`;
+function region(filter, inset) {
+    const r = inset
+        ? { x: '0', y: '0', width: '100%', height: '100%' }
+        : { x: '-30%', y: '-30%', width: '160%', height: '160%' };
+    for (const [k, v] of Object.entries(r))
+        filter.setAttribute(k, v);
+}
+/**
+ * Motion blur that keeps a solid surface solid: the blur smears past the element's shape into
+ * transparency, and over it the element's own shape is drawn again, opaque where it was, in the
+ * blurred colours. Two surfaces meeting at a seam (the footage and a card) never let what is
+ * under them show through, and text keeps a readable core.
+ */
+function streakSteps(filter, input) {
+    const blur = svgEl(filter, 'feGaussianBlur', { in: input, stdDeviation: '0 0', result: 'blur' });
+    const solid = svgEl(filter, 'feComponentTransfer', { in: 'blur', result: 'solid' });
+    svgEl(solid, 'feFuncA', { type: 'discrete', tableValues: OPAQUE });
+    svgEl(filter, 'feComposite', {
+        in: 'solid',
+        in2: 'SourceAlpha',
+        operator: 'in',
+        result: 'core'
+    });
+    const merge = svgEl(filter, 'feMerge', {});
+    svgEl(merge, 'feMergeNode', { in: 'blur' });
+    svgEl(merge, 'feMergeNode', { in: 'core' });
+    return blur;
+}
+/**
+ * SVG filters of shot looks, each built on first use in a hidden `<svg>` on the stage and
+ * updated per frame:
+ * - `plate`: the footage plate desaturated and darkened (a dimmed room), blurred (the room's
+ *   blur and the motion blur together) inside its own box with its edges kept opaque, so
+ *   neither the frame edge nor a seam ever darkens;
+ * - `subject`: the cut-out's edge dimmed with the room, and motion blur (see `streakSteps`);
+ * - `streak`: motion blur alone, for the clips behind the subject and in slots.
+ */
+let scenes = 0;
+function shotFilters(stage) {
+    // Ids unique per scene: two stages on one page never use each other's filters.
+    const scope = ++scenes;
+    let svg = null;
+    const built = new Map();
+    function get(name, build) {
+        const id = `${name}-${scope}`;
+        let parts = built.get(id);
+        if (!parts) {
+            svg ??= svgEl(stage, 'svg', {
+                width: '0',
+                height: '0',
+                style: 'position:absolute;left:0;top:0'
+            });
+            const filter = svgEl(svg, 'filter', { id, 'color-interpolation-filters': 'sRGB' });
+            parts = build(filter);
+            built.set(id, parts);
+        }
+        return { id, parts };
+    }
+    return {
+        dispose() {
+            svg?.remove();
+        },
+        /** `filter` value for the plate of a room and a motion blur; '' when it is untouched. */
+        plate(side, room, streak) {
+            const dim = room && room.dim > 0 ? room.dim : 0;
+            const r = room?.blur ?? 0;
+            const blur = { x: Math.hypot(r, streak?.x ?? 0), y: Math.hypot(r, streak?.y ?? 0) };
+            const blurred = seen(blur);
+            if (!dim && !blurred)
+                return '';
+            const { id, parts } = get(`vf-plate-${side}-${blurred ? 'b' : 'n'}`, (filter) => {
+                region(filter, true);
+                const saturate = svgEl(filter, 'feColorMatrix', { type: 'saturate', values: '1' });
+                const light = svgEl(filter, 'feComponentTransfer', {});
+                const [r, g, b] = ['feFuncR', 'feFuncG', 'feFuncB'].map((tag) => svgEl(light, tag, { type: 'linear', slope: '1', intercept: '0' }));
+                const out = { saturate, r, g, b };
+                if (blurred) {
+                    out.blur = svgEl(filter, 'feGaussianBlur', { stdDeviation: '0 0' });
+                    // Opaque wherever the blur reached at all: a corner keeps only a quarter of
+                    // its alpha, and anything below that would round it off.
+                    const opaque = svgEl(filter, 'feComponentTransfer', {});
+                    svgEl(opaque, 'feFuncA', { type: 'discrete', tableValues: OPAQUE });
+                }
+                return out;
+            });
+            parts.saturate.setAttribute('values', (1 - 0.9 * dim).toFixed(3));
+            for (const k of ['r', 'g', 'b'])
+                parts[k].setAttribute('slope', (1 - dim).toFixed(3));
+            if (blurred)
+                parts.blur.setAttribute('stdDeviation', deviation(blur));
+            return `url(#${id})`;
+        },
+        /** `filter` value for the subject cut-out in a room dimmed by `dim` and a motion blur. */
+        subject(side, dim, streak) {
+            const blurred = seen(streak);
+            if (dim <= 0 && !blurred)
+                return '';
+            const edged = dim > 0;
+            const key = `${edged ? 'e' : ''}${blurred ? 'b' : ''}`;
+            const { id, parts } = get(`vf-subject-${side}-${key}`, (filter) => {
+                const out = {};
+                region(filter, !blurred);
+                if (edged) {
+                    // alpha^EDGE in every colour channel, opaque…
+                    svgEl(filter, 'feColorMatrix', {
+                        in: 'SourceAlpha',
+                        type: 'matrix',
+                        values: '0 0 0 1 0  0 0 0 1 0  0 0 0 1 0  0 0 0 0 1',
+                        result: 'alpha'
+                    });
+                    const curve = svgEl(filter, 'feComponentTransfer', { in: 'alpha', result: 'weight' });
+                    for (const tag of ['feFuncR', 'feFuncG', 'feFuncB'])
+                        svgEl(curve, tag, {
+                            type: 'gamma',
+                            amplitude: '1',
+                            exponent: String(EDGE),
+                            offset: '0'
+                        });
+                    // …so colour × (1 − dim + dim × weight), alpha unchanged.
+                    out.edge = svgEl(filter, 'feComposite', {
+                        in: 'SourceGraphic',
+                        in2: 'weight',
+                        operator: 'arithmetic',
+                        k1: '0',
+                        k2: '1',
+                        k3: '0',
+                        k4: '0',
+                        result: 'lit'
+                    });
+                }
+                if (blurred)
+                    out.blur = streakSteps(filter, edged ? 'lit' : 'SourceGraphic');
+                return out;
+            });
+            if (edged) {
+                parts.edge.setAttribute('k1', dim.toFixed(3));
+                parts.edge.setAttribute('k2', (1 - dim).toFixed(3));
+            }
+            if (blurred)
+                parts.blur.setAttribute('stdDeviation', deviation(streak));
+            return `url(#${id})`;
+        },
+        /** `filter` value for a motion blur of `amount` (px per axis); '' below the visible. */
+        streak(name, amount) {
+            if (!seen(amount))
+                return '';
+            const { id, parts } = get(`vf-streak-${name}`, (filter) => {
+                region(filter, false);
+                return { blur: streakSteps(filter, 'SourceGraphic') };
+            });
+            parts.blur.setAttribute('stdDeviation', deviation(amount));
+            return `url(#${id})`;
+        }
+    };
+}
+/** The ring and the shadow of a camera window, as a `box-shadow`; '' without either. */
+function windowShadow(layout, size) {
+    const parts = [];
+    if (layout.ring)
+        parts.push(`0 0 0 ${layout.ring}px var(--brand-primary)`);
+    if (layout.lift) {
+        const k = Math.min(...size) / 1080;
+        const r = (v) => Math.round(v * 100) / 100;
+        parts.push(`0 ${r(24 * k * layout.lift)}px ${r(64 * k)}px rgba(0, 0, 0, ${r(0.55 * layout.lift)})`);
+    }
+    return parts.join(', ');
 }
 /** Places `el` at `rect` (absolute, stage pixels); writes only what changed. */
 function place(el, rect) {
@@ -119,6 +307,9 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     const front = layer(stage, 'vf-clips', ISOLATED);
     const overlay = layer(stage, 'vf-overlay', `${ISOLATED};pointer-events:none`);
     const player = createTransitionPlayer(overlay, seg.transitions, { size: seg.size, cls: seg.cls });
+    const filters = shotFilters(stage);
+    // Slotted clips get a box for motion blur only where a shot blurs its moves.
+    const streaks = seg.shots.some((s) => shotModule(s.shot)?.blur);
     const mounted = [];
     const ready = [];
     try {
@@ -143,7 +334,8 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             catch (error) {
                 throw clipError(data.id, error);
             }
-            const keyed = tracks.placement ? layer(root, 'vf-keys') : null;
+            const streak = data.slot && streaks ? layer(root, 'vf-streak') : null;
+            const keyed = tracks.placement ? layer(streak ?? root, 'vf-keys') : null;
             // Roots stay visible until the first seek: blocks may measure text when they mount.
             // Keyed props start at their value on the clip's first frame.
             const controller = {
@@ -163,7 +355,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             try {
                 // The clip's reactive props: what changes `clip.props` later reaches the block.
                 instance = mount(Block, {
-                    target: keyed ?? root,
+                    target: keyed ?? streak ?? root,
                     props: controller.clip.props,
                     context: new Map([[MOTION_CONTEXT_KEY, controller]])
                 });
@@ -171,7 +363,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             catch (error) {
                 throw clipError(data.id, error);
             }
-            mounted.push({ data, controller, instance, shown: null, tracks, keyed });
+            mounted.push({ data, controller, instance, shown: null, tracks, keyed, streak });
             ready.push(...controller.ready);
         }
         flushSync();
@@ -192,6 +384,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             cls: seg.cls,
             size: seg.size,
             footage: frames ? [frames.width, frames.height] : null,
+            safe: seg.format.safe,
             subject: frames && view
                 ? sourceSubjectBox(frames, view.frame, Math.round(SUBJECT_SMOOTH * seg.fps))
                 : null
@@ -258,7 +451,14 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             }
             return { local, slot, side };
         });
-        return { f, staged, ...sides, clips };
+        // Motion blur comes from the shot track alone, so only outside transition windows.
+        return {
+            f,
+            staged,
+            ...sides,
+            clips,
+            streak: sides.b ? null : (sides.a.layout.motionBlur ?? null)
+        };
     }
     /** Behind clips in project order inside the side they belong to (b: arriving on its cut). */
     function arrangeBehind(now) {
@@ -298,11 +498,17 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         };
     }
     function drawSide(s, view, behind, pending) {
-        s.fill.style.background = view.layout.fill ? surface(seg) : '';
-        const opacity = view.layout.opacity;
+        const { layout } = view;
+        s.fill.style.background = layout.fill ? surface(seg) : '';
+        const opacity = layout.opacity;
         s.picture.style.opacity = opacity === undefined ? '' : String(opacity);
-        frameBox(s.plate, view.layout);
-        frameBox(s.subject, view.layout);
+        frameBox(s.plate, layout);
+        frameBox(s.subject, layout);
+        s.plate.box.style.boxShadow = windowShadow(layout, seg.size);
+        const room = !!layout.room && (layout.room.dim > 0 || layout.room.blur >= BLUR_MIN);
+        s.plate.img.style.filter = filters.plate(s.name, layout.room, layout.motionBlur);
+        s.subject.img.style.filter = filters.subject(s.name, layout.room?.dim ?? 0, layout.motionBlur);
+        s.behind.style.filter = filters.streak(`behind-${s.name}`, layout.motionBlur);
         const frames = framesOf(view.view);
         if (!view.view || !frames) {
             hide(s.plate.img);
@@ -312,8 +518,8 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         const plate = show(s.plate.img, sourceFrameUrl(frames, view.view.frame, 'plate'));
         if (plate)
             pending.push(plate);
-        // The subject covers behind clips only while one is on screen.
-        if (behind && frames.subject) {
+        // The subject covers behind clips only while one is on screen, or a dimmed room.
+        if ((behind || room) && frames.subject) {
             const subject = show(s.subject.img, sourceFrameUrl(frames, view.view.frame, 'subject'));
             if (subject)
                 pending.push(subject);
@@ -353,6 +559,13 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                     m.keyed.style.opacity = p.opacity === 1 ? '' : String(p.opacity);
                 }
             });
+            const streak = filters.streak('clips', now.streak && {
+                x: now.streak.x * CLIP_STREAK,
+                y: now.streak.y * CLIP_STREAK
+            });
+            for (const m of mounted)
+                if (m.streak)
+                    m.streak.style.filter = streak;
             arrangeBehind(now);
             flushSync();
             for (const m of mounted) {
@@ -413,6 +626,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             for (const m of mounted)
                 unmount(m.instance);
             mounted.length = 0;
+            filters.dispose();
         }
     };
 }

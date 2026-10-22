@@ -252,8 +252,8 @@
 			"frames": 42,
 			"source": null,
 			"params": {},
-			"morphFrames": 21,
-			"morphEase": "expo.inOut",
+			"morphFrames": 13,
+			"morphEase": "power3.inOut",
 			"transition": null,
 			"keys": [],
 			"native": null
@@ -739,8 +739,8 @@
 			"owner": "cut5.transition"
 		},
 		{
-			"kind": "shot",
-			"frame": 214,
+			"kind": "whip",
+			"frame": 210,
 			"owner": "full-204"
 		}
 	],
@@ -853,7 +853,7 @@
 				"whip.transition",
 				"cut5.transition"
 			],
-			"hash": "31c52077b202a823afd19f6da10cbcc8e2d328d5"
+			"hash": "59b2c0f093d62a1d9c0b9c5164d68a8a1530f269"
 		}
 	],
 	"diagnostics": [
@@ -883,12 +883,6 @@
 		},
 		{
 			"level": "warning",
-			"item": "whip",
-			"field": "shots[1].shot",
-			"message": "The \"whip\" shot is not drawn yet; it is framed full."
-		},
-		{
-			"level": "warning",
 			"clip": "price",
 			"field": "keys[1].at",
 			"message": "Key at 12.20 s is outside the clip (3.20–5.20 s)."
@@ -904,6 +898,12 @@
 			"item": "cut5",
 			"field": "cuts[4].transition",
 			"message": "The \"card\" transition is not drawn yet; it cuts on the cut."
+		},
+		{
+			"level": "warning",
+			"item": "whip",
+			"field": "shots",
+			"message": "The whip of shot \"whip\" (5.20 s) and the transition \"whip.transition\" (5.20 s) make two sounds on one move. Drop the transition (a whip moves on its own), or move one of them."
 		}
 	]
 }

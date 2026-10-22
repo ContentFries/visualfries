@@ -647,8 +647,9 @@ missing matte or clean plate before anything is drawn.
 
 **Rim.** `"rim": true` darkens the cut edge on the speaker that stays (a band of `width` px in
 `color`, both optional). On a line, `{ "opening": 0.2 }` draws the open top of a cartoon head
-instead: an ellipse across the speaker as wide as the cut, 0.2 times as tall, dark `inside` and
-a ring in the speaker's own colour just below the cut.
+instead: an ellipse across the speaker as wide as the cut (its soft hair edge included), 0.2
+times as tall, dark `inside` with a light lip on its far edge, and a ring in the speaker's own
+colour just below the cut (`color` sets it).
 
 **In a block**, `<Subject>` is the same layer:
 

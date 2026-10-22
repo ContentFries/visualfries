@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.6.1...visualfries-v0.7.0) (2026-10-22)
+
+
+### Features
+
+* **check:** flag NaN / undefined in rendered styles and SVG geometry ([#83](https://github.com/ContentFries/visualfries/issues/83)) ([f79f2a6](https://github.com/ContentFries/visualfries/commit/f79f2a6e501325c53cf13a9e101340dbb9915794))
+* **matte:** local RobustVideoMatting provider (--provider rvm) ([#81](https://github.com/ContentFries/visualfries/issues/81)) ([7a51c01](https://github.com/ContentFries/visualfries/commit/7a51c01949fe6c0ad31b6ec0654cec36c1b0ac9e))
+* **motion:** beat analysis and beat anchors for music-driven edits ([#93](https://github.com/ContentFries/visualfries/issues/93)) ([7b51fe3](https://github.com/ContentFries/visualfries/commit/7b51fe35d054e30ce02eb2dd513be673d6c13634))
+* **motion:** brand, style, format and safe-zone tokens for blocks ([#92](https://github.com/ContentFries/visualfries/issues/92)) ([994fb14](https://github.com/ContentFries/visualfries/commit/994fb140a054d2eab7881d3e4aa1832eb9ac5488))
+* **motion:** describe a whole program with a cut list ([#94](https://github.com/ContentFries/visualfries/issues/94)) ([445062e](https://github.com/ContentFries/visualfries/commit/445062e123a188f8a8c6947bb2858710a3b393a5))
+* **motion:** draw and render whole programs with shots and transitions ([#95](https://github.com/ContentFries/visualfries/issues/95)) ([ae65702](https://github.com/ContentFries/visualfries/commit/ae65702227c64d79e4a5e3de6c0f4821b44167a0))
+* **motion:** inserts export from the program (T17) ([#102](https://github.com/ContentFries/visualfries/issues/102)) ([0388084](https://github.com/ContentFries/visualfries/commit/03880842228fab6c8cfb1b560559e01c97da0b92))
+* **motion:** interpolate numbers, colours, gradients and shadows ([#90](https://github.com/ContentFries/visualfries/issues/90)) ([3e1efb0](https://github.com/ContentFries/visualfries/commit/3e1efb0fa0afb7fa341e1db523b3337e0cfaf60d))
+* **motion:** keys on shots and clips, with animatable block props ([#97](https://github.com/ContentFries/visualfries/issues/97)) ([9c777a5](https://github.com/ContentFries/visualfries/commit/9c777a5ac05b35197db7f2cad4deab742072cb25))
+* **motion:** mix program sound with effects, music and loudness ([#96](https://github.com/ContentFries/visualfries/issues/96)) ([b7a4564](https://github.com/ContentFries/visualfries/commit/b7a45646f83b2520a2c6ff2938faf465b8b616a6))
+* **motion:** music and beats in program time (T18) ([#98](https://github.com/ContentFries/visualfries/issues/98)) ([1e666a3](https://github.com/ContentFries/visualfries/commit/1e666a35dc73b827226a019b57a1fbbca0b48de9))
+* **motion:** one-line motion primitives with use:motion ([#91](https://github.com/ContentFries/visualfries/issues/91)) ([33fa361](https://github.com/ContentFries/visualfries/commit/33fa3615fc5376e2231dfd09b191bfb66a74d76d))
+* **motion:** opt-in head framing, window aspect and a head-crop check ([#104](https://github.com/ContentFries/visualfries/issues/104)) ([c3ebd13](https://github.com/ContentFries/visualfries/commit/c3ebd13df895f25a6aa81782fb89cb17fc95a1be))
+* **motion:** program papercuts: holds, an end anchor, block events, edit points measured on the sound ([#105](https://github.com/ContentFries/visualfries/issues/105)) ([6f1754d](https://github.com/ContentFries/visualfries/commit/6f1754d6b0219863a39fa6772cffd7cfc56e31ae))
+* **motion:** subject region layers, holes with a clean plate, and canvas helpers ([#106](https://github.com/ContentFries/visualfries/issues/106)) ([4696216](https://github.com/ContentFries/visualfries/commit/4696216dade7a34909fb29eddfb40b49de11166c))
+* **motion:** window, behind and whip shots ([#100](https://github.com/ContentFries/visualfries/issues/100)) ([776a133](https://github.com/ContentFries/visualfries/commit/776a1336b461eff838aa038793ad59722b57d199))
+* **motion:** zoom-through, shape-mask, blinds and card transitions ([#101](https://github.com/ContentFries/visualfries/issues/101)) ([f326aaf](https://github.com/ContentFries/visualfries/commit/f326aafa4948bae198bec77a8e943246ae552ede))
+* **site:** serve visualfries.com on www too ([#108](https://github.com/ContentFries/visualfries/issues/108)) ([a7736e9](https://github.com/ContentFries/visualfries/commit/a7736e98f9a870e1879aff3fe3a34b6d3d14f0a5))
+* **site:** the Trust-Me-Bro Benchmark, near the top of the homepage ([#107](https://github.com/ContentFries/visualfries/issues/107)) ([3e6ad3f](https://github.com/ContentFries/visualfries/commit/3e6ad3f4b3f7930cb2b978b46d2d0bd9faaac079))
+
+
+### Bug Fixes
+
+* authoring papercuts (cue names, still --at 1.0, margin "all", cache command, pnpm test) ([#84](https://github.com/ContentFries/visualfries/issues/84)) ([18f8831](https://github.com/ContentFries/visualfries/commit/18f88314b9e97cb7b109307c9e2f69a741d5ff36))
+* **matte:** run the local RVM matte on current torchvision ([#110](https://github.com/ContentFries/visualfries/issues/110)) ([ed217f7](https://github.com/ContentFries/visualfries/commit/ed217f7a0663621376c764ba0492bed5e61f1f0f))
+* **motion:** stop nested WebGL canvases from crashing the stage ([#89](https://github.com/ContentFries/visualfries/issues/89)) ([feef625](https://github.com/ContentFries/visualfries/commit/feef625edfd3c2dc13be8ab4b006b739fce005d8))
+
 ## [0.6.1](https://github.com/ContentFries/visualfries/compare/visualfries-v0.6.0...visualfries-v0.6.1) (2026-10-10)
 
 

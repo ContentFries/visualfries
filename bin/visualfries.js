@@ -1776,7 +1776,7 @@ async function motionProgramCommand(args) {
 		);
 		for (const c of program.cuts)
 			console.log(
-				`cut ${c.id.padEnd(10)} ${frameTime(c.startFrame, fps)}  ${c.frames} frames  ${c.source} ${frameTime(c.srcIn, fps)}–${frameTime(c.srcOut, fps)}${c.audio.split ? `  split ${c.audio.split}s` : ''}${c.transition ? `  ← ${c.transition}` : ''}`
+				`cut ${c.id.padEnd(10)} ${frameTime(c.startFrame, fps)}  ${c.frames} frames  ${c.source} ${frameTime(c.srcIn, fps)}–${frameTime(c.srcOut, fps)}${c.hold ? `  hold ${frameTime(c.hold, fps)}` : ''}${c.audio.split ? `  split ${c.audio.split}s` : ''}${c.transition ? `  ← ${c.transition}` : ''}`
 			);
 		for (const s of program.shots.filter((x) => !x.implicit))
 			console.log(

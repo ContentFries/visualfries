@@ -32,7 +32,23 @@ export type AnchorContext = {
     needs?: string;
     /** Music beats for beat anchors and `"-1b"` offsets (program time). Default: none. */
     beats?: BeatContext;
+    /**
+     * The program end in seconds, for `"end"` and `{ program: "end" }`. Undefined: not a program
+     * context, so `"end"` is a phrase; null: a program whose length is not fixed yet.
+     */
+    end?: number | null;
+    /**
+     * Program seconds of an event a clip's block declares (`{ event, clip }`). Undefined: event
+     * anchors do not work here.
+     */
+    event?: (name: string, clip: string) => number;
 };
+/** Says why the program end cannot be read: it is not fixed before the program is resolved. */
+export declare const OPEN_END = "The program end is not fixed yet: it needs \"cuts\" (or footage) or \"duration\".";
+/** Where event anchors work, for anchors used anywhere else. */
+export declare const EVENT_ELSEWHERE = "An event anchor ({ \"event\", \"clip\" }) works in sfx \"at\", shots and music keys, not here: the clip it names is placed first.";
+/** Whether an anchor is the program end: `"end"` in a program context, or `{ program: "end" }`. */
+export declare function isProgramEnd(anchor: MotionAnchor, ctx: Pick<AnchorContext, 'end'>): boolean;
 export declare function resolvePhrase(say: string, ctx: AnchorContext, occurrence: number | undefined): {
     start: number;
     end: number;

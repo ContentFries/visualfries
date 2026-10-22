@@ -5,6 +5,16 @@ export class AnchorError extends Error {
 }
 /** No music: beat anchors and beat offsets fail with "add music". */
 export const NO_BEATS = { music: [], clip: undefined };
+/** Says why the program end cannot be read: it is not fixed before the program is resolved. */
+export const OPEN_END = 'The program end is not fixed yet: it needs "cuts" (or footage) or "duration".';
+/** Where event anchors work, for anchors used anywhere else. */
+export const EVENT_ELSEWHERE = 'An event anchor ({ "event", "clip" }) works in sfx "at", shots and music keys, not here: the clip it names is placed first.';
+/** Whether an anchor is the program end: `"end"` in a program context, or `{ program: "end" }`. */
+export function isProgramEnd(anchor, ctx) {
+    if (typeof anchor === 'string')
+        return anchor === 'end' && ctx.end !== undefined;
+    return typeof anchor === 'object' && 'program' in anchor;
+}
 export function resolvePhrase(say, ctx, occurrence) {
     const { words, window } = ctx;
     const scope = ctx.scope ?? 'clip';
@@ -62,8 +72,23 @@ export function resolveAnchor(anchor, ctx, defaultEdge) {
         const time = localBase === null ? anchor : localBase + anchor;
         return { time, end: time, words: [] };
     }
+    if (isProgramEnd(anchor, ctx)) {
+        if (ctx.end === undefined || ctx.end === null)
+            throw new AnchorError(ctx.end === null ? OPEN_END : 'The program end exists only with "cuts" or "shots".');
+        const offset = typeof anchor === 'object' && 'program' in anchor ? anchor.offset : undefined;
+        const time = applyOffset(ctx.end, offset, beats);
+        return { time, end: time, words: [] };
+    }
     if (typeof anchor === 'string')
         anchor = { say: anchor };
+    if ('event' in anchor) {
+        if (!ctx.event)
+            throw new AnchorError(EVENT_ELSEWHERE);
+        const time = applyOffset(ctx.event(anchor.event, anchor.clip), anchor.offset, beats);
+        return { time, end: time, words: [] };
+    }
+    if ('program' in anchor)
+        throw new AnchorError(OPEN_END);
     if ('frame' in anchor) {
         // Program frame for clip ranges, clip-local frame for cues (like numbers).
         const time = applyOffset((localBase ?? 0) + anchor.frame / fps, anchor.offset, beats);

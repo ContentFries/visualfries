@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import type { BlockAnimatable } from './cutlist.js';
+import type { BlockAnimatable, BlockEvents } from './cutlist.js';
 import type { AnimatableKind } from './interpolate.js';
 import { ANIMATABLE_KINDS } from './keys.js';
 
@@ -26,8 +26,11 @@ function literal(node: Node | null | undefined): Node | null {
 	return node ?? null;
 }
 
-/** The initializer behind `export const animatable`, `export { animatable }` or `export { x as animatable }`. */
-function findDeclaration(body: Node[]): { found: boolean; init: Node | null } {
+/** The initializer behind `export const <name>`, `export { <name> }` or `export { x as <name> }`. */
+function findDeclaration(
+	body: Node[],
+	exportName = 'animatable'
+): { found: boolean; init: Node | null } {
 	const consts = new Map<string, Node | null>();
 	for (const statement of body) {
 		const declaration =
@@ -42,7 +45,7 @@ function findDeclaration(body: Node[]): { found: boolean; init: Node | null } {
 			if (id.type !== 'Identifier') continue;
 			const name = id.name as string;
 			consts.set(name, (d.init as Node | null) ?? null);
-			if (statement.type === 'ExportNamedDeclaration' && name === 'animatable')
+			if (statement.type === 'ExportNamedDeclaration' && name === exportName)
 				return { found: true, init: (d.init as Node | null) ?? null };
 		}
 	}
@@ -51,12 +54,77 @@ function findDeclaration(body: Node[]): { found: boolean; init: Node | null } {
 		for (const spec of (statement.specifiers as Node[]) ?? []) {
 			const exported = spec.exported as Node;
 			const as = exported.type === 'Identifier' ? exported.name : exported.value;
-			if (as !== 'animatable') continue;
+			if (as !== exportName) continue;
 			const local = (spec.local as Node).name as string;
 			return { found: true, init: consts.get(local) ?? null };
 		}
 	}
 	return { found: false, init: null };
+}
+
+/** The module script's top-level statements, or why the source does not parse. */
+async function moduleBody(
+	source: string,
+	file: string,
+	what: string
+): Promise<{ body: Node[] } | { error: string }> {
+	const { parse } = await import('svelte/compiler');
+	try {
+		const ast = parse(source, { modern: true, filename: file }) as unknown as {
+			module: { content: { body: Node[] } } | null;
+		};
+		return { body: ast.module?.content.body ?? [] };
+	} catch (error) {
+		return {
+			error: `${file} does not parse, so its ${what} cannot be read: ${(error as Error).message.split('\n')[0]}`
+		};
+	}
+}
+
+/** A property's name when it is a plain identifier or string key. */
+function keyName(p: Node): string | null {
+	const key = p.key as Node | undefined;
+	if (p.type !== 'Property' || p.computed || !key) return null;
+	if (key.type === 'Identifier') return key.name as string;
+	return key.type === 'Literal' && typeof key.value === 'string' ? key.value : null;
+}
+
+/**
+ * Reads the events a block declares for anchors (`{ "event": "land", "clip": "kick" }` in sfx,
+ * shots and music keys) from its module script, without running it:
+ *
+ *   <script module>
+ *     export const events = { land: 'tail+0.98', bonk: 'end-0.2' };
+ *   </script>
+ *
+ * Each value is a moment of the clip (the grammar of `clip.at`) or clip seconds. The block reads
+ * the same moments (`clip.at(events.land)`), so the program and the block agree by construction.
+ */
+export async function readEvents(source: string, file: string): Promise<BlockEvents> {
+	if (!file.endsWith('.svelte')) return { events: {} };
+	const parsed = await moduleBody(source, file, 'events');
+	if ('error' in parsed) return parsed;
+	const { found, init: raw } = findDeclaration(parsed.body, 'events');
+	if (!found) return { events: {} };
+	const init = literal(raw);
+	const rule = `${file}: events: write each entry as name: 'moment' or a number of clip seconds (no spreads or computed values).`;
+	if (init?.type !== 'ObjectExpression') return { error: rule };
+	const events: Record<string, string | number> = {};
+	for (const p of init.properties as Node[]) {
+		const name = keyName(p);
+		const value = literal(p.value as Node | undefined);
+		const moment = value?.type === 'Literal' ? value.value : undefined;
+		if (name === null || (typeof moment !== 'string' && typeof moment !== 'number'))
+			return { error: rule };
+		events[name] = moment;
+	}
+	return { events };
+}
+
+/** `readEvents` of a block file; a missing file declares nothing (bundling reports it). */
+export async function readBlockEvents(file: string): Promise<BlockEvents> {
+	const source = await fs.readFile(file, 'utf8').catch(() => null);
+	return source === null ? { events: {} } : readEvents(source, file);
 }
 
 /**

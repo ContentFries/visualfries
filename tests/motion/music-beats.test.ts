@@ -642,7 +642,11 @@ describe.skipIf(!hasFfmpeg)('music on beats through the node tooling', () => {
 
 	it('puts every music click, and the cut on each bar, on its sample', async () => {
 		const program = await load(3);
-		expect(program.diagnostics.filter((d) => d.level !== 'info')).toEqual([]);
+		// The steady tone stands in for speech and runs through every edit point: those
+		// warnings are not what this checks.
+		expect(
+			program.diagnostics.filter((d) => d.level !== 'info' && !/the voice/.test(d.message))
+		).toEqual([]);
 		// Cuts on bars 2 and 4: frames 78 and 198 (1600 samples a frame at 30 fps).
 		expect(program.cuts.map((c) => c.startFrame)).toEqual([0, 78, 198]);
 		const piece = program.audio.music[0];

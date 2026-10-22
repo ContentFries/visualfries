@@ -35,7 +35,10 @@ import { transitionModule } from './transitions/index.js';
 /** Frames of handle before and after each insert unless `--handles` says otherwise. */
 export const DEFAULT_INSERT_HANDLES = 10;
 
-/** Program frames `[startFrame, startFrame + frames)` show source frames `[srcIn, srcOut)`. */
+/**
+ * Program frames `[startFrame, startFrame + frames)` show source frames `[srcIn, srcOut)`; with
+ * `hold`, every one of them shows source frame `srcIn` (a cut's hold, silent).
+ */
 export type InsertSourceRange = {
 	cut: string;
 	source: string;
@@ -43,6 +46,7 @@ export type InsertSourceRange = {
 	frames: number;
 	srcIn: number;
 	srcOut: number;
+	hold?: true;
 };
 
 export type InsertPlan = {
@@ -78,20 +82,34 @@ export function cutListUnder(
 ): InsertSourceRange[] {
 	const end = startFrame + frames;
 	return program.cuts.flatMap((cut) => {
+		const pieces: InsertSourceRange[] = [];
+		const moving = endOf(cut) - (cut.hold ?? 0);
 		const from = Math.max(startFrame, cut.startFrame);
-		const to = Math.min(end, endOf(cut));
-		if (from >= to) return [];
-		const srcIn = cut.srcIn + (from - cut.startFrame);
-		return [
-			{
+		const to = Math.min(end, moving);
+		if (from < to) {
+			const srcIn = cut.srcIn + (from - cut.startFrame);
+			pieces.push({
 				cut: cut.id,
 				source: cut.source,
 				startFrame: from,
 				frames: to - from,
 				srcIn,
 				srcOut: srcIn + (to - from)
-			}
-		];
+			});
+		}
+		const holdFrom = Math.max(startFrame, moving);
+		const holdTo = Math.min(end, endOf(cut));
+		if (cut.hold && holdFrom < holdTo)
+			pieces.push({
+				cut: cut.id,
+				source: cut.source,
+				startFrame: holdFrom,
+				frames: holdTo - holdFrom,
+				srcIn: cut.srcOut - 1,
+				srcOut: cut.srcOut,
+				hold: true
+			});
+		return pieces;
 	});
 }
 

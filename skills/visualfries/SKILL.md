@@ -365,10 +365,26 @@ Work like an editor, in this order; each step ends on its criterion:
    per clip, 10-frame handles, `manifest.json` with program and source frames; `check
 --export inserts` lists what stays in the program render).
 
-Traps the guide explains: a phrase in `until` means its end (`"edge": "start"` to stop where it
-begins); a few frames between two shots squeeze a move into them; a slotted clip should last until
-the next shot's move ends; shots have events but no sound yet, so their effects are `sfx` items
-on the shot's anchor plus half its move.
+Traps the guide explains: a phrase in `until` means the end of its last word, so music or a clip
+meant to stop dead on a word needs `{ "say": "…", "edge": "start" }`; a few frames between two
+shots squeeze a move into them; a slotted clip should last until the next shot's move ends; shots
+have events but no sound yet, so their effects are `sfx` items on the shot's anchor plus half its
+move.
+
+Program tools for common needs:
+
+- Picture after the last word: `"hold": 1.7` on the cut freezes its last frame, silent, while
+  effects and music play on. No extra muted cut, no frame offsets in a block.
+- Running to the end: `"until": "end"` on clips, shots and music; `{ "program": "end", "offset":
+-1 }` for a moment before it. Never `until: 99`.
+- A sound on a moment a block computes: declare it in the block,
+  `<script module> export const events = { land: 'tail+0.98' };</script>`, read it there with
+  `clip.at(events.land)`, and anchor the `sfx` on `{ "event": "land", "clip": "kick" }`.
+- Edit points: where the footage has sound, `program` measures the voice at every audio edit
+  point and says how far to move a cut's `in` or `out`; listen to the ones it names.
+- Images in blocks: keep every picture mounted and switch with `opacity`; never swap `src` per
+  frame (it decodes late and fails `check --determinism`).
+- Brand `extra` colour names are kebab case (`wood-dark`).
 
 ## Speaker Depth (type behind a talking head)
 

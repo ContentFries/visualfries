@@ -8,7 +8,13 @@ import {
 	type SourceTime,
 	type Transition
 } from './timeline.js';
-import { NO_BEATS, resolveAnchor, type AnchorContext, type BeatContext } from './anchors.js';
+import {
+	AnchorError,
+	NO_BEATS,
+	resolveAnchor,
+	type AnchorContext,
+	type BeatContext
+} from './anchors.js';
 import { NO_MUSIC_BEATS, pickMusic, type GridBeat } from './beat-grid.js';
 import {
 	missingBeats,
@@ -23,7 +29,9 @@ import { resolveMoment } from './moment.js';
 import { resolveMotionProject, type ResolvedClip } from './resolve.js';
 import {
 	micro,
+	programEnd,
 	resolveCutList,
+	soundEnd,
 	soundLength,
 	type ProgramDiagnostic,
 	type ProgramInputs,
@@ -120,6 +128,11 @@ export type ProgramCut = {
 	srcOut: number;
 	/** Source frames available before `srcIn` and after `srcOut`; null: source length unknown. */
 	handles: { before: number; after: number | null };
+	/**
+	 * Program frames at the end of the cut (inside `frames`) that hold source frame `srcOut − 1`,
+	 * without sound. Absent: no hold.
+	 */
+	hold?: number;
 	/** Id of the transition into this cut. */
 	transition: string | null;
 	audio: { edit: number; split: number; crossfade: number; gain: number; mute: boolean };
@@ -314,12 +327,15 @@ export function resolveProgram(
 	const diagnostics: ProgramDiagnostic[] = [...cutList.diagnostics];
 	const words = program ? cutList.words : given.words;
 	// Music goes where its anchors put it (program words exist now), and its beats with it.
+	// `"end"` anchors read the program end the cut list (or `duration`) fixes.
+	const end = programEnd(project, cutList);
 	const placement = placeMusic(project, {
 		tracks: given.tracks,
 		given: given.music,
 		words,
 		sounds: given.sounds,
-		stage: 'program'
+		stage: 'program',
+		end
 	});
 	diagnostics.push(...placement.diagnostics);
 	// Where the cut list (or `duration`) fixes the program length, each music item's end is known
@@ -357,10 +373,18 @@ export function resolveProgram(
 		opts.format ? { ...project, size: format.size } : project,
 		words,
 		inputs.music ?? [],
-		inputs.look ?? {}
+		{ ...inputs.look, end }
 	);
 	diagnostics.push(...resolved.diagnostics);
-	const anchorCtx: AnchorContext = { words, fps, window: null, localBase: null, beats };
+	const anchorCtx: AnchorContext = {
+		words,
+		fps,
+		window: null,
+		localBase: null,
+		beats,
+		end,
+		event: (name, clip) => clipEvent(resolved.clips, inputs, name, clip)
+	};
 	const at = (anchor: MotionAnchor, from?: number) =>
 		resolveAnchor(
 			anchor,
@@ -391,6 +415,7 @@ export function resolveProgram(
 			before: c.srcIn,
 			after: sources[c.source]?.frames == null ? null : sources[c.source].frames! - c.srcOut
 		},
+		...(c.hold ? { hold: c.hold } : {}),
 		transition: null,
 		audio: { edit: c.edit, split: c.split, crossfade: c.crossfade, gain: c.gain, mute: c.mute },
 		native: c.native
@@ -437,11 +462,10 @@ export function resolveProgram(
 	});
 	if (program) checkBehind(clips, cuts, shots, project, diagnostics);
 	if (program) checkSlots(clips, shots, format, fps, diagnostics);
-	if (program && cuts.length) checkHardCuts(shots, cutList.cuts, diagnostics);
-
 	const transitions = program
 		? resolveTransitions(project, cutList.cuts, cuts, shots, clips, fps, format.class, warn)
 		: [];
+	if (program && cuts.length) checkHardCuts(shots, cutList.cuts, transitions, diagnostics);
 	const events = resolveEvents(shots, transitions);
 	if (program) checkShotOrder(shots, diagnostics);
 	if (program) checkEventClash(events, shots, fps, diagnostics);
@@ -501,6 +525,46 @@ export function resolveProgram(
 		segments: resolveSegments(base, project),
 		diagnostics
 	};
+}
+
+/**
+ * Program seconds of event `name` that the block of clip `id` declares: the clip's start plus
+ * the declared moment, read with the clip's cues, length and beats as the block reads it.
+ */
+function clipEvent(clips: ResolvedClip[], inputs: ProgramInputs, name: string, id: string): number {
+	const clip = clips.find((c) => c.id === id);
+	if (!clip)
+		throw new AnchorError(
+			`Unknown clip "${id}". Clips: ${clips.map((c) => c.id).join(', ') || 'none'}.`
+		);
+	const declared = inputs.blockEvents?.[clip.block];
+	if (declared && 'error' in declared) throw new AnchorError(declared.error);
+	const events = declared?.events ?? {};
+	if (!Object.hasOwn(events, name)) {
+		const names = Object.keys(events);
+		throw new AnchorError(
+			`Block "${clip.block}" of clip "${id}" declares no event "${name}". ${
+				names.length
+					? `It declares: ${names.join(', ')}.`
+					: `It declares none: add \`export const events = { ${/^[A-Za-z_$][\w$]*$/.test(name) ? name : `'${name}'`}: '<moment>' }\` to its <script module>.`
+			}`
+		);
+	}
+	try {
+		const local = resolveMoment(events[name], {
+			id: clip.id,
+			cues: clip.cues,
+			duration: clip.duration,
+			fps: clip.fps,
+			beats: clip.beats?.map((b) => ({ index: b.index, time: b.local, bar: b.bar, beat: b.beat })),
+			noBeats: clip.noBeats
+		});
+		return clip.start + local;
+	} catch (error) {
+		throw new AnchorError(
+			`Event "${name}" of block "${clip.block}" (clip "${id}"): ${(error as Error).message}`
+		);
+	}
 }
 
 function programSources(
@@ -1019,25 +1083,47 @@ function checkSlots(
 	}
 }
 
-/** A written shot that runs across a hard cut keeps framing new footage with the old layout. */
+/**
+ * A written shot whose move (its morph, keys that change, its transition window) is under way
+ * on a hard cut carries the move on over different footage, which reads as a glitch. A shot
+ * that only frames both sides the same way is the normal jump cut and says nothing.
+ */
 function checkHardCuts(
 	shots: ProgramShot[],
 	cuts: ResolvedCut[],
+	transitions: ProgramTransition[],
 	diagnostics: ProgramDiagnostic[]
 ) {
+	const keysMove = (shot: ProgramShot, frame: number) =>
+		shot.keys.some(
+			(k, i) =>
+				i + 1 < shot.keys.length &&
+				k.frame < frame &&
+				shot.keys[i + 1].frame > frame &&
+				JSON.stringify(k.values) !== JSON.stringify(shot.keys[i + 1].values)
+		);
 	for (const shot of shots) {
 		if (shot.implicit || shot.source) continue;
+		const window = transitions.find((t) => t.id === shot.transition);
 		const crossed = cuts.filter(
 			(c) =>
 				c.index > 0 && !c.transition && c.startFrame > shot.startFrame && c.startFrame < endOf(shot)
 		);
-		for (const cut of crossed)
+		for (const cut of crossed) {
+			const f = cut.startFrame;
+			const moves = [
+				...(f > shot.startFrame && f < shot.startFrame + shot.morphFrames ? ['morph'] : []),
+				...(keysMove(shot, f) ? ['keys'] : []),
+				...(window && f > window.startFrame && f < endOf(window) ? ['transition'] : [])
+			];
+			if (!moves.length) continue;
 			diagnostics.push({
 				level: 'warning',
 				item: shot.id,
 				field: 'shots',
-				message: `Shot "${shot.id}" runs across the hard cut into ${cut.id} at frame ${cut.startFrame}.`
+				message: `Shot "${shot.id}" moves across the hard cut into ${cut.id} at frame ${f} (its ${moves.join(' and ')}): the move goes on over different footage. End the move before the cut, or put a transition on the cut.`
 			});
+		}
 	}
 }
 
@@ -1154,7 +1240,8 @@ function resolveTransitions(
 		// holds.
 		const { in: needIn, out: needOut } = transitionHandles(t);
 		const haveIn = cuts[i].handles.before;
-		const haveOut = cuts[i - 1].handles.after;
+		// A held cut's last frame stays frozen as long as the transition shows it.
+		const haveOut = cuts[i - 1].hold ? null : cuts[i - 1].handles.after;
 		t.held.in = Math.max(0, needIn - haveIn);
 		t.held.out = haveOut === null ? 0 : Math.max(0, needOut - haveOut);
 		if (t.held.in)
@@ -1310,14 +1397,23 @@ function speechPieces(
 		a.source === b.source &&
 		file(a) === file(b) &&
 		a.gain === b.gain &&
+		!a.hold &&
 		a.srcOut === b.srcIn;
 	cuts.forEach((cut, i) => {
 		if (!file(cut) || cut.mute) return;
 		const next = cuts[i + 1];
 		const xfIn = i && !continues(cuts[i - 1], cut) ? cut.crossfade : 0;
-		const xfOut = next && !continues(cut, next) ? next.crossfade : 0;
+		// A hold is silent: the sound stops where it starts, with the cut's own anti-click fade,
+		// unless the next cut's sound takes over first (a J cut into the hold's picture).
+		const stop = soundEnd(cuts, i, end, fps);
+		const held = cut.hold > 0 && (!next || stop < next.edit);
+		const xfOut = held ? cut.crossfade : next && !continues(cut, next) ? next.crossfade : 0;
 		let from = i ? Math.max(0, cut.edit - xfIn / 2) : 0;
-		let to = next ? Math.min(end, next.edit + xfOut / 2) : end;
+		let to = held
+			? Math.min(end, stop + xfOut / 2)
+			: next
+				? Math.min(end, next.edit + xfOut / 2)
+				: end;
 		let fadeIn = xfIn;
 		let fadeOut = xfOut;
 		// Source seconds = program seconds + shift.

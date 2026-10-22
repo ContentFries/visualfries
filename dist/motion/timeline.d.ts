@@ -267,6 +267,7 @@ export declare const CutShape: z.ZodObject<{
         music: z.ZodOptional<z.ZodString>;
         offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
     }, z.core.$strict>]>>;
+    hold: z.ZodOptional<z.ZodNumber>;
     transition: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
         type: z.ZodString;
         duration: z.ZodOptional<z.ZodNumber>;

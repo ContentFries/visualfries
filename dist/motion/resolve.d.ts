@@ -106,7 +106,7 @@ export type SubjectBox = {
     headHeight?: number;
 };
 export type MotionDiagnostic = {
-    level: 'error' | 'warning';
+    level: 'error' | 'warning' | 'info';
     clip?: string;
     field: string;
     message: string;
@@ -122,8 +122,15 @@ export type ProjectLook = {
     brand?: ResolvedBrand;
     style?: ResolvedStyle;
 };
-export declare function resolveMotionClip(clip: MotionClip, project: Pick<MotionProject, 'fps' | 'size' | 'background' | 'safeZone'>, words: MotionWord[] | null, diagnostics: MotionDiagnostic[], music?: MusicBeats[], look?: ProjectLook & {
+/**
+ * In a program: its end in seconds (`"end"` anchors, and clips are cut there), or null while
+ * its length is not fixed. Absent in inserts mode, where `"end"` is a phrase.
+ */
+export type ProgramEnd = {
+    end?: number | null;
+};
+export declare function resolveMotionClip(clip: MotionClip, project: Pick<MotionProject, 'fps' | 'size' | 'background' | 'safeZone'>, words: MotionWord[] | null, diagnostics: MotionDiagnostic[], music?: MusicBeats[], look?: ProjectLook & ProgramEnd & {
     format?: ResolvedFormat;
 }): ResolvedClip | null;
 /** `music`: beats of the project's music items, placed in the program (see `programBeats`). */
-export declare function resolveMotionProject(project: MotionProject, words: MotionWord[] | null, music?: MusicBeats[], look?: ProjectLook): ResolvedProject;
+export declare function resolveMotionProject(project: MotionProject, words: MotionWord[] | null, music?: MusicBeats[], look?: ProjectLook & ProgramEnd): ResolvedProject;

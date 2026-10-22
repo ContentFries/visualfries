@@ -618,8 +618,11 @@ describe.skipIf(!hasFfmpeg)('program audio mix: review fixes', () => {
 				{ id: 'odd', at: 1, sound: 'odd/sounds/b.wav' }
 			]
 		});
+		// The tone runs on past the cut's out: that edit-point warning is not what this checks.
 		const by = (level: string) =>
-			program.diagnostics.filter((d) => d.level === level).map((d) => [d.item, d.message]);
+			program.diagnostics
+				.filter((d) => d.level === level && d.item !== 'cut1')
+				.map((d) => [d.item, d.message]);
 		expect(by('error')).toEqual([
 			['gone', expect.stringContaining('"nope.mp3" not found')],
 			['text', expect.stringContaining('"text.wav" has no sound')]

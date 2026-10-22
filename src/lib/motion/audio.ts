@@ -387,10 +387,10 @@ function addPiece(target: Float32Array, samples: Float32Array, p: AudioPiece, ga
 	}
 }
 
-type Decode = { file: string; srcIn: number; frames: number };
+export type Decode = { file: string; srcIn: number; frames: number };
 
 /** Decodes every piece (a few ffmpeg processes at a time); results in the pieces' order. */
-async function decodeAll(pieces: Decode[], jobs = 4): Promise<Float32Array[]> {
+export async function decodeAll(pieces: Decode[], jobs = 4): Promise<Float32Array[]> {
 	const out: Float32Array[] = new Array(pieces.length);
 	let next = 0;
 	const worker = async () => {

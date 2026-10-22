@@ -6,13 +6,16 @@ const micro = (seconds) => Math.round(seconds * 1e6) / 1e6;
 export function musicTrack(file, music, item) {
     return { item, grid: correctBeats(file, music), duration: file.source.duration };
 }
-/** Whether an anchor needs a transcript (a phrase, or a phrase in its `at`). */
+/**
+ * Whether an anchor needs the program words or the program length (a phrase, the program end,
+ * an event of a clip, or one of those in its `at`).
+ */
 export function anchorUsesWords(anchor) {
     if (anchor === undefined || typeof anchor === 'number')
         return false;
     if (typeof anchor === 'string')
         return true;
-    if ('say' in anchor)
+    if ('say' in anchor || 'program' in anchor || 'event' in anchor)
         return true;
     if ('at' in anchor)
         return anchorUsesWords(anchor.at);
@@ -120,7 +123,8 @@ export function placeMusic(project, opts) {
             window: null,
             localBase: null,
             scope: 'program',
-            beats: { music: opts.tracks ? [...beats] : (opts.given ?? []), clip: undefined }
+            beats: { music: opts.tracks ? [...beats] : (opts.given ?? []), clip: undefined },
+            end: opts.stage === 'program' ? opts.end : undefined
         };
         // A failed `from` or `until` is reported once; the item then plays from 0 (or to the end)
         // so that what is anchored on its beats still resolves instead of failing everywhere.

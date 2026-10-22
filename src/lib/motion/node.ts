@@ -13,6 +13,7 @@ import { BUILTIN_STYLES, NEUTRAL_STYLE, resolveStyle, type ResolvedStyle } from 
 import { isProgramProject, parseMotionProject } from './timeline.js';
 import { parseTranscriptWords, type MotionWord } from './transcript.js';
 import {
+	programEnd,
 	resolveCutList,
 	type CutList,
 	type ProgramDiagnostic,
@@ -24,7 +25,8 @@ import { propFiles, resolveProgram, type ProgramHashes, type ResolvedProgram } f
 import { resolveMotionProject, type ResolvedClip, type ResolvedProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
-import { readBlockAnimatable } from './animatable.js';
+import { readBlockAnimatable, readBlockEvents } from './animatable.js';
+import { measureSpeechEdges } from './edit-audio.js';
 import {
 	BeatsFileShape,
 	barRows,
@@ -287,8 +289,30 @@ function canonical(value: unknown): string {
 	return JSON.stringify(value);
 }
 
-const issues = (error: { issues: { path: PropertyKey[]; message: string }[] }) =>
-	error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ');
+type Issue = { path: PropertyKey[]; message: string; code?: string; issues?: Issue[] };
+
+/** A name in the brand's kebab case: `woodDark` → `wood-dark`. */
+const kebab = (name: string) =>
+	name
+		.replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+		.replace(/[^A-Za-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+		.toLowerCase();
+
+/** One line per problem; a record key that breaks its rule says the rule (and the fix for brand colours). */
+const issues = (error: { issues: Issue[] }) =>
+	error.issues
+		.map((i) => {
+			const at = i.path.join('.') || '(root)';
+			if (i.code !== 'invalid_key' || !i.issues?.length) return `${at}: ${i.message}`;
+			const key = String(i.path[i.path.length - 1]);
+			const rule = i.issues[0].message;
+			const fixed = i.path[i.path.length - 2] === 'extra' ? kebab(key) : null;
+			return fixed && /^[a-z][a-z0-9-]*$/.test(fixed)
+				? `${at}: ${rule} ("${fixed}"), as in --brand-extra-${fixed}.`
+				: `${at}: ${rule}.`;
+		})
+		.join('; ');
 
 /** Read and resolve the project's brand: a file next to the project or an inline object. */
 export async function loadBrand(project: MotionProject, dir: string): Promise<LoadedBrand> {
@@ -466,8 +490,20 @@ export async function loadMotionProject(
 		for (const block of new Set(project.clips.map((c) => c.block)))
 			inputs.animatable[block] = await readBlockAnimatable(blockFile(dir, block));
 	}
+	if (isProgramProject(project) || project.sfx?.length) {
+		// Events the blocks declare, for `{ event, clip }` anchors.
+		inputs.blockEvents = {};
+		for (const block of new Set(project.clips.map((c) => c.block)))
+			inputs.blockEvents[block] = await readBlockEvents(blockFile(dir, block));
+	}
 	const common = { file: abs, dir, project, music, musicHash, brand, style, inputs, hashes };
-	const cutList = resolveCutList(project, inputs);
+	let cutList = resolveCutList(project, inputs);
+	// The speech at each audio edit point decides whether a word is cut through there.
+	const edges = await measureSpeechEdges(project, inputs, cutList, dir);
+	if (edges.length) {
+		inputs.speechEdges = edges;
+		cutList = resolveCutList(project, inputs);
+	}
 	const placement = placeLoadedMusic(
 		music,
 		project,
@@ -498,7 +534,10 @@ export async function loadMotionProject(
 	}
 	// Program mode: clips resolve against the program transcript, and a broken cut list is an
 	// error of the project (program time is undefined without it).
-	const resolved = resolveMotionProject(project, cutList.words, musicBeats, look);
+	const resolved = resolveMotionProject(project, cutList.words, musicBeats, {
+		...look,
+		end: programEnd(project, cutList)
+	});
 	resolved.diagnostics.unshift(
 		...cutList.diagnostics
 			.filter((d) => d.level !== 'info')
@@ -530,7 +569,8 @@ function placeLoadedMusic(
 		tracks: inputs.tracks,
 		words,
 		sounds: inputs.sounds,
-		stage: 'program'
+		stage: 'program',
+		end: programEnd(project, cutList)
 	});
 	// As `resolveProgram` does: where the cut list (or `duration`) fixes the program length, the
 	// beats run to each item's end. Its warnings are the program's to report.
@@ -1891,7 +1931,7 @@ export async function checkMotionProject(
 						if (differ.length) {
 							result.nondeterministic = differ.sort((a, b) => a - b);
 							result.errors.push({
-								message: `Frames ${result.nondeterministic.join(', ')} look different depending on seek order. Something depends on history (wall-clock time, stateful random, state kept between frames).`
+								message: `Frames ${result.nondeterministic.join(', ')} look different depending on seek order. Something depends on history: wall-clock time, stateful random, state kept between frames, or an image that decodes after it mounts (an <img> whose src changes; preload images, see "Images" in docs/MOTION.md).`
 							});
 						}
 					}

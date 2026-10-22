@@ -79,11 +79,14 @@ export type MusicPlacement = {
 	diagnostics: ProgramDiagnostic[];
 };
 
-/** Whether an anchor needs a transcript (a phrase, or a phrase in its `at`). */
+/**
+ * Whether an anchor needs the program words or the program length (a phrase, the program end,
+ * an event of a clip, or one of those in its `at`).
+ */
 export function anchorUsesWords(anchor: MotionAnchor | undefined): boolean {
 	if (anchor === undefined || typeof anchor === 'number') return false;
 	if (typeof anchor === 'string') return true;
-	if ('say' in anchor) return true;
+	if ('say' in anchor || 'program' in anchor || 'event' in anchor) return true;
 	if ('at' in anchor) return anchorUsesWords(anchor.at);
 	return false;
 }
@@ -166,6 +169,8 @@ export function placeMusic(
 		words: MotionWord[] | null;
 		sounds?: Record<string, SoundInfo | null>;
 		stage: 'cuts' | 'program';
+		/** The program end for `"end"` anchors (see `AnchorContext.end`); program stage only. */
+		end?: number | null;
 	}
 ): MusicPlacement {
 	const fps = project.fps;
@@ -197,7 +202,8 @@ export function placeMusic(
 			window: null,
 			localBase: null,
 			scope: 'program',
-			beats: { music: opts.tracks ? [...beats] : (opts.given ?? []), clip: undefined }
+			beats: { music: opts.tracks ? [...beats] : (opts.given ?? []), clip: undefined },
+			end: opts.stage === 'program' ? opts.end : undefined
 		};
 		// A failed `from` or `until` is reported once; the item then plays from 0 (or to the end)
 		// so that what is anchored on its beats still resolves instead of failing everywhere.

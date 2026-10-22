@@ -135,6 +135,11 @@ export const CutShape = z.object({
      * `in`. A beat of the music (`{ "bar": 5 }`) ends the cut on that beat's frame.
      */
     out: CutPointShape.optional(),
+    /**
+     * Seconds the picture holds the cut's last frame after `out`, silent (rounded to frames).
+     * Program time runs on; effects and music keep playing.
+     */
+    hold: z.number().min(0).optional(),
     transition: TransitionShape.optional(),
     audio: z
         .object({

@@ -173,7 +173,7 @@ export function segmentCheckFrames(
 }
 
 /**
- * Frames on both sides of every change: cuts, shot starts, morph middles and ends, clip edges,
+ * Frames on both sides of every change: cuts, holds, shot starts, morph middles and ends, clip edges,
  * transition window edges, keys and the middle between two keys.
  */
 export function edgeFrames(
@@ -186,7 +186,7 @@ export function edgeFrames(
 	);
 	const edges = [
 		...keyFrames,
-		...program.cuts.map((c) => c.startFrame),
+		...program.cuts.flatMap((c) => (c.hold ? [c.startFrame, endOf(c) - c.hold] : [c.startFrame])),
 		...program.shots.flatMap((s) => [
 			s.startFrame,
 			s.startFrame + Math.floor(s.morphFrames / 2),

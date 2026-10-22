@@ -30,6 +30,8 @@ const musicRef = z.string().min(1).optional();
  * - { frame }: absolute program frame
  * - { beat: 17 }: the 17th beat of the music; { bar: 5 } its downbeat, { bar: 5, beat: 3 }
  * - { downbeat: "after", at }, { beat: "before", at }: nearest (down)beat to another anchor
+ * - "end", { program: "end", offset? }: the program end (with a cut list or `duration`)
+ * - { event, clip, offset? }: an event the clip's block declares (sfx, shots, music keys)
  * `offset` is seconds or beats ("-1b").
  */
 export type MotionAnchor =
@@ -55,7 +57,9 @@ export type MotionAnchor =
 			at: MotionAnchor;
 			music?: string;
 			offset?: number | string;
-	  };
+	  }
+	| { program: 'end'; offset?: number | string }
+	| { event: string; clip: string; offset?: number | string };
 
 /** `{ bar, beat: "after", at }` would silently lose `bar`; such anchors are refused. */
 export const AMBIGUOUS_BAR_ANCHOR =
@@ -105,6 +109,14 @@ export const MotionAnchorShape: z.ZodType<MotionAnchor> = z.lazy(() =>
 					beat: z.enum(['after', 'before']),
 					at: MotionAnchorShape,
 					music: musicRef,
+					offset: AnchorOffsetShape.optional()
+				}),
+				/** The program end (`"end"` is the short form). */
+				z.object({ program: z.literal('end'), offset: AnchorOffsetShape.optional() }),
+				/** An event a clip's block declares (`export const events` in its module script). */
+				z.object({
+					event: z.string().min(1),
+					clip: z.string().min(1),
 					offset: AnchorOffsetShape.optional()
 				})
 			])
@@ -307,7 +319,10 @@ export const BrandShape = z
 					.record(
 						z
 							.string()
-							.regex(/^[a-z][a-z0-9-]*$/, 'extra colour name: lowercase letters, digits, dash'),
+							.regex(
+								/^[a-z][a-z0-9-]*$/,
+								'extra colour names are lowercase letters, digits and dashes'
+							),
 						colorValue
 					)
 					.optional()

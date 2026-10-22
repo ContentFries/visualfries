@@ -8,7 +8,8 @@ export function footageMap(program, totals) {
             source: c.source,
             startFrame: c.startFrame,
             frames: c.frames,
-            srcIn: c.srcIn
+            srcIn: c.srcIn,
+            ...(c.hold ? { last: c.srcOut - 1 } : {})
         })),
         ...program.shots.flatMap((s) => s.source
             ? [
@@ -43,7 +44,7 @@ export function footageMap(program, totals) {
 function view(map, span, f) {
     const wanted = span.srcIn + (f - span.startFrame);
     const total = map.totals[span.source];
-    const last = total === null || total === undefined ? Infinity : total - 1;
+    const last = Math.min(total === null || total === undefined ? Infinity : total - 1, span.last ?? Infinity);
     const frame = Math.max(0, Math.min(last, wanted));
     return { source: span.source, frame, owner: span.owner, held: frame !== wanted };
 }

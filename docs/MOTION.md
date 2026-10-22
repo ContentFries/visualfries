@@ -40,6 +40,18 @@ my-video/
   (`from`) or its last word's end (`until`). Also: program seconds (`12.5`), `{ "frame": 274 }`,
   or `{ "say": "…", "edge": "start"|"last"|"end", "occurrence": 2, "offset": -0.1 }`
   (`last` = when the phrase's last word starts).
+- **A phrase in `until` is the end of its last word**, not its start. Music, a clip or a shot
+  meant to stop dead on a word runs on to the end of that word unless it says
+  `"until": { "say": "kicked", "edge": "start" }`. The same holds for `out` of a cut, for the
+  `at` of a `{ "downbeat": "after" }` inside `until`, and for any other field that ends something.
+- **`"end"`** in a program (a project with `cuts` or `shots`) is the program's last frame:
+  `"until": "end"` for a clip, a shot or music, and `{ "program": "end", "offset": -1.5 }` for a
+  moment before it (`from`, an `sfx` `at`, a key). The end is the cut list's length, or
+  `duration`; a program with neither (shots only) has no fixed end, and an `"end"` anchor is an
+  error there. For the spoken word "end", write `{ "say": "end" }`. Without `cuts` or `shots`,
+  `"end"` stays a phrase.
+  _Changed in behaviour:_ in a program, `"end"` used to be searched as a spoken phrase; a
+  program that anchored on the word must now write `{ "say": "end" }`.
 - **`cues`** are named moments inside the clip. Names may use any language and inner spaces
   (`"nových odberateľov": "nových odberateľov"`), but not start with a digit or contain `+ - .`, and `bar 5` / `beat 17` read as music beats. Phrases are searched only inside the clip;
   numbers and `{ "frame": n }` are clip-local. `start` and `end` are built in and cannot be
@@ -164,7 +176,74 @@ filter, clip-path, visibility, display, stroke-dash\* and, for marks, background
 box-decoration-break, so do not animate those from markup or a timeline on the same element.
 Every move records events (`pop`, `slam`, `whoosh`, `type`, a counter `tick` …, one per stagger
 item) that `clip.events()` lists for sound effects; `clip.event(name, at)` adds your own.
+Those are recorded in the page while the block runs, so the program cannot place sound on them.
+For a moment the program's sound should hit, declare it in the block's module script (below).
 Worked example: `static/demo/motion`.
+
+### Events a block declares
+
+A block can name moments of its clip that sound effects, shots and music keys anchor on, so the
+timing lives in one place:
+
+```svelte
+<script module>
+	export const events = { land: 'tail+0.98', bonk: 'end-0.2' };
+</script>
+
+<script>
+	import { useClip } from 'visualfries/motion';
+	const clip = useClip();
+	const land = clip.at(events.land); // the block reads the same moment
+</script>
+```
+
+```json
+"clips": [{ "id": "kick", "block": "blocks/Kick.svelte", "from": "kicked me", "until": "end",
+            "cues": { "tail": { "say": "kicked me", "edge": "end" } } }],
+"sfx": [{ "at": { "event": "land", "clip": "kick" }, "sound": "sfx/bonk.wav" },
+        { "at": { "event": "land", "clip": "kick", "offset": -0.4 }, "sound": "sfx/whistle.wav" }]
+```
+
+Each value is a moment of the clip in the grammar above (a cue, `end-0.2`, `f12`, `bar 5`) or
+clip seconds as a number. `program` reads the declaration from the block's source without running
+it, like `animatable`, so it must be a literal object of names and literal values. `{ "event",
+"clip", "offset"? }` works in `sfx` `at`, in shot `from`/`until` and in music `keys`; a clip's
+own `from`, `until` and cues cannot use it (the clip it names is placed first). An unknown clip
+or an event its block does not declare is an error that lists what it declares. Every declared
+event is checked, used or not: one that does not resolve, or lies outside its clip or after the
+program end, is a warning of the clip.
+
+### Images
+
+An `<img>` decodes its picture in the background. Mounted once and left alone, it is ready
+before the first frame is drawn; one whose `src` changes during the clip (a pose swapped on a
+cue) may still be decoding when a frame is captured, and that frame then depends on seek order
+(`check --determinism` fails on it). Keep every picture mounted and switch between them with
+`opacity`, never with `src` or `{#if}`, and wait for them before the first frame:
+
+```svelte
+<script>
+	import { useClip, useReady } from 'visualfries/motion';
+	import idle from './poses/idle.png';
+	import shout from './poses/shout.png';
+	const clip = useClip();
+	const poses = { idle, shout };
+	useReady(
+		Promise.all(
+			Object.values(poses).map((src) => {
+				const img = new Image();
+				img.src = src;
+				return img.decode();
+			})
+		)
+	);
+	const pose = $derived(clip.after('shout') ? 'shout' : 'idle');
+</script>
+
+{#each Object.entries(poses) as [name, src] (name)}
+	<img {src} alt="" style:opacity={name === pose ? 1 : 0} />
+{/each}
+```
 
 ## Footage and mattes
 
@@ -225,8 +304,31 @@ comes from the cut list, so a re-take that keeps the words keeps every cue; for 
 point `footage.<name>.transcript` at its transcript (`--transcript` only replaces the transcript
 of a project without `cuts` or `shots`). `in` rounds to the nearest frame and `out` up to the
 next, so the last word is never clipped. A cut's `transition` belongs to the incoming range and
-never changes program time or sound; `audio: { split }` makes a J or L cut, and `check` warns
-about a word an audio edit point cuts through. A cut can also end on the music:
+never changes program time or sound; `audio: { split }` makes a J or L cut.
+
+`"hold": 1.7` on a cut freezes its last frame for 1.7 s after `out` (rounded to frames), as the
+picture to end on after the last word or to let a gag land. The hold is program time: everything
+after it moves on, `"end"` includes it, clips and shots run through it. It is silent: the cut's
+sound stops at its `out` with its anti-click fade and the next cut's sound starts at its own
+first frame, while sound effects and music play on. No words fall into it, so captions pause. A
+transition out of a held cut shows the frozen frame as its outgoing side. A hold is at most 60 s;
+one under half a frame holds nothing (a warning). `check --export inserts` notes every hold: the
+rough cut in the editor needs the same freeze frame, or the inserts after it land late.
+
+`check` and `program` warn about a word an audio edit point cuts through. `program`, `check` and
+`render` also measure every edit point on the cut's sound where it can be read
+(`footage.<name>.audio` or the file's own sound track): around each point the voice level is the
+loudest 5 % of the sound within 1.5 s and the floor (room noise, a music bed) its quietest 10 %.
+Quiet is 24 dB under the voice but never less than 6 dB over the floor, and the voice runs
+through a point when the 10 ms on both sides of it are louder than quiet. The warning then says
+how far to move the point, in whole frames (`move "out" 0.30 s later`, `move "in" 0.07 s
+earlier`, or the `audio.split` that put it there); a voice that stops within half a frame of the
+point counts as clean. A transcript word that only seems cut (a transcript often times an onset
+a little early or a ringing end a little short) is no longer reported, unless the point lies
+more than 0.1 s inside the word, where a quiet stop consonant can measure clean. Where the voice
+cannot be told from the floor, the sound cannot be decoded or nothing was measured (`still`,
+`clips`), the transcript's times decide. Measurements are cached per sound file and point in
+`.visualfries/edit-points.json`. A cut can also end on the music:
 `"out": { "bar": 5 }` (see [Music in the program](#music-in-the-program)). `visualfries program` resolves cuts, program words,
 shots, clips, transitions, audio pieces and segments into `.visualfries/program/<format>.json`,
 and `check` reports what is wrong with them (a phrase that moved, a transition longer than its
@@ -325,7 +427,9 @@ no shot frees its slot it is hidden and `check` warns. Shots add events to the p
 sounds to land on: `shot` halfway through a move into `strip` or `window` and back out of them,
 `punch` on a punch-in's first frame, and `whip` halfway through the whip out and the whip back
 (a punch after a whip hits when the camera lands). Nothing moves on the program's first frame,
-so a shot there has no event. `check` warns when a whip and a transition fall within three
+so a shot there has no event. A shot may run across hard cuts (the jump cuts of a talking head);
+`check` warns only when its morph, a change between two of its keys or its transition window is
+under way on such a cut, because the move then goes on over different footage. `check` warns when a whip and a transition fall within three
 frames of each other: two sounds on one move.
 
 A `transition` on a cut, a shot or a clip hands the frame over inside a window around the cut:
@@ -627,8 +731,8 @@ cues, shots, keys, `sfx` and the music's own gain keys land on the frame nearest
 ]
 ```
 
-- **Where it starts.** `from` takes any program anchor: seconds, `{ "frame" }`, a phrase of the
-  program transcript, or a beat of a music item listed before it (`{ "bar": 9, "music":
+- **Where it starts.** `from` takes any program anchor: seconds, `{ "frame" }`, `{ "program":
+  "end", "offset": -8 }`, a phrase of the program transcript, or a beat of a music item listed before it (`{ "bar": 9, "music":
 "intro" }`). A negative number starts inside the file, like `in`. `until` takes any anchor
   too; its beat anchors read the item's own beats unless they name another music. Music cannot
   start on its own beats (they move with it). A `from` that fails is reported once, and the
@@ -729,7 +833,9 @@ neither renders exactly as before.
 ```
 
 - The six colour roles are required, so every built-in block can place colours with any brand.
-  `extra` holds any further named colours. A value may be any CSS colour or a gradient.
+  `extra` holds any further named colours, named in lowercase letters, digits and dashes
+  (`"wood-dark"`, not `"woodDark"`), as their custom property is `--brand-extra-wood-dark`. A
+  value may be any CSS colour or a gradient.
   `onPrimary` / `onAccent` (readable text on those colours) are optional; left out, the one of
   `text` and `background` with more contrast is used (black or white if neither reaches 4.5:1).
 - `heading` and `body` are required, `mono` is optional. Each font is a file loaded like the
@@ -888,17 +994,18 @@ and mattes](#footage-and-mattes)). Leave a breath at each edge: `"offset": -0.1`
 several times, `occurrence` picks the try on `in`; `out` is searched from `in`, but a phrase that
 appears again later in the take is still ambiguous, so give `out` an `occurrence` too (`1` is the
 first after `in`). A cut cannot run past the end of its source, so the last cut's `out` offset is
-limited by what the camera recorded after the last word. `visualfries program` prints every cut
-with its source range.
+limited by what the camera recorded after the last word; for more picture after it, give the
+last cut a `"hold"` (seconds of its last frame, silent). `visualfries program` prints every cut
+with its source range and hold.
 
 **4. Shots.** Chain shots end to start: give the next shot's `from` the same anchor as the
 previous shot's `until`. A gap of a few frames between them is a `full` shot of its own, and the
 move into it is squeezed into those frames. In `until` a phrase means the end of its last word;
-to end a shot where a phrase starts, write `{ "say": …, "edge": "start" }`. End the last shot
-and the clips that run to the end on the same anchor and offset as the last cut's `out`, then
-check in `program` that they end on the program's last frame: `out` rounds up to the next frame
-while `from` and `until` round to the nearest, so they can end one frame short (add up to
-0.033 s to their offset), and a clip that runs past the program is cut there without a warning.
+to end a shot where a phrase starts, write `{ "say": …, "edge": "start" }`. End the last shot,
+the music and the clips that run to the end with `"until": "end"` (the program's last frame,
+holds included). A clip whose `until` lies past the program end is cut there, its own
+`clip.frames` and `clip.duration` too, and `program` notes it. _Changed in behaviour:_ such a
+clip used to keep its written length, so exits written as `'end-0.3'` never played; they play now.
 Give every shot that holds longer than about two seconds `keys` that keep the camera moving (a
 slow `scale` from 1 to 1.08). What depends on the footage (framing and headroom, window
 aspect, strip size, text placement against the face, caption size) is decided per video from
@@ -924,7 +1031,9 @@ Anton and Inter but loads neither. See [Brand, style and format](#brand-style-an
 **6. Transitions and sound.** A `transition` with `"sound"` plays it on the transition's event
 (see the built-ins above). Shots emit events too (`program --json` lists them under `events` with
 their frames) but carry no sound yet: put an `sfx` item on the shot's anchor plus half its move
-(a whip 0.21 s, a strip or window 0.35 s; a punch hits on its first frame). Sound effects from a
+(a whip 0.21 s, a strip or window 0.35 s; a punch hits on its first frame). A moment a block
+computes (a landing, an impact) is an event it declares, and the `sfx` anchors on it
+(`{ "event": "land", "clip": "kick" }`, see [Events a block declares](#events-a-block-declares)). Sound effects from a
 library whose `sounds.json` lists hit offsets land their hit on the moment ([Program
 sound](#program-sound)). Music plays at a steady level under the speech and ends on a bar
 ([Music in the program](#music-in-the-program)); its `in` places a downbeat on a visual hit.
@@ -1026,7 +1135,8 @@ the cache or transitions, and the same project gives the same samples on every r
   same gain) meet without a fade, so splitting a take leaves its sound unchanged.
   `footage.<name>.audio` names a separate sound file (the microphone) or `false`.
 - **Effects:** `sfx` items play a sound file (relative to the project) at any program anchor,
-  rounded to a frame. A transition with `"sound"` plays it on its event (the middle of every
+  rounded to a frame: a phrase, a beat, `{ "program": "end", "offset": -0.5 }`, or an event a
+  clip's block declares (`{ "event": "land", "clip": "kick" }`). A transition with `"sound"` plays it on its event (the middle of every
   built-in transition). When a sound library's `sounds.json` (`{ "sounds": [{ "file", "hitMs" }] }`, in
   the sound's folder or up to three folders above) lists the file, its hit lands on the moment
   instead of its first sample (a manifest that cannot be read, or a `hitMs` outside the sound,
@@ -1099,7 +1209,8 @@ as the program draws it, alone:
 Each manifest entry adds to the fields of a clip render: `handles` (`before`, `after`), `clip`
 (the clip's own `startFrame` and `frames`), `layer`, `slot`, `holdout`, `sources` (the cut list
 under the file: program frames `startFrame` to `startFrame + frames` show source frames `srcIn`
-to `srcOut` of `source`, at the project rate) and `notes`. The manifest itself adds
+to `srcOut` of `source`, at the project rate; a piece with `"hold": true` is a cut's hold and
+shows source frame `srcIn` throughout) and `notes`. The manifest itself adds
 `"export": "inserts"` and the program's `frames`.
 
 Not in inserts: the cut list itself (the editor has the rough cut), shots (the framing of the

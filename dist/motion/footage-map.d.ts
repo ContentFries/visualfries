@@ -5,7 +5,8 @@ import type { ResolvedProgram } from './program.js';
  *
  * Inside a cut, program frame f shows source frame `srcIn + (f − startFrame)`. The same formula
  * runs on into the handles a transition window shows before and after the cut, and where the
- * source runs out its edge frame holds. A shot with its own `source` frames that source instead
+ * source runs out its edge frame holds. A cut with a `hold` stops at its last source frame,
+ * which holds through the hold and any handle after it. A shot with its own `source` frames that source instead
  * of the cut list's, from its `in` at the shot start.
  */
 /** A program range where one source is the picture: a cut, or a shot with its own source. */
@@ -19,6 +20,11 @@ export type FootageSpan = {
     frames: number;
     /** Source frame shown at `startFrame` (project rate). */
     srcIn: number;
+    /**
+     * A cut with a hold: its last source frame, which holds from there on (also into the handle
+     * a transition out of it shows). Absent: the source runs on.
+     */
+    last?: number;
 };
 /** A cut or shot transition: both sides are on screen from `startFrame` for `frames`. */
 export type FootageWindow = {

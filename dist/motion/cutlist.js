@@ -5,6 +5,11 @@ import { placeMusic } from './music.js';
 export const soundLength = (info) => info ? (info.audioDuration ?? info.duration) : Infinity;
 /** Audio times are kept to the microsecond (a 48 kHz sample is ~21 µs): no float noise in files. */
 export const micro = (seconds) => Math.round(seconds * 1e6) / 1e6;
+/**
+ * Seconds a word must reach past an edit point on both sides for the transcript's warning to
+ * stand against a clean measurement (transcripts time edges up to about 0.08 s off).
+ */
+const INSIDE_WORD = 0.1;
 /** Default anti-click crossfade at every audio edit point, seconds. */
 export const DEFAULT_CROSSFADE = 0.01;
 const cutName = (index) => `cut ${index + 1}`;
@@ -119,8 +124,16 @@ export function resolveCutList(project, inputs) {
             if (!waits)
                 throw error;
             const which = named ?? deferred[0];
-            throw new Error(`Music "${which}" is placed by a phrase (its own "from", or that of the music it starts on), and the cut list decides where phrases play, so cut points cannot read its beats. Start it in seconds or on the beats of other music, or end the cut on a phrase.`);
+            throw new Error(onEnd(which)
+                ? `Music "${which}" starts relative to the program end, which the cut list decides, so cut points cannot read its beats. Start it in seconds or on the beats of other music, or end the cut on a phrase.`
+                : `Music "${which}" is placed by a phrase (its own "from", or that of the music it starts on), and the cut list decides where phrases play, so cut points cannot read its beats. Start it in seconds or on the beats of other music, or end the cut on a phrase.`);
         }
+    };
+    /** Whether music `id` starts on the program end (`"end"`, `{ program: "end" }`). */
+    const onEnd = (id) => {
+        const m = (project.music ?? []).find((x, i) => (x.id ?? `music${i + 1}`) === id);
+        const from = m?.from;
+        return from === 'end' || (typeof from === 'object' && from !== null && 'program' in from);
     };
     const cuts = [];
     let at = 0;
@@ -214,6 +227,14 @@ export function resolveCutList(project, inputs) {
                 field: `cuts[${index}].${k}`,
                 message: `${cutName(index)}: "${k}" is ${((k === 'in' ? srcIn : srcOut) / fps).toFixed(2)} s of "${cut.source}"; it does not follow a retake.`
             });
+        const hold = Math.round((cut.hold ?? 0) * fps);
+        if (cut.hold && !hold)
+            diagnostics.push({
+                level: 'warning',
+                item: id,
+                field: `cuts[${index}].hold`,
+                message: `${cutName(index)}: a hold of ${cut.hold} s is less than half a frame, so nothing holds.`
+            });
         cuts.push({
             id,
             index: cuts.length,
@@ -221,7 +242,8 @@ export function resolveCutList(project, inputs) {
             srcIn,
             srcOut,
             startFrame: at,
-            frames: srcOut - srcIn,
+            frames: srcOut - srcIn + hold,
+            hold,
             edit: cuts.length ? micro(at / fps + split) : 0,
             split: cuts.length ? split : 0,
             crossfade: cut.audio?.crossfade ?? DEFAULT_CROSSFADE,
@@ -231,17 +253,66 @@ export function resolveCutList(project, inputs) {
             native: cut.native ?? null,
             numeric
         });
-        at += srcOut - srcIn;
+        at += srcOut - srcIn + hold;
     });
     const end = at / fps;
     checkEdits(cuts, end, project, inputs, diagnostics);
+    const heard = new Map();
+    const words = programWords(project, cuts, end, inputs, diagnostics, heard);
+    speechEdgeWarnings(cuts, inputs, heard, diagnostics);
     return {
         mode: 'program',
         cuts,
         frames: written.length ? at : null,
-        words: programWords(project, cuts, end, inputs, diagnostics),
+        words,
         diagnostics
     };
+}
+/**
+ * The program end in seconds for `"end"` anchors: the cut list's length, else `duration`; null
+ * when a program has neither (its length then comes from its clips), undefined in inserts mode.
+ */
+export function programEnd(project, cutList) {
+    if (cutList.mode !== 'program')
+        return undefined;
+    const frames = cutList.frames ??
+        (project.duration !== undefined ? Math.round(project.duration * project.fps) : null);
+    return frames === null ? null : frames / project.fps;
+}
+/**
+ * One warning per measured edge where the voice runs through the point, with how far to move
+ * it and the transcript's words there. The field to change is the cut's `in`/`out`, or the
+ * `audio.split` that put the point there.
+ */
+function speechEdgeWarnings(cuts, inputs, heard, diagnostics) {
+    const edges = (inputs.speechEdges ?? [])
+        .filter((e) => !e.clean && cuts[e.cut]?.source === e.source)
+        .sort((a, b) => a.cut - b.cut || (a.side === 'in' ? -1 : 1));
+    for (const edge of edges) {
+        const i = edge.cut;
+        const cut = cuts[i];
+        const split = edge.side === 'in' ? cut.split : (cuts[i + 1]?.split ?? 0);
+        const held = edge.side === 'out' && cut.hold > 0;
+        const field = split && !held
+            ? `cuts[${edge.side === 'in' ? i : i + 1}].audio.split`
+            : `cuts[${i}].${edge.side}`;
+        const which = field.endsWith('split') ? '"audio.split"' : `"${edge.side}"`;
+        const words = [...new Set(heard.get(edge) ?? [])];
+        const said = words.length ? ` in "${words.join(' ')}"` : '';
+        const where = `${edge.at.toFixed(2)} s of "${edge.source}"`;
+        const what = edge.side === 'out'
+            ? `the voice is still sounding where the cut's sound stops (${where})${said}`
+            : `the voice has already started where the cut's sound starts (${where})${said}`;
+        const fix = edge.move === null
+            ? `it goes on for more than a second: ${edge.side === 'out' ? 'end' : 'start'} the cut in a pause`
+            : `move ${which} ${edge.move.toFixed(2)} s ${edge.side === 'out' ? 'later' : 'earlier'}`;
+        diagnostics.push({
+            level: 'warning',
+            item: cut.id,
+            field,
+            message: `${cutName(i)}: ${what}; ${fix}.`
+        });
+    }
 }
 const NO_SOURCE = {
     source: null,
@@ -250,8 +321,17 @@ const NO_SOURCE = {
     sourceStart: null,
     sourceEnd: null
 };
-/** Program seconds where cut `i`'s sound ends. */
+/** Program seconds of the next audio edit point after cut `i` (the program end after the last). */
 const editAfter = (cuts, i, end) => i + 1 < cuts.length ? cuts[i + 1].edit : end;
+/**
+ * Program seconds where cut `i`'s sound ends: the next edit point, or where its hold starts
+ * when that comes first (a hold is silent).
+ */
+export const soundEnd = (cuts, i, end, fps) => {
+    const cut = cuts[i];
+    const next = editAfter(cuts, i, end);
+    return cut.hold ? Math.min(next, (cut.startFrame + cut.frames - cut.hold) / fps) : next;
+};
 /** J/L splits must keep edit points in order and stay inside the source's sound. */
 function checkEdits(cuts, end, project, inputs, diagnostics) {
     const fps = project.fps;
@@ -260,6 +340,13 @@ function checkEdits(cuts, end, project, inputs, diagnostics) {
             return;
         const field = `cuts[${i}].audio.split`;
         const prev = cuts[i - 1];
+        if (cut.split > 0 && prev.hold)
+            diagnostics.push({
+                level: 'warning',
+                item: cut.id,
+                field,
+                message: `${cutName(i)}: the cut before holds its picture without sound, so this L cut leaves ${cut.split.toFixed(2)} s of silence after it.`
+            });
         if (cut.edit <= prev.edit || cut.edit >= editAfter(cuts, i, end)) {
             diagnostics.push({
                 level: 'error',
@@ -292,8 +379,11 @@ function checkEdits(cuts, end, project, inputs, diagnostics) {
  * `start − in + P`, clamped to that range: J and L cuts move words with the sound. A range used
  * twice gives its words twice.
  */
-function programWords(project, cuts, end, inputs, diagnostics) {
+function programWords(project, cuts, end, inputs, diagnostics, 
+/** Words the transcript puts across each measured edge where the voice runs through it. */
+heard) {
     const fps = project.fps;
+    const edgeOf = (cut, side) => inputs.speechEdges?.find((e) => e.cut === cut && e.side === side);
     if (inputs.words) {
         // A project-level transcript is already program time (footage shorthand).
         const only = cuts.length === 1 ? cuts[0] : null;
@@ -315,6 +405,17 @@ function programWords(project, cuts, end, inputs, diagnostics) {
     const slack = 0.5 / fps + 1e-6;
     /** Warns that the edge of cut `i`'s sound range at `at` cuts through a word. */
     const cutThrough = (i, side, at, w, shift, dropped) => {
+        // Where the sound was measured it decides (a warning of its own, with the word), unless the
+        // point lies well inside the word: a quiet stop consonant mid-word measures clean.
+        const measured = edgeOf(i, side === 'start' ? 'in' : 'out');
+        if (measured) {
+            if (!measured.clean) {
+                (heard.get(measured) ?? heard.set(measured, []).get(measured)).push(w.text);
+                return;
+            }
+            if (!(w.start + shift < at - INSIDE_WORD && w.end + shift > at + INSIDE_WORD))
+                return;
+        }
         const edit = side === 'start' ? i : i + 1;
         const edge = edit === 0
             ? `"in" of ${cutName(0)}`
@@ -335,7 +436,7 @@ function programWords(project, cuts, end, inputs, diagnostics) {
             return;
         const shift = cut.startFrame / fps - cut.srcIn / fps;
         const from = cut.edit;
-        const to = editAfter(cuts, i, end);
+        const to = soundEnd(cuts, i, end, fps);
         for (const w of words) {
             const wStart = w.start + shift;
             const wEnd = w.end + shift;

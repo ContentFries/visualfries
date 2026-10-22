@@ -1,5 +1,5 @@
 import { pickMusic } from './beat-grid.js';
-import { AnchorError, resolveAnchor, resolvePhrase } from './anchors.js';
+import { AnchorError, isProgramEnd, resolveAnchor, resolvePhrase } from './anchors.js';
 import { NEUTRAL_BRAND } from './brand.js';
 import { NEUTRAL_STYLE } from './style.js';
 import { resolveFormat } from './format.js';
@@ -21,20 +21,28 @@ function resolveWords(spec, words, fps, window, clipStart, beats) {
 export function resolveMotionClip(clip, project, words, diagnostics, music = [], look = {}) {
     const fps = project.fps;
     const beats = { music, clip: clip.music };
+    const programEnd = look.end;
     const fail = (field, error) => {
         diagnostics.push({ level: 'error', clip: clip.id, field, message: error.message });
     };
     let startSec;
     let endSec;
     try {
-        startSec = resolveAnchor(clip.from, { words, fps, window: null, localBase: null, beats }, 'start').time;
+        startSec = resolveAnchor(clip.from, { words, fps, window: null, localBase: null, beats, end: programEnd }, 'start').time;
     }
     catch (error) {
         fail('from', error);
         return null;
     }
     try {
-        endSec = resolveAnchor(clip.until, { words, fps, window: { from: startSec, to: Infinity }, localBase: null, beats }, 'end').time;
+        endSec = resolveAnchor(clip.until, {
+            words,
+            fps,
+            window: { from: startSec, to: Infinity },
+            localBase: null,
+            beats,
+            end: programEnd
+        }, 'end').time;
     }
     catch (error) {
         fail('until', error);
@@ -43,7 +51,7 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
     endSec += clip.tail ?? 0;
     for (const field of ['from', 'until']) {
         const anchor = clip[field];
-        const say = typeof anchor === 'string'
+        const say = typeof anchor === 'string' && !isProgramEnd(anchor, { end: programEnd })
             ? anchor
             : typeof anchor === 'object' && 'say' in anchor
                 ? anchor.say
@@ -58,7 +66,25 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
         }
     }
     const startFrame = Math.round(startSec * fps);
-    const endFrame = Math.round(endSec * fps);
+    let endFrame = Math.round(endSec * fps);
+    const programFrames = typeof programEnd === 'number' ? Math.round(programEnd * fps) : null;
+    if (programFrames !== null && startFrame >= programFrames)
+        diagnostics.push({
+            level: 'warning',
+            clip: clip.id,
+            field: 'from',
+            message: `Clip starts at ${startSec.toFixed(2)} s, at or after the program end (${programEnd.toFixed(2)} s): it is never shown.`
+        });
+    // A clip that runs past the program end is cut there, its own length included.
+    else if (programFrames !== null && endFrame > programFrames) {
+        endFrame = programFrames;
+        diagnostics.push({
+            level: 'info',
+            clip: clip.id,
+            field: 'until',
+            message: `Clip ends at ${endSec.toFixed(2)} s, after the program (${programEnd.toFixed(2)} s); it is cut there. "until": "end" ends it with the program.`
+        });
+    }
     if (endFrame <= startFrame) {
         fail('until', new Error(`Clip ends (${endSec.toFixed(2)}s) before it starts (${startSec.toFixed(2)}s).`));
         return null;

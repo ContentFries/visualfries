@@ -1665,7 +1665,10 @@ async function motionCheckCommand(args) {
 		);
 	const { loadMotionProject, checkMotionProject, describeMusicGrid, motionProgram } =
 		await motionModule();
-	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const loaded = await loadMotionProject(file, {
+		transcript: readFlag(args, '--transcript'),
+		editPoints: true
+	});
 	const json = hasFlag(args, '--json');
 	const grid = describeMusicGrid(loaded);
 	if (grid && !json) console.log(`${grid}\n`);
@@ -1762,7 +1765,10 @@ async function motionProgramCommand(args) {
 	if (!file)
 		throw new Error('Usage: visualfries program <project.vf.json> [--format <WxH>] [--json]');
 	const { loadMotionProject, motionProgram } = await motionModule();
-	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const loaded = await loadMotionProject(file, {
+		transcript: readFlag(args, '--transcript'),
+		editPoints: true
+	});
 	const { program, file: saved } = await motionProgram(loaded, {
 		format: readFlag(args, '--format'),
 		write: true
@@ -1776,7 +1782,7 @@ async function motionProgramCommand(args) {
 		);
 		for (const c of program.cuts)
 			console.log(
-				`cut ${c.id.padEnd(10)} ${frameTime(c.startFrame, fps)}  ${c.frames} frames  ${c.source} ${frameTime(c.srcIn, fps)}–${frameTime(c.srcOut, fps)}${c.audio.split ? `  split ${c.audio.split}s` : ''}${c.transition ? `  ← ${c.transition}` : ''}`
+				`cut ${c.id.padEnd(10)} ${frameTime(c.startFrame, fps)}  ${c.frames} frames  ${c.source} ${frameTime(c.srcIn, fps)}–${frameTime(c.srcOut, fps)}${c.hold ? `  hold ${frameTime(c.hold, fps)}` : ''}${c.audio.split ? `  split ${c.audio.split}s` : ''}${c.transition ? `  ← ${c.transition}` : ''}`
 			);
 		for (const s of program.shots.filter((x) => !x.implicit))
 			console.log(
@@ -2008,7 +2014,10 @@ async function motionRenderCommand(args) {
 				'       visualfries render <program.vf.json> --export inserts --output <dir|clip.mov> [--handles <frames>] [--clip <id>]... [--jobs <n>]'
 		);
 	const { loadMotionProject, renderMotionClips } = await motionModule();
-	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const loaded = await loadMotionProject(file, {
+		transcript: readFlag(args, '--transcript'),
+		editPoints: true
+	});
 	const programMode = loaded.cutList.mode === 'program';
 	const exportAs = readFlag(args, '--export', programMode ? 'video' : 'inserts');
 	if (!['video', 'inserts'].includes(exportAs))

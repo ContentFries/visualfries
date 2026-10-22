@@ -53,6 +53,14 @@ export const MotionAnchorShape = z.lazy(() => z
         at: MotionAnchorShape,
         music: musicRef,
         offset: AnchorOffsetShape.optional()
+    }),
+    /** The program end (`"end"` is the short form). */
+    z.object({ program: z.literal('end'), offset: AnchorOffsetShape.optional() }),
+    /** An event a clip's block declares (`export const events` in its module script). */
+    z.object({
+        event: z.string().min(1),
+        clip: z.string().min(1),
+        offset: AnchorOffsetShape.optional()
     })
 ])));
 /** Words pulled from the transcript: a phrase, a range, or every word in the clip. */
@@ -229,7 +237,7 @@ export const BrandShape = z
         extra: z
             .record(z
             .string()
-            .regex(/^[a-z][a-z0-9-]*$/, 'extra colour name: lowercase letters, digits, dash'), colorValue)
+            .regex(/^[a-z][a-z0-9-]*$/, 'extra colour names are lowercase letters, digits and dashes'), colorValue)
             .optional()
     })
         .strict(),

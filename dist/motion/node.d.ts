@@ -86,6 +86,11 @@ export declare function loadStyle(project: MotionProject, dir: string): LoadedSt
 /** `transcript` overrides the project's transcript (e.g. a re-recorded voiceover); relative to cwd. */
 export declare function loadMotionProject(file: string, opts?: {
     transcript?: string;
+    /**
+     * Measure the speech at every audio edit point (see `measureSpeechEdges`), so the warnings
+     * about words cut by an edit point trust the sound. `program`, `check` and `render` do.
+     */
+    editPoints?: boolean;
 }): Promise<LoadedMotionProject>;
 /**
  * The bar grid of each music item with beats, as text for `check`: one line per bar with its

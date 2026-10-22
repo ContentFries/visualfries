@@ -7,6 +7,8 @@ import { z } from 'zod';
  * - { frame }: absolute program frame
  * - { beat: 17 }: the 17th beat of the music; { bar: 5 } its downbeat, { bar: 5, beat: 3 }
  * - { downbeat: "after", at }, { beat: "before", at }: nearest (down)beat to another anchor
+ * - "end", { program: "end", offset? }: the program end (with a cut list or `duration`)
+ * - { event, clip, offset? }: an event the clip's block declares (sfx, shots, music keys)
  * `offset` is seconds or beats ("-1b").
  */
 export type MotionAnchor = number | string | {
@@ -35,6 +37,13 @@ export type MotionAnchor = number | string | {
     beat: 'after' | 'before';
     at: MotionAnchor;
     music?: string;
+    offset?: number | string;
+} | {
+    program: 'end';
+    offset?: number | string;
+} | {
+    event: string;
+    clip: string;
     offset?: number | string;
 };
 /** `{ bar, beat: "after", at }` would silently lose `bar`; such anchors are refused. */
@@ -591,6 +600,7 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
             music: z.ZodOptional<z.ZodString>;
             offset: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
         }, z.core.$strict>]>>;
+        hold: z.ZodOptional<z.ZodNumber>;
         transition: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
             type: z.ZodString;
             duration: z.ZodOptional<z.ZodNumber>;
@@ -941,6 +951,7 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
             music?: string | undefined;
             offset?: string | number | undefined;
         } | undefined;
+        hold?: number | undefined;
         transition?: string | {
             type: string;
             duration?: number | undefined;
@@ -1263,6 +1274,7 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
             music?: string | undefined;
             offset?: string | number | undefined;
         } | undefined;
+        hold?: number | undefined;
         transition?: string | {
             type: string;
             duration?: number | undefined;

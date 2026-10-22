@@ -65,6 +65,11 @@ export type ProgramCut = {
         before: number;
         after: number | null;
     };
+    /**
+     * Program frames at the end of the cut (inside `frames`) that hold source frame `srcOut − 1`,
+     * without sound. Absent: no hold.
+     */
+    hold?: number;
     /** Id of the transition into this cut. */
     transition: string | null;
     audio: {

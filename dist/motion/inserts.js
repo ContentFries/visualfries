@@ -34,21 +34,34 @@ const UNFRAMED = new Set(['full', 'behind']);
 export function cutListUnder(program, startFrame, frames) {
     const end = startFrame + frames;
     return program.cuts.flatMap((cut) => {
+        const pieces = [];
+        const moving = endOf(cut) - (cut.hold ?? 0);
         const from = Math.max(startFrame, cut.startFrame);
-        const to = Math.min(end, endOf(cut));
-        if (from >= to)
-            return [];
-        const srcIn = cut.srcIn + (from - cut.startFrame);
-        return [
-            {
+        const to = Math.min(end, moving);
+        if (from < to) {
+            const srcIn = cut.srcIn + (from - cut.startFrame);
+            pieces.push({
                 cut: cut.id,
                 source: cut.source,
                 startFrame: from,
                 frames: to - from,
                 srcIn,
                 srcOut: srcIn + (to - from)
-            }
-        ];
+            });
+        }
+        const holdFrom = Math.max(startFrame, moving);
+        const holdTo = Math.min(end, endOf(cut));
+        if (cut.hold && holdFrom < holdTo)
+            pieces.push({
+                cut: cut.id,
+                source: cut.source,
+                startFrame: holdFrom,
+                frames: holdTo - holdFrom,
+                srcIn: cut.srcOut - 1,
+                srcOut: cut.srcOut,
+                hold: true
+            });
+        return pieces;
     });
 }
 /** Shots on screen with `clip` that frame the footage differently from the plain rough cut. */
@@ -126,6 +139,18 @@ export function insertNotes(program, project) {
                 .filter(Boolean)
                 .join(' and ')} ${shots + staged === 1 ? 'stays' : 'stay'} in the program render (--export video).`
         });
+    // A hold is program time the rough cut does not have unless the editor freezes the frame too.
+    for (const cut of program.cuts) {
+        if (!cut.hold)
+            continue;
+        const from = cut.startFrame + cut.frames - cut.hold;
+        out.push({
+            level: 'info',
+            item: cut.id,
+            field: 'export',
+            message: `${cut.id} holds source frame ${cut.srcOut - 1} for ${cut.hold} frames from program frame ${from}: give the rough cut the same freeze frame there, or every insert after it lands ${cut.hold} frames late against the footage.`
+        });
+    }
     for (const clip of program.clips)
         for (const { level, message } of clipNotes(program, project.clips.find((c) => c.id === clip.id), clip))
             out.push({ level, clip: clip.id, field: 'export', message });

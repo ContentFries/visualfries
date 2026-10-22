@@ -30,7 +30,10 @@ import { type StageSegment } from './segments.js';
  */
 /** Frames of handle before and after each insert unless `--handles` says otherwise. */
 export declare const DEFAULT_INSERT_HANDLES = 10;
-/** Program frames `[startFrame, startFrame + frames)` show source frames `[srcIn, srcOut)`. */
+/**
+ * Program frames `[startFrame, startFrame + frames)` show source frames `[srcIn, srcOut)`; with
+ * `hold`, every one of them shows source frame `srcIn` (a cut's hold, silent).
+ */
 export type InsertSourceRange = {
     cut: string;
     source: string;
@@ -38,6 +41,7 @@ export type InsertSourceRange = {
     frames: number;
     srcIn: number;
     srcOut: number;
+    hold?: true;
 };
 export type InsertPlan = {
     id: string;

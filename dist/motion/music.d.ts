@@ -70,7 +70,10 @@ export type MusicPlacement = {
     failed: string[];
     diagnostics: ProgramDiagnostic[];
 };
-/** Whether an anchor needs a transcript (a phrase, or a phrase in its `at`). */
+/**
+ * Whether an anchor needs the program words or the program length (a phrase, the program end,
+ * an event of a clip, or one of those in its `at`).
+ */
 export declare function anchorUsesWords(anchor: MotionAnchor | undefined): boolean;
 /** What to tell a project whose beat anchors found no music with beats. */
 export declare function missingBeats(project: Pick<MotionProject, 'music'>): string | null;
@@ -94,6 +97,8 @@ export declare function placeMusic(project: MotionProject, opts: {
     words: MotionWord[] | null;
     sounds?: Record<string, SoundInfo | null>;
     stage: 'cuts' | 'program';
+    /** The program end for `"end"` anchors (see `AnchorContext.end`); program stage only. */
+    end?: number | null;
 }): MusicPlacement;
 /** A music item's beats for anchors: those it plays up to `end` (null: to the file end). */
 export declare function musicBeats(music: Pick<MotionMusic, 'id' | 'src'>, grid: (GridBeat & {

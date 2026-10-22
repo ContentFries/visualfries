@@ -190,7 +190,7 @@ export async function checkProgram(loaded, opts = {}) {
                 if (differ.size) {
                     result.nondeterministic = [...differ].sort((a, b) => a - b);
                     result.errors.push({
-                        message: `Frames ${result.nondeterministic.join(', ')} look different depending on seek order. Something depends on history (wall-clock time, stateful random, state kept between frames).`
+                        message: `Frames ${result.nondeterministic.join(', ')} look different depending on seek order. Something depends on history: wall-clock time, stateful random, state kept between frames, or an image that decodes after it mounts (an <img> whose src changes; preload images, see "Images" in docs/MOTION.md).`
                     });
                 }
                 sampled.set(segment.id, first);

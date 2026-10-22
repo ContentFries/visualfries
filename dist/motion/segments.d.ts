@@ -84,7 +84,7 @@ export declare function segmentStage(program: Pick<ResolvedProgram, 'fps' | 'for
  */
 export declare function segmentCheckFrames(program: Pick<ResolvedProgram, 'cuts' | 'shots' | 'clips' | 'transitions'>, segment: Span, every?: number): number[];
 /**
- * Frames on both sides of every change: cuts, shot starts, morph middles and ends, clip edges,
+ * Frames on both sides of every change: cuts, holds, shot starts, morph middles and ends, clip edges,
  * transition window edges, keys and the middle between two keys.
  */
 export declare function edgeFrames(program: Pick<ResolvedProgram, 'cuts' | 'shots' | 'clips' | 'transitions'>): number[];

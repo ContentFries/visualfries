@@ -306,5 +306,26 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 			expect(stills.map((s) => s.frame)).toEqual([50, 45, 30, 89]);
 			expect(stills.every((s) => s.png.length > 1000)).toBe(true);
 		}, 120_000);
+
+		it('holds the last frame of a cut with a hold, deterministically', async () => {
+			const held = path.join(dir, 'held.vf.json');
+			const project = JSON.parse(await fs.readFile(file, 'utf8'));
+			// Program frames 0–44 show source 30–74, 45–59 hold source 74, 60–104 show 180–224.
+			project.cuts[0].hold = 0.5;
+			project.clips[0].until = 'end';
+			await fs.writeFile(held, JSON.stringify(project));
+			const loaded = await loadMotionProject(held);
+			const program = resolveProgram(loaded.project, loaded.inputs);
+			expect(program.frames).toBe(105);
+			expect(program.clips[0].frames).toBe(105);
+			const frames = [44, 45, 52, 59, 60];
+			const pngs = await captureProgramFrames(loaded, frames);
+			expect(frames.map((f) => frameNumber(rgba(pngs.get(f)!)))).toEqual([74, 74, 74, 74, 180]);
+			const results = await checkProgram(loaded, { determinism: true });
+			expect(results.map((r) => [r.id, r.ok, r.errors])).toEqual([
+				['seg1', true, []],
+				['seg2', true, []]
+			]);
+		}, 240_000);
 	}
 );

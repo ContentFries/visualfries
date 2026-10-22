@@ -396,6 +396,18 @@ describe('loading brand and style files', () => {
 			{ 'brand.json': JSON.stringify({ ...brandFile, radius: -1 }) }
 		);
 		await expect(loadMotionProject(bad.file)).rejects.toThrow(/radius/);
+		const camel = await project(
+			{ brand: 'brand.json' },
+			{
+				'brand.json': JSON.stringify({
+					...brandFile,
+					colors: { ...brandFile.colors, extra: { woodDark: '#3b2a1a' } }
+				})
+			}
+		);
+		await expect(loadMotionProject(camel.file)).rejects.toThrow(
+			'colors.extra.woodDark: extra colour names are lowercase letters, digits and dashes ("wood-dark"), as in --brand-extra-wood-dark.'
+		);
 		const noFont = await project({ brand: brandFile });
 		await expect(loadMotionProject(noFont.file)).rejects.toThrow(/file not found: .*Display\.ttf/);
 		const style = await project({ style: 'punchy' });

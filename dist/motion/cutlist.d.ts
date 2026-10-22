@@ -77,6 +77,41 @@ export type ProgramInputs = {
      * Absent: not looked up, so keyed props are not checked against it.
      */
     animatable?: Record<string, BlockAnimatable>;
+    /**
+     * The events each block named by a clip declares (`export const events` in its `<script
+     * module>`), by the name as written, for `{ event, clip }` anchors. Absent: none read.
+     */
+    blockEvents?: Record<string, BlockEvents>;
+    /**
+     * The speech measured at the audio edit points (node tooling, from the decoded sound). Where
+     * an edge is measured, it decides whether a word is cut through; elsewhere the transcript does.
+     */
+    speechEdges?: SpeechEdge[];
+};
+/**
+ * The voice at one edge of a cut's sound, measured on its source: `in` where the cut's sound
+ * starts, `out` where it stops. `clean` when the voice does not run through the point; else
+ * `move` is how far the point must go (seconds, later for `out`, earlier for `in`) to reach
+ * quiet, null when that is more than a second away.
+ */
+export type SpeechEdge = {
+    /** Index of the cut. */
+    cut: number;
+    side: 'in' | 'out';
+    source: string;
+    /** Source seconds of the point. */
+    at: number;
+    /** dBFS: the voice level around the point, and the quieter side right at it. */
+    voice: number;
+    level: number;
+    clean: boolean;
+    move: number | null;
+};
+/** A block's declared events (moments of its clip, or clip seconds), as read from its source. */
+export type BlockEvents = {
+    events: Record<string, string | number>;
+} | {
+    error: string;
 };
 /** A block's animatable props as `check` reads them from its source. */
 export type BlockAnimatable = {
@@ -102,9 +137,11 @@ export type ResolvedCut = {
     /** Source frames (at the project frame rate) of the first and after the last frame. */
     srcIn: number;
     srcOut: number;
-    /** Program frames. */
+    /** Program frames, the hold included. */
     startFrame: number;
     frames: number;
+    /** Program frames at the end of the cut that hold its last source frame, silent. */
+    hold: number;
     /** Program seconds where this cut's sound starts (its first frame plus the J/L split). */
     edit: number;
     split: number;
@@ -138,3 +175,13 @@ export declare const DEFAULT_CROSSFADE = 0.01;
  * program time, untouched.
  */
 export declare function resolveCutList(project: MotionProject, inputs: ProgramInputs): CutList;
+/**
+ * The program end in seconds for `"end"` anchors: the cut list's length, else `duration`; null
+ * when a program has neither (its length then comes from its clips), undefined in inserts mode.
+ */
+export declare function programEnd(project: Pick<MotionProject, 'duration' | 'fps'>, cutList: Pick<CutList, 'mode' | 'frames'>): number | null | undefined;
+/**
+ * Program seconds where cut `i`'s sound ends: the next edit point, or where its hold starts
+ * when that comes first (a hold is silent).
+ */
+export declare const soundEnd: (cuts: ResolvedCut[], i: number, end: number, fps: number) => number;

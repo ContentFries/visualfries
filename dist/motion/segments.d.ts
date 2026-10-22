@@ -41,6 +41,13 @@ export type StageSegment = {
     clips: StageClip[];
     /** Transition windows that touch the segment. */
     transitions: ProgramTransition[];
+    /**
+     * An insert of the inserts export: the clips without the footage picture (no fill, plate or
+     * window look); with `holdout`, each frame then cuts the subject out of the alpha.
+     */
+    insert?: {
+        holdout: boolean;
+    };
 };
 type Span = {
     startFrame: number;

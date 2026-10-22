@@ -11,6 +11,11 @@ export type ProgramScene = {
     draw(f: number): Promise<void>;
     /** What `check` should warn about at the frame last drawn (see `pushGaps`). */
     warnings(f: number): string[];
+    /**
+     * A holdout insert's second pass: `true` shows the subject alone (as drawn at the frame last
+     * drawn) and returns whether there is one to cut out; `false` shows the clips again.
+     */
+    holdout(on: boolean): boolean;
     destroy(): void;
 };
 /**

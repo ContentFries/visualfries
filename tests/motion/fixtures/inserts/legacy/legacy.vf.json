@@ -1,0 +1,32 @@
+{
+	"size": [320, 180],
+	"fps": 25,
+	"background": "#1b2440",
+	"transcript": "talk.transcript.json",
+	"footage": { "talk": { "src": "talk.mp4", "start": 0.2 } },
+	"clips": [
+		{
+			"id": "card",
+			"block": "blocks/Card.svelte",
+			"from": "faster export",
+			"until": { "say": "settings", "edge": "end" },
+			"tail": 0.2,
+			"cues": { "hit": "settings" }
+		},
+		{
+			"id": "lower",
+			"block": "blocks/Lower.svelte",
+			"from": { "say": "open the", "offset": -0.2 },
+			"until": "settings",
+			"alpha": true
+		},
+		{
+			"id": "voice",
+			"block": "blocks/Card.svelte",
+			"from": 0,
+			"until": 0.8,
+			"audio": "talk",
+			"cues": { "hit": 0.4 }
+		}
+	]
+}

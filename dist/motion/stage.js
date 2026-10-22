@@ -56,6 +56,8 @@ export function createMotionStage(options) {
     }
     async function mountSegment(data) {
         unload();
+        if (data.insert?.holdout && mode === 'dom')
+            throw new Error('A holdout insert (a clip with "layer": "behind") needs HTML-in-Canvas capture (Chromium with the CanvasDrawElement flag).');
         createStage(data.size, data.background);
         await loadFonts();
         segment = createProgramScene(stage, data, options.blocks, options.animatable);
@@ -239,10 +241,32 @@ export function createMotionStage(options) {
         if (ctx && canvas) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawElementImage(stage, 0, 0);
+            await holdoutPass(ctx);
             if (capture)
                 image = canvas.toDataURL('image/png');
         }
         return { frame: n, t, image, paintMs, mode };
+    }
+    /**
+     * A holdout insert (`layer: "behind"` in the inserts export): the subject, drawn alone where
+     * the program draws it over the clip, is erased from the captured clip, so the clip's alpha
+     * becomes alpha × (1 − subject alpha) and its colours stay.
+     */
+    async function holdoutPass(c) {
+        const scene = segment;
+        if (!scene?.holdout(true))
+            return;
+        try {
+            if ((options.invalidate ?? 'filters') === 'filters' && nested.length === 0)
+                stage.style.filter = ++seeks % 2 ? 'saturate(1)' : 'contrast(1)';
+            await nextPaint();
+            c.globalCompositeOperation = 'destination-out';
+            c.drawElementImage(stage, 0, 0);
+        }
+        finally {
+            c.globalCompositeOperation = 'source-over';
+            scene.holdout(false);
+        }
     }
     function unload() {
         segment?.destroy();

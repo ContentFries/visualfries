@@ -1,0 +1,84 @@
+{
+	"toolchain": {
+		"ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+		"chromium": "Chromium 155.0.8059.79 built on Debian GNU/Linux 13 (trixie)"
+	},
+	"files": {
+		"quote/quote.mp4": "297bbb683f986c34bb27149386df72252e1ceeb2c22d80a5cfaa19acb10902c6",
+		"legacy/card.mp4": "25df8ac64eac8aa8977562dc25aa6816c65a25b4855f845358974fae0281b1d7",
+		"legacy/lower.mov": "03e66a62db2aeb602b1ca2823ca893485240034313744a476a30661b86a8e897",
+		"legacy/voice.mp4": "9f7b3ba74c972b2b712c4125c2d07100700c190c4c194e7618c73924ec3c333b"
+	},
+	"manifests": {
+		"quote": {
+			"fps": 30,
+			"size": [1080, 1350],
+			"transcript": "25556a1eb505",
+			"brand": null,
+			"style": null,
+			"clips": [
+				{
+					"id": "quote",
+					"frames": 189,
+					"programStartFrame": 0,
+					"programStart": 0,
+					"programEnd": 6.3,
+					"alpha": false,
+					"mode": "html-in-canvas",
+					"transcript": "25556a1eb505",
+					"brand": null,
+					"style": null,
+					"file": "quote.mp4"
+				}
+			]
+		},
+		"legacy": {
+			"fps": 25,
+			"size": [320, 180],
+			"transcript": "efc01f7d7da6",
+			"brand": null,
+			"style": null,
+			"clips": [
+				{
+					"id": "voice",
+					"frames": 20,
+					"programStartFrame": 0,
+					"programStart": 0,
+					"programEnd": 0.8,
+					"alpha": false,
+					"mode": "html-in-canvas",
+					"transcript": "efc01f7d7da6",
+					"brand": null,
+					"style": null,
+					"file": "voice.mp4"
+				},
+				{
+					"id": "card",
+					"frames": 54,
+					"programStartFrame": 11,
+					"programStart": 0.44,
+					"programEnd": 2.6,
+					"alpha": false,
+					"mode": "html-in-canvas",
+					"transcript": "efc01f7d7da6",
+					"brand": null,
+					"style": null,
+					"file": "card.mp4"
+				},
+				{
+					"id": "lower",
+					"frames": 27,
+					"programStartFrame": 33,
+					"programStart": 1.32,
+					"programEnd": 2.4,
+					"alpha": true,
+					"mode": "html-in-canvas",
+					"transcript": "efc01f7d7da6",
+					"brand": null,
+					"style": null,
+					"file": "lower.mov"
+				}
+			]
+		}
+	}
+}

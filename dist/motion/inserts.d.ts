@@ -14,10 +14,12 @@ import { type StageSegment } from './segments.js';
  * - **Place:** frame coordinates. The file has the program's frame size and the clip sits where
  *   the program draws it: placement keys move it, and a clip in a shot's slot follows the slot
  *   wherever the shot puts it (morphs and whips included). Over the program's own picture every
- *   insert lines up pixel for pixel.
+ *   insert lines up pixel for pixel, except where a transition moves the clip in the program (a
+ *   behind clip rides the footage's side; `insertNotes` names those frames). A slotted clip shows
+ *   only while the shot frees its slot, in the handles too.
  * - **Alpha:** every clip of a program is drawn over the footage, so inserts are transparent
- *   (ProRes 4444) unless the clip says `"alpha": false`; it is then drawn over its `background`
- *   as an opaque H.264 file.
+ *   (ProRes 4444, straight alpha) unless the clip says `"alpha": false`; it is then drawn over
+ *   its `background` as an opaque H.264 file. Behind clips are always transparent.
  * - **Behind:** a clip with `"layer": "behind"` becomes a holdout insert: its alpha is cut out
  *   wherever the subject is, as the program draws the subject over it (alpha × (1 − subject)).
  *   Laid over the footage it sits behind the speaker.
@@ -63,7 +65,8 @@ export declare function cutListUnder(program: Pick<ResolvedProgram, 'cuts'>, sta
 /**
  * Where a program relies on what inserts cannot carry: transitions a clip rides or owns, slots
  * and holdouts under shots that reframe the footage, and (once) the shots and cut transitions
- * left to the program render. Info diagnostics, for `check --export inserts` and the render.
+ * left to the program render, as info; what the project asks for and an insert does not do
+ * (`"alpha": false` on a behind clip), as warnings. For `check --export inserts` and the render.
  */
 export declare function insertNotes(program: ResolvedProgram, project: MotionProject): ProgramDiagnostic[];
 /**

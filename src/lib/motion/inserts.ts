@@ -17,10 +17,12 @@ import { transitionModule } from './transitions/index.js';
  * - **Place:** frame coordinates. The file has the program's frame size and the clip sits where
  *   the program draws it: placement keys move it, and a clip in a shot's slot follows the slot
  *   wherever the shot puts it (morphs and whips included). Over the program's own picture every
- *   insert lines up pixel for pixel.
+ *   insert lines up pixel for pixel, except where a transition moves the clip in the program (a
+ *   behind clip rides the footage's side; `insertNotes` names those frames). A slotted clip shows
+ *   only while the shot frees its slot, in the handles too.
  * - **Alpha:** every clip of a program is drawn over the footage, so inserts are transparent
- *   (ProRes 4444) unless the clip says `"alpha": false`; it is then drawn over its `background`
- *   as an opaque H.264 file.
+ *   (ProRes 4444, straight alpha) unless the clip says `"alpha": false`; it is then drawn over
+ *   its `background` as an opaque H.264 file. Behind clips are always transparent.
  * - **Behind:** a clip with `"layer": "behind"` becomes a holdout insert: its alpha is cut out
  *   wherever the subject is, as the program draws the subject over it (alpha × (1 − subject)).
  *   Laid over the footage it sits behind the speaker.
@@ -107,26 +109,44 @@ function reframingShots(program: Pick<ResolvedProgram, 'shots'>, clip: Span) {
 
 const list = (names: string[]) => names.map((n) => `"${n}"`).join(', ');
 
-/** Why the insert of `clip` differs from the clip in the program render, one line per reason. */
+type Note = { level: 'info' | 'warning'; message: string };
+
+/**
+ * Why the insert of `clip` differs from the clip in the program render, one note per reason;
+ * a warning where the project asks for something the insert does not do.
+ */
 function clipNotes(
-	program: Pick<ResolvedProgram, 'shots' | 'transitions'>,
+	program: Pick<ResolvedProgram, 'shots' | 'transitions' | 'fps'>,
 	spec: MotionProject['clips'][number] | undefined,
 	clip: ProgramClip
-): string[] {
-	const notes: string[] = [];
+): Note[] {
+	const info: string[] = [];
+	const warnings: string[] = [];
+	const seconds = (f: number) => `${(f / program.fps).toFixed(2)} s`;
 	for (const t of program.transitions) {
 		if (!transitionModule(t.type)) continue;
 		if (t.kind === 'clip' && t.owner === clip.id)
-			notes.push(
+			info.push(
 				`Its ${t.type} transition is drawn only in the program render; the insert cuts in on the clip's first frame.`
 			);
 		else if (t.kind !== 'clip' && t.cutFrame === clip.startFrame)
-			notes.push(
+			info.push(
 				`In the program it arrives with the ${t.type} transition into ${t.owner}; the insert cuts in.`
 			);
 		else if (t.kind !== 'clip' && t.cutFrame === endOf(clip))
-			notes.push(
+			info.push(
 				`In the program it leaves with the ${t.type} transition into ${t.owner}; the insert cuts out.`
+			);
+		else if (
+			t.kind !== 'clip' &&
+			clip.layer === 'behind' &&
+			t.startFrame < endOf(clip) &&
+			endOf(t) > clip.startFrame
+		)
+			// A behind clip lives on the footage's side of the stage: the transition moves (or
+			// covers) it with the footage, while the insert stays where it is.
+			info.push(
+				`It sits behind the subject while the ${t.type} transition into ${t.owner} (${seconds(t.startFrame)}–${seconds(endOf(t))}) moves or covers the footage, and this clip with it, in the program; the insert stays still, so it does not line up with the program render in those frames.`
 			);
 	}
 	const framed = reframingShots(program, clip);
@@ -135,25 +155,33 @@ function clipNotes(
 		const keyed = clip.keys.some((k) =>
 			(['x', 'y', 'scale', 'rotation'] as const).some((p) => k.values[p] !== undefined)
 		);
-		notes.push(
+		info.push(
 			`It fills the "${clip.slot}" slot of shot ${shots}: the insert is in frame coordinates, where the program puts the slot, so it lines up with the program's framing; over the unframed footage, frame the footage like the shot or use the program render.${keyed ? ' Its placement keys move it inside the slot, which follows the shot camera.' : ''}`
 		);
 	}
 	if (clip.layer === 'behind' && framed.length)
-		notes.push(
+		info.push(
 			`It sits behind the subject while shot ${shots} reframes the footage: the holdout follows the subject as the program draws it, so it lines up with the program render, not with the unframed footage.`
 		);
 	if (spec?.audio)
-		notes.push(
+		info.push(
 			`"audio" is not muxed into the inserts of a program; the program's sound comes from the cut list.`
 		);
-	return notes;
+	if (clip.layer === 'behind' && spec?.alpha === false)
+		warnings.push(
+			'"alpha": false has no effect on a clip behind the subject: its insert is a holdout, so it is transparent (ProRes 4444).'
+		);
+	return [
+		...warnings.map((message) => ({ level: 'warning' as const, message })),
+		...info.map((message) => ({ level: 'info' as const, message }))
+	];
 }
 
 /**
  * Where a program relies on what inserts cannot carry: transitions a clip rides or owns, slots
  * and holdouts under shots that reframe the footage, and (once) the shots and cut transitions
- * left to the program render. Info diagnostics, for `check --export inserts` and the render.
+ * left to the program render, as info; what the project asks for and an insert does not do
+ * (`"alpha": false` on a behind clip), as warnings. For `check --export inserts` and the render.
  */
 export function insertNotes(program: ResolvedProgram, project: MotionProject): ProgramDiagnostic[] {
 	if (program.mode !== 'program') return [];
@@ -170,15 +198,17 @@ export function insertNotes(program: ResolvedProgram, project: MotionProject): P
 				staged ? `${staged} cut or shot transition${staged > 1 ? 's' : ''}` : ''
 			]
 				.filter(Boolean)
-				.join(' and ')} stay in the program render (--export video).`
+				.join(
+					' and '
+				)} ${shots + staged === 1 ? 'stays' : 'stay'} in the program render (--export video).`
 		});
 	for (const clip of program.clips)
-		for (const message of clipNotes(
+		for (const { level, message } of clipNotes(
 			program,
 			project.clips.find((c) => c.id === clip.id),
 			clip
 		))
-			out.push({ level: 'info', clip: clip.id, field: 'export', message });
+			out.push({ level, clip: clip.id, field: 'export', message });
 	return out;
 }
 
@@ -219,7 +249,7 @@ export function planInserts(
 			background: alpha ? null : clip.background,
 			holdout,
 			sources: cutListUnder(program, startFrame, frames),
-			notes: clipNotes(program, spec, clip)
+			notes: clipNotes(program, spec, clip).map((n) => n.message)
 		};
 	});
 }

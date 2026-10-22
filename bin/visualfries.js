@@ -2004,7 +2004,8 @@ async function motionRenderCommand(args) {
 	if (!output)
 		throw new Error(
 			'Usage: visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]\n' +
-				'       visualfries render <program.vf.json> --output <dir|video.mp4> [--export video] [--format <WxH>] [--jobs <n>] [--no-cache] [--stems]'
+				'       visualfries render <program.vf.json> --output <dir|video.mp4> [--export video] [--format <WxH>] [--jobs <n>] [--no-cache] [--stems]\n' +
+				'       visualfries render <program.vf.json> --export inserts --output <dir|clip.mov> [--handles <frames>] [--clip <id>]... [--jobs <n>]'
 		);
 	const { loadMotionProject, renderMotionClips } = await motionModule();
 	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });

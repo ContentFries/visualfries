@@ -9,6 +9,7 @@ import {
 	H264_FINAL,
 	launch,
 	openStagePage,
+	PARTIAL_CLIP,
 	pipeFrames,
 	PRORES_4444,
 	writeRenderManifest,
@@ -17,6 +18,7 @@ import {
 	type RenderedClip
 } from './node.js';
 import { assertProgramRenders } from './program-node.js';
+import { removeOrphans, trackPartial } from './partials.js';
 import { resolveProgram } from './program.js';
 import { insertNotes, insertStage, planInserts, type InsertPlan } from './inserts.js';
 
@@ -64,11 +66,17 @@ export async function renderProgramInserts(
 				`Insert "${p.id}": size ${w}×${h} must be even for H.264. Use even dimensions, or leave out "alpha": false.`
 			);
 	await fs.mkdir(single ? path.dirname(single) : opts.output, { recursive: true });
+	// Partial encodes left by a render that was killed before it could clean up.
+	await removeOrphans(single ? path.dirname(single) : opts.output, PARTIAL_CLIP);
 	for (const note of insertNotes(program, loaded.project).filter((n) => !n.clip))
 		opts.onProgress?.(note.message);
 	for (const p of plans) for (const note of p.notes) opts.onProgress?.(`${p.id}: ${note}`);
 
-	const bundle = await bundleMotionProject(loaded, program.clips);
+	// Only the blocks of the clips rendered; the footage covers the program all the same.
+	const bundle = await bundleMotionProject(
+		loaded,
+		plans.map((p) => p.clip)
+	);
 	const browser = await launch();
 	const jobs = opts.jobs ?? Math.min(6, os.cpus().length);
 	const results: RenderedClip[] = [];
@@ -103,6 +111,7 @@ export async function renderProgramInserts(
 			};
 			const clip = { id: plan.id, frames: plan.frames, fps: program.fps };
 			let piped = !opts.keepFrames;
+			const untrack = trackPartial(partial);
 			try {
 				if (piped) {
 					try {
@@ -131,6 +140,7 @@ export async function renderProgramInserts(
 				await fs.rename(partial, file);
 			} finally {
 				await fs.rm(partial, { force: true });
+				untrack();
 			}
 			const r: RenderedClip = {
 				id: plan.id,

@@ -9,6 +9,8 @@ import { type BarRow, type BeatsFile, type MusicBeats } from './beat-grid.js';
 import { type MusicTrack, type PlacedMusic } from './music.js';
 import { type FootageMap, type FrameRange } from './footage-map.js';
 import type { FootageFrames, SubjectBox } from './resolve.js';
+/** `.<clip>.partial-<pid>.mp4|mov`: a clip's encode before it replaces the file. */
+export declare const PARTIAL_CLIP: RegExp;
 export type LoadedMotionProject = {
     file: string;
     dir: string;
@@ -257,6 +259,14 @@ export type ClipCheck = {
  * errors, runtime errors (unknown cue, bad ease, map order), wall-clock CSS animations and,
  * optionally, whether sampled frames come out identical in two seek orders.
  */
+/**
+ * Clips behind the subject without a cut list whose footage matte has another aspect ratio than
+ * the clip: the holdout scales the matte to the clip's size, so it would not line up.
+ */
+export declare function holdoutAspectWarnings(loaded: Pick<LoadedMotionProject, 'project' | 'dir'>, clips: Pick<ResolvedClip, 'id' | 'size'>[]): Promise<{
+    clip: string;
+    message: string;
+}[]>;
 export declare function checkMotionProject(loaded: LoadedMotionProject, opts?: {
     clips?: string[];
     determinism?: boolean;

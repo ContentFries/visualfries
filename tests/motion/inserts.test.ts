@@ -15,7 +15,8 @@ import {
 	insertStage,
 	planInserts
 } from '$lib/motion/inserts.js';
-import { encodeInputs } from '$lib/motion/node.js';
+import { encodeInputs, holdoutAspectWarnings, PARTIAL_CLIP } from '$lib/motion/node.js';
+import { removeOrphans } from '$lib/motion/partials.js';
 
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
 
@@ -158,12 +159,16 @@ describe('inserts of a program: notes', () => {
 					]
 				}),
 				clip('word', 0.3, 0.5, { layer: 'behind' }),
-				clip('plain', 0.1, 0.2, { audio: 'talk' })
+				clip('plain', 0.1, 0.2, { audio: 'talk' }),
+				// Behind the subject across the push into b (frames 22–38): it rides the footage.
+				clip('across', 0.7, 1.15, { layer: 'behind', alpha: false }),
+				// In front across the same push: the program leaves it where it is.
+				clip('over', 0.7, 1.15)
 			]
 		});
 		const notes = insertNotes(p, project);
 		const by = (id: string) => notes.filter((n) => n.clip === id).map((n) => n.message);
-		expect(notes.every((n) => n.level === 'info')).toBe(true);
+		expect(notes.filter((n) => n.level !== 'info').map((n) => n.clip)).toEqual(['across']);
 		expect(notes[0]).toMatchObject({ item: 'inserts', field: 'export' });
 		expect(notes[0].message).toMatch(
 			/2 shots and 1 cut or shot transition stay in the program render/
@@ -182,6 +187,17 @@ describe('inserts of a program: notes', () => {
 			expect.stringMatching(/behind the subject while shot "close" reframes/)
 		]);
 		expect(by('plain')).toEqual([expect.stringMatching(/"audio" is not muxed/)]);
+		expect(by('across')).toEqual([
+			expect.stringMatching(/"alpha": false has no effect on a clip behind the subject/),
+			expect.stringMatching(
+				/behind the subject while the push transition into b \(0\.73 s–1\.30 s\) moves or covers the footage.*does not line up/
+			)
+		]);
+		expect(notes.filter((n) => n.clip === 'across').map((n) => n.level)).toEqual([
+			'warning',
+			'info'
+		]);
+		expect(by('over')).toEqual([]);
 		// The plan carries the same lines.
 		expect(planInserts(p, project, { clips: ['panel'] })[0].notes).toEqual(by('panel'));
 	});
@@ -267,6 +283,36 @@ describe('a behind clip without a cut list (holdout, as #82)', () => {
 		expect(args).toContain('2:a:0');
 	});
 
+	it.skipIf(!hasFfmpeg)('warns when the matte has another aspect ratio than the clip', async () => {
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-holdout-aspect-'));
+		try {
+			for (const [name, size] of [
+				['wide.mp4', '128x72'],
+				['tall.mp4', '72x128']
+			])
+				spawnSync('ffmpeg', [
+					'-y',
+					'-loglevel',
+					'error',
+					'-f',
+					'lavfi',
+					'-i',
+					`color=black:s=${size}:r=25:d=0.2`,
+					path.join(dir, name)
+				]);
+			const p = (matte: string) =>
+				legacy({ alpha: true, layer: 'behind' }, { talk: { src: matte, matte } });
+			// The clip is 64×36: a 16:9 matte lines up, a 9:16 one is stretched.
+			const clip = { id: 'c', size: [64, 36] as [number, number] };
+			expect(await holdoutAspectWarnings({ project: p('wide.mp4'), dir }, [clip])).toEqual([]);
+			const [w] = await holdoutAspectWarnings({ project: p('tall.mp4'), dir }, [clip]);
+			expect(w.clip).toBe('c');
+			expect(w.message).toMatch(/is 72×128 and the clip 64×36: the holdout stretches the matte/);
+		} finally {
+			await fs.rm(dir, { recursive: true, force: true });
+		}
+	});
+
 	it.skipIf(!hasFfmpeg)('cuts the alpha where the matte is white, frame-exact', async () => {
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-holdout-'));
 		const ff = (a: string[]) => {
@@ -334,6 +380,35 @@ describe('a behind clip without a cut list (holdout, as #82)', () => {
 			expect(Math.min(...row.subarray(15))).toBeGreaterThan(250);
 			// Clip frames 12–13 come after the footage's last frame: nothing cut.
 			expect(Math.min(...alpha(13))).toBeGreaterThan(250);
+		} finally {
+			await fs.rm(dir, { recursive: true, force: true });
+		}
+	});
+});
+
+describe('partial encodes left by a killed render', () => {
+	it('are removed by the next render; those of running processes stay', async () => {
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-partials-'));
+		try {
+			// No process has id 2^22 + 1 (the Linux maximum is 2^22).
+			const names = [
+				'.word.partial-4194305.mov',
+				'.card.partial-4194305.mp4',
+				`.lower.partial-${process.pid}.mov`,
+				`.panel.partial-${process.ppid}.mov`,
+				'word.mov',
+				'.word.partial-4194305.mkv'
+			];
+			for (const n of names) await fs.writeFile(path.join(dir, n), '');
+			await removeOrphans(dir, PARTIAL_CLIP);
+			expect((await fs.readdir(dir)).sort()).toEqual(
+				[
+					`.lower.partial-${process.pid}.mov`,
+					`.panel.partial-${process.ppid}.mov`,
+					'.word.partial-4194305.mkv',
+					'word.mov'
+				].sort()
+			);
 		} finally {
 			await fs.rm(dir, { recursive: true, force: true });
 		}

@@ -206,8 +206,10 @@ original video in an editor, give an `alpha` clip `"layer": "behind"`. While enc
 is multiplied by the inverse of the matte of the project's one footage with a matte, aligned to
 the program frame by that footage's `start`: wherever the speaker is, the clip is transparent
 and the real footage shows through. No plate is drawn, so nothing is resampled; before and
-after the footage nothing is cut. Everything in such a clip is held out; put what must stay in
-front of the speaker in a second clip on a higher track.
+after the footage nothing is cut. The matte is scaled to the clip's size, so it lines up when
+the footage has the clip's aspect ratio; `check` and `render` warn when it does not. The alpha is straight:
+set the editor's alpha mode to straight. Everything in such a clip is held out; put what must
+stay in front of the speaker in a second clip on a higher track.
 
 ```json
 "footage": { "talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "start": 0 } },
@@ -1038,14 +1040,22 @@ as the program draws it, alone:
 - **Time:** the clip's program window plus `--handles` frames before and after it (default 10;
   never before the program's first frame or after its last), in which the clip holds its first
   or last frame, as it does inside a transition window. The file starts at `programStartFrame`.
+  A clip in a `slot` shows only while the shot on screen frees the slot, handles included: where
+  the shot before or after it has no such slot, that handle is empty (transparent).
 - **Place:** frame coordinates. Every insert has the program's frame size, and the clip sits
   where the program draws it: placement keys move it, and a clip in a shot's `slot` follows the
   slot wherever the shot puts it, through morphs and whips. Laid over the program picture, an
-  insert lines up pixel for pixel. A slot-sized file would have no single size while a morph
-  resizes the slot, and could not carry a whip's travel.
+  insert lines up pixel for pixel, except where the program moves the clip with a transition:
+  a clip behind the subject inside a cut or shot transition window moves (or is covered) with
+  the footage in the program and stays still in the insert, and `check --export inserts` names
+  those frames. A slot-sized file would have no single size while a morph resizes the slot, and
+  could not carry a whip's travel.
 - **Alpha:** in a program every clip is drawn over the footage, so inserts are transparent
   (ProRes 4444 `.mov`) unless the clip says `"alpha": false`: it is then drawn over its
-  `background` (or the project's) as an H.264 `.mp4`.
+  `background` (or the project's) as an H.264 `.mp4`. A behind clip is always transparent;
+  `"alpha": false` on it is a warning. The alpha is straight (colours not multiplied by it), as
+  in every transparent clip VisualFries renders: set the editor's alpha mode to straight. Read as
+  premultiplied, soft edges come out too bright (a halo of about 30 levels around a holdout).
 - **Behind:** a clip with `"layer": "behind"` becomes a holdout insert. Each frame is drawn
   twice on the page: the clip, then the subject alone where the program draws it over the clip,
   which is erased from the first (alpha × (1 − subject alpha), colours kept). Laid over the
@@ -1067,8 +1077,10 @@ program relies on them: clips that arrive or leave with a cut or shot transition
 cuts in or out), clips with their own transition, clips in a slot of a shot that reframes the
 footage (`punch`, `strip`, `window`, `whip`, a shot with keys; such an insert lines up with the
 program's framing, so frame the footage like the shot or use the program render), behind clips
-under such a shot, and clips with `audio`. `render` prints the same notes and writes them into
-the manifest.
+under such a shot, behind clips inside a cut or shot transition window, and clips with `audio`;
+as a `warning`, `"alpha": false` on a behind clip. `render` prints the same notes and writes
+them into the manifest. A render that was killed leaves its partial encode
+(`.<clip>.partial-<pid>.mov`); the next render into that folder removes it.
 
 ## How frames are made
 

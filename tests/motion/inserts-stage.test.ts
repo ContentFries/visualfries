@@ -106,6 +106,9 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('render --export inserts from a prog
 	it('writes one file per clip and a manifest in program time, with handles and the cut list', async () => {
 		const loaded = await loadMotionProject(file);
 		const out = path.join(dir, 'out');
+		// Left by a render that was killed: the next render removes it.
+		await fs.mkdir(out, { recursive: true });
+		await fs.writeFile(path.join(out, '.word.partial-4194305.mov'), '');
 		await renderProgramInserts(loaded, { output: out, jobs: 3 });
 		expect((await fs.readdir(out)).sort()).toEqual([
 			'card.mp4',

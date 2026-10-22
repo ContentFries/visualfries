@@ -38,6 +38,10 @@ import { fileSha256 } from './beats.js';
 import { footageMap, footageRanges, type FootageMap, type FrameRange } from './footage-map.js';
 import type { FootageFrames, FootageRange, SubjectBox } from './resolve.js';
 import { holdoutFootage } from './inserts.js';
+import { removeOrphans, trackPartial } from './partials.js';
+
+/** `.<clip>.partial-<pid>.mp4|mov`: a clip's encode before it replaces the file. */
+export const PARTIAL_CLIP = /^\..+\.partial-(\d+)\.(?:mp4|mov)$/;
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -1717,6 +1721,31 @@ export type ClipCheck = {
  * errors, runtime errors (unknown cue, bad ease, map order), wall-clock CSS animations and,
  * optionally, whether sampled frames come out identical in two seek orders.
  */
+/**
+ * Clips behind the subject without a cut list whose footage matte has another aspect ratio than
+ * the clip: the holdout scales the matte to the clip's size, so it would not line up.
+ */
+export async function holdoutAspectWarnings(
+	loaded: Pick<LoadedMotionProject, 'project' | 'dir'>,
+	clips: Pick<ResolvedClip, 'id' | 'size'>[]
+): Promise<{ clip: string; message: string }[]> {
+	const out: { clip: string; message: string }[] = [];
+	for (const clip of clips) {
+		const holdout = holdoutFootage(loaded.project, clip.id);
+		if (!holdout || 'error' in holdout) continue;
+		const matte = path.resolve(loaded.dir, loaded.project.footage![holdout.footage].matte!);
+		if (!existsSync(matte)) continue;
+		const { width, height } = await probeVideo(matte);
+		const [w, h] = clip.size;
+		if (Math.abs(width / height - w / h) <= 0.01 * (w / h)) continue;
+		out.push({
+			clip: clip.id,
+			message: `The matte of footage "${holdout.footage}" is ${width}×${height} and the clip ${w}×${h}: the holdout stretches the matte to the clip, so it does not line up with the footage. Render at the footage's aspect ratio.`
+		});
+	}
+	return out;
+}
+
 export async function checkMotionProject(
 	loaded: LoadedMotionProject,
 	opts: { clips?: string[]; determinism?: boolean } = {}
@@ -1764,6 +1793,8 @@ export async function checkMotionProject(
 		.filter((r) => !r.errors.length)
 		.map((r) => loaded.resolved.clips.find((c) => c.id === r.id))
 		.filter((c): c is ResolvedClip => !!c);
+	for (const w of await holdoutAspectWarnings(loaded, runnable))
+		results.find((r) => r.id === w.clip)?.warnings.push({ message: `layer: ${w.message}` });
 	if (runnable.length) {
 		const bundle = await bundleMotionProject(loaded, runnable);
 		const browser = await launch();
@@ -2305,6 +2336,10 @@ export async function renderMotionClips(
 			);
 	}
 	await fs.mkdir(single ? path.dirname(single) : opts.output, { recursive: true });
+	// Partial encodes left by a render that was killed before it could clean up.
+	await removeOrphans(single ? path.dirname(single) : opts.output, PARTIAL_CLIP);
+	for (const w of await holdoutAspectWarnings(loaded, clips))
+		opts.onProgress?.(`Warning: ${w.clip}: ${w.message}`);
 	const bundle = await bundleMotionProject(loaded, clips);
 	// libx264 with yuv420p needs even dimensions; fail before capturing, not after.
 	for (const clip of clips) {
@@ -2340,6 +2375,7 @@ export async function renderMotionClips(
 				return page;
 			};
 			let piped = !opts.keepFrames;
+			const untrack = trackPartial(partial);
 			try {
 				if (piped) {
 					try {
@@ -2369,6 +2405,7 @@ export async function renderMotionClips(
 				await fs.rename(partial, file);
 			} finally {
 				await fs.rm(partial, { force: true });
+				untrack();
 			}
 			const r: RenderedClip = {
 				id: clip.id,

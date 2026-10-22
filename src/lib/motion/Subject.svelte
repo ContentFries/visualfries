@@ -237,7 +237,7 @@
 			canvas.width = footage.width;
 			canvas.height = footage.height;
 		}
-		let picture: CanvasImageSource = loaded;
+		let picture: HTMLImageElement | HTMLCanvasElement = loaded;
 		if (alpha) {
 			cutOut ??= document.createElement('canvas');
 			cutOut.width = footage.width;

@@ -1,6 +1,6 @@
 ---
 name: visualfries
-description: Create and validate VisualFries scene JSON, caption videos from transcripts, prepare agent-friendly video overlays, build transcript- and beat-timed motion projects (including speaker-depth edits with type behind a talking head, and edits cut to music beats), and hand off render-ready scenes without opening the ContentFries UI.
+description: Create and validate VisualFries scene JSON, caption videos from transcripts, prepare agent-friendly video overlays, build transcript- and beat-timed motion projects (including speaker-depth edits with type behind a talking head, and edits cut to music beats), edit raw talking-head takes into finished reels as one program (cut list, shots, transitions, captions, sound), and hand off render-ready scenes without opening the ContentFries UI.
 ---
 
 # VisualFries
@@ -305,6 +305,44 @@ Run `visualfries catalog --json` when an agent needs valid values for caption pr
 Run `visualfries validate-cues ./cues.json --duration <seconds> --json` before applying hand-edited cues. It catches unknown overlay styles, b-roll motions, transition styles, invalid time ranges, and cues outside the scene duration.
 
 Use `visualfries qa scene.json --output ./qa` as the normal agent quality gate. It writes `inspect.json`, `screenshots.json`, and sampled `frames/` into one QA directory.
+
+## Reels from raw takes (programs)
+
+Use a **program** (a motion project with `cuts` and `shots`) when the input is a raw recording
+and the output is the finished video: the cut list removes pauses and retakes, shots frame the
+speaker (punch, strip, window, behind, whip), clips fill the shots' slots, transitions and sound
+effects land on words, music ends on a bar, all in one `.vf.json`. Guide: `docs/MOTION.md` →
+"Programs" (read it before building); worked example with blocks: `static/demo/reel`.
+
+Work like an editor, in this order; each step ends on its criterion:
+
+1. **Brief.** What the reel is for, its platform and formats, the brand. If the creator gave no
+   direction, propose two or three, each with one signature idea taken from the words (a number
+   becomes a giant numeral, a list becomes a ticking checklist). Done when one direction is
+   chosen.
+2. **Plan.** Transcribe the take, read every word, and write the outline: the ranges you keep
+   (whole sentences; the best try of a repeated one), then per section the shot, the move on its
+   key word, the transition into it and its sound. Done when every second of the kept speech has
+   a planned frame and no stretch holds a still frame longer than about two seconds.
+3. **Build.** Cut list first (`visualfries program` until every cut resolves), then shots, then
+   clips, captions, `sfx`, music. Every timing is a phrase, never source seconds. Start from the
+   blocks in `static/demo/reel`; write a new block only for a look they cannot give.
+4. **Check.** `visualfries program` shows no errors and every warning is understood;
+   `visualfries check <project> --determinism` passes.
+5. **Frames.** Stills of every cut, the first, middle and last frame of every transition window,
+   every event and every shot move, about ten moments per `still` call. Done when you have looked
+   at each one and can answer for each: no text over a face, no text cut by the frame, accents and
+   descenders whole, no empty slot, no flash of a bright colour longer than a few frames, no frame
+   standing still.
+6. **Fix.** Change the project or a block, then repeat from 4 for what changed.
+7. **Render.** `visualfries render <project> --output out/` (and `--format WxH` for other
+   formats); report the render time, the segments drawn and cached, and the delivered loudness.
+   Hand over the video with a contact sheet and the cut points the creator should listen to.
+
+Traps the guide explains: a phrase in `until` means its end (`"edge": "start"` to stop where it
+begins); a few frames between two shots squeeze a move into them; a slotted clip should last until
+the next shot's move ends; shots have events but no sound yet, so their effects are `sfx` items
+on the shot's anchor plus half its move.
 
 ## Speaker Depth (type behind a talking head)
 

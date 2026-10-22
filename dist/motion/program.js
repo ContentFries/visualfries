@@ -113,8 +113,9 @@ export function resolveProgram(project, given, opts = {}) {
         localBase: null,
         beats,
         end,
-        event: (name, clip) => clipEvent(resolved.clips, inputs, name, clip)
+        event: (name, clip) => clipEvent(resolved.clips, project, inputs, name, clip)
     };
+    checkEvents(resolved.clips, inputs, end, diagnostics);
     const at = (anchor, from) => resolveAnchor(anchor, from === undefined ? anchorCtx : { ...anchorCtx, window: { from, to: Infinity } }, from === undefined ? 'start' : 'end').time;
     // Program length: the cut list, else `duration`, else the latest end of clips or music.
     const musicStops = placement.placed.flatMap((m) => m?.until == null ? [] : [Math.round(m.until * fps)]);
@@ -142,7 +143,7 @@ export function resolveProgram(project, given, opts = {}) {
     }));
     const brand = inputs.look?.brand ?? NEUTRAL_BRAND;
     const shots = program
-        ? resolveShots(project, inputs, words, cuts, frames, at, diagnostics, format.size)
+        ? resolveShots(project, inputs, words, cuts, frames, at, diagnostics, format.size, end)
         : [];
     const clips = resolved.clips.map((clip) => {
         const spec = project.clips.find((c) => c.id === clip.id);
@@ -163,6 +164,7 @@ export function resolveProgram(project, given, opts = {}) {
             keys: program
                 ? resolveKeys(spec.keys, clip, 'clip', clip.id, {
                     words,
+                    end,
                     beats: { music: inputs.music ?? [], clip: spec.music },
                     fps,
                     diagnostics,
@@ -241,14 +243,27 @@ export function resolveProgram(project, given, opts = {}) {
         diagnostics
     };
 }
+/** Clip seconds of a declared event moment, read as the block reads it (`clip.at`). */
+function eventMoment(clip, moment) {
+    return resolveMoment(moment, {
+        id: clip.id,
+        cues: clip.cues,
+        duration: clip.duration,
+        fps: clip.fps,
+        beats: clip.beats?.map((b) => ({ index: b.index, time: b.local, bar: b.bar, beat: b.beat })),
+        noBeats: clip.noBeats
+    });
+}
 /**
  * Program seconds of event `name` that the block of clip `id` declares: the clip's start plus
  * the declared moment, read with the clip's cues, length and beats as the block reads it.
  */
-function clipEvent(clips, inputs, name, id) {
+function clipEvent(clips, project, inputs, name, id) {
     const clip = clips.find((c) => c.id === id);
     if (!clip)
-        throw new AnchorError(`Unknown clip "${id}". Clips: ${clips.map((c) => c.id).join(', ') || 'none'}.`);
+        throw new AnchorError(project.clips.some((c) => c.id === id)
+            ? `Clip "${id}" did not resolve (see its error), so its events have no time.`
+            : `Unknown clip "${id}". Clips: ${project.clips.map((c) => c.id).join(', ') || 'none'}.`);
     const declared = inputs.blockEvents?.[clip.block];
     if (declared && 'error' in declared)
         throw new AnchorError(declared.error);
@@ -260,18 +275,44 @@ function clipEvent(clips, inputs, name, id) {
             : `It declares none: add \`export const events = { ${/^[A-Za-z_$][\w$]*$/.test(name) ? name : `'${name}'`}: '<moment>' }\` to its <script module>.`}`);
     }
     try {
-        const local = resolveMoment(events[name], {
-            id: clip.id,
-            cues: clip.cues,
-            duration: clip.duration,
-            fps: clip.fps,
-            beats: clip.beats?.map((b) => ({ index: b.index, time: b.local, bar: b.bar, beat: b.beat })),
-            noBeats: clip.noBeats
-        });
-        return clip.start + local;
+        return clip.start + eventMoment(clip, events[name]);
     }
     catch (error) {
         throw new AnchorError(`Event "${name}" of block "${clip.block}" (clip "${id}"): ${error.message}`);
+    }
+}
+/**
+ * The events each clip's block declares, whether or not anything anchors on them: a declaration
+ * that cannot be read, a moment the clip does not have, or one outside the clip or after the
+ * program end is a warning of the clip.
+ */
+function checkEvents(clips, inputs, end, diagnostics) {
+    const fps = clips[0]?.fps ?? 30;
+    const seconds = (t) => `${t.toFixed(2)} s`;
+    for (const clip of clips) {
+        const declared = inputs.blockEvents?.[clip.block];
+        if (!declared)
+            continue;
+        const warn = (message) => diagnostics.push({ level: 'warning', clip: clip.id, field: 'block', message });
+        if ('error' in declared) {
+            warn(declared.error);
+            continue;
+        }
+        for (const [name, moment] of Object.entries(declared.events)) {
+            let local;
+            try {
+                local = eventMoment(clip, moment);
+            }
+            catch (error) {
+                warn(`Event "${name}" of block "${clip.block}": ${error.message}`);
+                continue;
+            }
+            const at = clip.start + local;
+            if (local < -0.5 / fps || local > clip.duration + 0.5 / fps)
+                warn(`Event "${name}" of block "${clip.block}" is at ${seconds(at)}, outside the clip (${clip.start.toFixed(2)}–${seconds(clip.end)}).`);
+            else if (typeof end === 'number' && at > end + 0.5 / fps)
+                warn(`Event "${name}" of block "${clip.block}" is at ${seconds(at)}, after the program end (${seconds(end)}).`);
+        }
     }
 }
 function programSources(project, inputs) {
@@ -335,7 +376,8 @@ function resolveKeys(keys, item, kind, id, ctx) {
                     window: { from: start - 1e-6, to: start + duration },
                     localBase: start,
                     scope: kind,
-                    beats
+                    beats,
+                    end: ctx.end
                 }, 'start').time;
             }
         }
@@ -429,7 +471,7 @@ function blockAnimatable(inputs, block, clip, diagnostics) {
     }
     return found.props;
 }
-function resolveShots(project, inputs, words, cuts, frames, at, diagnostics, size) {
+function resolveShots(project, inputs, words, cuts, frames, at, diagnostics, size, programEndAt) {
     const fps = project.fps;
     const written = [];
     /** What each written shot says about its morph: seconds, and whether a transition replaces it. */
@@ -528,6 +570,7 @@ function resolveShots(project, inputs, words, cuts, frames, at, diagnostics, siz
             transition: null,
             keys: resolveKeys(shot.keys, span, 'shot', id, {
                 words,
+                end: programEndAt,
                 beats: beatsOf(inputs),
                 fps,
                 diagnostics,

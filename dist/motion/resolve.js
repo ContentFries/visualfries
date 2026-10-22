@@ -67,9 +67,17 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
     }
     const startFrame = Math.round(startSec * fps);
     let endFrame = Math.round(endSec * fps);
+    const programFrames = typeof programEnd === 'number' ? Math.round(programEnd * fps) : null;
+    if (programFrames !== null && startFrame >= programFrames)
+        diagnostics.push({
+            level: 'warning',
+            clip: clip.id,
+            field: 'from',
+            message: `Clip starts at ${startSec.toFixed(2)} s, at or after the program end (${programEnd.toFixed(2)} s): it is never shown.`
+        });
     // A clip that runs past the program end is cut there, its own length included.
-    if (typeof programEnd === 'number' && endFrame > Math.round(programEnd * fps)) {
-        endFrame = Math.round(programEnd * fps);
+    else if (programFrames !== null && endFrame > programFrames) {
+        endFrame = programFrames;
         diagnostics.push({
             level: 'info',
             clip: clip.id,
@@ -85,10 +93,7 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
     const end = endFrame / fps;
     // Search with the unrounded anchors too: a word at 1.02 s must not fall out of a clip
     // whose first frame lands at 1.0333 s.
-    const window = {
-        from: Math.min(start, startSec) - 1e-6,
-        to: endFrame < Math.round(endSec * fps) ? end : Math.max(end, endSec)
-    };
+    const window = { from: Math.min(start, startSec) - 1e-6, to: Math.max(end, endSec) };
     const cues = {};
     for (const [name, anchor] of Object.entries(clip.cues ?? {})) {
         try {

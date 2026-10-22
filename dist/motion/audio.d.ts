@@ -88,12 +88,5 @@ export declare function encodeProgramMix(program: ResolvedProgram, opts: MixOpti
     output: string;
     bitrate?: string;
 }): Promise<EncodedMix | null>;
-export type Decode = {
-    file: string;
-    srcIn: number;
-    frames: number;
-};
-/** Decodes every piece (a few ffmpeg processes at a time); results in the pieces' order. */
-export declare function decodeAll(pieces: Decode[], jobs?: number): Promise<Float32Array[]>;
 /** Writes interleaved stereo float samples as a 48 kHz 32-bit float WAV file. */
 export declare function writeWav(file: string, samples: Float32Array): Promise<void>;

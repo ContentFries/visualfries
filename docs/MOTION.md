@@ -46,9 +46,12 @@ my-video/
   `at` of a `{ "downbeat": "after" }` inside `until`, and for any other field that ends something.
 - **`"end"`** in a program (a project with `cuts` or `shots`) is the program's last frame:
   `"until": "end"` for a clip, a shot or music, and `{ "program": "end", "offset": -1.5 }` for a
-  moment before it (`from`, an `sfx` `at`). The end is the cut list's length, or `duration`; a
-  program with neither has no fixed end, and an `"end"` anchor is an error there. For the spoken
-  word "end", write `{ "say": "end" }`. Without `cuts` or `shots`, `"end"` stays a phrase.
+  moment before it (`from`, an `sfx` `at`, a key). The end is the cut list's length, or
+  `duration`; a program with neither (shots only) has no fixed end, and an `"end"` anchor is an
+  error there. For the spoken word "end", write `{ "say": "end" }`. Without `cuts` or `shots`,
+  `"end"` stays a phrase.
+  _Changed in behaviour:_ in a program, `"end"` used to be searched as a spoken phrase; a
+  program that anchored on the word must now write `{ "say": "end" }`.
 - **`cues`** are named moments inside the clip. Names may use any language and inner spaces
   (`"nových odberateľov": "nových odberateľov"`), but not start with a digit or contain `+ - .`, and `bar 5` / `beat 17` read as music beats. Phrases are searched only inside the clip;
   numbers and `{ "frame": n }` are clip-local. `start` and `end` are built in and cannot be
@@ -206,7 +209,9 @@ clip seconds as a number. `program` reads the declaration from the block's sourc
 it, like `animatable`, so it must be a literal object of names and literal values. `{ "event",
 "clip", "offset"? }` works in `sfx` `at`, in shot `from`/`until` and in music `keys`; a clip's
 own `from`, `until` and cues cannot use it (the clip it names is placed first). An unknown clip
-or an event its block does not declare is an error that lists what it declares.
+or an event its block does not declare is an error that lists what it declares. Every declared
+event is checked, used or not: one that does not resolve, or lies outside its clip or after the
+program end, is a warning of the clip.
 
 ### Images
 
@@ -306,15 +311,24 @@ picture to end on after the last word or to let a gag land. The hold is program 
 after it moves on, `"end"` includes it, clips and shots run through it. It is silent: the cut's
 sound stops at its `out` with its anti-click fade and the next cut's sound starts at its own
 first frame, while sound effects and music play on. No words fall into it, so captions pause. A
-transition out of a held cut shows the frozen frame as its outgoing side.
+transition out of a held cut shows the frozen frame as its outgoing side. A hold is at most 60 s;
+one under half a frame holds nothing (a warning). `check --export inserts` notes every hold: the
+rough cut in the editor needs the same freeze frame, or the inserts after it land late.
 
-`check` and `program` warn about a word an audio edit point cuts through. Where the cut's sound
-can be read (`footage.<name>.audio` or the file's own sound track), the edit points are measured
-on it: the voice runs through a point when the 10 ms on both sides of it stay within 24 dB of the
-voice level around it. The warning then says how far to move the point (`move "out" 0.30 s
-later`, `move "in" 0.07 s earlier`, or the `audio.split` that put it there), and a transcript
-word that only seems cut (a transcript often times an onset a little early or a ringing end a
-little short) is no longer reported. Without readable sound the transcript's times decide. A cut can also end on the music:
+`check` and `program` warn about a word an audio edit point cuts through. `program`, `check` and
+`render` also measure every edit point on the cut's sound where it can be read
+(`footage.<name>.audio` or the file's own sound track): around each point the voice level is the
+loudest 5 % of the sound within 1.5 s and the floor (room noise, a music bed) its quietest 10 %.
+Quiet is 24 dB under the voice but never less than 6 dB over the floor, and the voice runs
+through a point when the 10 ms on both sides of it are louder than quiet. The warning then says
+how far to move the point, in whole frames (`move "out" 0.30 s later`, `move "in" 0.07 s
+earlier`, or the `audio.split` that put it there); a voice that stops within half a frame of the
+point counts as clean. A transcript word that only seems cut (a transcript often times an onset
+a little early or a ringing end a little short) is no longer reported, unless the point lies
+more than 0.1 s inside the word, where a quiet stop consonant can measure clean. Where the voice
+cannot be told from the floor, the sound cannot be decoded or nothing was measured (`still`,
+`clips`), the transcript's times decide. Measurements are cached per sound file and point in
+`.visualfries/edit-points.json`. A cut can also end on the music:
 `"out": { "bar": 5 }` (see [Music in the program](#music-in-the-program)). `visualfries program` resolves cuts, program words,
 shots, clips, transitions, audio pieces and segments into `.visualfries/program/<format>.json`,
 and `check` reports what is wrong with them (a phrase that moved, a transition longer than its
@@ -990,7 +1004,8 @@ move into it is squeezed into those frames. In `until` a phrase means the end of
 to end a shot where a phrase starts, write `{ "say": …, "edge": "start" }`. End the last shot,
 the music and the clips that run to the end with `"until": "end"` (the program's last frame,
 holds included). A clip whose `until` lies past the program end is cut there, its own
-`clip.frames` and `clip.duration` too, and `program` notes it.
+`clip.frames` and `clip.duration` too, and `program` notes it. _Changed in behaviour:_ such a
+clip used to keep its written length, so exits written as `'end-0.3'` never played; they play now.
 Give every shot that holds longer than about two seconds `keys` that keep the camera moving (a
 slow `scale` from 1 to 1.08). What depends on the footage (framing and headroom, window
 aspect, strip size, text placement against the face, caption size) is decided per video from

@@ -181,6 +181,12 @@ export type CutList = {
 /** Audio times are kept to the microsecond (a 48 kHz sample is ~21 µs): no float noise in files. */
 export const micro = (seconds: number) => Math.round(seconds * 1e6) / 1e6;
 
+/**
+ * Seconds a word must reach past an edit point on both sides for the transcript's warning to
+ * stand against a clean measurement (transcripts time edges up to about 0.08 s off).
+ */
+const INSIDE_WORD = 0.1;
+
 /** Default anti-click crossfade at every audio edit point, seconds. */
 export const DEFAULT_CROSSFADE = 0.01;
 
@@ -315,9 +321,17 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 			if (!waits) throw error;
 			const which = named ?? deferred[0];
 			throw new Error(
-				`Music "${which}" is placed by a phrase (its own "from", or that of the music it starts on), and the cut list decides where phrases play, so cut points cannot read its beats. Start it in seconds or on the beats of other music, or end the cut on a phrase.`
+				onEnd(which)
+					? `Music "${which}" starts relative to the program end, which the cut list decides, so cut points cannot read its beats. Start it in seconds or on the beats of other music, or end the cut on a phrase.`
+					: `Music "${which}" is placed by a phrase (its own "from", or that of the music it starts on), and the cut list decides where phrases play, so cut points cannot read its beats. Start it in seconds or on the beats of other music, or end the cut on a phrase.`
 			);
 		}
+	};
+	/** Whether music `id` starts on the program end (`"end"`, `{ program: "end" }`). */
+	const onEnd = (id: string) => {
+		const m = (project.music ?? []).find((x, i) => (x.id ?? `music${i + 1}`) === id);
+		const from = m?.from;
+		return from === 'end' || (typeof from === 'object' && from !== null && 'program' in from);
 	};
 	const cuts: ResolvedCut[] = [];
 	let at = 0;
@@ -435,6 +449,13 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 				message: `${cutName(index)}: "${k}" is ${((k === 'in' ? srcIn : srcOut) / fps).toFixed(2)} s of "${cut.source}"; it does not follow a retake.`
 			});
 		const hold = Math.round((cut.hold ?? 0) * fps);
+		if (cut.hold && !hold)
+			diagnostics.push({
+				level: 'warning',
+				item: id,
+				field: `cuts[${index}].hold`,
+				message: `${cutName(index)}: a hold of ${cut.hold} s is less than half a frame, so nothing holds.`
+			});
 		cuts.push({
 			id,
 			index: cuts.length,
@@ -645,12 +666,15 @@ function programWords(
 		shift: number,
 		dropped: boolean
 	) => {
-		// Where the sound was measured it decides: clean, or a warning of its own with the word.
+		// Where the sound was measured it decides (a warning of its own, with the word), unless the
+		// point lies well inside the word: a quiet stop consonant mid-word measures clean.
 		const measured = edgeOf(i, side === 'start' ? 'in' : 'out');
 		if (measured) {
-			if (!measured.clean)
+			if (!measured.clean) {
 				(heard.get(measured) ?? heard.set(measured, []).get(measured)!).push(w.text);
-			return;
+				return;
+			}
+			if (!(w.start + shift < at - INSIDE_WORD && w.end + shift > at + INSIDE_WORD)) return;
 		}
 		const edit = side === 'start' ? i : i + 1;
 		const edge =

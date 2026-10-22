@@ -263,7 +263,7 @@ function addPiece(target, samples, p, gain) {
     }
 }
 /** Decodes every piece (a few ffmpeg processes at a time); results in the pieces' order. */
-export async function decodeAll(pieces, jobs = 4) {
+async function decodeAll(pieces, jobs = 4) {
     const out = new Array(pieces.length);
     let next = 0;
     const worker = async () => {

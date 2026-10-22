@@ -7,7 +7,7 @@ import { parseMotionProject } from '$lib/motion/timeline.js';
 import { parseTranscriptWords } from '$lib/motion/transcript.js';
 import { resolveProgram, type ProgramInputs, type ResolvedProgram } from '$lib/motion/program.js';
 import { footageAt, footageMap } from '$lib/motion/footage-map.js';
-import { cutListUnder } from '$lib/motion/inserts.js';
+import { cutListUnder, insertNotes } from '$lib/motion/inserts.js';
 import { edgeFrames } from '$lib/motion/segments.js';
 import { readEvents } from '$lib/motion/animatable.js';
 import { loadMotionProject, motionProgram } from '../../src/lib/motion/node.js';
@@ -352,7 +352,7 @@ describe('anchors on events a block declares', () => {
 		expect(errors(p).map((d) => `${d.item ?? d.clip} ${d.field}: ${d.message}`)).toEqual([
 			'other from: An event anchor ({ "event", "clip" }) works in sfx "at", shots and music keys, not here: the clip it names is placed first.',
 			'sfx1 sfx[0].at: Block "blocks/Kick.svelte" of clip "kick" declares no event "lnd". It declares: land, bonk, early.',
-			'sfx2 sfx[1].at: Unknown clip "nope". Clips: kick.'
+			'sfx2 sfx[1].at: Unknown clip "nope". Clips: kick, other.'
 		]);
 	});
 
@@ -402,5 +402,175 @@ describe('anchors on events a block declares', () => {
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
+	});
+});
+
+describe('papercuts: edges of the new features', () => {
+	it('fades a held cut out and the same take back in after the hold', () => {
+		// cut2 continues the take exactly where cut1 ends, but the hold sits between them.
+		const p = program({
+			cuts: [
+				{ ...CUTS[0], hold: 1 },
+				{ source: 'talk', in: 5, out: 6 }
+			]
+		});
+		expect(errors(p)).toEqual([]);
+		const [a, b] = p.audio.speech;
+		expect(a).toMatchObject({ dur: 2.005, fadeOut: 0.01 });
+		expect(b).toMatchObject({ at: 2.995, fadeIn: 0.01 });
+	});
+
+	it('needs no handle after a held cut for a transition out of it', () => {
+		const p = program(
+			{
+				cuts: [
+					{ source: 'talk', in: 'then pick', out: 'faster codec', hold: 1 },
+					{ ...CUTS[0], transition: { type: 'push', duration: 0.4 } }
+				]
+			},
+			{ sources: { talk: source(288) } }
+		);
+		expect(errors(p)).toEqual([]);
+		expect(p.cuts[0].handles.after).toBe(0);
+		expect(p.transitions[0].held).toEqual({ in: 0, out: 0 });
+		expect(messages(p, /outgoing handle/)).toEqual([]);
+	});
+
+	it('warns that an L cut after a hold plays silence', () => {
+		const p = program({
+			cuts: [{ ...CUTS[0], hold: 1 }, { ...CUTS[1], audio: { split: 0.2 } }, CUTS[2]]
+		});
+		expect(messages(p, /L cut/).map((d) => [d.field, d.message])).toEqual([
+			[
+				'cuts[1].audio.split',
+				'cut 2: the cut before holds its picture without sound, so this L cut leaves 0.20 s of silence after it.'
+			]
+		]);
+	});
+
+	it('warns about a hold under half a frame and refuses a very long one', () => {
+		const p = program({ cuts: [{ ...CUTS[0], hold: 0.01 }, ...CUTS.slice(1)] });
+		expect(p.cuts[0]).not.toHaveProperty('hold');
+		expect(messages(p, /half a frame/).map((d) => d.message)).toEqual([
+			'cut 1: a hold of 0.01 s is less than half a frame, so nothing holds.'
+		]);
+		expect(() => program({ cuts: [{ ...CUTS[0], hold: 61 }] })).toThrow(/at most 60 seconds/);
+	});
+
+	it('tells the editor of an inserts export about a hold', () => {
+		const project = parseMotionProject({
+			...base,
+			cuts: [{ ...CUTS[0], hold: 1 }, ...CUTS.slice(1)]
+		});
+		expect(insertNotes(resolveProgram(project, inputs), project)).toContainEqual({
+			level: 'info',
+			item: 'cut1',
+			field: 'export',
+			message:
+				'cut1 holds source frame 149 for 30 frames from program frame 60: give the rough cut the same freeze frame there, or every insert after it lands 30 frames late against the footage.'
+		});
+	});
+
+	it('warns about a shot whose transition window runs across a hard cut', () => {
+		const p = program({
+			shots: [
+				{ id: 'a', shot: 'full', from: 0, until: 1.9 },
+				{ id: 'b', shot: 'punch', from: 1.9, until: 3, transition: { type: 'push', duration: 0.4 } }
+			]
+		});
+		expect(messages(p, /hard cut/).map((d) => d.message)).toEqual([
+			'Shot "b" moves across the hard cut into cut2 at frame 60 (its transition): the move goes on over different footage. End the move before the cut, or put a transition on the cut.'
+		]);
+	});
+
+	it('names the field to change at a measured edge: the split or the cut point', () => {
+		const edge = (cut: number, move: number | null) => ({
+			cut,
+			side: 'out' as const,
+			source: 'talk',
+			at: 4.9,
+			voice: -15,
+			level: -20,
+			clean: false,
+			move
+		});
+		const p = program(
+			{ cuts: [CUTS[0], { ...CUTS[1], audio: { split: -0.1 } }, CUTS[2]] },
+			{ speechEdges: [edge(0, 0.1), edge(2, null)] }
+		);
+		expect(messages(p, /the voice/).map((d) => [d.field, d.message])).toEqual([
+			[
+				'cuts[1].audio.split',
+				'cut 1: the voice is still sounding where the cut\'s sound stops (4.90 s of "talk") in "export"; move "audio.split" 0.10 s later.'
+			],
+			[
+				'cuts[2].out',
+				'cut 3: the voice is still sounding where the cut\'s sound stops (4.90 s of "talk"); it goes on for more than a second: end the cut in a pause.'
+			]
+		]);
+		// The transcript's own warning about "export" is folded into the measured one.
+		expect(messages(p, /cuts through/)).toEqual([]);
+	});
+
+	it('warns about a clip that starts after the program end', () => {
+		const p = program({ clips: [{ id: 'late', block: 'b.svelte', from: 6, until: 8 }] });
+		expect(errors(p)).toEqual([]);
+		expect(p.diagnostics).toContainEqual({
+			level: 'warning',
+			clip: 'late',
+			field: 'from',
+			message: 'Clip starts at 6.00 s, at or after the program end (5.00 s): it is never shown.'
+		});
+	});
+
+	it('takes the program end in keys', () => {
+		const p = program({
+			shots: [
+				{
+					id: 'push',
+					shot: 'full',
+					from: 0,
+					until: 'end',
+					keys: [
+						{ at: 0, scale: 1 },
+						{ at: { program: 'end', offset: -1 }, scale: 1.1 }
+					]
+				}
+			]
+		});
+		expect(errors(p)).toEqual([]);
+		expect(p.shots.find((s) => s.id === 'push')!.keys.map((k) => k.frame)).toEqual([0, 120]);
+	});
+
+	it('checks every declared event, used or not', () => {
+		const p = program(
+			{
+				clips: [
+					{ id: 'kick', block: 'blocks/Kick.svelte', from: 'today we fix', until: 'faster codec' }
+				]
+			},
+			{
+				blockEvents: {
+					'blocks/Kick.svelte': { events: { ok: 'mid', far: 'end+2', bad: 'nowhere' } }
+				}
+			}
+		);
+		expect(p.diagnostics.filter((d) => d.field === 'block').map((d) => d.message)).toEqual([
+			'Event "far" of block "blocks/Kick.svelte" is at 7.00 s, outside the clip (0.00–5.00 s).',
+			expect.stringMatching(/^Event "bad" of block "blocks\/Kick\.svelte": .*nowhere/)
+		]);
+	});
+
+	it('says when an event’s clip did not resolve', () => {
+		const p = program(
+			{
+				clips: [{ id: 'kick', block: 'blocks/Kick.svelte', from: 0, until: 'no such words' }],
+				sfx: [{ at: { event: 'land', clip: 'kick' }, sound: 'a.wav' }]
+			},
+			{ blockEvents: { 'blocks/Kick.svelte': { events: { land: 0.5 } } } }
+		);
+		expect(errors(p).map((d) => d.message)).toContainEqual(
+			'Clip "kick" did not resolve (see its error), so its events have no time.'
+		);
 	});
 });

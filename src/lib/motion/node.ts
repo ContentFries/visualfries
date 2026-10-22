@@ -410,7 +410,14 @@ async function probeSource(file: string, fps: number, audio?: string): Promise<S
 /** `transcript` overrides the project's transcript (e.g. a re-recorded voiceover); relative to cwd. */
 export async function loadMotionProject(
 	file: string,
-	opts: { transcript?: string } = {}
+	opts: {
+		transcript?: string;
+		/**
+		 * Measure the speech at every audio edit point (see `measureSpeechEdges`), so the warnings
+		 * about words cut by an edit point trust the sound. `program`, `check` and `render` do.
+		 */
+		editPoints?: boolean;
+	} = {}
 ): Promise<LoadedMotionProject> {
 	const abs = path.resolve(file);
 	const dir = path.dirname(abs);
@@ -499,7 +506,7 @@ export async function loadMotionProject(
 	const common = { file: abs, dir, project, music, musicHash, brand, style, inputs, hashes };
 	let cutList = resolveCutList(project, inputs);
 	// The speech at each audio edit point decides whether a word is cut through there.
-	const edges = await measureSpeechEdges(project, inputs, cutList, dir);
+	const edges = opts.editPoints ? await measureSpeechEdges(project, inputs, cutList, dir) : [];
 	if (edges.length) {
 		inputs.speechEdges = edges;
 		cutList = resolveCutList(project, inputs);

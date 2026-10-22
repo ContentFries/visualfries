@@ -74,7 +74,9 @@ export function resolveAnchor(anchor, ctx, defaultEdge) {
     }
     if (isProgramEnd(anchor, ctx)) {
         if (ctx.end === undefined || ctx.end === null)
-            throw new AnchorError(ctx.end === null ? OPEN_END : 'The program end exists only with "cuts" or "shots".');
+            throw new AnchorError(ctx.end === null
+                ? OPEN_END
+                : 'The program end ("end") is an anchor of a program (with "cuts" or "shots"): in "from" and "until" of clips, shots and music, in keys and in sfx "at".');
         const offset = typeof anchor === 'object' && 'program' in anchor ? anchor.offset : undefined;
         const time = applyOffset(ctx.end, offset, beats);
         return { time, end: time, words: [] };

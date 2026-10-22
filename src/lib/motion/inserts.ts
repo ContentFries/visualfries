@@ -220,6 +220,17 @@ export function insertNotes(program: ResolvedProgram, project: MotionProject): P
 					' and '
 				)} ${shots + staged === 1 ? 'stays' : 'stay'} in the program render (--export video).`
 		});
+	// A hold is program time the rough cut does not have unless the editor freezes the frame too.
+	for (const cut of program.cuts) {
+		if (!cut.hold) continue;
+		const from = cut.startFrame + cut.frames - cut.hold;
+		out.push({
+			level: 'info',
+			item: cut.id,
+			field: 'export',
+			message: `${cut.id} holds source frame ${cut.srcOut - 1} for ${cut.hold} frames from program frame ${from}: give the rough cut the same freeze frame there, or every insert after it lands ${cut.hold} frames late against the footage.`
+		});
+	}
 	for (const clip of program.clips)
 		for (const { level, message } of clipNotes(
 			program,

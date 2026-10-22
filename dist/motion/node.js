@@ -390,7 +390,7 @@ export async function loadMotionProject(file, opts = {}) {
     const common = { file: abs, dir, project, music, musicHash, brand, style, inputs, hashes };
     let cutList = resolveCutList(project, inputs);
     // The speech at each audio edit point decides whether a word is cut through there.
-    const edges = await measureSpeechEdges(project, inputs, cutList, dir);
+    const edges = opts.editPoints ? await measureSpeechEdges(project, inputs, cutList, dir) : [];
     if (edges.length) {
         inputs.speechEdges = edges;
         cutList = resolveCutList(project, inputs);

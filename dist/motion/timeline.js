@@ -139,7 +139,7 @@ export const CutShape = z.object({
      * Seconds the picture holds the cut's last frame after `out`, silent (rounded to frames).
      * Program time runs on; effects and music keep playing.
      */
-    hold: z.number().min(0).optional(),
+    hold: z.number().min(0).max(60, 'hold: at most 60 seconds').optional(),
     transition: TransitionShape.optional(),
     audio: z
         .object({

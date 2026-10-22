@@ -10,9 +10,10 @@
 		<nav aria-label="Primary">
 			<a class="hide-sm" href="/#formats">Formats</a>
 			<a class="hide-sm" href="/#agents">Agents</a>
+			<a class="hide-sm" href="/#benchmark">Benchmark</a>
 			<a href="/docs" aria-current={inDocs ? 'page' : undefined}>Docs</a>
 			<a class="hide-sm" href="https://github.com/ContentFries/visualfries">GitHub</a>
-			<a class="btn sm" href="/docs/quickstart">Quickstart</a>
+			<a class="sm btn" href="/docs/quickstart">Quickstart</a>
 		</nav>
 	</div>
 </header>

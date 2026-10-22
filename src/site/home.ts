@@ -4,9 +4,9 @@
  * Framework-free; returns a cleanup function.
  */
 const AGENT_PROMPT = `Install VisualFries: npm install visualfries svelte playwright && npx playwright install chromium && npx visualfries doctor.
-Read https://visualfries.com/llms.txt before writing anything.
-Then: make a 9:16 reel from talk.mp4 and its word-level transcript. Cut me out of the room with visualfries matte, slam the words I stress in behind my head (start from the @visualfries/speaker-depth block), and caption it with @visualfries/captions, spoken word highlighted.
-Loop: clips -> check --determinism -> still -> render. Show me the stills before you render.`;
+Before writing anything, read https://visualfries.com/docs/programs.md, https://visualfries.com/docs/shots-and-transitions.md and https://visualfries.com/docs/program-sound.md (the same guide ships in the package as node_modules/visualfries/docs/MOTION.md, "Programs", and the agent skill as node_modules/visualfries/skills/visualfries/SKILL.md). Start from the worked example static/demo/reel in https://github.com/ContentFries/visualfries.
+Then: edit take.mp4 (with its word-level transcript, take.transcript.json) into a 9:16 reel as one program. Make the matte with visualfries matte. Cut the pauses and the failed tries, put the key word of the hook behind my head, a strip with a checklist where I list things, a whip to a card for the one thing worth showing, captions low on the chest, a sound on every move and a music bed that ends on a bar.
+Loop: program -> check --determinism -> still -> render. Show me the stills before you render.`;
 
 export function initHome(root: HTMLElement): () => void {
 	const $ = <T extends Element = HTMLElement>(s: string, r: ParentNode = root) => r.querySelector(s) as T | null;
@@ -117,6 +117,24 @@ export function initHome(root: HTMLElement): () => void {
 		);
 		vids.forEach((v) => vo.observe(v));
 		cleanups.push(() => vo.disconnect());
+	}
+
+	// ---- program timeline: the playhead follows the 9:16 reel ----
+	const reel = $<HTMLVideoElement>('#reel');
+	const tl = $('#tl');
+	if (reel && tl) {
+		let praf = 0;
+		const draw = () => {
+			const d = reel.duration || 0;
+			tl.style.setProperty('--p', d ? (reel.currentTime / d).toFixed(4) : '0');
+			praf = reel.paused ? 0 : requestAnimationFrame(draw);
+		};
+		on(reel, 'play', () => {
+			if (!praf) praf = requestAnimationFrame(draw);
+		});
+		on(reel, 'seeked', draw);
+		on(reel, 'pause', draw);
+		cleanups.push(() => cancelAnimationFrame(praf));
 	}
 
 	// ---- broken images: hide so the labelled box shows ----

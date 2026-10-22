@@ -85,6 +85,10 @@ export declare function headOf(frame: RegionFrame): {
  * matte found none), so there is nothing to take or leave.
  */
 export declare function placeRegion(region: SubjectRegion, frame: RegionFrame): RegionShape | null;
+/** The other half of a half-plane (what `outside` leaves of `{ above }` is `{ below }`). */
+export declare function otherHalf(shape: Extract<RegionShape, {
+    kind: 'half';
+}>): RegionShape;
 export declare const REGION_HELP = "A region is \"all\", { \"above\": line }, { \"below\": line }, { \"path\": \"M\u2026 Z\" } or { \"mask\": url }; a line is a number (head heights below the top of the head), { \"head\": k, \"tilt\": degrees } or { \"through\": [[x1, y1], [x2, y2]] }.";
 /** Which side of the line `p` is on: true when inside the half-plane. */
 export declare function insideHalf(shape: Extract<RegionShape, {

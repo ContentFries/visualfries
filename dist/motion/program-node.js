@@ -155,6 +155,10 @@ export async function checkProgram(loaded, opts = {}) {
         return results;
     }
     const bundle = await bundleMotionProject(loaded, program.clips);
+    // Frames the clean plate could not be built for belong to the footage, not to a segment:
+    // they are told once, with the first segment checked.
+    for (const message of bundle.footage.warnings ?? [])
+        results[0]?.warnings.push({ message });
     // Over the whole program: a crop across a hard cut is one crop, reported in the segment it
     // starts in.
     const crops = headCropWarnings(segmentStage(program, wholeProgram(program), bundle.footage, bundle.brand));

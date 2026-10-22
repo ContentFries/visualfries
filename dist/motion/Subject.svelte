@@ -23,6 +23,7 @@
 	import { sourceFrameUrl, sourceSubjectBox, type FootageLayer } from './footage.js';
 	import {
 		headOf,
+		otherHalf,
 		placeRegion,
 		regionPivot,
 		type Point,
@@ -209,6 +210,8 @@
 	});
 
 	let canvas: HTMLCanvasElement;
+	/** The plate through the matte, for the `subject` layer. */
+	let cutOut: HTMLCanvasElement | undefined;
 	/** What the canvas holds, so a frozen layer is drawn once. */
 	let painted = '';
 
@@ -223,13 +226,27 @@
 		const footage = clip.footage[now.source];
 		const key = JSON.stringify([now.source, now.frame, layer, outside, now.shape]);
 		if (key === painted) return;
-		const [picture, mask] = await Promise.all([
-			loadPicture(sourceFrameUrl(footage, now.frame, layer)),
+		// The subject is the plate's own pixels through the matte (the cut-out's alpha), so a
+		// piece taken off the speaker has exactly the colours of the picture it leaves.
+		const [loaded, alpha, mask] = await Promise.all([
+			loadPicture(sourceFrameUrl(footage, now.frame, layer === 'subject' ? 'plate' : layer)),
+			layer === 'subject' ? loadPicture(sourceFrameUrl(footage, now.frame, 'subject')) : null,
 			now.shape.kind === 'mask' ? loadPicture(now.shape.src) : null
 		]);
 		if (canvas.width !== footage.width || canvas.height !== footage.height) {
 			canvas.width = footage.width;
 			canvas.height = footage.height;
+		}
+		let picture: HTMLImageElement | HTMLCanvasElement = loaded;
+		if (alpha) {
+			cutOut ??= document.createElement('canvas');
+			cutOut.width = footage.width;
+			cutOut.height = footage.height;
+			const c = cutOut.getContext('2d')!;
+			c.drawImage(loaded, 0, 0, footage.width, footage.height);
+			c.globalCompositeOperation = 'destination-in';
+			c.drawImage(alpha, 0, 0, footage.width, footage.height);
+			picture = cutOut;
 		}
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -248,11 +265,17 @@
 			if (!placed) return null;
 			const rim = typeof hole === 'object' && hole.rim ? (hole.rim === true ? {} : hole.rim) : null;
 			const head = headOf(placed.at);
+			// What leaves with `outside` is everything but the region: for a line, the other half.
+			const flip = outside && placed.shape.kind === 'half';
+			const shape = flip
+				? otherHalf(placed.shape as Extract<RegionShape, { kind: 'half' }>)
+				: placed.shape;
 			return {
-				shape: placed.shape,
-				mask: placed.shape.kind === 'mask' ? placed.shape.src : null,
+				shape,
+				mask: shape.kind === 'mask' ? shape.src : null,
 				rim,
-				near: head ? head.top : null
+				near: head ? head.top : null,
+				outside: outside && !flip
 			};
 		};
 		const probe = async () => {

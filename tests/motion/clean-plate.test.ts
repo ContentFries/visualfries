@@ -75,6 +75,28 @@ describe('clean plate (fill)', () => {
 		}
 	});
 
+	it('runs a sky gradient straight through a head-shaped hole (the relaxation)', () => {
+		// Push-pull alone takes the average of a wide area into the middle of a big hole, 5 or
+		// 6 levels off a sky gradient; relaxed, the fill stays within 3 of the sky behind.
+		const W = 160;
+		const H = 320;
+		const sky = (y: number) => [60, 100 + y / 3, 250 - y / 2];
+		const head = (x: number, y: number) => ((x - 80) / 55) ** 2 + ((y - 150) / 110) ** 2 < 1;
+		const rgb = new Uint8Array(W * H * 3);
+		const matte = new Uint8Array(W * H);
+		for (let y = 0; y < H; y++)
+			for (let x = 0; x < W; x++) {
+				rgb.set(head(x, y) ? [250, 20, 20] : sky(y), 3 * (y * W + x));
+				matte[y * W + x] = head(x, y) ? 255 : 0;
+			}
+		const out = cleanPlate(rgb, matte, W, H, { grow: 2 });
+		for (let y = 41; y < 260; y++) {
+			const i = 3 * (y * W + 80);
+			expect(Math.abs(out[i + 1] - sky(y)[1]), `green at ${y}`).toBeLessThan(3);
+			expect(Math.abs(out[i + 2] - sky(y)[2]), `blue at ${y}`).toBeLessThan(3);
+		}
+	});
+
 	it('is deterministic: the same frame gives the same bytes', () => {
 		const { rgb, matte } = scene(
 			50,
@@ -192,6 +214,18 @@ describe.skipIf(!hasFfmpeg)('clean plates in the footage cache', () => {
 		const again = (await cleanFrames(loaded))!;
 		expect(again.folder).toBe(first.folder);
 		expect(again.hashes).toEqual(first.hashes);
+	}, 120_000);
+
+	it('clears plates a killed run left half built', async () => {
+		const loaded = await project(true);
+		const got = (await cleanFrames(loaded))!;
+		// A process id far above any running one: that run is gone.
+		const orphan = path.join(got.range, `${got.folder}.tmp-99999999-0123abcd`);
+		await fs.mkdir(orphan);
+		await fs.writeFile(path.join(orphan, '000000.jpg'), 'half');
+		await fs.rm(path.join(got.range, got.folder), { recursive: true });
+		await cleanFrames(loaded);
+		expect((await fs.readdir(got.range)).filter((f) => f.includes('.tmp-'))).toEqual([]);
 	}, 120_000);
 
 	it('builds again when the settings, the image or the matte change', async () => {

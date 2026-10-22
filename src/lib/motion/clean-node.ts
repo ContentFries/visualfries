@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { CLEAN_DEFAULTS, CLEAN_VERSION, cleanFrame, defaultGrow } from './clean-plate.js';
 import type { FrameRange } from './footage-map.js';
+import { removeOrphans } from './partials.js';
 
 /**
  * Clean plates in Node: every frame of an extracted footage range with the subject removed (see
@@ -82,6 +83,8 @@ export async function buildCleanRange(
 		const done = JSON.parse(await fs.readFile(doneFile, 'utf8'));
 		return { frames: done.frames, seconds: 0, cached: true, full: done.full ?? [] };
 	}
+	// Plates a killed run left half built.
+	await removeOrphans(dir, /^clean-[0-9a-f]{12}\.tmp-(\d+)-/);
 	const started = Date.now();
 	const { width: w, height: h } = source;
 	const count = range.last - range.first + 1;

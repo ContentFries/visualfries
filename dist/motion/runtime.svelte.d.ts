@@ -246,6 +246,8 @@ export type HoleSource = (view: {
         x: number;
         y: number;
     } | null;
+    /** The hole is everything but `shape` (`<Subject outside>`). */
+    outside: boolean;
 } | null;
 /** What a region layer reports to `check`: the share of the subject its region holds. */
 export type RegionProbe = () => Promise<{

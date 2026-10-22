@@ -18,9 +18,12 @@ function lineOf(line, frame) {
         if (!head)
             return null;
         const a = (tilt * Math.PI) / 180;
+        // Left to right whatever the turn, so a tilt past 90° does not swap above and below.
+        const flip = Math.cos(a) < -1e-9 || (Math.abs(Math.cos(a)) <= 1e-9 && Math.sin(a) < 0);
+        const sign = flip ? -1 : 1;
         return {
             at: { x: head.top.x, y: head.top.y + k * head.height },
-            dir: { x: Math.cos(a), y: Math.sin(a) }
+            dir: { x: sign * Math.cos(a), y: sign * Math.sin(a) }
         };
     }
     const [[x1, y1], [x2, y2]] = line.through;
@@ -48,20 +51,7 @@ export function placeRegion(region, frame) {
         const line = lineOf('above' in region ? region.above : region.below, frame);
         if (!line)
             return null;
-        const { at, dir } = line;
-        // The normal pointing down the picture (for a level line); "above" is the other way.
-        const n = { x: -dir.y, y: dir.x };
-        const s = side === 'above' ? -1 : 1;
-        const far = 4 * (frame.width + frame.height);
-        const a = { x: at.x - dir.x * far, y: at.y - dir.y * far };
-        const b = { x: at.x + dir.x * far, y: at.y + dir.y * far };
-        const polygon = [
-            a,
-            b,
-            { x: b.x + s * n.x * far, y: b.y + s * n.y * far },
-            { x: a.x + s * n.x * far, y: a.y + s * n.y * far }
-        ];
-        return { kind: 'half', side, at, dir, polygon };
+        return halfPlane(line.at, line.dir, side, 4 * (frame.width + frame.height));
     }
     const origin = region.origin ?? 'frame';
     if (origin !== 'frame' && origin !== 'head')
@@ -91,6 +81,26 @@ export function placeRegion(region, frame) {
         };
     }
     throw new Error(`Unknown region ${JSON.stringify(region)}. ${REGION_HELP}`);
+}
+/** The half of the plane on `side` of the line through `at` along `dir`, `far` px across. */
+function halfPlane(at, dir, side, far) {
+    // The normal pointing down the picture (for a level line); "above" is the other way.
+    const n = { x: -dir.y, y: dir.x };
+    const s = side === 'above' ? -1 : 1;
+    const a = { x: at.x - dir.x * far, y: at.y - dir.y * far };
+    const b = { x: at.x + dir.x * far, y: at.y + dir.y * far };
+    const polygon = [
+        a,
+        b,
+        { x: b.x + s * n.x * far, y: b.y + s * n.y * far },
+        { x: a.x + s * n.x * far, y: a.y + s * n.y * far }
+    ];
+    return { kind: 'half', side, at, dir, polygon };
+}
+/** The other half of a half-plane (what `outside` leaves of `{ above }` is `{ below }`). */
+export function otherHalf(shape) {
+    const far = Math.hypot(shape.polygon[0].x - shape.at.x, shape.polygon[0].y - shape.at.y);
+    return halfPlane(shape.at, shape.dir, shape.side === 'above' ? 'below' : 'above', far);
 }
 export const REGION_HELP = 'A region is "all", { "above": line }, { "below": line }, { "path": "M… Z" } or { "mask": url }; a line is a number (head heights below the top of the head), { "head": k, "tilt": degrees } or { "through": [[x1, y1], [x2, y2]] }.';
 /** Which side of the line `p` is on: true when inside the half-plane. */

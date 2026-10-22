@@ -214,6 +214,42 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('subject layers on the stage', () =>
 		}
 	}, 300_000);
 
+	it('keeps the rim of one hole out of another', async () => {
+		// A lid with a cartoon opening, and a strip through the head (x 170–190) as a second hole.
+		const loaded = await write(dir, 'two.vf.json', {
+			footage,
+			cuts: [{ source: 'talk', in: 0, out: 3 }],
+			clips: [
+				{
+					id: 'lid',
+					block: '@visualfries/subject',
+					from: 1,
+					until: 2.5,
+					props: { region: LID, freeze: false, rim: { opening: 0.2 } },
+					keys: [{ at: 0, y: -400 }]
+				},
+				{
+					id: 'strip',
+					block: '@visualfries/subject',
+					from: 1,
+					until: 2.5,
+					props: {
+						region: { path: 'M -10 0 L 10 0 L 10 400 L -10 400 Z', origin: 'head' },
+						freeze: false
+					},
+					keys: [{ at: 0, x: 500 }]
+				}
+			]
+		});
+		const at = pixels((await captureProgramFrames(loaded, [60])).get(60)!, SW);
+		const hx = Math.round(headX(60));
+		// In the strip just under the cut, where the opening's dark lower half would be: the plate
+		// shows through (the sky filled in where the head was), not the opening.
+		expect(isSky(at(hx, 214))).toBe(true);
+		// Beside the strip the opening is there.
+		expect(at(hx - 30, 214)[0]).toBeLessThan(120);
+	}, 300_000);
+
 	it('cuts a hole in the body from a block, with the clean plate and a behind clip showing through', async () => {
 		await fs.writeFile(path.join(dir, 'Gag.svelte'), GAG);
 		await fs.writeFile(path.join(dir, 'Bar.svelte'), BAR);
@@ -309,7 +345,9 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('subject layers on the stage', () =>
 		const warnings = results.flatMap((r) => r.warnings.map((w) => w.message));
 		const empty = warnings.filter((m) => m.includes('holds none of the speaker'));
 		expect(empty).toHaveLength(1);
-		expect(empty[0]).toMatch(/^Clip "nothing": its region holds none of the speaker from 0\.2\d s/);
+		expect(empty[0]).toMatch(
+			/^Clip "nothing": its region holds none of the speaker in the frames checked from 0\.2\d s/
+		);
 		expect(warnings.some((m) => m.includes('"lid"'))).toBe(false);
 	}, 600_000);
 

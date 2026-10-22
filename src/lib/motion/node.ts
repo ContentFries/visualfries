@@ -1695,6 +1695,8 @@ async function extractFootageRange(
 	const key = footageCacheKey({ src, matte, sizes: source.sizes, fps, range });
 	const dir = path.join(projectDir, '.visualfries', 'footage', `${name}-${key}`);
 	if (!existsSync(path.join(dir, 'done.json'))) {
+		// Ranges a killed run left half extracted.
+		await removeOrphans(path.dirname(dir), /\.tmp-(\d+)-[0-9a-f-]{36}$/);
 		const tmp = `${dir}.tmp-${process.pid}-${randomUUID()}`;
 		await fs.mkdir(path.join(tmp, 'plate'), { recursive: true });
 		try {

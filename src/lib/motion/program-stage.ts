@@ -631,6 +631,11 @@ export function createProgramScene(
 	}
 	/** The plan of the frame last seeked. */
 	let last: Plan | null = null;
+	/** Scratch canvas for one rim among several holes (see `drawHoles`). */
+	const rimSheet: Sheet = {
+		box: document.createElement('div'),
+		canvas: document.createElement('canvas')
+	};
 	/** Per clip, the run of checked frames where its region was empty (see `measure`). */
 	const empty = new Map<string, { from: number; what: string; told: boolean }>();
 
@@ -849,9 +854,22 @@ export function createProgramScene(
 			for (const { hole: x } of holes)
 				applyRegion(over, x.shape, x.outside ? 'in' : 'out', maskOf(x.mask));
 		}
-		if (subject)
-			for (const { hole: x } of holes)
-				if (x.rim) drawRim(over, subject, x.shape, x.rim, x.near, maskOf(x.mask), x.outside);
+		if (!subject) return;
+		for (const [i, { hole: x }] of holes.entries()) {
+			if (!x.rim) continue;
+			if (holes.length === 1) {
+				drawRim(over, subject, x.shape, x.rim, x.near, maskOf(x.mask), x.outside);
+				continue;
+			}
+			// With several holes, a rim is drawn on its own and kept out of the other holes.
+			const own = blank(rimSheet, w, h);
+			drawRim(own, subject, x.shape, x.rim, x.near, maskOf(x.mask), x.outside);
+			holes.forEach(({ hole: other }, k) => {
+				if (k !== i)
+					applyRegion(own, other.shape, other.outside ? 'in' : 'out', maskOf(other.mask));
+			});
+			over.drawImage(rimSheet.canvas, 0, 0);
+		}
 	}
 
 	function drawSide(
@@ -1054,7 +1072,7 @@ export function createProgramScene(
 				if (!run.told && f - run.from >= seg.fps / 2) {
 					run.told = true;
 					out.push(
-						`Clip "${m.data.id}": ${run.what} holds none of the speaker from ${(run.from / seg.fps).toFixed(2)} s (program time) for half a second or more, so the subject layer draws nothing there. Move the line or path onto the speaker (a line's number counts head heights down from the top of the head), or check the matte.`
+						`Clip "${m.data.id}": ${run.what} holds none of the speaker in the frames checked from ${(run.from / seg.fps).toFixed(2)} s (program time) on, about half a second or more, so the subject layer draws nothing there. Move the line or path onto the speaker (a line's number counts head heights down from the top of the head), or check the matte.`
 					);
 				}
 			}

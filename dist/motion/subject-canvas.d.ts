@@ -46,10 +46,10 @@ export declare function crossing(subject: CanvasImageSource, size: Point, shape:
 } | null;
 /**
  * Draws the rim of `shape` on `ctx` (footage pixels) over the subject that stays: `subject` is
- * the subject picture of the same frame. `near` picks which part of the subject a line crosses
- * (the head) for an opening.
+ * the subject picture of the same frame; with `outside` the hole is everything but `shape`.
+ * `near` picks which part of the subject a line crosses (the head) for an opening.
  */
-export declare function drawRim(ctx: CanvasRenderingContext2D, subject: CanvasImageSource, shape: RegionShape, rim: Rim, near: Point | null, mask?: HTMLImageElement | null): void;
+export declare function drawRim(ctx: CanvasRenderingContext2D, subject: CanvasImageSource, shape: RegionShape, rim: Rim, near: Point | null, mask?: HTMLImageElement | null, outside?: boolean): void;
 /**
  * How much of the subject lies inside the shape, as a share of the subject (0–1), measured on
  * a small copy (`check` warns when a region stays empty). 0 without a subject.

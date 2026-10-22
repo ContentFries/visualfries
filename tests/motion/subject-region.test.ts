@@ -44,6 +44,22 @@ describe('subject regions', () => {
 		expect(insideHalf(s, { x: 200, y: 500 })).toBe(false);
 	});
 
+	it('keeps "above" above for a tilt past 90°', () => {
+		const level = half(placeRegion({ above: { head: 0.3, tilt: 0 } }, frame));
+		const turned = half(placeRegion({ above: { head: 0.3, tilt: 180 } }, frame));
+		expect(turned.dir.x).toBeCloseTo(1);
+		expect(turned.dir.y).toBeCloseTo(0);
+		for (const p of [
+			{ x: 500, y: 500 },
+			{ x: 500, y: 540 }
+		])
+			expect(insideHalf(turned, p)).toBe(insideHalf(level, p));
+		const steep = half(placeRegion({ above: { head: 0.3, tilt: 200 } }, frame));
+		const mild = half(placeRegion({ above: { head: 0.3, tilt: 20 } }, frame));
+		expect(steep.dir.x).toBeCloseTo(mild.dir.x);
+		expect(steep.dir.y).toBeCloseTo(mild.dir.y);
+	});
+
 	it('takes a line through two points either way round, and "below" as the other side', () => {
 		const a = half(
 			placeRegion(

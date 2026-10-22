@@ -202,6 +202,23 @@ describe('inserts of a program: notes', () => {
 		expect(planInserts(p, project, { clips: ['panel'] })[0].notes).toEqual(by('panel'));
 	});
 
+	it("says a subject layer's hole stays in the program render", () => {
+		const { project, program: p } = program({
+			clips: [
+				clip('lid', 0.2, 0.8, { block: '@visualfries/subject', props: { region: { above: 0.3 } } }),
+				clip('copy', 0.2, 0.8, {
+					block: '@visualfries/subject',
+					props: { region: 'all', hole: false }
+				})
+			]
+		});
+		const notes = insertNotes(p, project);
+		expect(notes.filter((n) => n.clip === 'lid').map((n) => n.message)).toEqual([
+			expect.stringMatching(/hole in the speaker .* drawn only in the program render/)
+		]);
+		expect(notes.filter((n) => n.clip === 'copy')).toEqual([]);
+	});
+
 	it('has nothing to say about a plain program, or without one', () => {
 		const { project, program: p } = program({ clips: [clip('x', 0.2, 0.8, { slot: 'panel' })] });
 		expect(insertNotes(p, project)).toEqual([]);

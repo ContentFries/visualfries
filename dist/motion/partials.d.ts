@@ -4,7 +4,8 @@
  */
 export declare function trackPartial(file: string): () => void;
 /**
- * Removes temporary files (partial intermediates and encodes, join lists) whose name carries
- * the id of a process no longer running: `pattern` captures it.
+ * Removes temporary files and folders (partial intermediates and encodes, join lists, footage
+ * being extracted) whose name carries the id of a process no longer running: `pattern`
+ * captures it.
  */
 export declare function removeOrphans(dir: string, pattern: RegExp): Promise<void>;

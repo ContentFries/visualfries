@@ -683,8 +683,12 @@ own face tracking), `name`, `layer` (`subject`, `clean`, `plate`),
 (clip pixels), `rotation`, `scale`, `opacity`. While `hole` is on, the stage draws, for the frame
 it shows, the clean plate inside the region under the clips behind the speaker, and the speaker
 without the region over them, so a word behind the speaker shows through the hole. The hole
-follows the live frame; the piece keeps its frozen pixels. In inserts mode there is no stage
-picture: draw `<Footage layer="plate">` and `<Subject layer="clean" region={…}>` yourself.
+follows the live frame; the piece keeps its frozen pixels, taken from the plate through the
+matte so it has exactly the colours of the picture it leaves. With `outside`, the hole is
+everything but the region. The inserts export carries the piece alone (the hole is part of
+the footage picture); `check --export inserts` says so for `@visualfries/subject`. In inserts
+mode there is no stage picture: draw `<Footage layer="plate">` and
+`<Subject layer="clean" region={…}>` yourself.
 
 **Canvas drawing.** Blocks never build footage URLs:
 
@@ -702,11 +706,15 @@ size and scale the canvas with a CSS `transform` (`transform-origin: 0 0; transf
 scale(0.5)`), never with CSS `width` and `height`: frames are captured with HTML-in-Canvas,
 which draws a canvas at its own size whatever its CSS size says, and a `drawImage` that
 scales may resample differently depending on what was drawn before, which fails `check
---determinism`. The region helpers are
+--determinism`. On a program stage every canvas contains its paint (CSS `contain: paint`):
+HTML-in-Canvas used to leave a canvas out of the frame unless it sat at the stage's top left
+corner. A canvas therefore stacks like a positioned element: one in normal flow paints over
+absolutely positioned elements before it, so give those a `z-index` or put them after it. The region helpers are
 exported too (`placeRegion`, `drawRegion`, `drawRim`) for blocks that draw their own canvas.
 
-`check` warns when a region holds none of the speaker for half a second or more (a line above
-the head, a path off the body), with the time it starts.
+`check` warns when a region holds none of the speaker in the frames it checks (every fifth
+frame and the edges) for about half a second or more: a line above the head, a path off the
+body. The warning gives the time it starts.
 
 ## Music and beats
 

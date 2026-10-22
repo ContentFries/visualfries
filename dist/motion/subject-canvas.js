@@ -175,10 +175,10 @@ export function crossing(subject, size, shape, near, inset) {
 }
 /**
  * Draws the rim of `shape` on `ctx` (footage pixels) over the subject that stays: `subject` is
- * the subject picture of the same frame. `near` picks which part of the subject a line crosses
- * (the head) for an opening.
+ * the subject picture of the same frame; with `outside` the hole is everything but `shape`.
+ * `near` picks which part of the subject a line crosses (the head) for an opening.
  */
-export function drawRim(ctx, subject, shape, rim, near, mask = null) {
+export function drawRim(ctx, subject, shape, rim, near, mask = null, outside = false) {
     const { width: w, height: h } = ctx.canvas;
     const lineWidth = rim.width ?? Math.max(2, Math.round(0.01 * Math.min(w, h)));
     if (shape.kind === 'half' && rim.opening && rim.opening > 0 && near) {
@@ -244,7 +244,8 @@ export function drawRim(ctx, subject, shape, rim, near, mask = null) {
         return;
     s.ctx.globalCompositeOperation = 'destination-in';
     s.ctx.drawImage(subject, 0, 0, w, h);
-    applyRegion(s.ctx, shape, 'out', mask);
+    // Only on the subject that stays: outside the region, or inside it when the hole is the rest.
+    applyRegion(s.ctx, shape, outside ? 'in' : 'out', mask);
     ctx.drawImage(s.canvas, 0, 0);
 }
 /**

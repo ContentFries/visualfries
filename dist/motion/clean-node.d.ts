@@ -12,8 +12,6 @@ export type CleanSource = {
     matte: string;
     width: number;
     height: number;
-    /** Same rate as the project: seek straight to the range (see `extractFootageRange`). */
-    direct: boolean;
 };
 /** Folder name of the clean frames of a range for `spec` (its settings and the image file). */
 export declare function cleanFolder(spec: CleanSpec, size: [number, number]): Promise<string>;

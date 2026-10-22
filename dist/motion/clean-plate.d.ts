@@ -37,7 +37,7 @@ export declare const CLEAN_DEFAULTS: {
  * Version of the plate algorithm, part of the cache key of every cleaned range: raise it when
  * the pixels it makes change.
  */
-export declare const CLEAN_VERSION = 2;
+export declare const CLEAN_VERSION = 3;
 /** Pixels the hole grows by for a frame `width` × `height` (about 12 px at 1080 × 1920). */
 export declare const defaultGrow: (width: number, height: number) => number;
 /**
@@ -51,3 +51,11 @@ export declare function holeMask(matte: Uint8Array, width: number, height: numbe
  * Deterministic: the same frame and matte always give the same bytes.
  */
 export declare function cleanPlate(rgb: Uint8Array, matte: Uint8Array, width: number, height: number, opts?: CleanOptions): Uint8Array;
+/**
+ * `cleanPlate`, also telling whether the frame had nothing to fill from (`full`: the grown hole
+ * covers the whole picture and no image was supplied, so the plate keeps the footage).
+ */
+export declare function cleanFrame(rgb: Uint8Array, matte: Uint8Array, width: number, height: number, opts?: CleanOptions): {
+    rgb: Uint8Array;
+    full: boolean;
+};

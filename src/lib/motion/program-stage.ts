@@ -442,21 +442,22 @@ function sheet(s: Side, kind: 'hole' | 'cut', before: Element | null): Sheet {
 	return (s[kind] = { box, canvas });
 }
 
-/** Places a sheet like `frameBox` places a picture. */
-function frameSheet(sheet: Sheet, layout: ShotLayout) {
+/**
+ * Places a sheet like `frameBox` places a picture. The canvas keeps its own size (`w` × `h`, the
+ * footage's) and is scaled onto the camera with a transform: HTML-in-Canvas draws a canvas at
+ * its own size whatever its CSS width and height say, but follows its transform.
+ */
+function frameSheet(sheet: Sheet, layout: ShotLayout, w: number, h: number) {
 	const { clip, camera, radius, turn } = layout;
 	place(sheet.box, clip);
 	sheet.box.style.borderRadius = radius ? `${radius}px` : '';
-	place(sheet.canvas, {
-		x: camera.x - clip.x,
-		y: camera.y - clip.y,
-		width: camera.width,
-		height: camera.height
-	});
-	sheet.canvas.style.transform = turn ? `rotate(${turn.rotation}deg)` : '';
-	sheet.canvas.style.transformOrigin = turn
-		? `${turn.pivot.x - camera.x}px ${turn.pivot.y - camera.y}px`
-		: '';
+	place(sheet.canvas, { x: camera.x - clip.x, y: camera.y - clip.y, width: w, height: h });
+	const scale = `scale(${camera.width / w},${camera.height / h})`;
+	const pivot = turn && { x: turn.pivot.x - camera.x, y: turn.pivot.y - camera.y };
+	sheet.canvas.style.transformOrigin = '0 0';
+	sheet.canvas.style.transform = pivot
+		? `translate(${pivot.x}px,${pivot.y}px) rotate(${turn.rotation}deg) translate(${-pivot.x}px,${-pivot.y}px) ${scale}`
+		: scale;
 }
 
 /** A sheet's 2D context, cleared, at `w` × `h`. */
@@ -907,7 +908,7 @@ export function createProgramScene(
 			const cut = sheet(s, 'cut', null);
 			for (const x of [hole, cut]) {
 				x.box.style.display = '';
-				frameSheet(x, layout);
+				frameSheet(x, layout, frames.width, frames.height);
 			}
 			hole.canvas.style.filter = s.plate.img.style.filter;
 			cut.canvas.style.filter = subjectOn ? s.subject.img.style.filter : '';

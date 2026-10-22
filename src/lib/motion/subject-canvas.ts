@@ -133,6 +133,10 @@ export type Rim = {
 };
 
 const rimSlot: { canvas?: HTMLCanvasElement } = {};
+/** Matte alpha above which a pixel on the cut belongs to the subject (its soft edge included). */
+const SOFT_EDGE = 24;
+/** Longest gap along the cut, as a share of the footage width, that still joins two parts. */
+const GAP_SHARE = 0.02;
 const probeSlot: { canvas?: HTMLCanvasElement } = {};
 
 /**
@@ -168,7 +172,20 @@ export function crossing(
 	}
 	const data = s.ctx.getImageData(0, 0, 2 * length, 2).data;
 	const u0 = Math.round(dir.x * (near.x - at.x) + dir.y * (near.y - at.y)) + length;
-	const solid = (i: number) => i >= 0 && i < 2 * length && data[4 * i + 3] > 127;
+	// The matte's soft edge (hair) counts: the opening must reach as far as the cut shows.
+	const solid = (i: number) => i >= 0 && i < 2 * length && data[4 * i + 3] > SOFT_EDGE;
+	// Gaps in the matte this short (wisps of hair, a thin dark line) do not end the run.
+	const gap = Math.max(4, Math.round(GAP_SHARE * size.x));
+	const reach = (from: number, step: number) => {
+		let end = from;
+		for (let i = from + step, miss = 0; i >= 0 && i < 2 * length && miss <= gap; i += step) {
+			if (solid(i)) {
+				end = i;
+				miss = 0;
+			} else miss++;
+		}
+		return end;
+	};
 	let start = Math.max(0, Math.min(2 * length - 1, u0));
 	if (!solid(start)) {
 		// The nearest subject pixel along the line, within a quarter of the picture.
@@ -181,8 +198,8 @@ export function crossing(
 	}
 	let a = start;
 	let b = start;
-	while (solid(a - 1)) a--;
-	while (solid(b + 1)) b++;
+	a = reach(a, -1);
+	b = reach(b, 1);
 	let r = 0,
 		g = 0,
 		bl = 0,

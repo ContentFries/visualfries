@@ -29,13 +29,13 @@ const GAG = `<script>
 	let canvas;
 	useFrame(async () => {
 		const pic = await clip.picture('clean');
-		// At its own size (the canvas is scaled with CSS): a scaled drawImage may resample
+		// At its own size, the canvas scaled with a transform: a scaled drawImage may resample
 		// differently depending on what was drawn before.
 		canvas.getContext('2d').drawImage(pic.image, 0, 0);
 	});
 </script>
 <Subject region={{ below: { through: [[0, 380], [360, 380]] } }} freeze hole={{ rim: true }} x={clip.t * 100} />
-<canvas bind:this={canvas} width="360" height="640" style="position:absolute;left:10px;top:10px;width:90px;height:160px"></canvas>
+<canvas bind:this={canvas} width="360" height="640" style="position:absolute;left:10px;top:10px;transform-origin:0 0;transform:scale(0.25)"></canvas>
 `;
 
 const isSkin = ([r, g, b]: number[]) => r > 190 && g > 140 && g < 215 && b > 110 && b < 190;
@@ -107,6 +107,43 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('subject layers on the stage', () =>
 		expect(isSky(flown(hx, 20))).toBe(true);
 	}, 300_000);
 
+	it('lines the hole and the piece up with a zoomed camera', async () => {
+		// Shot keys zoom 1.3× about the face (the head's column, 64 px below its top at y = 150),
+		// so source y maps to 214 + (y − 214) × 1.3 on screen.
+		const loaded = await write(dir, 'zoom.vf.json', {
+			footage,
+			cuts: [{ source: 'talk', in: 0, out: 3 }],
+			shots: [{ id: 'close', shot: 'full', from: 0, until: 3, keys: [{ at: 0, scale: 1.3 }] }],
+			clips: [
+				{
+					id: 'lid',
+					block: '@visualfries/subject',
+					from: 1,
+					until: 2.5,
+					props: { region: LID, rim: { opening: 0.2 } },
+					keys: [
+						{ at: 0, y: 0 },
+						{ at: 0.5, y: -400 }
+					]
+				}
+			]
+		});
+		const at = pixels((await captureProgramFrames(loaded, [60])).get(60)!, SW);
+		const hx = Math.round(headX(60));
+		const screen = (y: number) => Math.round(214 + (y - 214) * 1.3);
+		// Above the cut and the opening (source y 165–185): sky across the head's width.
+		for (const y of [165, 185])
+			for (const dx of [-70, -40, 0, 40, 70])
+				expect(isSky(at(hx + dx, screen(y))), `hole ${dx},${y}`).toBe(true);
+		// Below the cut and the opening (source y 250), the head across its zoomed width.
+		for (const dx of [-80, -40, 0, 40, 80])
+			expect(isSkin(at(hx + dx, screen(250))), `face ${dx}`).toBe(true);
+		// The opening lies on the cut, as wide as the zoomed head there: dark at its middle.
+		const mid = at(hx, screen(209) + 2);
+		expect(mid[0]).toBeLessThan(120);
+		expect(isSky(at(hx + 110, screen(209)))).toBe(true);
+	}, 300_000);
+
 	it('cuts a hole in the body from a block, with the clean plate and a behind clip showing through', async () => {
 		await fs.writeFile(path.join(dir, 'Gag.svelte'), GAG);
 		await fs.writeFile(path.join(dir, 'Bar.svelte'), BAR);
@@ -139,8 +176,12 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('subject layers on the stage', () =>
 		const rim = after(h60, 376);
 		expect(rim[0]).toBeLessThan(isBody(rim) ? 90 : 60);
 		expect(isSky(after(10, 376))).toBe(true);
-		// The clean plate in the corner (a quarter size): sky where the head is.
+		// The clean plate in the corner (a quarter size): sky where the head is, the field
+		// below, and the stage's picture past the corner's edge.
 		expect(isSky(after(10 + 45, 10 + 60))).toBe(true);
+		expect(after(10 + 45, 10 + 150)[1]).toBeGreaterThan(120);
+		expect(isBody(after(10 + 45, 10 + 150))).toBe(false);
+		expect(isSkin(after(h60, 240))).toBe(true);
 		expect(isSkin(after(h60, 240))).toBe(true);
 	}, 300_000);
 

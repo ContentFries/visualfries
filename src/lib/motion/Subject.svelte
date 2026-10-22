@@ -15,7 +15,7 @@
 	           clean plate there; { rim: true | Rim } also draws the cut edge (program mode)
 	  smooth   seconds the head is averaged over when a region follows it (default 0.1)
 	  pivot    [x, y] in footage pixels to turn and scale about (default: the region's middle)
-	  place    false: fill the parent box instead of sitting on the stage's picture
+	  place    false: fill the clip's frame instead of sitting on the stage's picture
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -191,6 +191,16 @@
 		return `position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:${origin}${moved ? `;transform:translate(${r(x)}px,${r(y)}px) rotate(${r(rotation)}deg) scale(${r(Math.max(0, scale))})` : ''}${opacity !== 1 ? `;opacity:${r(Math.max(0, Math.min(1, opacity)))}` : ''}`;
 	});
 
+	/**
+	 * The canvas keeps the footage's size and is scaled onto its box with a transform: HTML-in-
+	 * Canvas draws a canvas at its own size whatever its CSS width and height say.
+	 */
+	const canvasStyle = $derived.by(() => {
+		const sx = camera ? camera.width / size.width : clip.width / size.width;
+		const sy = camera ? camera.height / size.height : clip.height / size.height;
+		return `position:absolute;left:0;top:0;width:${size.width}px;height:${size.height}px;transform-origin:0 0;transform:scale(${sx},${sy})`;
+	});
+
 	let canvas: HTMLCanvasElement;
 	/** What the canvas holds, so a frozen layer is drawn once. */
 	let painted = '';
@@ -262,11 +272,6 @@
 
 <div class="vf-subject-layer {className}" style="{boxStyle};{style}">
 	<div style={moveStyle}>
-		<canvas
-			bind:this={canvas}
-			width={size.width}
-			height={size.height}
-			style="position:absolute;inset:0;width:100%;height:100%"
-		></canvas>
+		<canvas bind:this={canvas} width={size.width} height={size.height} style={canvasStyle}></canvas>
 	</div>
 </div>

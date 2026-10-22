@@ -677,7 +677,7 @@ morphs included), so effects drawn in footage pixels can ride the camera too. Pr
 (or a function of `{ source, frame, clipFrame }` returning one per frame, e.g. a line from your
 own face tracking), `name`, `layer` (`subject`, `clean`, `plate`),
 `outside` (everything but the region), `freeze`, `hole`, `smooth` (seconds, default 0.1),
-`pivot` (`[x, y]` footage pixels), `place` (`false`: fill the parent box), and the moves `x`, `y`
+`pivot` (`[x, y]` footage pixels), `place` (`false`: fill the clip's frame), and the moves `x`, `y`
 (clip pixels), `rotation`, `scale`, `opacity`. While `hole` is on, the stage draws, for the frame
 it shows, the clean plate inside the region under the clips behind the speaker, and the speaker
 without the region over them, so a word behind the speaker shows through the hole. The hole
@@ -696,8 +696,11 @@ useFrame(async () => {
 `clip.picture(layer, { name, frame, offset })` gives the source frame the cut list shows at a
 clip frame, holds and transition handles included, as a decoded image with its `source`, `frame`
 and size; `clip.shown(name?, frame?)` gives just the source frame. Draw pictures at their own
-size and scale the canvas with CSS: a `drawImage` that scales may resample differently
-depending on what was drawn before, which fails `check --determinism`. The region helpers are
+size and scale the canvas with a CSS `transform` (`transform-origin: 0 0; transform:
+scale(0.5)`), never with CSS `width` and `height`: frames are captured with HTML-in-Canvas,
+which draws a canvas at its own size whatever its CSS size says, and a `drawImage` that
+scales may resample differently depending on what was drawn before, which fails `check
+--determinism`. The region helpers are
 exported too (`placeRegion`, `drawRegion`, `drawRim`) for blocks that draw their own canvas.
 
 `check` warns when a region holds none of the speaker for half a second or more (a line above

@@ -4,17 +4,7 @@
 		1920
 	],
 	"fps": 30,
-	"fonts": [
-		{
-			"family": "Anton",
-			"src": "fonts/Anton-Regular.ttf"
-		},
-		{
-			"family": "Inter",
-			"src": "fonts/Inter.ttf",
-			"weight": "100 900"
-		}
-	],
+	"brand": "brand.json",
 	"style": "kinetic",
 	"footage": {
 		"talk": {
@@ -48,7 +38,8 @@
 			"out": {
 				"say": "the silences",
 				"edge": "end",
-				"offset": 0.1
+				"offset": 0.1,
+				"occurrence": 1
 			}
 		},
 		{
@@ -59,7 +50,7 @@
 				"offset": -0.1
 			},
 			"out": {
-				"say": "my son, handheld",
+				"say": "the block, handheld",
 				"edge": "end",
 				"offset": 0.12
 			}
@@ -238,7 +229,7 @@
 			"shot": "punch",
 			"from": "shot it on a walk",
 			"until": {
-				"say": "with my son",
+				"say": "around the block",
 				"edge": "end",
 				"offset": 0.1
 			},
@@ -272,7 +263,7 @@
 			"until": {
 				"say": "tips like this",
 				"edge": "end",
-				"offset": 0.57
+				"offset": 0.55
 			},
 			"params": {
 				"size": 0.5,
@@ -438,7 +429,7 @@
 			"until": {
 				"say": "tips like this",
 				"edge": "end",
-				"offset": 0.57
+				"offset": 0.55
 			},
 			"cues": {
 				"follow": "follow my channel"

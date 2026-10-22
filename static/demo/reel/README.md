@@ -77,3 +77,6 @@ music ends on the bar nearest the new end. See "Programs" in `docs/MOTION.md`.
 - `EndCard.svelte`: lines of heavy type that slam in word by word, and a call to action.
 
 They take colours and fonts from the brand tokens and lay out for portrait and landscape.
+`brand.json` sets those colours and the three fonts the blocks use (Anton, Inter and JetBrains
+Mono, all under the SIL Open Font License, in `fonts/`); point `"brand"` at your own brand file
+to restyle every block at once.

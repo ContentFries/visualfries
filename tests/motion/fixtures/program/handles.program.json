@@ -898,6 +898,12 @@
 			"item": "cut5",
 			"field": "cuts[4].transition",
 			"message": "The \"card\" transition is not drawn yet; it cuts on the cut."
+		},
+		{
+			"level": "warning",
+			"item": "whip",
+			"field": "shots",
+			"message": "The whip of shot \"whip\" (5.20 s) and the transition \"whip.transition\" (5.20 s) make two sounds on one move. Drop the transition (a whip moves on its own), or move one of them."
 		}
 	]
 }

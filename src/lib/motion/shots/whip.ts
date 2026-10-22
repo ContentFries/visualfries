@@ -51,8 +51,13 @@ export const whip: ShotModule = {
 		const peak = (numberParam(params, 'blur', BLUR) * (across ? W : H)) / 1920;
 		return across ? { x: peak, y: 0 } : { x: 0, y: peak };
 	},
+	// Nothing to whip from on the first frame, or from a whip (the camera stays away).
 	events: ({ prev, morphFrames }) =>
-		prev === null ? [] : [{ kind: 'whip', frame: Math.floor(morphFrames / 2) }],
+		prev === null || prev === 'whip' ? [] : [{ kind: 'whip', frame: Math.floor(morphFrames / 2) }],
+	follows: (prev) =>
+		prev === 'whip'
+			? 'A whip right after a whip does not move: the camera stays away and the card changes in place. Put another shot between them, or make it one whip.'
+			: null,
 	check: (params) => [
 		...checkKnown(params, ['direction', 'blur']),
 		...(params.direction === undefined || DIRECTIONS.includes(params.direction as string)

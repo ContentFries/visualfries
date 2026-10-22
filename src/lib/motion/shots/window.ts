@@ -10,19 +10,22 @@ import {
 } from './layout.js';
 
 /** Width of the window as a share of the frame width, by format class. */
-const SHARE: Record<FormatClass, number> = { landscape: 0.3, square: 0.4, portrait: 0.56 };
+const SHARE: Record<FormatClass, number> = { landscape: 0.3, square: 0.4, portrait: 0.44 };
 /** Width over height of the window, by format class. */
 const ASPECT: Record<FormatClass, number> = { landscape: 16 / 9, square: 1, portrait: 1 };
 /** Space between the window and the frame edge or the panel, of the frame's shorter side. */
 const MARGIN = 0.05;
-/** In portrait the window stands this far from the top, or above the bottom band. */
-const PORTRAIT_TOP = 0.08;
-const PORTRAIT_BOTTOM = 0.3;
+/**
+ * In portrait, window and panel stay inside the format's safe insets (platform buttons, the
+ * caption band); without them, inside these shares of the frame height (the all-platform zone).
+ */
+const PORTRAIT_TOP = 0.15;
+const PORTRAIT_BOTTOM = 0.35;
 /** How much closer the camera goes inside the window, so the face reads at its small size. */
 const ZOOM = 1.2;
 /** Corner radius as a share of the window's shorter side. */
 const RADIUS = 0.08;
-/** The ring around the window in pixels per 1080 px of the frame's shorter side. */
+/** The ring around the window in pixels at 1080 px of the frame's shorter side. */
 const RING = 4;
 
 const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const;
@@ -31,15 +34,18 @@ const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as cons
  * The speaker in a framed window over the style's surface, with a `panel` slot beside it for a
  * clip (a list, tiles, a screenshot). Landscape and square: the window sits in a corner
  * (`corner`, default bottom right) and the panel takes the full height on the other side.
- * Portrait: the window is centred near the top (`corner: "bottom-…"`: above the bottom band
- * where captions and platform buttons sit) and the panel takes the rest below (or above) it.
- * `size` is the window's width as a share of the frame, `zoom` how much closer the camera goes
- * inside it, `ring` the width of its brand-coloured ring in pixels (0: none).
+ * Portrait: the window is centred at the top of the safe area and the panel takes the rest of
+ * it below (`corner: "bottom-…"`: the window at the bottom of the safe area, just above the
+ * caption band, and the panel above it); nothing goes under the platform's buttons or the
+ * caption band. Landscape and square keep their own margins: their players overlay no lasting
+ * UI on the corners. `size` is the window's width as a share of the frame, `zoom` how much
+ * closer the camera goes inside it, `ring` the width of its brand-coloured ring in pixels at
+ * 1080 px of the frame's shorter side (0: none), so it scales with the frame like `blur`.
  */
 export const windowShot: ShotModule = {
 	name: 'window',
 	enter: { seconds: 0.7, ease: 'expo.inOut' },
-	layout({ cls, size: [W, H], footage, subject, params }) {
+	layout({ cls, size: [W, H], footage, subject, params, safe }) {
 		const corner = (CORNERS as readonly unknown[]).includes(params.corner)
 			? (params.corner as (typeof CORNERS)[number])
 			: cls === 'portrait'
@@ -55,12 +61,14 @@ export const windowShot: ShotModule = {
 		let panel: Rect;
 		let closed: Rect;
 		if (cls === 'portrait') {
-			const y = top ? Math.round(H * PORTRAIT_TOP) : Math.round(H * (1 - PORTRAIT_BOTTOM)) - height;
+			const high = Math.round(safe?.top ?? H * PORTRAIT_TOP);
+			const low = H - Math.round(safe?.bottom ?? H * PORTRAIT_BOTTOM);
+			const y = top ? high : low - height;
 			clip = { x: Math.round((W - width) / 2), y, width, height };
-			// The panel takes the rest of the frame on the other side of the window.
+			// The panel takes the rest of the safe area on the other side of the window.
 			panel = top
-				? { x: 0, y: y + height + m, width: W, height: H - (y + height + m) }
-				: { x: 0, y: 0, width: W, height: y - m };
+				? { x: 0, y: y + height + m, width: W, height: low - (y + height + m) }
+				: { x: 0, y: high, width: W, height: y - m - high };
 			closed = { ...panel, y: top ? H : -panel.height };
 		} else {
 			const x = left ? m : W - m - width;
@@ -78,11 +86,13 @@ export const windowShot: ShotModule = {
 			slots: { panel: roundRect(panel) },
 			closed: { panel: roundRect(closed) },
 			fill: 'surface',
-			ring: numberParam(params, 'ring', Math.round((RING * short) / 1080)),
+			ring: Math.round(((numberParam(params, 'ring', RING) * short) / 1080) * 100) / 100,
 			lift: 1
 		};
 	},
-	events: ({ morphFrames }) => [{ kind: 'shot', frame: Math.floor(morphFrames / 2) }],
+	// Nothing moves on the program's first frame.
+	events: ({ prev, morphFrames }) =>
+		prev === null ? [] : [{ kind: 'shot', frame: Math.floor(morphFrames / 2) }],
 	check: (params) => [
 		...checkKnown(params, ['corner', 'size', 'zoom', 'ring']),
 		...(params.corner === undefined || (CORNERS as readonly unknown[]).includes(params.corner)

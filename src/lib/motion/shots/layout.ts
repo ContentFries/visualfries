@@ -28,6 +28,11 @@ export type ShotInput = {
 	params: Record<string, unknown>;
 	/** The style's energy; null without a style. */
 	energy?: Energy | null;
+	/**
+	 * The format's safe insets in pixels (no platform UI inside them); absent where the caller
+	 * does not know them, and a shot falls back to its own margins.
+	 */
+	safe?: { top: number; right: number; bottom: number; left: number };
 };
 
 export type ShotLayout = {
@@ -39,6 +44,12 @@ export type ShotLayout = {
 	radius: number;
 	/** Areas the shot frees for clips (`slot: "panel"`), in stage pixels. */
 	slots: Record<string, Rect>;
+	/**
+	 * Slots that ride the camera: in a morph to or from a shot without them they move and scale
+	 * with the footage (a word behind the head leaves with the head) instead of sliding to
+	 * `closed`.
+	 */
+	riding?: string[];
 	/** Where each slot sits while it is closed, so it slides in and out with a morph. */
 	closed: Record<string, Rect>;
 	/** What shows around the camera window: the style's surface, or nothing. */
@@ -77,6 +88,10 @@ export type ShotModule = {
 	enter: Morph;
 	/** The morph out of this shot, when it differs from the next shot's `enter`. */
 	leave?: Morph;
+	/** The morph into this shot from `prev`, when it depends on the shot before (else `enter`). */
+	enterFrom?(prev: string): Morph;
+	/** A warning when this shot follows `prev` directly (a move that cannot be seen); else null. */
+	follows?(prev: string): string | null;
 	layout(input: ShotInput): ShotLayout;
 	/** Events of the shot, in frames from its start; `prev` is the shot before it, if any. */
 	events(ctx: { prev: string | null; morphFrames: number; frames: number }): ShotEvent[];

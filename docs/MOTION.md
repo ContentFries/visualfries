@@ -246,32 +246,42 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
   brand's primary colour and a soft shadow, and a `panel` slot beside it. Landscape and square:
   the window sits in a corner (`params.corner`: `bottom-right` by default, `bottom-left`,
   `top-right`, `top-left`) and the panel takes the full height on the other side. Portrait: the
-  window is centred near the top and the panel takes the rest below it (`corner: "bottom-…"`
-  puts the window above the bottom band where captions and platform buttons sit, the panel
-  above it). `params.size` is the window's width as a share of the frame (default 0.3 landscape,
-  0.4 square, 0.56 portrait), `params.zoom` how much closer the camera goes inside it (1.2),
-  `params.ring` the ring's width in pixels (0: none).
+  window is centred at the top of the format's safe area and the panel takes the rest of it
+  below (`corner: "bottom-…"` puts the window at the bottom of the safe area, the panel above
+  it), so neither sits under platform buttons or in the caption band. `params.size` is the
+  window's width as a share of the frame (default 0.3 landscape, 0.4 square, 0.44 portrait),
+  `params.zoom` how much closer the camera goes inside it (1.2), `params.ring` the ring's width
+  in pixels at 1080 px of the frame's shorter side (default 4; 0: none).
 - `behind`: the stage for a word behind the speaker's head. The footage stays framed like
   `full` (`params.scale` goes closer), the room dims and blurs (`params.dim`, default 0.55;
   `params.blur`, 12 px at 1080 px) while the speaker, cut out by the matte, stays sharp in front,
   and a `word` slot follows the head: from a little above it to below the face, across the
   frame. The word itself is a clip with `"layer": "behind"` and `"slot": "word"`; the shot only
-  sets the stage, and a behind clip also works without it. Needs a matte (`check` reports
-  footage without one).
+  sets the stage, and a behind clip also works without it. In a morph out of the shot (or into
+  it) the slot rides the camera, so a word still on screen leaves with the head. The speaker's
+  soft edge dims with the room, so the matte's fringe never outlines them. Needs a matte
+  (`check` reports footage without one).
 - `whip`: the camera whips off the frame with motion blur while a frame-sized `card` slot flies
   in from the other side; the morph out of the shot whips back. `params.direction` is where the
   camera goes (`left`, `right`, `up`, `down`, or `forward`/`back`: left/right in landscape and
   square, up/down in portrait; default `forward`), `params.blur` the peak blur in pixels of a
-  1920 px move (default 48; 0: none). Without a clip in the slot the style's surface shows.
+  1920 px move (default 48; 0: none). The footage stays solid inside its window and a clip in
+  the slot smears over it, so no seam opens between them; the move lands on whole pixels.
+  Inside a transition window there is no motion blur (the transition owns the move). Without a
+  clip in the slot the style's surface shows. A whip right after a whip does not move, so it
+  has no event and `check` warns.
 
 The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full`,
-`strip` and `window`, 0.3 s into `behind`, 0.16 s into `punch`, 0.45 s out of a punch, 0.42 s
+`strip` and `window`, 0.3 s into `behind` from `full` (0.7 s from a framed shot), 0.16 s into
+`punch`, 0.45 s out of a punch, 0.42 s
 into and out of a whip; none under a shot `transition`). A window's ring and shadow and a dimmed
 room fade with the move. A clip with `"slot": "panel"` fills that slot and moves with it; while
 no shot frees its slot it is hidden and `check` warns. Shots add events to the program for
 sounds to land on: `shot` halfway through a move into `strip` or `window` and back out of them,
 `punch` on a punch-in's first frame, and `whip` halfway through the whip out and the whip back
-(a punch after a whip hits when the camera lands).
+(a punch after a whip hits when the camera lands). Nothing moves on the program's first frame,
+so a shot there has no event. `check` warns when a whip and a transition fall within three
+frames of each other: two sounds on one move.
 
 A `transition` on a cut, a shot or a clip hands the frame over inside a window around the cut:
 `{ "type": "push", "duration": 0.5, "align": "center", "ease": "expo.inOut", "direction":

@@ -216,16 +216,18 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 			expect(ratio).toBeLessThan(1.52);
 		}, 120_000);
 
-		it('centres the window near the top with the panel below in 9:16', async () => {
+		it('keeps the 9:16 window and panel inside the safe area', async () => {
 			const loaded = await loadMotionProject(portrait);
 			const pngs = await captureProgramFrames(loaded, [30, 105]);
 			const win = rgba(pngs.get(30)!, 360);
-			// Window 202 × 202 at (79, 51), panel from y = 271.
-			expect(headWidth(win, 79, 281)).toBeGreaterThan(20);
-			expect(isRing(win.at(78, 150))).toBe(true);
-			expect(isFill(win.at(30, 150))).toBe(true);
-			expect(isPanel(win.at(180, 280)) && isPanel(win.at(10, 630))).toBe(true);
-			expect(isPanel(win.at(180, 262))).toBe(false);
+			// Safe area 96–416 at 360 × 640: window 158 × 158 at (101, 96), panel 272–416.
+			expect(headWidth(win, 101, 259)).toBeGreaterThan(15);
+			expect(isRing(win.at(100, 150))).toBe(true);
+			expect(isFill(win.at(30, 150)) && isFill(win.at(180, 60))).toBe(true);
+			expect(isPanel(win.at(180, 276)) && isPanel(win.at(10, 412))).toBe(true);
+			expect(isPanel(win.at(180, 264))).toBe(false);
+			// The caption band below the safe area stays clear.
+			expect(isFill(win.at(180, 500)) && isFill(win.at(180, 630))).toBe(true);
 			const card = rgba(pngs.get(105)!, 360);
 			expect([5, 320, 634].every((y) => isCard(card.at(180, y)))).toBe(true);
 		}, 120_000);
@@ -257,3 +259,96 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 		}, 240_000);
 	}
 );
+
+/** A uniform footage file (and a matte) of `W`×`H` with `lum` drawn by `geq`. */
+function makeVideo(file: string, size: [number, number], lum: string) {
+	ffmpeg([
+		'-f',
+		'lavfi',
+		'-i',
+		`color=black:s=${size[0]}x${size[1]}:r=30:d=3`,
+		'-vf',
+		`geq=lum='${lum}':cb=128:cr=128`,
+		'-g',
+		'30',
+		'-pix_fmt',
+		'yuv420p',
+		file
+	]);
+}
+
+describe.skipIf(!hasChromium || !hasFfmpeg)('edges and seams of behind and whip', () => {
+	let dir: string;
+	beforeAll(async () => {
+		dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-shots-edges-'));
+		// A head and a torso that reaches the bottom edge of the footage.
+		const body = `lt(${HEAD},1)+(between(X,300,500)*gte(Y,250))`;
+		makeVideo(path.join(dir, 'talk.mp4'), [SW, SH], `if(${body},190,96)`);
+		makeVideo(path.join(dir, 'talk.matte.mp4'), [SW, SH], `if(${body},255,0)`);
+		makeVideo(path.join(dir, 'grey.mp4'), [SW, SH], '200');
+		await fs.writeFile(path.join(dir, 'White.svelte'), solid('#ffffff'));
+	});
+	afterAll(async () => {
+		await fs.rm(dir, { recursive: true, force: true });
+	});
+
+	const write = async (name: string, json: object) => {
+		const file = path.join(dir, `${name}.vf.json`);
+		await fs.writeFile(file, JSON.stringify({ fps: 30, background: '#000000', ...json }));
+		return loadMotionProject(file);
+	};
+
+	it('keeps the speaker solid where it touches the frame edge in a dimmed room', async () => {
+		for (const size of [
+			[640, 360],
+			[360, 640]
+		] as [number, number][]) {
+			const loaded = await write(`behind-${size[0]}`, {
+				size,
+				footage: { talk: { src: 'talk.mp4', matte: 'talk.matte.mp4' } },
+				cuts: [{ source: 'talk' }],
+				shots: [{ id: 'word', shot: 'behind', from: 0.5, until: 2.5 }]
+			});
+			const px = rgba((await captureProgramFrames(loaded, [45])).get(45)!, size[0]);
+			const x = size[0] / 2;
+			const inside = grey(px.at(x, size[1] - 20));
+			expect(inside, `torso at ${size}`).toBeGreaterThan(170);
+			// The last rows stay the torso's colour: no dark band where the matte meets the edge.
+			for (let y = size[1] - 8; y < size[1]; y++)
+				expect(Math.abs(grey(px.at(x, y)) - inside), `row ${y} at ${size}`).toBeLessThan(6);
+			// The room around it is dimmed.
+			expect(grey(px.at(10, size[1] - 4))).toBeLessThan(60);
+		}
+	}, 120_000);
+
+	it('never lets the fill show through the seam between the footage and the card', async () => {
+		for (const size of [
+			[640, 360],
+			[360, 640]
+		] as [number, number][]) {
+			const loaded = await write(`whip-${size[0]}`, {
+				size,
+				footage: { grey: { src: 'grey.mp4' } },
+				cuts: [{ source: 'grey' }],
+				shots: [{ id: 'away', shot: 'whip', from: 0.5, until: 1.5 }],
+				clips: [{ id: 'card', block: 'White.svelte', from: 0.5, until: 2, slot: 'card' }]
+			});
+			// The whip out (15–28) and the whip back (45–58), every frame.
+			const frames = [...Array(14).keys()].flatMap((k) => [15 + k, 45 + k]);
+			const pngs = await captureProgramFrames(loaded, frames);
+			let blurred = 0;
+			for (const f of frames) {
+				const px = rgba(pngs.get(f)!, size[0]);
+				const line =
+					size[0] > size[1]
+						? [...Array(size[0]).keys()].map((x) => grey(px.at(x, size[1] / 2)))
+						: [...Array(size[1]).keys()].map((y) => grey(px.at(size[0] / 2, y)));
+				// Footage 200, card 255, fill 0: nothing under the lighter of the two minus noise.
+				expect(Math.min(...line), `frame ${f} at ${size}`).toBeGreaterThanOrEqual(196);
+				if (line.some((v) => v > 205 && v < 250)) blurred++;
+			}
+			// The card smears over the footage while it moves.
+			expect(blurred, `${size}`).toBeGreaterThan(8);
+		}
+	}, 240_000);
+});

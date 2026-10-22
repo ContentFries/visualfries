@@ -199,18 +199,54 @@ describe('window', () => {
 		expect(l.ring).toBe(0);
 	});
 
-	it('centres a square window near the top in portrait, the panel below', () => {
-		const l = layout('window', PORTRAIT);
-		expect(l.clip).toEqual({ x: 238, y: 154, width: 605, height: 605 });
-		expect(l.slots.panel).toEqual({ x: 0, y: 813, width: 1080, height: 1107 });
-		expect(l.closed.panel).toEqual({ x: 0, y: 1920, width: 1080, height: 1107 });
-		expect(faceOnStage(l).x).toBeCloseTo(238 + 302.5, 1);
+	it('keeps the portrait window and panel inside the safe area, out of the caption band', () => {
+		// The all-platform zone at 1080 × 1920: 288 from the top, 672 from the bottom.
+		const ALL = { top: 288, right: 192, bottom: 672, left: 48 };
+		const l = layout('window', PORTRAIT, { safe: ALL });
+		expect(l.clip).toEqual({ x: 303, y: 288, width: 475, height: 475 });
+		expect(l.slots.panel).toEqual({ x: 0, y: 817, width: 1080, height: 431 });
+		expect(l.slots.panel.y + l.slots.panel.height).toBe(1920 - 672);
+		expect(l.closed.panel).toEqual({ x: 0, y: 1920, width: 1080, height: 431 });
+		expect(faceOnStage(l).x).toBeGreaterThan(303);
+		expect(faceOnStage(l).x).toBeLessThan(303 + 475);
 		expect(covers(l.camera, l.clip)).toBe(true);
-		// Bottom: above the band captions and platform buttons use, the panel above.
-		const low = layout('window', PORTRAIT, { params: { corner: 'bottom-left' } });
-		expect(low.clip).toEqual({ x: 238, y: 739, width: 605, height: 605 });
-		expect(low.slots.panel).toEqual({ x: 0, y: 0, width: 1080, height: 685 });
-		expect(low.closed.panel.y).toBe(-685);
+		// Without insets the same zone, as shares of the frame.
+		expect(layout('window', PORTRAIT).clip).toEqual(l.clip);
+		// One platform's zone (TikTok: 240 top, 660 bottom).
+		const tiktok = layout('window', PORTRAIT, {
+			safe: { top: 240, right: 120, bottom: 660, left: 120 }
+		});
+		expect(tiktok.clip.y).toBe(240);
+		expect(tiktok.slots.panel.y + tiktok.slots.panel.height).toBe(1260);
+		// Bottom: the window just above the caption band, the panel above it.
+		const low = layout('window', PORTRAIT, { params: { corner: 'bottom-left' }, safe: ALL });
+		expect(low.clip).toEqual({ x: 303, y: 773, width: 475, height: 475 });
+		expect(low.slots.panel).toEqual({ x: 0, y: 288, width: 1080, height: 431 });
+		expect(low.closed.panel.y).toBe(-431);
+	});
+
+	it('scales the ring with the frame, like the blur of behind', () => {
+		expect(layout('window', [3840, 2160]).ring).toBe(8);
+		expect(layout('window', LANDSCAPE, { params: { ring: 2 } }).ring).toBe(2);
+		expect(layout('window', [1280, 720], { params: { ring: 6 } }).ring).toBe(4);
+	});
+
+	it("makes no shot event on the program's first frame, like strip", () => {
+		for (const shot of ['window', 'strip'])
+			expect(
+				shotEvents(
+					{
+						id: 's',
+						shot,
+						startFrame: 0,
+						frames: 30,
+						params: {},
+						morphFrames: 0,
+						morphEase: 'none'
+					},
+					null
+				)
+			).toEqual([]);
 	});
 
 	it('uses a square window in the corner of a square frame', () => {
@@ -357,6 +393,103 @@ describe('whip', () => {
 		expect(shotEvents({ ...s[1], startFrame: 0 }, null)).toEqual([]);
 		expect(defaultMorph('full', 'whip')).toEqual({ seconds: 0.42, ease: 'power3.inOut' });
 		expect(defaultMorph('whip', 'strip')).toEqual({ seconds: 0.42, ease: 'power3.inOut' });
+	});
+});
+
+describe('moves into, out of and between the new shots', () => {
+	it('dims into behind fast from the same framing, and moves like a shot change otherwise', () => {
+		expect(defaultMorph('full', 'behind')).toEqual({ seconds: 0.3, ease: 'expo.out' });
+		expect(defaultMorph('punch', 'behind')).toEqual({ seconds: 0.45, ease: 'power3.inOut' });
+		expect(defaultMorph('window', 'behind')).toEqual({ seconds: 0.7, ease: 'expo.inOut' });
+		expect(defaultMorph('strip', 'behind')).toEqual({ seconds: 0.7, ease: 'expo.inOut' });
+	});
+
+	it('carries the word slot out with the camera instead of leaving it hanging', () => {
+		const behind = layout('behind', LANDSCAPE);
+		const word = behind.slots.word;
+		// Whipping away: the word leaves with the footage, one frame width to the left.
+		const whip = layout('whip', LANDSCAPE);
+		expect(mixLayouts(behind, whip, 0.5).slots.word).toEqual({ ...word, x: -960 });
+		expect(mixLayouts(behind, whip, 1).slots.word).toEqual({ ...word, x: -1920 });
+		// Into a window: it shrinks into the window with the footage.
+		const win = layout('window', LANDSCAPE);
+		const k = win.camera.width / behind.camera.width;
+		const end = mixLayouts(behind, win, 1).slots.word;
+		expect(end.width).toBeCloseTo(word.width * k, 1);
+		expect(end.x).toBeCloseTo(win.camera.x + (word.x - behind.camera.x) * k, 1);
+		// And it rides in the same way from a shot without it.
+		expect(mixLayouts(win, behind, 0).slots.word).toEqual(end);
+	});
+
+	const span = (id: string, shot: string, startFrame: number, params = {}): ShotSpan => ({
+		id,
+		shot,
+		startFrame,
+		frames: 30,
+		params,
+		morphFrames: 12,
+		morphEase: 'none'
+	});
+
+	it('neither blurs nor makes a whip from a whip into a whip, and check says so', () => {
+		const shots = [span('a', 'full', 0), span('w1', 'whip', 30), span('w2', 'whip', 60)];
+		for (let f = 60; f < 72; f++)
+			expect(shotLayoutAt(shots, f, input(LANDSCAPE)).motionBlur, `frame ${f}`).toBeUndefined();
+		expect(shotEvents(shots[2], 'whip')).toEqual([]);
+		const p = resolve({
+			...structuredClone(PROJECT),
+			shots: [
+				{ id: 'w1', shot: 'whip', from: 1, until: 2 },
+				{ id: 'w2', shot: 'whip', from: 2, until: 3 }
+			],
+			clips: []
+		});
+		expect(p.events.filter((e) => e.owner === 'w2')).toEqual([]);
+		expect(p.diagnostics).toContainEqual(
+			expect.objectContaining({
+				level: 'warning',
+				item: 'w2',
+				message: expect.stringMatching(/^A whip right after a whip does not move/)
+			})
+		);
+	});
+
+	it('puts a whip morph on whole pixels, the card meeting the camera window exactly', () => {
+		const shots = [span('a', 'full', 0), span('w', 'whip', 30), span('b', 'full', 60)];
+		for (const size of [LANDSCAPE, PORTRAIT, [1001, 563] as [number, number]])
+			for (let f = 30; f < 72; f++) {
+				const l = shotLayoutAt(shots, f, input(size));
+				const { clip, slots } = l;
+				for (const v of [clip.x, clip.y, clip.width, clip.height, slots.card.x, slots.card.y])
+					expect(Number.isInteger(v), `frame ${f} at ${size}`).toBe(true);
+				if (size === PORTRAIT) expect(slots.card.y).toBe(clip.y + clip.height);
+				else expect(slots.card.x).toBe(clip.x + clip.width);
+			}
+		// Other morphs keep their hundredths (and their pixels).
+		const strip = [span('a', 'full', 0), span('s', 'strip', 30)];
+		expect(Number.isInteger(shotLayoutAt(strip, 35, input([1001, 563])).clip.width)).toBe(false);
+	});
+
+	it('warns when a whip and a transition would make two sounds on one move', () => {
+		const p = resolve({
+			...structuredClone(PROJECT),
+			shots: [{ id: 'w', shot: 'whip', from: 1, until: 2, transition: 'push' }],
+			clips: []
+		});
+		expect(p.diagnostics).toContainEqual(
+			expect.objectContaining({
+				level: 'warning',
+				item: 'w',
+				message: expect.stringMatching(/^The whip of shot "w" \(1\.00 s\) and the transition/)
+			})
+		);
+		// A whip on its own morph is fine.
+		const alone = resolve({
+			...structuredClone(PROJECT),
+			shots: [{ id: 'w', shot: 'whip', from: 1, until: 2 }],
+			clips: []
+		});
+		expect(alone.diagnostics.filter((d) => d.level === 'warning')).toEqual([]);
 	});
 });
 

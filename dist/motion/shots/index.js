@@ -35,7 +35,8 @@ export function shotModule(name) {
 export function defaultMorph(prev, next) {
     if (prev === null)
         return null;
-    return shotModule(prev)?.leave ?? (shotModule(next) ?? full).enter;
+    const into = shotModule(next) ?? full;
+    return shotModule(prev)?.leave ?? into.enterFrom?.(prev) ?? into.enter;
 }
 /**
  * Events of a shot in program frames (see `ShotModule.events`). After a shot with a
@@ -47,7 +48,8 @@ export function shotEvents(shot, prev) {
     let local = module
         ? module.events({ prev, morphFrames: shot.morphFrames, frames: shot.frames })
         : [{ kind: 'shot', frame: 0 }];
-    const leave = prev ? shotModule(prev)?.leaveEvent : undefined;
+    // The same shot again does not move (a whip into a whip): no whip back.
+    const leave = prev && prev !== shot.shot ? shotModule(prev)?.leaveEvent : undefined;
     if (leave && shot.morphFrames > 0) {
         const inMorph = (e) => e.frame < shot.morphFrames;
         const lands = Math.min(shot.morphFrames, shot.frames - 1);
@@ -108,12 +110,19 @@ export function shotLayoutAt(shots, f, input) {
     const to = shotLayout(shot, input, f);
     if (!prev)
         return to;
-    const out = mixLayouts(shotLayout(prev, input, f), to, p);
+    const from = shotLayout(prev, input, f);
+    const out = mixLayouts(from, to, p);
     // A shot that blurs its moves blurs the morphs into and out of it, most at the middle.
     const peak = (s) => shotModule(s.shot)?.blur?.({ ...input, params: s.params });
     const a = peak(prev);
     const b = peak(shot);
-    if (a || b) {
+    // Only a camera window that moves blurs.
+    if ((a || b) && !sameRect(from.clip, to.clip)) {
+        // Whole pixels: the camera window and the card meet on a pixel edge, so no half-covered
+        // pixel lets the fill show through the seam.
+        out.clip = snap(out.clip);
+        for (const name of Object.keys(out.slots))
+            out.slots[name] = snap(out.slots[name]);
         const rise = Math.sin(Math.PI * Math.min(1, Math.max(0, p)));
         const x = px(Math.max(a?.x ?? 0, b?.x ?? 0) * rise);
         const y = px(Math.max(a?.y ?? 0, b?.y ?? 0) * rise);
@@ -147,6 +156,24 @@ export function keyCamera(layout, key, subject) {
     return out;
 }
 const px = (v) => Math.round(v * 100) / 100;
+const sameRect = (a, b) => a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+/** `r` with its edges on whole pixels. */
+const snap = (r) => {
+    const x = Math.round(r.x);
+    const y = Math.round(r.y);
+    return { x, y, width: Math.round(r.x + r.width) - x, height: Math.round(r.y + r.height) - y };
+};
+/** `r` carried from camera `from` to camera `to`: moved and scaled with the footage. */
+const ride = (r, from, to) => {
+    const kx = to.width / from.width;
+    const ky = to.height / from.height;
+    return roundRect({
+        x: to.x + (r.x - from.x) * kx,
+        y: to.y + (r.y - from.y) * ky,
+        width: r.width * kx,
+        height: r.height * ky
+    });
+};
 const mix = (a, b, t) => Math.round((a + (b - a) * t) * 100) / 100;
 const mixRect = (a, b, t) => ({
     x: mix(a.x, b.x, t),
@@ -163,8 +190,11 @@ export function mixLayouts(a, b, t) {
     const slots = {};
     const closed = {};
     for (const name of new Set([...Object.keys(a.slots), ...Object.keys(b.slots)])) {
-        const from = a.slots[name] ?? b.closed[name] ?? b.slots[name];
-        const to = b.slots[name] ?? a.closed[name] ?? a.slots[name];
+        const rides = (l) => !!l.riding?.includes(name);
+        const from = a.slots[name] ??
+            (rides(b) ? ride(b.slots[name], b.camera, a.camera) : (b.closed[name] ?? b.slots[name]));
+        const to = b.slots[name] ??
+            (rides(a) ? ride(a.slots[name], a.camera, b.camera) : (a.closed[name] ?? a.slots[name]));
         slots[name] = mixRect(from, to, t);
         const shut = b.closed[name] ?? a.closed[name];
         if (shut)

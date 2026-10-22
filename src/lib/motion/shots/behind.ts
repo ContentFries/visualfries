@@ -1,4 +1,4 @@
-import { fullEvents, fullLayout } from './full.js';
+import { FULL_FRAMED, fullEvents, fullLayout } from './full.js';
 import {
 	checkKnown,
 	checkNumber,
@@ -7,6 +7,9 @@ import {
 	roundRect,
 	type ShotModule
 } from './layout.js';
+
+/** Dimming the room over the same framing: fast in. */
+const BEHIND_ENTER = { seconds: 0.3, ease: 'expo.out' };
 
 /** How much darker the room gets (0–1). The approved look: 0.55. */
 const DIM = 0.55;
@@ -27,7 +30,11 @@ const BELOW_FACE = 0.18;
  */
 export const behind: ShotModule = {
 	name: 'behind',
-	enter: { seconds: 0.3, ease: 'expo.out' },
+	enter: BEHIND_ENTER,
+	// Dimming the room over the same framing hits fast; from a window or a strip the camera
+	// moves like any other shot change.
+	enterFrom: (prev) =>
+		FULL_FRAMED.includes(prev) ? BEHIND_ENTER : { seconds: 0.7, ease: 'expo.inOut' },
 	needsMatte: true,
 	layout(input) {
 		const { size, subject, params } = input;
@@ -43,9 +50,11 @@ export const behind: ShotModule = {
 		const word = roundRect({ x: clip.x, y: top, width: clip.width, height: bottom - top });
 		return {
 			...base,
-			// The slot does not slide: the word's own clip brings it in and out.
+			// The slot never slides in: the word's own clip brings it in. It rides the camera out
+			// (and in), so a word still on screen leaves with the head.
 			slots: { word },
 			closed: { word },
+			riding: ['word'],
 			room: {
 				dim: numberParam(params, 'dim', DIM),
 				blur:

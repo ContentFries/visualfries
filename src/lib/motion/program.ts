@@ -438,6 +438,8 @@ export function resolveProgram(
 		? resolveTransitions(project, cutList.cuts, cuts, shots, clips, fps, format.class, warn)
 		: [];
 	const events = resolveEvents(shots, transitions);
+	if (program) checkShotOrder(shots, diagnostics);
+	if (program) checkEventClash(events, shots, fps, diagnostics);
 	const mix = project.mix ?? {};
 	const audio = {
 		speech: program ? speechPieces(project, cutList.cuts, sources, inputs, frames / fps) : [],
@@ -1217,6 +1219,43 @@ function resolveTransitions(
 				`The ${staged[i].type} window into ${staged[i].owner} overlaps the ${staged[i - 1].type} window into ${staged[i - 1].owner}.`
 			);
 	return out.sort((a, b) => a.startFrame - b.startFrame || a.cutFrame - b.cutFrame);
+}
+
+/** A shot that cannot be seen to move from the one before it (a whip after a whip). */
+function checkShotOrder(shots: ProgramShot[], diagnostics: ProgramDiagnostic[]) {
+	shots.forEach((shot, i) => {
+		const prev = previousShot(shots, i);
+		const message = prev ? shotModule(shot.shot)?.follows?.(prev) : null;
+		if (message) diagnostics.push({ level: 'warning', item: shot.id, field: 'shots', message });
+	});
+}
+
+/** Frames apart within which a whip and a transition sound like one hit. */
+const CLASH = 3;
+
+/**
+ * A whip and a transition within a few frames of each other: two sounds on one visual hit
+ * (a whip under a shot transition, a cut transition where a whip starts).
+ */
+function checkEventClash(
+	events: ProgramEvent[],
+	shots: ProgramShot[],
+	fps: number,
+	diagnostics: ProgramDiagnostic[]
+) {
+	const owner = new Map(shots.map((s) => [s.id, s]));
+	for (const whip of events.filter((e) => e.kind === 'whip')) {
+		const near = events.find(
+			(e) => e.kind === 'transition' && Math.abs(e.frame - whip.frame) <= CLASH
+		);
+		if (!near) continue;
+		diagnostics.push({
+			level: 'warning',
+			item: whip.owner,
+			field: 'shots',
+			message: `The whip of shot "${whip.owner}" (${(whip.frame / fps).toFixed(2)} s) and the transition "${near.owner}" (${(near.frame / fps).toFixed(2)} s) make two sounds on one move. Drop the transition${owner.get(whip.owner)?.transition ? ' (a whip moves on its own)' : ''}, or move one of them.`
+		});
+	}
 }
 
 function resolveEvents(shots: ProgramShot[], transitions: ProgramTransition[]): ProgramEvent[] {

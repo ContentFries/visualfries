@@ -39,7 +39,7 @@ export function fullLayout(input: ShotInput, zoom = 1): ShotLayout {
 }
 
 /** Shots framed like `full`: moving between them is no shot change. */
-const FULL_FRAMED = ['full', 'punch', 'behind'];
+export const FULL_FRAMED = ['full', 'punch', 'behind'];
 
 /**
  * Events of a shot framed like `full`: the camera moving back from a strip (or another framed

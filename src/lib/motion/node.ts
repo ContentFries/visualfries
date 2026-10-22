@@ -1726,10 +1726,12 @@ export type ClipCheck = {
  * the clip: the holdout scales the matte to the clip's size, so it would not line up.
  */
 export async function holdoutAspectWarnings(
-	loaded: Pick<LoadedMotionProject, 'project' | 'dir'>,
+	loaded: Pick<LoadedMotionProject, 'project' | 'dir' | 'cutList'>,
 	clips: Pick<ResolvedClip, 'id' | 'size'>[]
 ): Promise<{ clip: string; message: string }[]> {
 	const out: { clip: string; message: string }[] = [];
+	// With a cut list the stage draws the subject itself; only the encode-time holdout stretches.
+	if (loaded.cutList.mode !== 'inserts') return out;
 	for (const clip of clips) {
 		const holdout = holdoutFootage(loaded.project, clip.id);
 		if (!holdout || 'error' in holdout) continue;

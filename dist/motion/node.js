@@ -1346,6 +1346,9 @@ export function frameForAt(clip, at) {
  */
 export async function holdoutAspectWarnings(loaded, clips) {
     const out = [];
+    // With a cut list the stage draws the subject itself; only the encode-time holdout stretches.
+    if (loaded.cutList.mode !== 'inserts')
+        return out;
     for (const clip of clips) {
         const holdout = holdoutFootage(loaded.project, clip.id);
         if (!holdout || 'error' in holdout)

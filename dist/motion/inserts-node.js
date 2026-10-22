@@ -42,10 +42,13 @@ export async function renderProgramInserts(loaded, opts) {
             opts.onProgress?.(`${p.id}: ${note}`);
     // Only the blocks of the clips rendered; the footage covers the program all the same.
     const bundle = await bundleMotionProject(loaded, plans.map((p) => p.clip));
-    const browser = await launch();
     const jobs = opts.jobs ?? Math.min(6, os.cpus().length);
     const results = [];
+    // Launched inside the try: the bundle is removed even when no browser starts.
+    let browser;
     try {
+        const started = await launch();
+        browser = started;
         for (const plan of plans) {
             const t0 = Date.now();
             const file = single ?? path.resolve(opts.output, `${plan.id}${ext(plan)}`);
@@ -56,7 +59,7 @@ export async function renderProgramInserts(loaded, opts) {
             let mode = '';
             // Pages take file frames; the stage takes program frames.
             const open = async () => {
-                const page = await openStagePage(browser, bundle, {
+                const page = await openStagePage(started, bundle, {
                     name: `Insert "${plan.id}"`,
                     size: program.format.size,
                     alpha: plan.alpha,
@@ -128,7 +131,7 @@ export async function renderProgramInserts(loaded, opts) {
         }
     }
     finally {
-        await browser.close();
+        await browser?.close();
         await fs.rm(bundle.dir, { recursive: true, force: true });
     }
     if (single)

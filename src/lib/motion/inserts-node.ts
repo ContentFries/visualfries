@@ -77,10 +77,13 @@ export async function renderProgramInserts(
 		loaded,
 		plans.map((p) => p.clip)
 	);
-	const browser = await launch();
 	const jobs = opts.jobs ?? Math.min(6, os.cpus().length);
 	const results: RenderedClip[] = [];
+	// Launched inside the try: the bundle is removed even when no browser starts.
+	let browser: Awaited<ReturnType<typeof launch>> | undefined;
 	try {
+		const started = await launch();
+		browser = started;
 		for (const plan of plans) {
 			const t0 = Date.now();
 			const file = single ?? path.resolve(opts.output, `${plan.id}${ext(plan)}`);
@@ -95,7 +98,7 @@ export async function renderProgramInserts(
 			// Pages take file frames; the stage takes program frames.
 			const open = async (): Promise<MotionPage> => {
 				const page = await openStagePage(
-					browser,
+					started,
 					bundle,
 					{
 						name: `Insert "${plan.id}"`,
@@ -170,7 +173,7 @@ export async function renderProgramInserts(
 			);
 		}
 	} finally {
-		await browser.close();
+		await browser?.close();
 		await fs.rm(bundle.dir, { recursive: true, force: true });
 	}
 	if (single) return results;

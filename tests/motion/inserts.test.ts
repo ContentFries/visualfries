@@ -304,8 +304,13 @@ describe('a behind clip without a cut list (holdout, as #82)', () => {
 				legacy({ alpha: true, layer: 'behind' }, { talk: { src: matte, matte } });
 			// The clip is 64×36: a 16:9 matte lines up, a 9:16 one is stretched.
 			const clip = { id: 'c', size: [64, 36] as [number, number] };
-			expect(await holdoutAspectWarnings({ project: p('wide.mp4'), dir }, [clip])).toEqual([]);
-			const [w] = await holdoutAspectWarnings({ project: p('tall.mp4'), dir }, [clip]);
+			const loaded = (matte: string) => ({
+				project: p(matte),
+				dir,
+				cutList: { mode: 'inserts' as const }
+			});
+			expect(await holdoutAspectWarnings(loaded('wide.mp4') as never, [clip])).toEqual([]);
+			const [w] = await holdoutAspectWarnings(loaded('tall.mp4') as never, [clip]);
 			expect(w.clip).toBe('c');
 			expect(w.message).toMatch(/is 72×128 and the clip 64×36: the holdout stretches the matte/);
 		} finally {

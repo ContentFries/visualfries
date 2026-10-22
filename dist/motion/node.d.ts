@@ -263,7 +263,7 @@ export type ClipCheck = {
  * Clips behind the subject without a cut list whose footage matte has another aspect ratio than
  * the clip: the holdout scales the matte to the clip's size, so it would not line up.
  */
-export declare function holdoutAspectWarnings(loaded: Pick<LoadedMotionProject, 'project' | 'dir'>, clips: Pick<ResolvedClip, 'id' | 'size'>[]): Promise<{
+export declare function holdoutAspectWarnings(loaded: Pick<LoadedMotionProject, 'project' | 'dir' | 'cutList'>, clips: Pick<ResolvedClip, 'id' | 'size'>[]): Promise<{
     clip: string;
     message: string;
 }[]>;

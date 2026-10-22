@@ -33,6 +33,11 @@ export type TransitionSides = {
 	in: HTMLElement[];
 	/** The transition's own element above everything on the stage; built by `setup`. */
 	overlay: HTMLElement;
+	/**
+	 * The transition's own element above both sides and below the front clips (a stage without
+	 * that layer leaves it out).
+	 */
+	under?: HTMLElement;
 	/** Format frame in pixels. */
 	size: [number, number];
 };
@@ -43,6 +48,8 @@ export type TransitionSetup = {
 	/** Resolved screen direction; null for a transition without one. */
 	direction: ScreenDirection | null;
 	params: Record<string, unknown>;
+	/** See `TransitionSides.under`. */
+	under?: HTMLElement;
 };
 
 /** Stage pixels, origin top left. */

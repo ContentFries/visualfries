@@ -1,6 +1,17 @@
 import { easeOf } from '../ease.js';
 import { checkKnown, checkNumber, numberParam } from '../shots/layout.js';
-import { checkPoint, isSolid, originOf, pointAt, px, ramp, smooth, type Point } from './common.js';
+import {
+	checkColor,
+	checkPoint,
+	isColor,
+	isSolid,
+	originOf,
+	pointAt,
+	px,
+	ramp,
+	smooth,
+	type Point
+} from './common.js';
 import type { TransitionModule, TransitionSides } from './contract.js';
 
 /**
@@ -138,7 +149,9 @@ function zoomFilter(ns: string, id: string, solid: boolean): SVGFilterElement {
 		// Colours come out averaged over the box alone (alpha is divided out); only the alpha
 		// the edge lost is put back.
 		const opaque = el('feComponentTransfer', {});
-		opaque.appendChild(el('feFuncA', { type: 'discrete', tableValues: '0 1' }));
+		// Any alpha at all becomes opaque: at a corner it is the product of two blurred edges, far
+		// below a half.
+		opaque.appendChild(el('feFuncA', { type: 'linear', slope: '255', intercept: '0' }));
 		filter.appendChild(opaque);
 	}
 	return filter;
@@ -178,9 +191,7 @@ export const zoomThrough: TransitionModule = {
 		...checkNumber(params, 'zoom', 1.1, 8),
 		...checkNumber(params, 'blur', 0, 40),
 		...checkNumber(params, 'flash', 0, 1),
-		...(params.color === undefined || typeof params.color === 'string'
-			? []
-			: [`"color" must be a CSS colour (got ${JSON.stringify(params.color)}).`])
+		...checkColor(params)
 	],
 	setup(overlay, { params }) {
 		const ns = 'http://www.w3.org/2000/svg';
@@ -197,7 +208,7 @@ export const zoomThrough: TransitionModule = {
 		flash.dataset.flash = '';
 		flash.style.cssText = 'position:absolute;inset:0;opacity:0;background:none;color:#ffffff';
 		// Set as a property: a colour that is not one is dropped, never read as more CSS.
-		if (typeof params.color === 'string') flash.style.color = params.color;
+		if (isColor(params.color)) flash.style.color = params.color;
 		overlay.appendChild(flash);
 	},
 	apply(frame) {
@@ -245,7 +256,12 @@ export const zoomThrough: TransitionModule = {
 		const flash = overlay.querySelector<HTMLElement>('[data-flash]')!;
 		const peak = numberParam(params, 'flash', 0.25);
 		const glow = Math.max(0, 1 - Math.abs(eased - MID) / (2.2 * FADE));
-		const at = pointAt(params, frame, eased < MID ? 'out' : 'in');
+		// Centred on the outgoing point, moving across to the incoming one while it glows: never
+		// a jump at its peak.
+		const from = pointAt(params, frame, 'out');
+		const to = pointAt(params, frame, 'in');
+		const shift = smooth(ramp(eased, MID - 2.2 * FADE, MID + 2.2 * FADE));
+		const at = { x: from.x + (to.x - from.x) * shift, y: from.y + (to.y - from.y) * shift };
 		flash.style.background = `radial-gradient(circle at ${px(at.x)}px ${px(at.y)}px, currentColor 0%, transparent 75%)`;
 		flash.style.opacity = (peak * glow * glow).toFixed(4);
 	},

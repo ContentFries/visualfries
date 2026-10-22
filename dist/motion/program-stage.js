@@ -310,9 +310,14 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     // Side b shows only inside a cut or shot transition window.
     const b = side(stage, 'b');
     b.el.style.display = 'none';
+    const under = layer(stage, 'vf-under', `${ISOLATED};pointer-events:none`);
     const front = layer(stage, 'vf-clips', ISOLATED);
     const overlay = layer(stage, 'vf-overlay', `${ISOLATED};pointer-events:none`);
-    const player = createTransitionPlayer(overlay, seg.transitions, { size: seg.size, cls: seg.cls });
+    const player = createTransitionPlayer(overlay, seg.transitions, {
+        size: seg.size,
+        cls: seg.cls,
+        under
+    });
     const filters = shotFilters(stage);
     // Slotted clips get a box for motion blur only where a shot blurs its moves.
     const streaks = seg.shots.some((s) => shotModule(s.shot)?.blur);
@@ -490,11 +495,21 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         const face = subject
             ? { x: subject.headX, y: Math.min(1, subject.headY + EYES_DROP) }
             : facePoint(null);
-        const { camera, clip } = side.layout;
+        const { camera, clip, turn } = side.layout;
+        let x = camera.x + face.x * camera.width;
+        let y = camera.y + face.y * camera.height;
+        // A shot key's rotation turns the footage about its pivot: the eyes turn with it.
+        if (turn) {
+            const a = (turn.rotation * Math.PI) / 180;
+            const dx = x - turn.pivot.x;
+            const dy = y - turn.pivot.y;
+            x = turn.pivot.x + dx * Math.cos(a) - dy * Math.sin(a);
+            y = turn.pivot.y + dx * Math.sin(a) + dy * Math.cos(a);
+        }
         const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
         return {
-            x: clamp(camera.x + face.x * camera.width, clip.x, clip.x + clip.width),
-            y: clamp(camera.y + face.y * camera.height, clip.y, clip.y + clip.height)
+            x: clamp(x, clip.x, clip.x + clip.width),
+            y: clamp(y, clip.y, clip.y + clip.height)
         };
     }
     /** The eyes on each side of transition `t` at the planned frame (under a clip: on both). */

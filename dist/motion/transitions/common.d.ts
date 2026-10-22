@@ -27,10 +27,17 @@ export declare function pointAt(params: Record<string, unknown>, frame: Pick<Tra
 export declare function originOf(el: HTMLElement): Point;
 /** Whether `el` paints its whole box (a side, its fill, its footage window). */
 export declare const isSolid: (el: HTMLElement) => boolean;
+/**
+ * Whether `v` may be a CSS colour: a string that cannot load anything (`url(…)`) or carry more
+ * CSS. Colours are still set as property values, so a string that is no colour is dropped.
+ */
+export declare function isColor(v: unknown): v is string;
 /** A list of CSS colours, or null. */
 export declare function colorList(v: unknown): string[] | null;
 /** Messages for a `colors` param that is not a list of CSS colours. */
 export declare function checkColors(params: Record<string, unknown>, name?: string): string[];
+/** Messages for a `name` param that is not a CSS colour. */
+export declare function checkColor(params: Record<string, unknown>, name?: string): string[];
 /** Messages for a `name` param that is not one of `options`. */
 export declare function checkChoice(params: Record<string, unknown>, name: string, options: string[]): string[];
 /** A string param that is one of `options`, or `fallback`. */

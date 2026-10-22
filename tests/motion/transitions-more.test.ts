@@ -177,6 +177,12 @@ describe('the new transitions in the resolved program', () => {
 			'"ring" must be a number from 0 to 80 (got -1).',
 			'"color" must be a CSS colour (got 3).'
 		]);
+		expect(errors('zoom-through', { color: 'url(https://example.com/x.png)' })).toEqual([
+			'"color" must be a CSS colour (got "url(https://example.com/x.png)").'
+		]);
+		expect(errors('blinds', { colors: ['#fff', 'url(x.png)'] })).toEqual([
+			'"colors" must be a list of CSS colours (got ["#fff","url(x.png)"]).'
+		]);
 		expect(errors('blinds', { count: 1, colors: '#fff', stagger: 1 })).toEqual([
 			'"count" must be a number from 2 to 40 (got 1).',
 			'"stagger" must be a number from 0 to 0.9 (got 1).',
@@ -236,6 +242,12 @@ describe('the numbers behind the new transitions', () => {
 			const at = (e: number) => [...Array(n).keys()].map((j) => blindsSlatAt(j, n, e).cover);
 			expect(at(0)).toEqual(Array(n).fill(0));
 			expect(at(0.5)).toEqual(Array(n).fill(1));
+			// Closed a little before halfway and until a little after: the frames either side of
+			// the change are covered whole.
+			expect(at(0.445)).toEqual(Array(n).fill(1));
+			expect(at(0.555)).toEqual(Array(n).fill(1));
+			expect(at(0.43).some((c) => c < 1)).toBe(true);
+			expect(at(0.57).some((c) => c < 1)).toBe(true);
 			expect(at(1)).toEqual(Array(n).fill(0));
 			// Halfway in, the first slat is further along than the last.
 			const quarter = at(0.3);
@@ -332,7 +344,12 @@ describe('the new transitions on the DOM', () => {
 		return { els, layer };
 	}
 
-	function player(type: string, t: Partial<ProgramTransition> = {}, cls = 'landscape' as const) {
+	function player(
+		type: string,
+		t: Partial<ProgramTransition> = {},
+		cls = 'landscape' as const,
+		under?: HTMLElement
+	) {
 		const { els, layer } = stage();
 		const module = TRANSITION_MODULES[type];
 		const tr = transition({
@@ -341,7 +358,7 @@ describe('the new transitions on the DOM', () => {
 			direction: module.directional ? 'left' : null,
 			...t
 		});
-		const p = createTransitionPlayer(layer, [tr], { size, cls });
+		const p = createTransitionPlayer(layer, [tr], { size, cls, under });
 		const seek = (f: number) =>
 			p.seek(f, () => ({
 				out: [els.a, els.riderA],
@@ -377,13 +394,33 @@ describe('the new transitions on the DOM', () => {
 		const { els, layer, t, seek } = player('zoom-through', { params: { at: [0.25, 0.75] } });
 		seek(t.startFrame + 7);
 		expect(els.a.style.transformOrigin).toBe('160px 270px');
-		expect(els.a.style.filter).toMatch(/url\(#vf-transition-0-zoom-out-solid\)/);
-		expect(els.riderA.style.filter).toMatch(/url\(#vf-transition-0-zoom-out\)/);
-		const mask = layer.querySelector('#vf-transition-0-zoom-out-solid [data-mask]')!;
+		const id = layer.firstElementChild!.id;
+		expect(id).toMatch(/^vf-transition-\d+-0$/);
+		expect(els.a.style.filter).toMatch(new RegExp(`^url\\("?#${id}-zoom-out-solid"?\\)$`));
+		expect(els.riderA.style.filter).toMatch(new RegExp(`^url\\("?#${id}-zoom-out"?\\)$`));
+		const mask = layer.querySelector(`#${id}-zoom-out-solid [data-mask]`)!;
 		// The mask centred on the point, divided by the side's scale.
 		const x = Number(mask.getAttribute('x'));
 		const w = Number(mask.getAttribute('width'));
 		expect(x + w / 2).toBeCloseTo(160, 1);
+	});
+
+	it('scopes its ids per stage: two stages on one page never share a filter', () => {
+		const one = player('zoom-through').layer.firstElementChild!.id;
+		const two = player('zoom-through').layer.firstElementChild!.id;
+		expect(one).not.toBe(two);
+	});
+
+	it('zoom-through moves the flash from the outgoing point to the incoming one, never jumping', () => {
+		const { layer, t, seek } = player('zoom-through');
+		const flash = layer.querySelector<HTMLElement>('[data-flash]')!;
+		const xs = frames(t).map((f) => {
+			seek(f);
+			return Number(/circle at ([\d.]+)px/.exec(flash.style.background)![1]);
+		});
+		expect(xs[0]).toBe(320);
+		expect(xs[xs.length - 1]).toBe(300);
+		for (let i = 1; i < xs.length; i++) expect(Math.abs(xs[i] - xs[i - 1])).toBeLessThan(10);
 	});
 
 	it('zoom-through sets the flash colour as a value, never as more CSS', () => {
@@ -399,6 +436,21 @@ describe('the new transitions on the DOM', () => {
 		expect(ring({}).style.stroke).toBe('var(--brand-accent, #fbc42d)');
 		expect(ring({ color: '#00ff00' }).style.stroke).toMatch(/^(#00ff00|rgb\(0, 255, 0\))$/);
 		expect(ring({ color: 'red; display: none' }).style.display).toBe('');
+		// A colour that could load an image is no colour.
+		expect(ring({ color: 'url(https://example.com/x.svg#p)' }).style.stroke).toBe(
+			'var(--brand-accent, #fbc42d)'
+		);
+	});
+
+	it('shape mask cuts the shape out of the clips leaving with the outgoing side', () => {
+		const { els, t, seek } = player('shape-mask');
+		seek(t.cutFrame);
+		// The incoming side and its clips show inside the shape; the outgoing side's clips
+		// everywhere but inside it (its own picture lies under the incoming side anyway).
+		expect(els.b.style.clipPath).toMatch(/^path\('M/);
+		expect(els.riderB.style.clipPath).toBe(els.b.style.clipPath);
+		expect(els.riderA.style.clipPath).toMatch(/^path\(evenodd, 'M0 0H640V360H0Z.+'\)$/);
+		expect(els.a.style.clipPath).toBe('');
 	});
 
 	it('shape mask leaves the layers below a clip alone', () => {
@@ -432,10 +484,18 @@ describe('the new transitions on the DOM', () => {
 	});
 
 	it('blinds set slat colours as values, never as more CSS', () => {
-		const { layer } = player('blinds', { params: { colors: ['red; display: none', '#00ff00'] } });
+		const { layer } = player('blinds', { params: { colors: ['red', '#00ff00'] } });
 		const slats = [...layer.querySelectorAll<HTMLElement>('[data-slat]')];
-		expect(slats.every((s) => s.style.display === '')).toBe(true);
-		expect(slats[1].style.background).toMatch(/^(#00ff00|rgb\(0, 255, 0\))$/);
+		expect(slats[1].style.backgroundColor).toMatch(/^(#00ff00|rgb\(0, 255, 0\))$/);
+		expect(slats[1].style.backgroundImage).toBe('');
+		// More CSS, or anything that loads an image, is no colour: the brand's slats instead.
+		for (const bad of ['red; display: none', 'url(https://example.com/x.png)', 'image(x.png)']) {
+			const slat = player('blinds', { params: { colors: [bad] } }).layer.querySelector<HTMLElement>(
+				'[data-slat]'
+			)!;
+			expect(slat.getAttribute('style'), bad).not.toMatch(/url|image\(|display/);
+			expect(slat.style.backgroundColor).toBe('var(--brand-primary, #f43f5e)');
+		}
 	});
 
 	it('card brings the incoming side in on top, dims the outgoing one, and cleans up', () => {
@@ -450,6 +510,90 @@ describe('the new transitions on the DOM', () => {
 		expect(els.riderA.style.transform).toBe('');
 		seek(t.startFrame + t.frames);
 		for (const el of Object.values(els)) expect(el.getAttribute('style') ?? '').toBe('');
+	});
+
+	/** Pretends `el` sits at (x, y) on the stage, as a slotted clip root does. */
+	const slot = (el: HTMLElement, x: number, y: number) => {
+		Object.defineProperty(el, 'offsetLeft', { value: x });
+		Object.defineProperty(el, 'offsetTop', { value: y });
+	};
+
+	it('card moves a slotted clip with the card, about the frame centre, in and out', () => {
+		for (const side of ['in', 'out'] as const)
+			for (const motion of ['slide', 'flip'] as const) {
+				const { els, t, seek } = player('card', { params: { side, motion } });
+				const rider = side === 'in' ? els.riderB : els.riderA;
+				const card = side === 'in' ? els.b : els.a;
+				slot(rider, 400, 30);
+				seek(t.cutFrame + 3);
+				expect(rider.style.transform, `${side} ${motion}`).toBe(card.style.transform);
+				// The frame's centre in the side's box and in the slot's.
+				expect(card.style.transformOrigin).toBe('320px 180px');
+				expect(rider.style.transformOrigin).toBe('-80px 150px');
+				expect(rider.style.backfaceVisibility).toBe('hidden');
+				// Cut to the card's rounded corners, in the slot's own box.
+				expect(rider.style.clipPath).toMatch(/^path\('M-[\d.]+ -30H/);
+				seek(t.startFrame + t.frames);
+				expect(rider.getAttribute('style') ?? '', 'released').toBe('');
+			}
+	});
+
+	it('card cuts the clips riding under it where the card is', () => {
+		const { els, t, seek } = player('card');
+		seek(t.cutFrame);
+		// Forward: the outgoing side's clips sit above the card, so the card is cut out of them.
+		expect(els.riderA.style.clipPath).toMatch(/^path\(evenodd, 'M0 0H640V360H0Z/);
+		const back = player('card', { params: { side: 'out' } });
+		back.seek(back.t.cutFrame);
+		expect(back.els.riderB.style.clipPath).toMatch(/^path\(evenodd, 'M0 0H640V360H0Z/);
+		expect(back.els.b.style.clipPath).toBe(back.els.riderB.style.clipPath);
+	});
+
+	it('card gives a clip transition the card look: corners, and a shadow that follows it', () => {
+		const { els, t, seek } = player('card', { kind: 'clip' });
+		seek(t.cutFrame);
+		expect(els.riderB.style.borderRadius).not.toBe('0px');
+		expect(els.riderB.style.overflow).toBe('hidden');
+		expect(els.riderB.style.filter).toMatch(/^drop-shadow\(/);
+		// The layers below the clip stay as they are.
+		expect(els.a.getAttribute('style') ?? '').toBe('');
+	});
+
+	it('card never turns past edge on, whatever the ease', () => {
+		const flip = {
+			motion: 'flip' as const,
+			direction: 'left' as const,
+			size: [1920, 1080] as [number, number],
+			scale: 0.62,
+			radius: 44
+		};
+		// back.inOut(2) runs to about −0.1 and 1.1.
+		expect(Math.abs(cardPose(-0.1, flip).turn)).toBeLessThanOrEqual(90);
+		expect(cardPose(1.1, flip)).toMatchObject({ scale: 1, radius: 0, turn: 0 });
+		const { els, t, seek } = player('card', {
+			params: { motion: 'flip' },
+			ease: 'back.inOut(2)'
+		});
+		for (const f of frames(t)) {
+			seek(f);
+			const turn = Number(/rotateY\((-?[\d.]+)deg\)/.exec(els.b.style.transform)?.[1] ?? 0);
+			expect(Math.abs(turn)).toBeLessThanOrEqual(90);
+		}
+	});
+
+	it('card backwards lays its shadow under the front clips, at the size of the hole', () => {
+		const under = document.createElement('div');
+		const { layer, t, seek } = player('card', { params: { side: 'out' } }, 'landscape', under);
+		expect(layer.querySelector('[data-shadow]')).toBeNull();
+		const shadow = under.querySelector<HTMLElement>('[data-shadow]')!;
+		seek(t.cutFrame);
+		expect((shadow.parentElement as HTMLElement).style.display).toBe('');
+		// A pixel inside the card's edge on screen: 1 / 0.62 px before the scale.
+		expect(parseFloat(shadow.style.left)).toBeCloseTo(1 / 0.62, 1);
+		expect(parseFloat(shadow.style.width)).toBeCloseTo(640 - 2 / 0.62, 1);
+		expect(shadow.style.boxShadow).toMatch(/rgba\(0, 0, 0/);
+		seek(t.startFrame + t.frames);
+		expect((shadow.parentElement as HTMLElement).style.display).toBe('none');
 	});
 
 	it('card backwards shrinks the outgoing side into the card and leaves along the travel', () => {

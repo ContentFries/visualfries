@@ -30,6 +30,8 @@ const ARC = 8;
 /** How far past the frame edge the card starts, in frame lengths along the travel. */
 const AWAY = 0.25;
 const PERSPECTIVE = 2400;
+/** The incoming side's hole for an outgoing card is this many pixels inside the card's edge. */
+const HOLE = 1;
 const horizontal = (d: ScreenDirection | null) => d === 'left' || d === 'right' || d === null;
 /** +1 when the travel runs right or down. */
 const sign = (d: ScreenDirection | null) => (d === 'right' || d === 'down' ? 1 : -1);
@@ -63,6 +65,8 @@ export function cardPose(
 	}
 ): CardPose {
 	const { motion, direction, size, scale, radius } = o;
+	// An ease that overshoots (back, elastic) never turns the card past edge on.
+	a = Math.max(0, Math.min(1, a));
 	const arrive = Math.min(1, a / MID);
 	const expand = Math.max(0, (a - MID) / (1 - MID));
 	const s = scale + (1 - scale) * grow(expand);
@@ -76,7 +80,7 @@ export function cardPose(
 	};
 	if (motion === 'flip') {
 		// Edge on at the start, facing the camera when it lands.
-		pose.turn = 90 * (1 - land(arrive)) * sign(direction);
+		pose.turn = 90 * (1 - land(arrive)) * sign(direction) + 0;
 		return pose;
 	}
 	// From past the frame edge it travels from, against the travel: far enough that on the first
@@ -99,18 +103,33 @@ function cardTransform(pose: CardPose, direction: ScreenDirection | null, unit: 
 	return `translate(${px(pose.x)}px, ${px(pose.y)}px)${flip} scale(${pose.scale.toFixed(4)})`;
 }
 
+/** A shadow below the card, in pixels before the scale (divided by it to get screen pixels). */
+function shadowOf(pose: CardPose, shadow: number, unit: number): string | null {
+	const a = shadow * pose.lift;
+	if (a <= 0.005) return null;
+	return `0px ${px((24 * unit) / pose.scale)}px ${px((120 * unit) / pose.scale)}px rgba(0, 0, 0, ${a.toFixed(3)})`;
+}
+
 /** Corner radius and shadow, drawn before the scale: divided by it to get screen pixels. */
-function cardLook(el: HTMLElement, pose: CardPose, shadow: number, unit: number) {
+function cardLook(el: HTMLElement, pose: CardPose, shadow: number, unit: number, inset = 0) {
 	// Every property on every frame, neutral values included: the order styles are written in
 	// stays the same whatever frame came before.
-	const round = pose.radius > 0.05;
-	el.style.borderRadius = round ? `${px(pose.radius / pose.scale)}px` : '0px';
+	const radius = Math.max(0, pose.radius / pose.scale - inset);
+	const round = radius > 0.05;
+	el.style.borderRadius = round ? `${px(radius)}px` : '0px';
 	el.style.overflow = round ? 'hidden' : 'visible';
-	const a = shadow * pose.lift;
-	el.style.boxShadow =
-		a > 0.005
-			? `0px ${px((24 * unit) / pose.scale)}px ${px((120 * unit) / pose.scale)}px rgba(0, 0, 0, ${a.toFixed(3)})`
-			: 'none';
+	el.style.boxShadow = shadowOf(pose, shadow, unit) ?? 'none';
+}
+
+/** SVG path data of a rounded rectangle. */
+function roundedRect(x0: number, y0: number, x1: number, y1: number, r: number): string {
+	const n = (v: number) => px(v).toString();
+	r = Math.max(0, Math.min(r, (x1 - x0) / 2, (y1 - y0) / 2));
+	const arc = (x: number, y: number) => `A${n(r)} ${n(r)} 0 0 1 ${n(x)} ${n(y)}`;
+	return (
+		`M${n(x0 + r)} ${n(y0)}H${n(x1 - r)}${arc(x1, y0 + r)}V${n(y1 - r)}${arc(x1 - r, y1)}` +
+		`H${n(x0 + r)}${arc(x0, y1 - r)}V${n(y0 + r)}${arc(x0 + r, y0)}Z`
+	);
 }
 
 /**
@@ -170,16 +189,17 @@ export const card: TransitionModule = {
 		...checkNumber(params, 'shadow', 0, 1),
 		...checkNumber(params, 'dim', 0, 1)
 	],
-	setup(overlay) {
-		// The outgoing card's shadow, above the incoming picture (`side: "out"`): an outer shadow
-		// paints only outside its box, so the card itself stays clear.
+	setup(overlay, { under }) {
+		// The outgoing card's shadow (`side: "out"`), drawn above the incoming picture and below
+		// the front clips: an outer shadow paints only outside its box, so the card stays clear.
 		const shadow = document.createElement('div');
 		shadow.dataset.shadow = '';
-		shadow.style.cssText = 'position:absolute;inset:0';
-		overlay.appendChild(shadow);
+		shadow.style.cssText = 'position:absolute';
+		(under ?? overlay).appendChild(shadow);
 	},
-	apply({ eased, direction, params, out, in: incoming, kind, size, overlay }) {
+	apply({ eased, direction, params, out, in: incoming, kind, size, overlay, under }) {
 		const unit = Math.min(size[0], size[1]) / 1080;
+		const [w, h] = size;
 		const options = {
 			motion: choiceParam(params, 'motion', MOTIONS, 'slide'),
 			direction,
@@ -194,19 +214,35 @@ export const card: TransitionModule = {
 		/** Everything but the card, in `el`'s own box (a pixel inside the card's edge). */
 		const outside = (el: HTMLElement, pose: CardPose) => {
 			const o = originOf(el);
-			const [w, h] = size;
-			const hole = cardOutline(pose, direction, size, unit, 1)
+			const hole = cardOutline(pose, direction, size, unit, HOLE)
 				.map(([x, y], k) => `${k ? 'L' : 'M'}${px(x - o.x)} ${px(y - o.y)}`)
 				.join('');
 			return `path(evenodd, 'M${-o.x} ${-o.y}H${w - o.x}V${h - o.y}H${-o.x}Z${hole}Z')`;
 		};
+		/**
+		 * Makes `el` part of the card: moved about the frame's centre wherever its box sits (a
+		 * slotted clip), never showing its back. A side gets the card's corners and shadow; a
+		 * clip riding it is cut to the card's corners; a clip that is the card itself (a clip
+		 * transition) gets corners and a shadow that follows what it draws.
+		 */
+		const onCard = (el: HTMLElement, pose: CardPose, transform: string, lifted: boolean) => {
+			const o = originOf(el);
+			el.style.transform = transform;
+			el.style.transformOrigin = `${px(w / 2 - o.x)}px ${px(h / 2 - o.y)}px`;
+			el.style.backfaceVisibility = 'hidden';
+			if (isSolid(el)) cardLook(el, pose, lifted ? shadow : 0, unit);
+			else if (kind === 'clip') {
+				cardLook(el, pose, 0, unit);
+				const drop = shadowOf(pose, shadow, unit);
+				el.style.filter = drop ? `drop-shadow(${drop})` : '';
+			} else
+				el.style.clipPath = `path('${roundedRect(-o.x, -o.y, w - o.x, h - o.y, pose.radius / pose.scale)}')`;
+		};
 		const shading = (shade: number) => (shade < 0.999 ? `brightness(${shade.toFixed(4)})` : '');
 		if (!backwards) {
 			const pose = cardPose(eased, options);
-			for (const el of incoming) {
-				el.style.transform = cardTransform(pose, direction, unit);
-				if (isSolid(el)) cardLook(el, pose, shadow, unit);
-			}
+			const transform = cardTransform(pose, direction, unit);
+			for (const el of incoming) onCard(el, pose, transform, true);
 			if (kind === 'clip') return;
 			// Dims as the card arrives, brightens as it fills the frame. Clips leaving with the
 			// outgoing side sit above the card: they are cut where it is, as if under it.
@@ -221,28 +257,36 @@ export const card: TransitionModule = {
 		// then leaves the way it would have come in (MID down to 0). The incoming side (and the
 		// clips arriving with it) is drawn above it, so it shows the card through a hole of the
 		// card's shape, a pixel smaller: the card's own edge stays under the incoming picture,
-		// never over the empty stage. The overlay draws the card's shadow around the hole.
+		// never over the empty stage. The card's shadow lies around the hole, above the incoming
+		// side and below the front clips.
 		const pose = cardPose(1 - eased, options);
 		pose.x = -pose.x;
 		pose.y = -pose.y;
 		pose.turn = -pose.turn;
 		const transform = cardTransform(pose, direction, unit);
-		for (const el of out) {
-			el.style.transform = transform;
-			if (isSolid(el)) cardLook(el, { ...pose, lift: 0 }, 0, unit);
-		}
+		for (const el of out) onCard(el, pose, transform, false);
 		const shade = 1 - dim * (1 - smooth(ramp(eased, MID, 1)));
 		for (const el of incoming) {
 			el.style.clipPath = outside(el, pose);
 			el.style.filter = shading(shade);
 		}
-		const lifted = overlay.querySelector<HTMLElement>('[data-shadow]')!;
+		// The shadow's box is the hole's: a pixel inside the card's edge all round.
+		const lifted = (under ?? overlay).querySelector<HTMLElement>('[data-shadow]')!;
+		const i = HOLE / pose.scale;
+		lifted.style.left = `${px(i)}px`;
+		lifted.style.top = `${px(i)}px`;
+		lifted.style.width = `${px(w - 2 * i)}px`;
+		lifted.style.height = `${px(h - 2 * i)}px`;
 		lifted.style.transform = transform;
-		cardLook(lifted, pose, shadow, unit);
+		lifted.style.transformOrigin = `${px(w / 2 - i)}px ${px(h / 2 - i)}px`;
+		lifted.style.backfaceVisibility = 'hidden';
+		cardLook(lifted, pose, shadow, unit, HOLE / pose.scale);
 	},
 	release({ out, in: incoming }: TransitionSides) {
 		for (const el of [...out, ...incoming]) {
 			el.style.transform = '';
+			el.style.transformOrigin = '';
+			el.style.backfaceVisibility = '';
 			el.style.borderRadius = '';
 			el.style.overflow = '';
 			el.style.boxShadow = '';

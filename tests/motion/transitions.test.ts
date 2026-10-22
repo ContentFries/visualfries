@@ -306,17 +306,25 @@ describe('transition modules on the DOM', () => {
 		}
 	});
 
-	it('wipe sets bar colours as values, never as more CSS', () => {
-		const { layer } = stage();
-		const t = transition({
-			type: 'wipe',
-			params: { colors: ['red; display: none', '#00ff00'] }
-		});
-		createTransitionPlayer(layer, [t], { size, cls: 'landscape' });
-		const bars = [...layer.firstElementChild!.children] as HTMLElement[];
-		expect(bars.map((b) => b.style.display)).toEqual(['', '']);
-		expect(bars[0].style.background).toBe('');
-		expect(bars[1].style.background).toMatch(/^(#00ff00|rgb\(0, 255, 0\))$/);
+	it('wipe sets bar colours as colour values, never as more CSS or an image', () => {
+		const bars = (colors: unknown) => {
+			const { layer } = stage();
+			const t = transition({ type: 'wipe', params: { colors } });
+			createTransitionPlayer(layer, [t], { size, cls: 'landscape' });
+			return [...layer.firstElementChild!.children] as HTMLElement[];
+		};
+		const good = bars(['red', '#00ff00']);
+		expect(good[1].style.backgroundColor).toMatch(/^(#00ff00|rgb\(0, 255, 0\))$/);
+		expect(good[1].style.backgroundImage).toBe('');
+		// A list with more CSS or an image in it is rejected: the brand's bars instead.
+		for (const bad of [['red; display: none', '#00ff00'], ['url(https://example.com/x.png)']]) {
+			const list = bars(bad);
+			expect(list).toHaveLength(3);
+			for (const bar of list) expect(bar.getAttribute('style')).not.toMatch(/url|display/);
+		}
+		expect(TRANSITION_MODULES.wipe.check!({ colors: ['url(x.png)'] })).toEqual([
+			'"colors" must be a list of CSS colours (got ["url(x.png)"]).'
+		]);
 	});
 
 	it('push blurs a solid side inside its box and keeps its edge opaque', () => {

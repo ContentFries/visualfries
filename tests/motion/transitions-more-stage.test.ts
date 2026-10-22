@@ -9,6 +9,11 @@ import { findChromium, loadMotionProject } from '../../src/lib/motion/node.js';
 import { captureProgramFrames, checkProgram } from '../../src/lib/motion/program-node.js';
 import { resolveProgram, type ResolvedProgram } from '../../src/lib/motion/program.js';
 import { scrambled } from '../../src/lib/motion/segments.js';
+import {
+	cardOutline,
+	cardPose,
+	transitionProgress
+} from '../../src/lib/motion/transitions/index.js';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -26,6 +31,12 @@ const FORMATS = {
 	square: { size: [480, 480], footage: 'wide' }
 } as const;
 type FormatName = keyof typeof FORMATS;
+/** Where a 60 × 40 tag sits in the middle of each format. */
+const MIDDLE: Record<FormatName, [number, number]> = {
+	wide: [290, 160],
+	tall: [150, 300],
+	square: [210, 220]
+};
 const GREY = 0x80;
 const BIT = 24;
 const ROW = 40;
@@ -42,6 +53,21 @@ function ffmpeg(args: string[], input?: Buffer): Buffer {
 }
 const rgba = (png: Buffer) =>
 	ffmpeg(['-i', 'pipe:0', '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'], png);
+/** Whether (x, y) is inside `polygon` or within `slack` pixels of its edge. */
+function nearPolygon(x: number, y: number, polygon: [number, number][], slack: number): boolean {
+	let inside = false;
+	let near = Infinity;
+	for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+		const [xi, yi] = polygon[i];
+		const [xj, yj] = polygon[j];
+		if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+		const dx = xj - xi;
+		const dy = yj - yi;
+		const t = Math.max(0, Math.min(1, ((x - xi) * dx + (y - yi) * dy) / (dx * dx + dy * dy || 1)));
+		near = Math.min(near, Math.hypot(x - xi - t * dx, y - yi - t * dy));
+	}
+	return inside || near <= slack;
+}
 const sha1 = (b: Buffer) => createHash('sha1').update(b).digest('hex');
 /** A pixel the magenta stage shows through, even blended. */
 const stageShows = ([r, g, b]: number[]) => r - g > 40 && b - g > 40;
@@ -59,12 +85,20 @@ const TAG = `<script>
 </style>
 `;
 
-const tag = (id: string, from: number, until: number, color: string) => ({
+/** Fills its root (a slot) in green. */
+const PANEL = `<div class="panel"></div>
+
+<style>
+	.panel { position: absolute; inset: 0; background: #00ff00; }
+</style>
+`;
+
+const tag = (id: string, from: number, until: number, color: string, x = 100, y = 100) => ({
 	id,
 	block: 'Tag.svelte',
 	from,
 	until,
-	props: { x: 100, y: 100, color }
+	props: { x, y, color }
 });
 
 const TRANSITIONS = [
@@ -98,7 +132,19 @@ function project(format: FormatName, look: 'num' | 'flat', transitions: boolean)
 		clips: [
 			tag('leaves', 1.6, 2.4, '#ff0000'),
 			tag('arrives', 4.8, 5.6, '#0000ff'),
-			tag('flips', 5.2, 6, '#00ff00')
+			tag('flips', 5.2, 6, '#00ff00'),
+			// In the middle of the frame, under the card while it lands (cut 5 in, cut 6 out).
+			tag('under', 4, 4.8, '#ffff00', MIDDLE[format][0], MIDDLE[format][1]),
+			tag('over', 6, 6.8, '#00ffff', MIDDLE[format][0], MIDDLE[format][1]),
+			// A caption riding neither side, just under the landed outgoing card: in its shadow.
+			tag(
+				'caption',
+				5.5,
+				6.5,
+				'#ffffff',
+				MIDDLE[format][0],
+				Math.round(FORMATS[format].size[1] * 0.81) + 4
+			)
 		]
 	};
 }
@@ -156,7 +202,20 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 					path.join(dir, `${footage}.matte.mp4`)
 				]);
 			}
+			// A speaker near the right edge of the frame.
+			ffmpeg([
+				'-f',
+				'lavfi',
+				'-i',
+				'color=black:s=640x360:r=30:d=11',
+				'-vf',
+				`geq=lum='if(lt(pow((X-600)/60,2)+pow((Y-230)/120,2),1),255,0)':cb=128:cr=128`,
+				'-pix_fmt',
+				'yuv420p',
+				path.join(dir, 'edge.matte.mp4')
+			]);
 			await fs.writeFile(path.join(dir, 'Tag.svelte'), TAG);
+			await fs.writeFile(path.join(dir, 'Panel.svelte'), PANEL);
 			for (const format of Object.keys(FORMATS) as FormatName[])
 				for (const look of ['num', 'flat'] as const)
 					for (const transitions of [true, false])
@@ -248,30 +307,211 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 			}
 		}, 600_000);
 
-		it('closes the blinds without a seam: on the cut only the first slat to open shows', async () => {
+		it('closes the blinds without a seam, and changes the picture behind them whole', async () => {
 			for (const format of Object.keys(FORMATS) as FormatName[]) {
 				const loaded = await load(format, 'flat');
 				const program = resolveProgram(loaded.project, loaded.inputs);
 				const blinds = program.transitions.find((t) => t.type === 'blinds')!;
-				const pngs = await captureProgramFrames(loaded, [blinds.cutFrame]);
-				const px = rgba(pngs.get(blinds.cutFrame)!);
-				const [w, h] = FORMATS[format].size;
-				// Travelling left (columns) or up (rows): the slat at the far right or bottom opens
-				// first; every other slat, and every seam between them, still covers the picture.
-				const n = format === 'wide' ? 8 : format === 'tall' ? 7 : 6;
-				const columns = blinds.direction === 'left';
 				expect(blinds.direction).toBe(format === 'tall' ? 'up' : 'left');
-				const open = Math.round(((n - 1) * (columns ? w : h)) / n);
-				let grey = 0;
-				for (let y = 0; y < (columns ? h : open); y++)
-					for (let x = 0; x < (columns ? open : w); x++) {
-						const [r, g, b] = px.subarray((y * w + x) * 4, (y * w + x) * 4 + 3);
-						if (Math.abs(r - GREY) < 16 && Math.abs(g - GREY) < 16 && Math.abs(b - GREY) < 16)
-							grey++;
-					}
-				expect(grey, format).toBe(0);
+				// The frames either side of the change: every slat closed, no seam, no picture.
+				const frames = [blinds.cutFrame - 1, blinds.cutFrame];
+				const pngs = await captureProgramFrames(loaded, frames);
+				const [w, h] = FORMATS[format].size;
+				for (const f of frames) {
+					const px = rgba(pngs.get(f)!);
+					let picture = 0;
+					for (let y = 0; y < h; y++)
+						for (let x = 0; x < w; x++) {
+							const [r, g, b] = px.subarray((y * w + x) * 4, (y * w + x) * 4 + 3);
+							if (Math.abs(r - g) < 24 && Math.abs(g - b) < 24) picture++;
+						}
+					expect(picture, `${format} f${f}`).toBe(0);
+				}
 			}
 		}, 120_000);
+
+		it('keeps the clips riding the side under a shape or card off it', async () => {
+			for (const format of Object.keys(FORMATS) as FormatName[]) {
+				const loaded = await load(format, 'flat');
+				const program = resolveProgram(loaded.project, loaded.inputs);
+				const [, mask, , cardIn, cardOut] = program.transitions;
+				expect([mask.type, cardIn.type, cardOut.type]).toEqual(['shape-mask', 'card', 'card']);
+				// The red tag leaves with the outgoing side of the shape mask: on its last frame the
+				// shape covers the frame, and the tag with it. The yellow one leaves as the card lands
+				// over it; the cyan one arrives under the outgoing card. Hues, as the sides dim.
+				const red = ([r, g, b]: number[]) => r > 120 && g < 50 && b < 50;
+				const yellow = ([r, g, b]: number[]) => r > 90 && g > 90 && b < 40 && Math.abs(r - g) < 30;
+				const cyan = ([r, g, b]: number[]) => g > 90 && b > 90 && r < 40;
+				const checks: [number, (p: number[]) => boolean, string][] = [
+					[mask.startFrame + mask.frames - 1, red, 'red'],
+					[cardIn.cutFrame, yellow, 'yellow'],
+					[cardOut.cutFrame, cyan, 'cyan']
+				];
+				const pngs = await captureProgramFrames(
+					loaded,
+					checks.map(([f]) => f)
+				);
+				const [w, h] = FORMATS[format].size;
+				for (const [f, hue, colour] of checks) {
+					const px = rgba(pngs.get(f)!);
+					let seen = 0;
+					for (let i = 0; i < w * h; i++) if (hue([...px.subarray(i * 4, i * 4 + 3)])) seen++;
+					expect(seen, `${format} f${f} ${colour}`).toBe(0);
+				}
+			}
+		}, 300_000);
+
+		it('lays the shadow of an outgoing card right up to it and under the captions', async () => {
+			for (const format of Object.keys(FORMATS) as FormatName[]) {
+				const loaded = await load(format, 'flat');
+				const program = resolveProgram(loaded.project, loaded.inputs);
+				const cardOut = program.transitions[4];
+				expect(cardOut.params).toEqual({ side: 'out', motion: 'flip' });
+				const pngs = await captureProgramFrames(loaded, [cardOut.cutFrame]);
+				const px = rgba(pngs.get(cardOut.cutFrame)!);
+				const [w, h] = FORMATS[format].size;
+				// Landed: 62 % of the frame, centred. Down a column through its middle, out of its
+				// bottom edge into its shadow: no pixel just outside the edge is lighter than the
+				// shadow a few pixels further out.
+				const bottom = Math.round(h / 2 + (0.62 * h) / 2);
+				const x = Math.round(w / 2) + 7;
+				const at = (y: number) => px[(y * w + x) * 4 + 1];
+				const edge = Math.max(at(bottom), at(bottom + 1));
+				expect(
+					edge,
+					`${format}: ${[...Array(10).keys()].map((k) => at(bottom - 2 + k))}`
+				).toBeLessThanOrEqual(at(bottom + 5) + 3);
+				// The caption is above the shadow: as white as ever.
+				const [cx, cy] = [MIDDLE[format][0] + 30, Math.round(h * 0.81) + 24];
+				expect([...px.subarray((cy * w + cx) * 4, (cy * w + cx) * 4 + 3)], format).toEqual([
+					255, 255, 255
+				]);
+			}
+		}, 120_000);
+
+		it('keeps a slotted clip on the card, in and out, sliding and flipping', async () => {
+			// A strip shot all through; a panel clip in its slot arrives on cuts 2 and 4 and leaves
+			// on cuts 3 and 5, each a card: in, out, in flipping, out flipping.
+			const cards = [
+				{ type: 'card' },
+				{ type: 'card', params: { side: 'out' } },
+				{ type: 'card', params: { motion: 'flip' } },
+				{ type: 'card', params: { side: 'out', motion: 'flip' } }
+			];
+			const json = {
+				...project('wide', 'num', false),
+				cuts: [...Array(5).keys()].map((i) => ({
+					source: 'src',
+					in: 0.2 + 1.4 * i,
+					out: 1.4 + 1.4 * i,
+					...(i ? { transition: cards[i - 1] } : {})
+				})),
+				shots: [{ shot: 'strip', from: 0, until: 6, morph: 0 }],
+				clips: [
+					{ id: 'p2', block: 'Panel.svelte', from: 1.2, until: 1.9, slot: 'panel' },
+					{ id: 'p3', block: 'Panel.svelte', from: 1.9, until: 2.4, slot: 'panel' },
+					{ id: 'p4', block: 'Panel.svelte', from: 3.6, until: 4.2, slot: 'panel' },
+					{ id: 'p5', block: 'Panel.svelte', from: 4.2, until: 4.8, slot: 'panel' }
+				]
+			};
+			const where = path.join(dir, 'slot-card.vf.json');
+			await fs.writeFile(where, JSON.stringify(json));
+			const loaded = await loadMotionProject(where);
+			const program = resolveProgram(loaded.project, loaded.inputs);
+			expect(program.diagnostics.filter((d) => d.level === 'error')).toEqual([]);
+			const [w, h] = [640, 360];
+			const unit = Math.min(w, h) / 1080;
+			for (const t of program.transitions) {
+				const frames = [...Array(t.frames).keys()].map((k) => t.startFrame + k);
+				const pngs = await captureProgramFrames(loaded, frames);
+				const backwards = t.params.side === 'out';
+				for (const f of frames) {
+					const p = transitionProgress(t, f);
+					const options = {
+						motion: (t.params.motion ?? 'slide') as 'slide' | 'flip',
+						direction: t.direction as 'left',
+						size: [w, h] as [number, number],
+						scale: 0.62,
+						radius: 44 * unit
+					};
+					const pose = cardPose(backwards ? 1 - p : p, options);
+					if (backwards) Object.assign(pose, { x: -pose.x, y: -pose.y, turn: -pose.turn });
+					const outline = cardOutline(pose, t.direction as 'left', [w, h], unit);
+					const px = rgba(pngs.get(f)!);
+					let green = 0;
+					const loose: string[] = [];
+					for (let y = 0; y < h; y++)
+						for (let x = 0; x < w; x++) {
+							const [r, g, b] = px.subarray((y * w + x) * 4, (y * w + x) * 4 + 3);
+							if (!(g > 180 && r < 80 && b < 80)) continue;
+							green++;
+							if (!nearPolygon(x + 0.5, y + 0.5, outline, 2)) loose.push(`${x},${y}`);
+						}
+					expect(loose.slice(0, 3), `${t.id} ${JSON.stringify(t.params)} f${f}`).toEqual([]);
+					// Once the card is on the frame and facing the camera, the panel shows on it.
+					if (!pose.x && !pose.y && Math.abs(pose.turn) < 60)
+						expect(green, `${t.id} f${f}`).toBeGreaterThan(0);
+				}
+			}
+		}, 600_000);
+
+		it('never shows the stage around a zoom-through toward a point near an edge or corner', async () => {
+			const points = [
+				[0.02, 0.97],
+				[0.98, 0.03],
+				[0.02, 0.03],
+				[0.98, 0.97],
+				[0.5, 0.02]
+			];
+			for (const size of [
+				[640, 360],
+				[1001, 563],
+				[563, 1001]
+			] as const) {
+				const footage = size[0] > size[1] ? 'wide' : 'tall';
+				const json = {
+					size: [...size],
+					fps: 30,
+					background: STAGE,
+					footage: {
+						src: { src: `flat-${footage}.mp4`, matte: `${footage}.matte.mp4` },
+						// The speaker at the right edge, for "face".
+						edge: { src: 'flat-wide.mp4', matte: 'edge.matte.mp4' }
+					},
+					cuts: [...Array(7).keys()].map((i) => ({
+						source: i === 6 ? 'edge' : 'src',
+						in: 0.2 + 1.4 * i,
+						out: 1.4 + 1.4 * i,
+						...(i
+							? {
+									transition: {
+										type: 'zoom-through',
+										params: { at: i <= points.length ? points[i - 1] : 'face' }
+									}
+								}
+							: {})
+					}))
+				};
+				const where = path.join(dir, `zoom-edges-${size.join('x')}.vf.json`);
+				await fs.writeFile(where, JSON.stringify(json));
+				const loaded = await loadMotionProject(where);
+				const program = resolveProgram(loaded.project, loaded.inputs);
+				expect(program.transitions).toHaveLength(6);
+				const frames = windows(program);
+				const pngs = await captureProgramFrames(loaded, frames);
+				const [w, h] = size;
+				const leaks: string[] = [];
+				for (const f of frames) {
+					const px = rgba(pngs.get(f)!);
+					for (let i = 0; i < w * h; i++)
+						if (stageShows([...px.subarray(i * 4, i * 4 + 3)])) {
+							leaks.push(`f${f} ${i % w},${Math.floor(i / w)}`);
+							break;
+						}
+				}
+				expect(leaks, size.join('x')).toEqual([]);
+			}
+		}, 600_000);
 
 		it('gives the same pixels in any seek order, on the segment page and a whole-program page', async () => {
 			const loaded = await load('square', 'num');

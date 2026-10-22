@@ -49,9 +49,16 @@ export function originOf(el) {
 }
 /** Whether `el` paints its whole box (a side, its fill, its footage window). */
 export const isSolid = (el) => 'solid' in el.dataset;
+/**
+ * Whether `v` may be a CSS colour: a string that cannot load anything (`url(…)`) or carry more
+ * CSS. Colours are still set as property values, so a string that is no colour is dropped.
+ */
+export function isColor(v) {
+    return typeof v === 'string' && v.trim() !== '' && !/url\s*\(|image\s*\(|[;{}]/i.test(v);
+}
 /** A list of CSS colours, or null. */
 export function colorList(v) {
-    return Array.isArray(v) && v.length && v.every((x) => typeof x === 'string') ? v : null;
+    return Array.isArray(v) && v.length && v.every(isColor) ? v : null;
 }
 /** Messages for a `colors` param that is not a list of CSS colours. */
 export function checkColors(params, name = 'colors') {
@@ -59,6 +66,13 @@ export function checkColors(params, name = 'colors') {
     if (v === undefined || colorList(v))
         return [];
     return [`"${name}" must be a list of CSS colours (got ${JSON.stringify(v)}).`];
+}
+/** Messages for a `name` param that is not a CSS colour. */
+export function checkColor(params, name = 'color') {
+    const v = params[name];
+    if (v === undefined || isColor(v))
+        return [];
+    return [`"${name}" must be a CSS colour (got ${JSON.stringify(v)}).`];
 }
 /** Messages for a `name` param that is not one of `options`. */
 export function checkChoice(params, name, options) {

@@ -1,6 +1,8 @@
 import { checkKnown, checkNumber, numberParam } from '../shots/layout.js';
 import {
 	checkChoice,
+	checkColor,
+	isColor,
 	checkPoint,
 	choiceParam,
 	isSolid,
@@ -96,9 +98,7 @@ export const shapeMask: TransitionModule = {
 		...checkPoint(params),
 		...checkNumber(params, 'ring', 0, 80),
 		...checkNumber(params, 'radius', 0, 540),
-		...(params.color === undefined || typeof params.color === 'string'
-			? []
-			: [`"color" must be a CSS colour (got ${JSON.stringify(params.color)}).`])
+		...checkColor(params)
 	],
 	setup(overlay, { params }) {
 		const ns = 'http://www.w3.org/2000/svg';
@@ -111,7 +111,7 @@ export const shapeMask: TransitionModule = {
 		ring.dataset.ring = '';
 		// Set as properties: a colour that is not one is dropped, never read as more CSS.
 		ring.style.stroke = 'var(--brand-accent, #fbc42d)';
-		if (typeof params.color === 'string') ring.style.stroke = params.color;
+		if (isColor(params.color)) ring.style.stroke = params.color;
 		svg.appendChild(ring);
 		overlay.appendChild(svg);
 	},

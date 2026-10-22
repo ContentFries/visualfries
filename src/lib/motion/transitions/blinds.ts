@@ -20,6 +20,11 @@ import type { FormatClass, ScreenDirection, TransitionModule } from './contract.
  */
 
 const MID = 0.5;
+/**
+ * Progress either side of halfway with every slat closed: wide enough that the frames on both
+ * sides of the change fall inside it for windows of 8 frames and more.
+ */
+const HOLD = 0.06;
 /** The brand's primary, every other slat a shade darker. */
 const COLORS = [
 	'var(--brand-primary, #f43f5e)',
@@ -41,13 +46,19 @@ export function blindsCount(params: Record<string, unknown>, cls: FormatClass): 
 /**
  * How far slat `j` (in travel order) of `n` covers its place at eased progress `e`, 0–1, and
  * from which end: closing from its start edge before halfway, opening toward its far edge after.
- * Every slat covers fully exactly at halfway.
+ * Every slat covers fully around halfway (see `HOLD`).
  */
 export function blindsSlatAt(j: number, n: number, e: number, stagger = 0.4) {
-	const step = n > 1 ? (stagger * MID) / (n - 1) : 0;
-	const travel = MID - step * (n - 1);
+	// Each half moves over its share less the hold, so every slat covers the frame from
+	// MID − HOLD to MID + HOLD: the frames either side of the change are fully covered.
+	const span = MID - HOLD;
+	const step = n > 1 ? (stagger * span) / (n - 1) : 0;
+	const travel = span - step * (n - 1);
 	if (e < MID) return { cover: close(clamp01((e - j * step) / travel)), from: 'start' as const };
-	return { cover: 1 - open(clamp01((e - MID - j * step) / travel)), from: 'end' as const };
+	return {
+		cover: 1 - open(clamp01((e - MID - HOLD - j * step) / travel)),
+		from: 'end' as const
+	};
 }
 
 export const blinds: TransitionModule = {
@@ -78,8 +89,9 @@ export const blinds: TransitionModule = {
 				? `position:absolute;left:${a}px;width:${b - a}px;top:-${BLEED}px;height:${h + 2 * BLEED}px`
 				: `position:absolute;top:${a}px;height:${b - a}px;left:-${BLEED}px;width:${w + 2 * BLEED}px`;
 			slat.dataset.slat = String(i);
-			// Set as a property: an invalid colour is dropped, never read as more CSS.
-			slat.style.background = colors[i % colors.length];
+			// Set as a colour property: anything that is no colour is dropped, never read as more CSS
+			// or as an image to load.
+			slat.style.backgroundColor = colors[i % colors.length];
 			overlay.appendChild(slat);
 		}
 	},

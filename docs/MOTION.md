@@ -322,17 +322,21 @@ counts only the frames a transition shows of each side). Built in:
   cover the frame, and they open the same way: columns that drop for `left`/`right`, rows that
   sweep across for `up`/`down` (`forward`: left in landscape and square, up in portrait).
   `params.count` (8 in landscape, 6 in square, 7 in portrait), `colors` (used in turn) and
-  `stagger` (0.4: share of each half spent starting the slats one after another). It needs no
-  handle. On a clip only the clip appears.
+  `stagger` (0.4: share of each half spent starting the slats one after another). The picture
+  changes while every slat is closed, and it needs no handle. On a clip only the clip appears.
 - `card` (0.9 s, `none`): the incoming picture arrives as a card (62 % of the frame, rounded
   corners, a shadow) that slides in along `direction` (as for `push`) or flips in
   (`params.motion: "flip"`), lands in the middle while the outgoing picture dims, and grows to
   fill the frame. `params.side: "out"` plays it backwards: the outgoing picture shrinks into the
   card and slides or flips away over the incoming one. `scale`, `radius` (44 px of a 1080 px
-  frame), `shadow` (0.4) and `dim` (0.45) shape it. Clips riding the side under the card are cut
-  where the card is. On a clip the clip arrives as the card; the layers below it stay.
+  frame), `shadow` (0.4) and `dim` (0.45) shape it. Clips riding the card (slotted ones too) move
+  with it and are cut to its corners; clips riding the side under it are cut where it is. On a
+  clip the clip arrives as the card, with its corners and a shadow that follows what it draws; the
+  layers below it stay.
 
 Every built-in's sound event is halfway through its window, on the cut of a centred window.
+Colour params take CSS colours only: a value with `url(…)`, `image(…)` or more CSS in it is an
+error. "The eyes" follow a shot's keys, rotation included.
 Custom `.svelte` transitions resolve into the program but cut on the cut for now; `check` warns
 about them.
 

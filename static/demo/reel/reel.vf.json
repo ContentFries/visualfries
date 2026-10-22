@@ -1,0 +1,590 @@
+{
+	"size": [
+		1080,
+		1920
+	],
+	"fps": 30,
+	"fonts": [
+		{
+			"family": "Anton",
+			"src": "fonts/Anton-Regular.ttf"
+		},
+		{
+			"family": "Inter",
+			"src": "fonts/Inter.ttf",
+			"weight": "100 900"
+		}
+	],
+	"style": "kinetic",
+	"footage": {
+		"talk": {
+			"src": "talk.mp4",
+			"matte": "talk.matte.mp4",
+			"transcript": "take.transcript.json"
+		}
+	},
+	"cuts": [
+		{
+			"id": "hook",
+			"source": "talk",
+			"in": {
+				"say": "This whole video",
+				"offset": -0.2
+			},
+			"out": {
+				"say": "one prompt",
+				"edge": "end",
+				"offset": 0.12
+			}
+		},
+		{
+			"id": "take",
+			"source": "talk",
+			"in": {
+				"say": "AI cut the silences",
+				"occurrence": 3,
+				"offset": -0.1
+			},
+			"out": {
+				"say": "the silences",
+				"edge": "end",
+				"offset": 0.1
+			}
+		},
+		{
+			"id": "list",
+			"source": "talk",
+			"in": {
+				"say": "removed duplicate takes",
+				"offset": -0.1
+			},
+			"out": {
+				"say": "my son, handheld",
+				"edge": "end",
+				"offset": 0.12
+			}
+		},
+		{
+			"id": "tools",
+			"source": "talk",
+			"in": {
+				"say": "What I used",
+				"offset": -0.12
+			},
+			"out": {
+				"say": "Opus 5.5",
+				"edge": "end",
+				"offset": 0.12
+			},
+			"transition": {
+				"type": "push",
+				"direction": "forward",
+				"sound": "sfx/transition.wav"
+			}
+		},
+		{
+			"id": "cta",
+			"source": "talk",
+			"in": {
+				"say": "Let me know",
+				"offset": -0.1
+			},
+			"out": {
+				"say": "tips like this",
+				"edge": "end",
+				"offset": 0.55
+			}
+		}
+	],
+	"shots": [
+		{
+			"id": "open",
+			"shot": "full",
+			"from": 0,
+			"until": {
+				"say": "edited by AI",
+				"edge": "last",
+				"offset": -0.3
+			},
+			"keys": [
+				{
+					"at": 0,
+					"scale": 1.14
+				},
+				{
+					"at": 0.55,
+					"scale": 1.0,
+					"ease": "expo.out"
+				}
+			]
+		},
+		{
+			"id": "hook-behind",
+			"shot": "behind",
+			"from": {
+				"say": "edited by AI",
+				"edge": "last",
+				"offset": -0.3
+			},
+			"until": {
+				"say": "AI cut the silences",
+				"edge": "start",
+				"offset": -0.1
+			},
+			"params": {
+				"dim": 0.5
+			},
+			"keys": [
+				{
+					"at": 0,
+					"scale": 1
+				},
+				{
+					"at": "one",
+					"scale": 1.05,
+					"ease": "sine.inOut"
+				},
+				{
+					"at": "prompt",
+					"scale": 1.2,
+					"ease": "expo.out"
+				}
+			]
+		},
+		{
+			"id": "list-strip",
+			"shot": "strip",
+			"from": {
+				"say": "AI cut the silences",
+				"offset": -0.1
+			},
+			"until": {
+				"say": "different effects",
+				"edge": "end",
+				"offset": 0.25
+			},
+			"params": {
+				"size": 0.5
+			},
+			"transition": {
+				"type": "wipe",
+				"sound": "sfx/wipe.wav"
+			},
+			"keys": [
+				{
+					"at": 0,
+					"y": -110,
+					"scale": 1
+				},
+				{
+					"at": {
+						"moment": "end"
+					},
+					"y": -90,
+					"scale": 1.08,
+					"ease": "sine.inOut"
+				}
+			]
+		},
+		{
+			"id": "all-behind",
+			"shot": "behind",
+			"from": {
+				"say": "different effects",
+				"edge": "end",
+				"offset": 0.25
+			},
+			"until": {
+				"say": "in this video",
+				"edge": "end",
+				"offset": 0.1
+			},
+			"params": {
+				"dim": 0.5
+			},
+			"morph": 0.45
+		},
+		{
+			"id": "walk-drift",
+			"shot": "full",
+			"from": {
+				"say": "in this video",
+				"edge": "end",
+				"offset": 0.1
+			},
+			"until": {
+				"say": "shot it on a walk",
+				"edge": "start"
+			},
+			"keys": [
+				{
+					"at": 0,
+					"scale": 1,
+					"x": 0
+				},
+				{
+					"at": {
+						"moment": "end"
+					},
+					"scale": 1.07,
+					"x": "-2%",
+					"ease": "sine.inOut"
+				}
+			],
+			"morph": 0.3
+		},
+		{
+			"id": "walk-punch",
+			"shot": "punch",
+			"from": "shot it on a walk",
+			"until": {
+				"say": "with my son",
+				"edge": "end",
+				"offset": 0.1
+			},
+			"params": {
+				"scale": 1.12
+			}
+		},
+		{
+			"id": "tools-whip",
+			"shot": "whip",
+			"from": {
+				"say": "is the open-source",
+				"offset": -0.1
+			},
+			"until": {
+				"say": "Opus 5.5",
+				"edge": "end",
+				"offset": 0.12
+			},
+			"params": {
+				"direction": "left"
+			}
+		},
+		{
+			"id": "end-window",
+			"shot": "window",
+			"from": {
+				"say": "and follow my channel",
+				"offset": -0.15
+			},
+			"until": {
+				"say": "tips like this",
+				"edge": "end",
+				"offset": 0.57
+			},
+			"params": {
+				"size": 0.5,
+				"zoom": 1.0
+			},
+			"keys": [
+				{
+					"at": 0,
+					"scale": 1
+				},
+				{
+					"at": {
+						"moment": "end"
+					},
+					"scale": 1.1,
+					"ease": "sine.inOut"
+				}
+			]
+		}
+	],
+	"clips": [
+		{
+			"id": "word-ai",
+			"block": "blocks/BehindWord.svelte",
+			"layer": "behind",
+			"slot": "word",
+			"from": {
+				"say": "edited by AI",
+				"edge": "last",
+				"offset": -0.3
+			},
+			"until": {
+				"say": "one prompt",
+				"edge": "end",
+				"offset": 0.12
+			},
+			"cues": {
+				"ai": {
+					"say": "AI"
+				},
+				"prompt": "one prompt"
+			},
+			"props": {
+				"items": [
+					{
+						"text": "AI",
+						"at": "ai"
+					},
+					{
+						"text": "1 prompt",
+						"at": "prompt"
+					}
+				],
+				"y": 0.36
+			}
+		},
+		{
+			"id": "checklist",
+			"block": "blocks/Checklist.svelte",
+			"slot": "panel",
+			"from": {
+				"say": "AI cut the silences",
+				"offset": -0.1
+			},
+			"until": {
+				"say": "different effects",
+				"edge": "end",
+				"offset": 0.7
+			},
+			"cues": {
+				"silences": "the silences",
+				"duplicates": "duplicate takes",
+				"effects": "different effects"
+			},
+			"props": {
+				"title": "AI <b>did</b>",
+				"items": [
+					{
+						"text": "cut the <b>silences</b>",
+						"at": "silences"
+					},
+					{
+						"text": "removed <b>duplicate&nbsp;takes</b>",
+						"at": "duplicates"
+					},
+					{
+						"text": "added <b>effects</b>",
+						"at": "effects"
+					}
+				]
+			}
+		},
+		{
+			"id": "word-all",
+			"block": "blocks/BehindWord.svelte",
+			"layer": "behind",
+			"slot": "word",
+			"from": {
+				"say": "different effects",
+				"edge": "end",
+				"offset": 0.25
+			},
+			"until": {
+				"say": "in this video",
+				"edge": "end",
+				"offset": 0.1
+			},
+			"cues": {
+				"all": "everything"
+			},
+			"props": {
+				"items": [
+					{
+						"text": "everything",
+						"at": "all"
+					}
+				],
+				"y": 0.33
+			}
+		},
+		{
+			"id": "tools-card",
+			"block": "blocks/PromptCard.svelte",
+			"slot": "card",
+			"from": {
+				"say": "is the open-source",
+				"offset": -0.1
+			},
+			"until": {
+				"say": "Opus 5.5",
+				"edge": "end",
+				"offset": 0.55
+			},
+			"cues": {
+				"library": "VisualFries",
+				"model": "Opus 5.5"
+			},
+			"props": {
+				"prompt": "edit this video",
+				"typeFrom": 0.3,
+				"typeFor": 0.75,
+				"tiles": [
+					{
+						"kicker": "open-source library",
+						"name": "VisualFries",
+						"at": "library"
+					},
+					{
+						"kicker": "model",
+						"name": "Opus 5.5",
+						"at": "model"
+					}
+				]
+			}
+		},
+		{
+			"id": "end-card",
+			"block": "blocks/EndCard.svelte",
+			"from": {
+				"say": "and follow my channel",
+				"offset": -0.15
+			},
+			"until": {
+				"say": "tips like this",
+				"edge": "end",
+				"offset": 0.57
+			},
+			"cues": {
+				"follow": "follow my channel"
+			},
+			"props": {
+				"lines": [
+					"This whole video",
+					"was edited by",
+					"AI."
+				],
+				"cta": "follow for more <b>tips</b>",
+				"ctaAt": "follow",
+				"from": 0.35,
+				"top": 990,
+				"height": 700
+			}
+		},
+		{
+			"id": "captions-a",
+			"block": "@visualfries/captions",
+			"from": 0,
+			"until": {
+				"say": "AI cut the silences",
+				"edge": "start",
+				"offset": -0.1
+			},
+			"words": {
+				"captions": "clip"
+			},
+			"props": {
+				"preset": "bold",
+				"y": 0.85,
+				"maxWords": 3,
+				"size": 95
+			}
+		},
+		{
+			"id": "captions-b",
+			"block": "@visualfries/captions",
+			"from": {
+				"say": "Basically everything",
+				"edge": "start",
+				"offset": -0.05
+			},
+			"until": {
+				"say": "and follow my channel",
+				"edge": "start",
+				"offset": -0.15
+			},
+			"words": {
+				"captions": "clip"
+			},
+			"props": {
+				"preset": "bold",
+				"y": 0.85,
+				"maxWords": 3,
+				"size": 95
+			}
+		}
+	],
+	"sfx": [
+		{
+			"at": {
+				"say": "edited by AI",
+				"edge": "last"
+			},
+			"sound": "sfx/slam.wav",
+			"gain": -2
+		},
+		{
+			"at": "one",
+			"sound": "sfx/pop.wav",
+			"gain": -4
+		},
+		{
+			"at": "the silences",
+			"sound": "sfx/tick.wav",
+			"gain": -3
+		},
+		{
+			"at": "duplicate",
+			"sound": "sfx/tick.wav",
+			"gain": -3
+		},
+		{
+			"at": "different effects",
+			"sound": "sfx/tick.wav",
+			"gain": -3
+		},
+		{
+			"at": {
+				"say": "Basically everything",
+				"edge": "last"
+			},
+			"sound": "sfx/slam.wav",
+			"gain": -3
+		},
+		{
+			"at": "shot it on a walk",
+			"sound": "sfx/punch.wav",
+			"gain": -4
+		},
+		{
+			"at": {
+				"say": "is the open-source",
+				"offset": 0.11
+			},
+			"sound": "sfx/whip.wav",
+			"gain": -2
+		},
+		{
+			"at": "VisualFries",
+			"sound": "sfx/pop.wav",
+			"gain": -5
+		},
+		{
+			"at": "Opus 5.5",
+			"sound": "sfx/pop.wav",
+			"gain": -5
+		},
+		{
+			"at": {
+				"say": "Let me know",
+				"offset": 0.11
+			},
+			"sound": "sfx/whip.wav",
+			"gain": -2
+		},
+		{
+			"at": {
+				"say": "and follow my channel",
+				"offset": 0.2
+			},
+			"sound": "sfx/enter.wav",
+			"gain": -4
+		}
+	],
+	"music": [
+		{
+			"id": "bed",
+			"src": "music/bed.mp3",
+			"beats": "music/bed.beats.json",
+			"in": 3.1,
+			"fade": {
+				"out": 0.8
+			}
+		}
+	]
+}

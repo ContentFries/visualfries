@@ -50,7 +50,8 @@ describe('timeline schema: backward compatibility', () => {
 
 	it('keeps projects without cuts or shots in inserts mode', () => {
 		for (const file of projectFiles()) {
-			if (file.includes('fixtures/program')) continue;
+			// Program fixtures and the reel demo describe whole programs on purpose.
+			if (file.includes('fixtures/program') || file.startsWith('static/demo/reel/')) continue;
 			const project = parseMotionProject(
 				JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8'))
 			);

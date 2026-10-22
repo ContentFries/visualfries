@@ -1,5 +1,6 @@
 import { easeOf } from '../ease.js';
 import { checkKnown } from '../shots/layout.js';
+import { checkColors, colorList } from './common.js';
 import type { ScreenDirection, TransitionModule } from './contract.js';
 
 /**
@@ -34,8 +35,7 @@ const sign = (d: ScreenDirection | null) => (d === 'right' || d === 'down' ? 1 :
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
 function colors(params: Record<string, unknown>): string[] {
-	const c = params.colors;
-	return Array.isArray(c) && c.length && c.every((x) => typeof x === 'string') ? c : COLORS;
+	return colorList(params.colors) ?? COLORS;
 }
 
 function bars(overlay: HTMLElement): HTMLElement[] {
@@ -74,19 +74,16 @@ export const wipe: TransitionModule = {
 	directional: true,
 	events: [{ kind: 'transition', at: MID }],
 	check(params) {
-		const out = checkKnown(params, ['colors']);
-		const c = params.colors;
-		if (c !== undefined && !(Array.isArray(c) && c.length && c.every((x) => typeof x === 'string')))
-			out.push(`"colors" must be a list of CSS colours (got ${JSON.stringify(c)}).`);
-		return out;
+		return [...checkKnown(params, ['colors']), ...checkColors(params)];
 	},
 	setup(overlay, { direction, params, size }) {
 		const box = wipeBox(size, horizontal(direction));
 		for (const color of colors(params)) {
 			const bar = document.createElement('div');
 			bar.style.cssText = `position:absolute;${box}`;
-			// Set as a property: an invalid colour is dropped, never read as more CSS.
-			bar.style.background = color;
+			// Set as a colour property: anything that is no colour is dropped, never read as more
+			// CSS or as an image to load.
+			bar.style.backgroundColor = color;
 			overlay.appendChild(bar);
 		}
 	},

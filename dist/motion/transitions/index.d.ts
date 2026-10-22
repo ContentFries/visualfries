@@ -1,7 +1,10 @@
 import type { FormatClass, ProgramTransition } from '../program.js';
 import type { ScreenDirection, TransitionModule } from './contract.js';
-export type { ScreenDirection, TransitionEvent, TransitionFrame, TransitionModule, TransitionSetup, TransitionSides } from './contract.js';
+export type { Point, ScreenDirection, TransitionEvent, TransitionFrame, TransitionModule, TransitionSetup, TransitionSides } from './contract.js';
 export { wipeBarAt, wipeBox } from './wipe.js';
+export { blindsCount, blindsSlatAt } from './blinds.js';
+export { cardOutline, cardPose } from './card.js';
+export { shapeAt, shapePath } from './shape-mask.js';
 /**
  * The transition registry and the pure parts of the engine: progress per program frame, the
  * screen direction per format class, and the events in program frames. The stage side lives in
@@ -35,3 +38,12 @@ export declare function transitionEvents(t: Window & Pick<ProgramTransition, 'ty
     kind: string;
     frame: number;
 }[];
+/**
+ * Frames of handle a cut transition shows on each side of its cut: the incoming side from the
+ * first window frame it shows on up to the cut, the outgoing side from the cut to the last frame
+ * it shows on (see `TransitionModule.shows`). Without `shows`, the whole window on both sides.
+ */
+export declare function transitionHandles(t: Window & Pick<ProgramTransition, 'type' | 'cutFrame' | 'ease' | 'params'>): {
+    in: number;
+    out: number;
+};

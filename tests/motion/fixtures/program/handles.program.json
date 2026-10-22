@@ -426,8 +426,8 @@
 			"frames": 9,
 			"cutFrame": 204,
 			"align": "end",
-			"direction": null,
-			"ease": null,
+			"direction": "left",
+			"ease": "none",
 			"params": {},
 			"sound": null,
 			"native": null,
@@ -735,7 +735,7 @@
 		},
 		{
 			"kind": "transition",
-			"frame": 204,
+			"frame": 199,
 			"owner": "cut5.transition"
 		},
 		{
@@ -853,7 +853,7 @@
 				"whip.transition",
 				"cut5.transition"
 			],
-			"hash": "59b2c0f093d62a1d9c0b9c5164d68a8a1530f269"
+			"hash": "d6bc9f8cb679d6e3be29301d16799b54a41d9e5f"
 		}
 	],
 	"diagnostics": [
@@ -892,12 +892,6 @@
 			"item": "broll",
 			"field": "cuts[1].transition",
 			"message": "cut 2: push needs 0.23 s of incoming handle, 0.10 s available; the first frame holds 4 frames."
-		},
-		{
-			"level": "warning",
-			"item": "cut5",
-			"field": "cuts[4].transition",
-			"message": "The \"card\" transition is not drawn yet; it cuts on the cut."
 		},
 		{
 			"level": "warning",

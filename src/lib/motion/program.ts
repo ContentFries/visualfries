@@ -45,7 +45,12 @@ import { parseEase } from './ease.js';
 import { NEUTRAL_BRAND, type ResolvedBrand } from './brand.js';
 import { clipEnergy, type Energy } from './energy.js';
 import { compileKeyTracks, KEY_EASE, PLACEMENT, substituteBrand, type Animatable } from './keys.js';
-import { screenDirection, transitionEvents, transitionModule } from './transitions/index.js';
+import {
+	screenDirection,
+	transitionEvents,
+	transitionHandles,
+	transitionModule
+} from './transitions/index.js';
 
 export type {
 	BlockAnimatable,
@@ -1145,9 +1150,9 @@ function resolveTransitions(
 		const t = window(cut.id, 'cut', field, cut.transition, cut.startFrame, cuts[i - 1].id);
 		if (!t || !fits(t, cuts[i - 1], cuts[i], field, name)) return;
 		// The incoming side starts early (handle before its "in"), the outgoing side runs on past
-		// its "out"; without enough source the edge frame holds.
-		const needIn = t.cutFrame - t.startFrame;
-		const needOut = endOf(t) - t.cutFrame;
+		// its "out", as far as the transition shows them; without enough source the edge frame
+		// holds.
+		const { in: needIn, out: needOut } = transitionHandles(t);
 		const haveIn = cuts[i].handles.before;
 		const haveOut = cuts[i - 1].handles.after;
 		t.held.in = Math.max(0, needIn - haveIn);

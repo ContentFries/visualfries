@@ -76,7 +76,8 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries matte <video> --output <matte.mp4> [--provider fal|rvm|command] [options]
                     subject matte (white = subject) for "footage". Default provider: BiRefNet v2
                     on fal.ai (FAL_KEY; --model Matting, --resolution 1024x1024). Local, no key:
-                    --provider rvm [--threads n] (RobustVideoMatting on the CPU via uv). Any local tool:
+                    --provider rvm [--threads n] (RobustVideoMatting on the CPU; needs uv and
+                    ffmpeg, downloads torch and the model once). Any local tool:
                     --command "tool --in {input} --out {output}" [--command-output luma|alpha]
                     [--command-ext .webm] [--max-frames n]. Long videos are split, checked
                     and joined frame-exact.

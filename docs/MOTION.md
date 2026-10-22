@@ -567,7 +567,11 @@ no effect on a project without `cuts` or `shots` (a warning).
 
 `visualfries matte talk.mp4 --output talk.matte.mp4` makes the matte: BiRefNet v2 on fal.ai
 (`FAL_KEY`) by default; `--provider rvm` runs RobustVideoMatting locally on the CPU with no key
-(needs `uv`; about 3 fps at 1080p on 12 cores); any local tool works with
+(about 3 fps at 1080p on 12 cores). It needs `uv` and `ffmpeg` on the PATH, nothing else: `uv`
+brings Python, torch, torchvision and numpy (current CPU wheels), and the first run downloads
+them, the RobustVideoMatting v1.0.0 model code and its weights from the project's GitHub release
+(checked against their SHA-256), a few hundred MB cached for later runs (`$TORCH_HOME`, default
+`~/.cache/torch`). Any local tool works with
 `--command "tool {input} {output}"`, and any `MatteProvider` in Node. It splits, checks and
 joins the pieces frame-exact. Worked example: `static/demo/speaker-depth`.
 

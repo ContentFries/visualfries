@@ -254,6 +254,12 @@ export function drawRim(
 		ctx.lineWidth = lineWidth;
 		ctx.strokeStyle = rim.color ?? `rgb(${across.color.join(',')})`;
 		ctx.stroke();
+		// A thin light lip on the far inside edge, so the opening reads as a rim with depth.
+		ctx.beginPath();
+		ctx.ellipse(0, ry * 0.12, rx * 0.9, ry * 0.78, 0, Math.PI * 1.05, Math.PI * 1.95);
+		ctx.lineWidth = Math.max(1.5, lineWidth * 0.35);
+		ctx.strokeStyle = 'rgba(255, 170, 160, 0.85)';
+		ctx.stroke();
 		ctx.restore();
 		return;
 	}

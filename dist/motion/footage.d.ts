@@ -1,6 +1,10 @@
 import type { FootageFrames, SubjectBox } from './resolve.js';
 import { type FootageMap } from './footage-map.js';
-export type FootageLayer = 'plate' | 'subject';
+/**
+ * `plate`: the picture; `subject`: the subject cut out by the matte (its alpha is the matte);
+ * `clean`: the picture with the subject removed (`footage.<name>.clean`).
+ */
+export type FootageLayer = 'plate' | 'subject' | 'clean';
 /**
  * URL of source frame `frame` of the footage. A frame that was not extracted is an error:
  * raise the footage's `margin` (it happens with an `offset` larger than the margin).
@@ -23,11 +27,12 @@ export declare function sourceSubjectBox(footage: FootageFrames, frame: number, 
  * has no matte or the subject is out of frame.
  */
 export declare function subjectBox(footage: FootageFrames, programFrame: number, smooth?: number): SubjectBox | null;
-/** What `<Footage>` draws at a program frame. */
+/** What `<Footage>` draws at a program frame: the source, its frame and the file's URL. */
 export type FootageFrame = {
     source: string;
     footage: FootageFrames;
     url: string;
+    frame: number;
 };
 /**
  * The frame `<Footage>` draws at `programFrame`: source `name`, or with `name` null whatever

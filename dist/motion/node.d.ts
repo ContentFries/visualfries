@@ -122,10 +122,14 @@ export type BundleResult = {
     html: string;
     roots: string[];
     files: string[];
-    /** Extracted footage and, in program mode, the map from program to source frames. */
+    /**
+     * Extracted footage and, in program mode, the map from program to source frames; `warnings`
+     * about frames that could not be made (a clean plate without background).
+     */
     footage: {
         frames: Record<string, FootageFrames>;
         map: FootageMap | null;
+        warnings?: string[];
     };
     /** The project's brand; the program stage sets its tokens on the whole stage. */
     brand: ResolvedBrand;

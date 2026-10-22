@@ -598,7 +598,10 @@ speaker was. It suits sky, walls, out-of-focus backgrounds and handheld footage 
 filled from itself, so camera shake and parallax cost nothing); detail does not continue into the
 hole (a branch behind the head comes out as soft green). `{ "image": "empty.jpg" }` shows a
 still of the empty scene in the hole instead, scaled to cover the frame: best for a tripod shot
-where you filmed the empty set. The plates are built in Node once, on worker threads, and cached
+where you filmed the empty set. A plate taken from other frames where that area was background
+would keep real detail on a tripod or a slow pan, but in a handheld selfie the camera shakes,
+turns and changes exposure, so such pixels land a few pixels off with visible seams; it is not
+built in (a block can still draw its own from `clip.picture()`). The plates are built in Node once, on worker threads, and cached
 next to the extracted footage frames: 1116 frames of 1080 × 1920 took 44 s on 8 threads of a
 busy 12-core server (70–160 ms a frame on one thread), about 100 MB of JPEG, and nothing on the
 next run; a new matte, source, image or `grow` builds them again. A per-frame fill in the page

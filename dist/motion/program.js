@@ -181,8 +181,10 @@ export function resolveProgram(project, given, opts = {}) {
             native: spec.native ?? null
         };
     });
-    if (program)
+    if (program) {
         checkBehind(clips, cuts, shots, project, diagnostics);
+        checkSubjectLayers(clips, cuts, shots, project, diagnostics);
+    }
     if (program)
         checkSlots(clips, shots, format, fps, diagnostics);
     const transitions = program
@@ -693,6 +695,58 @@ function checkBehind(clips, cuts, shots, project, diagnostics) {
                 message: names.size
                     ? `"behind" needs a matte, but footage ${bare.map((n) => `"${n}"`).join(', ')} has none (visualfries matte).`
                     : '"behind" needs footage with a matte on screen with the clip.'
+            });
+    }
+}
+/**
+ * The built-in subject layer (`@visualfries/subject`) needs a matte on every footage on screen
+ * with it, and while it leaves a hole (the default) a clean plate too. Blocks drawing
+ * `<Subject>` report the same when their frames are drawn.
+ */
+function checkSubjectLayers(clips, cuts, shots, project, diagnostics) {
+    for (const clip of clips) {
+        if (clip.block !== '@visualfries/subject')
+            continue;
+        const props = clip.props;
+        const named = typeof props.footage === 'string' ? props.footage : null;
+        const names = new Set(named
+            ? [named]
+            : [
+                ...cuts.filter((c) => overlaps(c, clip)).map((c) => c.source),
+                ...shots.filter((s) => s.source && overlaps(s, clip)).map((s) => s.source.name)
+            ]);
+        const spec = (n) => project.footage?.[n];
+        const unknown = [...names].filter((n) => !spec(n));
+        const bare = [...names].filter((n) => spec(n) && !spec(n).matte);
+        const unclean = [...names].filter((n) => spec(n)?.matte && spec(n).clean === undefined);
+        const list = (n) => n.map((x) => `"${x}"`).join(', ');
+        if (unknown.length)
+            diagnostics.push({
+                level: 'error',
+                clip: clip.id,
+                field: 'props.footage',
+                message: `Unknown footage ${list(unknown)}. Footage: ${Object.keys(project.footage ?? {}).join(', ') || 'none'}.`
+            });
+        else if (!names.size)
+            diagnostics.push({
+                level: 'error',
+                clip: clip.id,
+                field: 'block',
+                message: 'A subject layer needs footage with a matte on screen with the clip.'
+            });
+        else if (bare.length)
+            diagnostics.push({
+                level: 'error',
+                clip: clip.id,
+                field: 'block',
+                message: `A subject layer cuts the speaker out with the matte, but footage ${list(bare)} has none (visualfries matte).`
+            });
+        else if (props.hole !== false && unclean.length)
+            diagnostics.push({
+                level: 'error',
+                clip: clip.id,
+                field: 'block',
+                message: `The subject layer leaves a hole in the speaker, and footage ${list(unclean)} has no clean plate to show there. Add "clean": true to the footage (or "hole": false to keep the speaker whole).`
             });
     }
 }

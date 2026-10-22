@@ -1,8 +1,9 @@
 import { getContext, onMount } from 'svelte';
 import { gsap } from 'gsap';
 import { resolveMoment } from './moment.js';
-import { sourceSubjectBox, subjectBox } from './footage.js';
-import { sourceFrameAt } from './footage-map.js';
+import { footageFrameAt, sourceSubjectBox, subjectBox } from './footage.js';
+import { programFootageAt, sourceFrameAt } from './footage-map.js';
+import { loadPicture } from './subject-canvas.js';
 import { NO_MUSIC_BEATS, beatPhase } from './beat-grid.js';
 import { clipEnergy } from './energy.js';
 import { NEUTRAL_BRAND } from './brand.js';
@@ -61,6 +62,18 @@ export class Clip {
     format;
     /** With a cut list: which source frame the program shows when; null in inserts mode. */
     footageMap;
+    /**
+     * Program mode: where the stage shows the footage at the current frame, in this clip's pixels
+     * (set on every seek; it moves with shot keys and morphs). Null in inserts mode and while no
+     * footage is on screen. `<Subject>` uses it to sit exactly on the picture.
+     */
+    camera = $state.raw(null);
+    /**
+     * Program mode: the point (clip pixels) the clip's placement keys scale and turn about, or a
+     * function giving it at the current frame; null: the clip's centre. `@visualfries/subject`
+     * sets it to the middle of its region, so `rotation` keys spin the region in place.
+     */
+    pivot = null;
     constructor(data) {
         this.id = data.id;
         this.fps = data.fps;
@@ -121,6 +134,47 @@ export class Clip {
             return subjectBox(footage, this.programStartFrame + frame, around);
         const shown = sourceFrameAt(this.footageMap, name, this.programStartFrame + frame);
         return shown ? sourceSubjectBox(footage, shown.frame, around) : null;
+    }
+    /**
+     * Which footage frame is on screen at clip frame `frame` (default: the current frame): the
+     * source and its frame through the cut list, holds and transition handles included. With
+     * `name`, that footage's frame (null while the program does not show it). In inserts mode the
+     * footage plays from its `start`.
+     */
+    shown(name, frame = this.frame) {
+        const at = this.programStartFrame + frame;
+        if (!this.footageMap) {
+            const source = name ?? Object.keys(this.footage)[0];
+            const footage = source ? this.footage[source] : undefined;
+            if (!footage)
+                return null;
+            return {
+                source,
+                frame: Math.min(footage.total - 1, Math.max(0, at - footage.startFrame))
+            };
+        }
+        const view = name
+            ? sourceFrameAt(this.footageMap, name, at)
+            : programFootageAt(this.footageMap, at);
+        return view ? { source: view.source, frame: view.frame } : null;
+    }
+    /**
+     * A footage frame as a decoded picture for canvas drawing, so a block never builds footage
+     * URLs: `layer` `plate` (the picture), `subject` (cut out by the matte: its alpha is the
+     * matte) or `clean` (the subject removed, `footage.<name>.clean`). `frame` is a clip frame
+     * (default: the current one) and `offset` shifts inside the source in seconds; `name` picks a
+     * footage (default: whatever the program shows). Await it inside `useFrame`.
+     */
+    async picture(layer = 'plate', opts = {}) {
+        const shown = footageFrameAt(this.footage, this.footageMap, opts.name ?? null, this.programStartFrame + (opts.frame ?? this.frame), layer, Math.round((opts.offset ?? 0) * this.fps));
+        return {
+            image: await loadPicture(shown.url),
+            source: shown.source,
+            frame: shown.frame,
+            width: shown.footage.width,
+            height: shown.footage.height,
+            layer
+        };
     }
     /**
      * Resolve an `At` to clip-local seconds. Besides project cues, `start` (0) and `end`
@@ -323,6 +377,10 @@ export function useFrame(fn) {
                 c.frameFns.splice(i, 1);
         };
     });
+}
+/** The clip's controller, for components that talk to the stage (`<Subject>`). */
+export function useController() {
+    return controller();
 }
 /** Delay the first frame until `promise` settles (asset decoding, engine setup). */
 export function useReady(promise) {

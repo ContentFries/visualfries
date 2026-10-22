@@ -304,7 +304,16 @@ export function createMotionStage(options) {
                     break; // unloaded to keep the page alive
                 continue;
             }
-            for (const message of segment?.warnings(n) ?? [])
+            let measured = [];
+            try {
+                measured = (await segment?.measure(n)) ?? [];
+            }
+            catch (error) {
+                const message = error.message;
+                if (!errors.some((e) => e.message === message))
+                    errors.push({ frame: n, message });
+            }
+            for (const message of [...(segment?.warnings(n) ?? []), ...measured])
                 if (!warnings.some((w) => w.message === message))
                     warnings.push({ frame: n, message });
             // broken math renders nothing and throws nothing: NaN/undefined in styles and SVG geometry

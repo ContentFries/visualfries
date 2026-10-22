@@ -12,6 +12,12 @@ export type ProgramScene = {
     /** What `check` should warn about at the frame last drawn (see `pushGaps`). */
     warnings(f: number): string[];
     /**
+     * Measures what `check` cannot see from the plan at the frame last drawn: subject region
+     * layers whose region holds none of the speaker for half a second or more (frames checked in
+     * ascending order).
+     */
+    measure(f: number): Promise<string[]>;
+    /**
      * A holdout insert's second pass: `true` shows the subject alone (as drawn at the frame last
      * drawn) and returns whether there is one to cut out; `false` shows the clips again.
      */

@@ -17,6 +17,7 @@ import { propFiles, resolveProgram } from './program.js';
 import { resolveMotionProject } from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
+import { buildCleanRange, cleanFolder } from './clean-node.js';
 import { readBlockAnimatable, readBlockEvents } from './animatable.js';
 import { measureSpeechEdges } from './edit-audio.js';
 import { BeatsFileShape, barRows, formatBarGrid } from './beat-grid.js';
@@ -359,7 +360,11 @@ export async function loadMotionProject(file, opts = {}) {
             .filter((f) => !!f)
             .map((f) => path.resolve(dir, f));
         const stats = await Promise.all(files.map((f) => fs.stat(f).catch(() => null)));
-        hashes.sources[name] = shortHash(JSON.stringify(stats.map((st, i) => [path.relative(dir, files[i]), st?.size, st?.mtimeMs])));
+        const listed = stats.map((st, i) => [path.relative(dir, files[i]), st?.size, st?.mtimeMs]);
+        // A clean plate draws pixels too: its settings and image join the hash (only when set,
+        // so footage without one keeps its hash).
+        const clean = footage.clean === undefined ? null : await cleanHashInput(footage.clean, dir);
+        hashes.sources[name] = shortHash(JSON.stringify(clean ? [...listed, clean] : listed));
         if (isProgramProject(project) && stats[0]) {
             const audio = typeof footage.audio === 'string' ? path.resolve(dir, footage.audio) : null;
             const info = await probeSource(files[0], project.fps, audio ?? undefined);
@@ -643,7 +648,8 @@ const BUILTIN_PREFIX = '@visualfries/';
 /** Blocks that ship with VisualFries; a clip names them as `"block": "@visualfries/captions"`. */
 const BUILTIN_BLOCKS = {
     captions: 'Captions.svelte',
-    'speaker-depth': 'SpeakerDepth.svelte'
+    'speaker-depth': 'SpeakerDepth.svelte',
+    subject: 'SubjectLayer.svelte'
 };
 function blockFile(dir, block) {
     if (!block.startsWith(BUILTIN_PREFIX))
@@ -767,7 +773,7 @@ export async function bundleMotionProject(loaded, clips) {
         html,
         roots,
         files,
-        footage: { frames: footage.frames, map: footage.map },
+        footage: { frames: footage.frames, map: footage.map, warnings: footage.warnings },
         brand: loaded.brand.resolved
     };
 }
@@ -1085,6 +1091,16 @@ export async function probeVideo(file) {
         constant
     };
 }
+/** What of a footage's `clean` setting decides its pixels: the settings and the image file. */
+async function cleanHashInput(clean, dir) {
+    const spec = clean === true ? {} : clean;
+    const image = spec.image ? path.resolve(dir, spec.image) : null;
+    const st = image ? await fs.stat(image).catch(() => null) : null;
+    return {
+        clean: spec.grow ?? null,
+        image: image ? [path.relative(dir, image), st?.size, st?.mtimeMs] : null
+    };
+}
 /** Default seconds extracted around the clips, for `offset` and delayed copies. */
 const FOOTAGE_MARGIN_SECONDS = 2;
 function edgeFrame(clips, startFrame, total) {
@@ -1142,13 +1158,26 @@ async function extractFootage(loaded, clips) {
         const total = direct ? info.frames : Math.round(info.duration * fps);
         const stats = await Promise.all([src, matte].map((f) => (f ? fs.stat(f) : null)));
         const sizes = stats.map((st) => (st ? [st.size, st.mtimeMs] : null));
-        sources.push({ name, src, matte, info, sizes, direct, total });
+        let clean = null;
+        if (spec.clean !== undefined) {
+            if (!matte)
+                throw new Error(`Footage "${name}": "clean" needs a matte to know where the subject is. Add "matte" (visualfries matte).`);
+            const options = spec.clean === true ? {} : spec.clean;
+            clean = {
+                ...(options.image ? { image: path.resolve(loaded.dir, options.image) } : {}),
+                ...(options.grow !== undefined ? { grow: options.grow } : {})
+            };
+        }
+        sources.push({ name, src, matte, info, sizes, direct, total, clean });
     }
     const roots = [];
     const frames = {};
+    const warnings = [];
     const extract = async (source, range) => {
         const extracted = await extractFootageRange(loaded.dir, source, fps, range);
         roots.push(extracted.dir);
+        if (extracted.cleanFull.length)
+            warnings.push(`Footage "${source.name}": the clean plate cannot be built for ${extracted.cleanFull.length} frame${extracted.cleanFull.length > 1 ? 's' : ''} (${frameList(extracted.cleanFull, fps)}): the matte covers the whole picture, so there is no background to fill from and the plate keeps the footage. Use "clean": { "image": … } or keep holes off those frames.`);
         return extracted.range;
     };
     const attach = (source, startFrame, ranges) => {
@@ -1162,6 +1191,7 @@ async function extractFootage(loaded, clips) {
             height: source.info.height,
             startFrame,
             subject: !!source.matte,
+            ...(source.clean ? { clean: true } : {}),
             boxes: ranges[0]?.boxes
         };
     };
@@ -1181,7 +1211,7 @@ async function extractFootage(loaded, clips) {
         }
         for (const clip of clips)
             clip.footage = frames;
-        return { roots, frames, map: null };
+        return { roots, frames, map: null, warnings };
     }
     // Items that fail to resolve are left out; `check` and `program` report them.
     const program = resolveProgram(loaded.project, loaded.inputs);
@@ -1205,7 +1235,23 @@ async function extractFootage(loaded, clips) {
         clip.footage = frames;
         clip.footageMap = map;
     }
-    return { roots, frames, map };
+    return { roots, frames, map, warnings };
+}
+/** Source frames as seconds, runs joined: "12.40–13.10 s, 20.00 s". */
+function frameList(frames, fps) {
+    const runs = [];
+    for (const f of frames) {
+        const last = runs[runs.length - 1];
+        if (last && f === last[1] + 1)
+            last[1] = f;
+        else
+            runs.push([f, f]);
+    }
+    const s = (f) => (f / fps).toFixed(2);
+    return runs
+        .map(([a, b]) => (a === b ? `${s(a)} s` : `${s(a)}–${s(b)} s`))
+        .join(', ')
+        .concat(' of the source');
 }
 /** Extracts one range of a footage (plate, subject and boxes), or reuses the cached one. */
 async function extractFootageRange(projectDir, source, fps, range) {
@@ -1302,10 +1348,20 @@ async function extractFootageRange(projectDir, source, fps, range) {
             .then(() => fs.rename(tmp, path.join(dir, 'done.json')))
             .catch(() => fs.rm(tmp, { force: true }).catch(() => { }));
     }
-    return {
-        dir,
-        range: { url: originUrl(dir) + '/', first: done.first, last: done.last, boxes: done.boxes }
+    const out = {
+        url: originUrl(dir) + '/',
+        first: done.first,
+        last: done.last,
+        boxes: done.boxes
     };
+    let cleanFull = [];
+    if (source.clean && matte) {
+        const folder = await cleanFolder(source.clean, [info.width, info.height]);
+        const report = await buildCleanRange(dir, folder, { name, src, matte, width: info.width, height: info.height, direct }, source.clean, fps, { first: done.first, last: done.last });
+        out.clean = originUrl(path.join(dir, folder)) + '/';
+        cleanFull = report.full;
+    }
+    return { dir, range: out, cleanFull };
 }
 /**
  * Version of `measureSubject`, kept with every extracted range: boxes of another version are

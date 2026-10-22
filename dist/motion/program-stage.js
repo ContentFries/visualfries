@@ -11,6 +11,7 @@ import { shotModule } from './shots/index.js';
 import { facePoint } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
 import { keyTracks, placementTransform } from './keys.js';
+import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 /**
  * The fill around a framed shot: the brand's surface; without a brand, the project background
  * (the brand's neutral surface when there is none either).
@@ -291,6 +292,66 @@ function frameBox(pic, layout) {
         ? `${turn.pivot.x - camera.x}px ${turn.pivot.y - camera.y}px`
         : '';
 }
+/** A hole layer of `s`, made on first use and inserted before `before` (or last). */
+function sheet(s, kind, before) {
+    const made = s[kind];
+    if (made)
+        return made;
+    const box = document.createElement('div');
+    box.className = `vf-${kind}`;
+    box.style.cssText = 'position:absolute;overflow:hidden;isolation:isolate';
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:absolute;max-width:none';
+    box.appendChild(canvas);
+    s.picture.insertBefore(box, before);
+    return (s[kind] = { box, canvas });
+}
+/** Places a sheet like `frameBox` places a picture. */
+function frameSheet(sheet, layout) {
+    const { clip, camera, radius, turn } = layout;
+    place(sheet.box, clip);
+    sheet.box.style.borderRadius = radius ? `${radius}px` : '';
+    place(sheet.canvas, {
+        x: camera.x - clip.x,
+        y: camera.y - clip.y,
+        width: camera.width,
+        height: camera.height
+    });
+    sheet.canvas.style.transform = turn ? `rotate(${turn.rotation}deg)` : '';
+    sheet.canvas.style.transformOrigin = turn
+        ? `${turn.pivot.x - camera.x}px ${turn.pivot.y - camera.y}px`
+        : '';
+}
+/** A sheet's 2D context, cleared, at `w` × `h`. */
+function blank(sheet, w, h) {
+    if (sheet.canvas.width !== w || sheet.canvas.height !== h) {
+        sheet.canvas.width = w;
+        sheet.canvas.height = h;
+    }
+    const ctx = sheet.canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, w, h);
+    return ctx;
+}
+/** Where a side's camera shows the footage, as a clip sees it (`clip.camera`). */
+function cameraView(layout, source, slot) {
+    const ox = slot?.x ?? 0;
+    const oy = slot?.y ?? 0;
+    const { camera, turn } = layout;
+    return {
+        x: camera.x - ox,
+        y: camera.y - oy,
+        width: camera.width,
+        height: camera.height,
+        rotation: turn?.rotation ?? 0,
+        pivot: turn
+            ? { x: turn.pivot.x - ox, y: turn.pivot.y - oy }
+            : { x: camera.x - ox + camera.width / 2, y: camera.y - oy + camera.height / 2 },
+        source: { width: source.width, height: source.height }
+    };
+}
+const sameCamera = (a, b) => a === b || (!!a && !!b && JSON.stringify(a) === JSON.stringify(b));
 /** Shows `url` in `img`; resolves once the image is decoded. */
 function show(img, url) {
     img.style.display = '';
@@ -313,6 +374,8 @@ const px = (v) => Math.round(v * 100) / 100;
  */
 const EYES_DROP = 0.2;
 const FULL = { shot: 'full', params: {} };
+/** A region holding less of the subject than this share counts as empty. */
+const EMPTY_SHARE = 0.002;
 /**
  * Builds the layer tree in `stage` and mounts every clip of the segment. `animatable` holds what
  * each block exports as `animatable`; a keyed prop missing there is an error of the clip.
@@ -320,6 +383,12 @@ const FULL = { shot: 'full', params: {} };
 export function createProgramScene(stage, seg, blocks, animatable = {}) {
     // On the stage too: fills and transition overlays use the brand's colours.
     applyLook(stage, seg);
+    // HTML-in-Canvas leaves a 2D canvas out of the captured frame unless it sits at the stage's
+    // top left corner or contains its own paint: every canvas the stage, a hole or a block draws
+    // contains it (a `<canvas layoutsubtree>` is left alone: it samples its own children).
+    const canvases = document.createElement('style');
+    canvases.textContent = '#vf-stage canvas:not([layoutsubtree]){contain:paint}';
+    stage.appendChild(canvases);
     const a = side(stage, 'a');
     // Side b shows only inside a cut or shot transition window.
     const b = side(stage, 'b');
@@ -408,6 +477,8 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     }
     /** The plan of the frame last seeked. */
     let last = null;
+    /** Per clip, the run of checked frames where its region was empty (see `measure`). */
+    const empty = new Map();
     /** The extracted frames of the source a view shows; null without them. */
     const framesOf = (view) => (view ? (seg.footage[view.source] ?? null) : null);
     const framing = programFraming(seg);
@@ -554,7 +625,72 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             in: [own.controller.root]
         };
     }
-    function drawSide(s, view, behind, pending) {
+    /** The side a clip is on at a planned frame: the one it rides, else the one on screen. */
+    function sideOf(now, i) {
+        const rider = now.clips[i].side;
+        if (rider)
+            return rider;
+        return now.b && now.staged && now.f >= now.staged.cutFrame ? 'b' : 'a';
+    }
+    /** Holes the clips on side `s` cut, placed at the frame the side shows. */
+    function holesOn(now, s, view) {
+        if (!view || seg.insert)
+            return [];
+        const out = [];
+        mounted.forEach((m, i) => {
+            if (m.shown === null || !m.controller.holes?.length)
+                return;
+            if ((now.clips[i].side ?? 'a') !== s)
+                return;
+            for (const source of m.controller.holes) {
+                let hole;
+                try {
+                    hole = source({ source: view.source, frame: view.frame });
+                }
+                catch (error) {
+                    throw clipError(m.data.id, error);
+                }
+                if (hole)
+                    out.push({ id: m.data.id, hole });
+            }
+        });
+        return out;
+    }
+    /**
+     * The holes of side `s`: the clean plate inside them (under the behind clips), and over the
+     * behind clips the subject with them cut out (when the subject is drawn) and their rims.
+     */
+    async function drawHoles(s, view, holes, subjectOn) {
+        const frames = framesOf(view.view);
+        const { source, frame } = view.view;
+        if (!frames.clean)
+            throw clipError(holes[0].id, new Error(`<Subject hole> needs a clean plate of footage "${source}" to show where the subject was. Add "clean": true to it.`));
+        const hole = sheet(s, 'hole', s.behind);
+        const cut = sheet(s, 'cut', null);
+        const rims = holes.some((h) => h.hole.rim);
+        const masks = [...new Set(holes.flatMap((h) => (h.hole.mask ? [h.hole.mask] : [])))];
+        const [clean, subject, ...loaded] = await Promise.all([
+            loadPicture(sourceFrameUrl(frames, frame, 'clean')),
+            subjectOn || rims ? loadPicture(sourceFrameUrl(frames, frame, 'subject')) : null,
+            ...masks.map(loadPicture)
+        ]);
+        const maskOf = (url) => (url ? loaded[masks.indexOf(url)] : null);
+        const { width: w, height: h } = frames;
+        const under = blank(hole, w, h);
+        for (const { hole: x } of holes)
+            drawRegion(under, clean, x.shape, { mask: maskOf(x.mask) });
+        const over = blank(cut, w, h);
+        if (subjectOn && subject) {
+            over.drawImage(subject, 0, 0, w, h);
+            for (const { hole: x } of holes)
+                applyRegion(over, x.shape, 'out', maskOf(x.mask));
+        }
+        if (subject)
+            for (const { hole: x } of holes)
+                if (x.rim)
+                    drawRim(over, subject, x.shape, x.rim, x.near, maskOf(x.mask));
+    }
+    function drawSide(s, view, behind, pending, holes = []) {
         const { layout } = view;
         s.fill.style.background = layout.fill ? surface(seg) : '';
         const opacity = layout.opacity;
@@ -572,6 +708,9 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             hide(s.plate.img);
             hide(back);
             hide(s.subject.img);
+            for (const x of [s.hole, s.cut])
+                if (x)
+                    x.box.style.display = 'none';
             return;
         }
         const url = sourceFrameUrl(frames, view.view.frame, 'plate');
@@ -598,7 +737,25 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             hide(back);
         // The subject covers behind clips only while one is on screen, or a dimmed room; in an
         // insert it is only what a holdout cuts out.
-        if ((seg.insert ? seg.insert.holdout && behind : behind || room) && frames.subject) {
+        const subjectOn = (seg.insert ? seg.insert.holdout && behind : behind || room) && frames.subject;
+        if (holes.length) {
+            // The holes' layers draw the subject (cut) instead of its picture.
+            hide(s.subject.img);
+            const hole = sheet(s, 'hole', s.behind);
+            const cut = sheet(s, 'cut', null);
+            for (const x of [hole, cut]) {
+                x.box.style.display = '';
+                frameSheet(x, layout);
+            }
+            hole.canvas.style.filter = s.plate.img.style.filter;
+            cut.canvas.style.filter = subjectOn ? s.subject.img.style.filter : '';
+            pending.push(drawHoles(s, view, holes, subjectOn));
+            return;
+        }
+        for (const x of [s.hole, s.cut])
+            if (x)
+                x.box.style.display = 'none';
+        if (subjectOn) {
             const subject = show(s.subject.img, sourceFrameUrl(frames, view.view.frame, 'subject'));
             if (subject)
                 pending.push(subject);
@@ -628,6 +785,12 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                     return;
                 m.controller.clip.t = local / seg.fps;
                 m.controller.clip.frame = local;
+                // Where the footage is on screen for this clip (its side; a slot's own pixels).
+                const side = sideOf(now, i) === 'b' ? now.b : now.a;
+                const frames = framesOf(side.view);
+                const camera = frames ? cameraView(side.layout, frames, slot) : null;
+                if (!sameCamera(m.controller.clip.camera, camera))
+                    m.controller.clip.camera = camera;
                 // Keys follow the frame the clip shows (held at its edges inside a window).
                 const at = m.data.startFrame + local;
                 if (m.tracks.props)
@@ -647,6 +810,15 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                     m.streak.style.filter = streak;
             arrangeBehind(now);
             flushSync();
+            // A block may set the point its placement keys turn about (`clip.pivot`), from what
+            // this frame's seek just settled.
+            for (const m of mounted) {
+                if (m.shown === null || !m.keyed)
+                    continue;
+                const p = m.controller.clip.pivot;
+                const at = typeof p === 'function' ? p() : p;
+                m.keyed.style.transformOrigin = at ? `${px(at.x)}px ${px(at.y)}px` : '';
+            }
             for (const m of mounted) {
                 if (m.shown === null)
                     continue;
@@ -666,9 +838,9 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             const behindOn = (s) => mounted.some((m, i) => m.data.layer === 'behind' &&
                 now.clips[i].local !== null &&
                 (now.clips[i].side === 'b') === (s === 'b'));
-            drawSide(a, now.a, behindOn('a'), pending);
+            drawSide(a, now.a, behindOn('a'), pending, holesOn(now, 'a', now.a.view));
             if (now.b)
-                drawSide(b, now.b, behindOn('b'), pending);
+                drawSide(b, now.b, behindOn('b'), pending, holesOn(now, 'b', now.b.view));
             for (const m of mounted) {
                 if (m.shown === null)
                     continue;
@@ -701,6 +873,32 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             }
             return out;
         },
+        async measure(f) {
+            const out = [];
+            for (const m of mounted) {
+                if (m.shown === null || !m.controller.probes?.length) {
+                    empty.delete(m.data.id);
+                    continue;
+                }
+                let worst = null;
+                for (const probe of m.controller.probes) {
+                    const got = await probe().catch((e) => Promise.reject(clipError(m.data.id, e)));
+                    if (got && (!worst || got.share < worst.share))
+                        worst = got;
+                }
+                if (!worst || worst.share >= EMPTY_SHARE) {
+                    empty.delete(m.data.id);
+                    continue;
+                }
+                const run = empty.get(m.data.id) ?? { from: f, what: worst.what, told: false };
+                empty.set(m.data.id, run);
+                if (!run.told && f - run.from >= seg.fps / 2) {
+                    run.told = true;
+                    out.push(`Clip "${m.data.id}": ${run.what} holds none of the speaker from ${(run.from / seg.fps).toFixed(2)} s (program time) for half a second or more, so the subject layer draws nothing there. Move the line or path onto the speaker (a line's number counts head heights down from the top of the head), or check the matte.`);
+                }
+            }
+            return out;
+        },
         holdout(on) {
             const shown = !!seg.insert?.holdout && a.subject.img.style.display !== 'none';
             if (on && !shown)
@@ -716,6 +914,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                 unmount(m.instance);
             mounted.length = 0;
             filters.dispose();
+            canvases.remove();
         }
     };
 }

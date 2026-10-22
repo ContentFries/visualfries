@@ -29,6 +29,11 @@ export function sourceFrameUrl(footage, frame, layer) {
         throw new Error(`Footage frame ${frame} was not extracted (frames ${have}). Raise the footage's "margin" to cover the offset.`);
     }
     const name = String(frame).padStart(6, '0');
+    if (layer === 'clean') {
+        if (!range.clean)
+            throw new Error('The footage has no clean plate. Add "clean": true to it (it needs a matte), see "Subject layers" in docs/MOTION.md.');
+        return `${range.clean}${name}.jpg`;
+    }
     return layer === 'subject' ? `${range.url}subject/${name}.png` : `${range.url}plate/${name}.jpg`;
 }
 /**
@@ -97,11 +102,8 @@ export function footageFrameAt(footage, map, name, programFrame, layer, offsetFr
         if (source === null)
             throw new Error(`<Footage program> needs a cut list ("cuts") to know what is on screen, or exactly one footage (the project has ${names.length}).`);
         const frames = known(footage, source);
-        return {
-            source,
-            footage: frames,
-            url: footageFrameUrl(frames, programFrame + offsetFrames, layer)
-        };
+        const frame = Math.min(frames.total - 1, Math.max(0, programFrame + offsetFrames - frames.startFrame));
+        return { source, footage: frames, url: sourceFrameUrl(frames, frame, layer), frame };
     }
     const view = name === null ? programFootageAt(map, programFrame) : sourceFrameAt(map, name, programFrame);
     if (!view) {
@@ -113,8 +115,10 @@ export function footageFrameAt(footage, map, name, programFrame, layer, offsetFr
     const frames = known(footage, view.source);
     if (layer === 'subject' && !frames.subject)
         throw new Error(`Footage "${view.source}" has no matte, so it has no subject layer. Add "matte" to it.`);
+    if (layer === 'clean' && !frames.clean)
+        throw new Error(`Footage "${view.source}" has no clean plate. Add "clean": true to it (it needs a matte).`);
     const frame = Math.min(frames.total - 1, Math.max(0, view.frame + offsetFrames));
-    return { source: view.source, footage: frames, url: sourceFrameUrl(frames, frame, layer) };
+    return { source: view.source, footage: frames, url: sourceFrameUrl(frames, frame, layer), frame };
 }
 function known(footage, name) {
     const frames = footage[name];

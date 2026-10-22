@@ -312,7 +312,9 @@ Use a **program** (a motion project with `cuts` and `shots`) when the input is a
 and the output is the finished video: the cut list removes pauses and retakes, shots frame the
 speaker (punch, strip, window, behind, whip), clips fill the shots' slots, transitions and sound
 effects land on words, music ends on a bar, all in one `.vf.json`. Guide: `docs/MOTION.md` →
-"Programs" (read it before building); worked example with blocks: `static/demo/reel`.
+"Programs" (read it before building). Worked example: [`static/demo/reel`](https://github.com/ContentFries/visualfries/tree/main/static/demo/reel) in the
+VisualFries repository (README, project, blocks, fonts, sample transcript); it is not in the npm
+package, so fetch it from GitHub.
 
 Work like an editor, in this order; each step ends on its criterion:
 
@@ -320,24 +322,30 @@ Work like an editor, in this order; each step ends on its criterion:
    direction, propose two or three, each with one signature idea taken from the words (a number
    becomes a giant numeral, a list becomes a ticking checklist). Done when one direction is
    chosen.
-2. **Plan.** Transcribe the take, read every word, and write the outline: the ranges you keep
+2. **Plan.** Prepare the take as the guide's step 1 says: a constant-frame-rate copy of the
+   whole take (`ffmpeg -i take.mov -vf fps=30 … talk.mp4`, which `matte` needs) and its matte
+   (`visualfries matte talk.mp4 --output talk.matte.mp4 --provider rvm`) when anything goes
+   behind the speaker. Transcribe the take, read every word, and write the outline: the ranges you keep
    (whole sentences; the best try of a repeated one), then per section the shot, the move on its
    key word, the transition into it and its sound. Done when every second of the kept speech has
    a planned frame and no stretch holds a still frame longer than about two seconds.
 3. **Build.** Cut list first (`visualfries program` until every cut resolves), then shots, then
    clips, captions, `sfx`, music. Every timing is a phrase, never source seconds. Start from the
-   blocks in `static/demo/reel`; write a new block only for a look they cannot give.
-4. **Check.** `visualfries program` shows no errors and every warning is understood;
-   `visualfries check <project> --determinism` passes.
+   blocks of the worked example; write a new block only for a look they cannot give.
+4. **Check.** Run `visualfries program <project>` and `visualfries check <project>
+--determinism`. Done when `program` prints no error, you can say why each warning is
+   acceptable, and `check` reports every segment as passing.
 5. **Frames.** Stills of every cut, the first, middle and last frame of every transition window,
    every event and every shot move, about ten moments per `still` call. Done when you have looked
    at each one and can answer for each: no text over a face, no text cut by the frame, accents and
    descenders whole, no empty slot, no flash of a bright colour longer than a few frames, no frame
    standing still.
-6. **Fix.** Change the project or a block, then repeat from 4 for what changed.
+6. **Fix.** Change the project or a block, then repeat from 4 for what changed. Done when a
+   fresh pass of 4 and 5 over everything the change touched finds nothing to fix.
 7. **Render.** `visualfries render <project> --output out/` (and `--format WxH` for other
-   formats); report the render time, the segments drawn and cached, and the delivered loudness.
-   Hand over the video with a contact sheet and the cut points the creator should listen to.
+   formats). Done when the video plays to its last frame, a contact sheet of it shows what the
+   stills showed, and the hand-over names the render time, the segments drawn and cached, the
+   delivered loudness and the cut points the creator should listen to.
 
 Traps the guide explains: a phrase in `until` means its end (`"edge": "start"` to stop where it
 begins); a few frames between two shots squeeze a move into them; a slotted clip should last until

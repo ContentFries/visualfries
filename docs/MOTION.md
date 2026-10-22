@@ -850,9 +850,14 @@ with its source range.
 **4. Shots.** Chain shots end to start: give the next shot's `from` the same anchor as the
 previous shot's `until`. A gap of a few frames between them is a `full` shot of its own, and the
 move into it is squeezed into those frames. In `until` a phrase means the end of its last word;
-to end a shot where a phrase starts, write `{ "say": …, "edge": "start" }`. Give every shot that
-holds longer than about two seconds `keys` that keep the camera moving (a slow `scale` from 1 to
-1.08), and frame a close phone shot with a `y` key when the strip or window cuts the mouth off.
+to end a shot where a phrase starts, write `{ "say": …, "edge": "start" }`. End the last shot
+and the clips that run to the end on the same anchor and offset as the last cut's `out`, then
+check in `program` that they end on the program's last frame: `out` rounds up to the next frame
+while `from` and `until` round to the nearest, so they can end one frame short (add up to
+0.033 s to their offset), and a clip that runs past the program is cut there without a warning.
+Give every shot that holds longer than about two seconds `keys` that keep the camera moving (a
+slow `scale` from 1 to 1.08), and frame a close phone shot with a `y` key when the strip or
+window cuts the mouth off.
 Shot layouts and defaults are under [Footage and mattes](#footage-and-mattes), keys under
 [Keys](#keys).
 

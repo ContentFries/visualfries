@@ -201,14 +201,22 @@ function decoder(args: string[], format: 'rgb24' | 'gray', procs: ChildProcess[]
 	return p;
 }
 
-/** Whole frames of `size` bytes from a process's stdout. */
+/** Whole frames of `size` bytes from a process's stdout, each copied once into its own array. */
 async function* frames(p: ChildProcess, size: number): AsyncGenerator<Uint8Array> {
-	let buf: Buffer = Buffer.alloc(0);
+	let frame = new Uint8Array(size);
+	let filled = 0;
 	for await (const chunk of p.stdout!) {
-		buf = buf.length ? Buffer.concat([buf, chunk as Buffer]) : (chunk as Buffer);
-		while (buf.length >= size) {
-			yield new Uint8Array(buf.subarray(0, size));
-			buf = buf.subarray(size);
+		let data = chunk as Buffer;
+		while (data.length) {
+			const take = Math.min(size - filled, data.length);
+			frame.set(data.subarray(0, take), filled);
+			filled += take;
+			data = data.subarray(take);
+			if (filled === size) {
+				yield frame;
+				frame = new Uint8Array(size);
+				filled = 0;
+			}
 		}
 	}
 }

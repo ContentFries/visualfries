@@ -599,8 +599,10 @@ filled from itself, so camera shake and parallax cost nothing); detail does not 
 hole (a branch behind the head comes out as soft green). `{ "image": "empty.jpg" }` shows a
 still of the empty scene in the hole instead, scaled to cover the frame: best for a tripod shot
 where you filmed the empty set. The plates are built in Node once, on worker threads, and cached
-next to the extracted footage frames (about 50–150 ms a 1080 × 1920 frame on one thread); a
-new matte, source, image or `grow` builds them again. `check` warns about frames where the matte
+next to the extracted footage frames: 1116 frames of 1080 × 1920 took 44 s on 8 threads of a
+busy 12-core server (70–160 ms a frame on one thread), about 100 MB of JPEG, and nothing on the
+next run; a new matte, source, image or `grow` builds them again. A per-frame fill in the page
+would cost that on every render and every seek. `check` warns about frames where the matte
 covers the whole picture, which have no background to fill from.
 
 **Regions** are in footage pixels:

@@ -841,7 +841,8 @@ const BUILTIN_PREFIX = '@visualfries/';
 /** Blocks that ship with VisualFries; a clip names them as `"block": "@visualfries/captions"`. */
 const BUILTIN_BLOCKS: Record<string, string> = {
 	captions: 'Captions.svelte',
-	'speaker-depth': 'SpeakerDepth.svelte'
+	'speaker-depth': 'SpeakerDepth.svelte',
+	subject: 'SubjectLayer.svelte'
 };
 
 function blockFile(dir: string, block: string): string {

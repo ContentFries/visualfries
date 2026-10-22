@@ -111,8 +111,8 @@ export function subjectBox(
 	return sourceSubjectBox(footage, at, smooth);
 }
 
-/** What `<Footage>` draws at a program frame. */
-export type FootageFrame = { source: string; footage: FootageFrames; url: string };
+/** What `<Footage>` draws at a program frame: the source, its frame and the file's URL. */
+export type FootageFrame = { source: string; footage: FootageFrames; url: string; frame: number };
 
 /**
  * The frame `<Footage>` draws at `programFrame`: source `name`, or with `name` null whatever
@@ -137,11 +137,11 @@ export function footageFrameAt(
 				`<Footage program> needs a cut list ("cuts") to know what is on screen, or exactly one footage (the project has ${names.length}).`
 			);
 		const frames = known(footage, source);
-		return {
-			source,
-			footage: frames,
-			url: footageFrameUrl(frames, programFrame + offsetFrames, layer)
-		};
+		const frame = Math.min(
+			frames.total - 1,
+			Math.max(0, programFrame + offsetFrames - frames.startFrame)
+		);
+		return { source, footage: frames, url: sourceFrameUrl(frames, frame, layer), frame };
 	}
 	const view =
 		name === null ? programFootageAt(map, programFrame) : sourceFrameAt(map, name, programFrame);
@@ -163,7 +163,7 @@ export function footageFrameAt(
 			`Footage "${view.source}" has no clean plate. Add "clean": true to it (it needs a matte).`
 		);
 	const frame = Math.min(frames.total - 1, Math.max(0, view.frame + offsetFrames));
-	return { source: view.source, footage: frames, url: sourceFrameUrl(frames, frame, layer) };
+	return { source: view.source, footage: frames, url: sourceFrameUrl(frames, frame, layer), frame };
 }
 
 function known(footage: Record<string, FootageFrames>, name: string): FootageFrames {

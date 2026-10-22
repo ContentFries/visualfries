@@ -11,7 +11,9 @@ export {
 	noise,
 	type At,
 	type Ease,
-	type ClipEvent
+	type ClipEvent,
+	type CameraView,
+	type FootagePicture
 } from './runtime.svelte.js';
 export type { MotionBeatRef } from './beat-grid.js';
 export { ENERGIES, type Energy } from './energy.js';
@@ -36,6 +38,17 @@ export type {
 } from './resolve.js';
 export { default as Footage } from './Footage.svelte';
 export { default as Captions } from './Captions.svelte';
+export { default as Subject } from './Subject.svelte';
+export {
+	placeRegion,
+	regionPivot,
+	headOf,
+	type Point,
+	type RegionLine,
+	type RegionShape,
+	type SubjectRegion
+} from './subject-region.js';
+export { drawRegion, drawRim, loadPicture, type Rim } from './subject-canvas.js';
 export {
 	footageFrameAt,
 	footageFrameUrl,

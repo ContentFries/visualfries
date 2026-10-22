@@ -38,7 +38,7 @@ export const CLEAN_DEFAULTS = { threshold: 6, growShare: 0.011 } as const;
  * Version of the plate algorithm, part of the cache key of every cleaned range: raise it when
  * the pixels it makes change.
  */
-export const CLEAN_VERSION = 1;
+export const CLEAN_VERSION = 2;
 
 /** Pixels the hole grows by for a frame `width` × `height` (about 12 px at 1080 × 1920). */
 export const defaultGrow = (width: number, height: number) =>
@@ -182,9 +182,14 @@ function pushPull(
 	}
 	// Pull: from the coarsest level down, each level keeps what it knows and takes the rest
 	// from the level above, sampled bilinearly (pixel centres aligned), so the fill has no blocks.
+	// Then the pixels that knew nothing are relaxed toward the mean of their neighbours a few
+	// times: across levels that solves the hole as a membrane, so a gradient (sky toward the
+	// horizon) runs straight through it instead of taking the average of a wide area.
 	for (let l = levels.length - 2; l >= 0; l--) {
 		const f = levels[l];
 		const u = levels[l + 1];
+		const free: number[] = [];
+		for (let j = 0; j < f.w * f.h; j++) if (f.a[j] === 0) free.push(j);
 		for (let y = 0; y < f.h; y++) {
 			const sy = Math.min(u.h - 1, Math.max(0, (y + 0.5) / 2 - 0.5));
 			const y0 = Math.floor(sy);
@@ -211,8 +216,52 @@ function pushPull(
 				f.a[j] = 1;
 			}
 		}
+		relax(f, free, l === 0 ? RELAX_FINEST : RELAX);
 	}
 	return { c: base.c, w: base.w, h: base.h };
+}
+
+/** Sweeps of relaxation per level (see `pushPull`); the finest, largest level needs few. */
+const RELAX = 8;
+const RELAX_FINEST = 2;
+
+/** Jacobi sweeps over the `free` pixels of a level: each becomes the mean of its neighbours. */
+function relax(f: Level, free: number[], sweeps: number) {
+	if (!free.length) return;
+	const next = new Float32Array(free.length * 3);
+	const c = f.c;
+	for (let sweep = 0; sweep < sweeps; sweep++) {
+		for (let k = 0; k < free.length; k++) {
+			const j = free[k];
+			const x = j % f.w;
+			const y = (j - x) / f.w;
+			let r = 0,
+				g = 0,
+				b = 0,
+				n = 0;
+			for (const o of [
+				x > 0 ? j - 1 : -1,
+				x < f.w - 1 ? j + 1 : -1,
+				y > 0 ? j - f.w : -1,
+				y < f.h - 1 ? j + f.w : -1
+			]) {
+				if (o < 0) continue;
+				r += c[3 * o];
+				g += c[3 * o + 1];
+				b += c[3 * o + 2];
+				n++;
+			}
+			next[3 * k] = r / n;
+			next[3 * k + 1] = g / n;
+			next[3 * k + 2] = b / n;
+		}
+		for (let k = 0; k < free.length; k++) {
+			const j = free[k];
+			c[3 * j] = next[3 * k];
+			c[3 * j + 1] = next[3 * k + 1];
+			c[3 * j + 2] = next[3 * k + 2];
+		}
+	}
 }
 
 /**

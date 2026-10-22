@@ -1,10 +1,28 @@
 ---
 title: VisualFries for agents
-description: How AI coding agents should use VisualFries. The loop for motion projects (clips, check, still, render), the loop for scene JSON (validate, inspect, qa, render), rules for blocks, example requests, the scene skill and machine-readable docs.
-updated: 2026-09-27
+description: How AI coding agents should use VisualFries. The loop for programs that edit raw takes into finished reels (program, check, still, render), the loop for motion projects (clips, check, still, render), the loop for scene JSON (validate, inspect, qa, render), rules for blocks, example requests, the scene skill and machine-readable docs.
+updated: 2026-10-22
 ---
 
 VisualFries is built to be operated by AI agents as well as people. Documents are JSON, visuals are ordinary Svelte, and the commands report what to fix. This page is the working agreement for an agent. Pick the branch that matches the document you are working on.
+
+## Programs: raw takes to finished reels
+
+When the input is a raw recording and the output is the finished video, write a [program](/docs/programs): one `.vf.json` with `cuts`, `shots`, clips, transitions, captions, `sfx` and `music`. Read [Programs](/docs/programs), [Shots, transitions and keys](/docs/shots-and-transitions) and [Program sound](/docs/program-sound) first, or the same guide in the package (`docs/MOTION.md`, "Programs"). Start from the worked example, [`static/demo/reel`](https://github.com/ContentFries/visualfries/tree/main/static/demo/reel).
+
+1. **`program`** after every edit, until it prints no error. Read every warning: edit points that cut a word, shots that cut the head, slots that show empty.
+2. **`check --determinism`**: every segment must pass. It also prints the mix's loudness.
+3. **`still`** at every cut, the first, middle and last frame of every transition window, and every shot move. Look at each frame before rendering.
+4. **`render`**, then `--format 1920x1080` for 16:9 from the same project. Report the render time, the segments drawn and cached, and the delivered loudness.
+
+```bash
+npx visualfries program reel.vf.json
+npx visualfries check reel.vf.json --determinism
+npx visualfries still reel.vf.json --at f95 --at f107 --at 7.5s --output qa/sheet.png
+npx visualfries render reel.vf.json --output out/
+```
+
+Keep every timing a phrase, never source seconds: then a retake renders again without edits.
 
 ## Motion projects (.vf.json)
 
@@ -46,6 +64,7 @@ Validate first, look at the QA frames around every authored event, then render. 
 
 | Request                                                       | What the agent does                                                                      |
 | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| "Edit this raw take into a 9:16 reel."                        | Transcribes the take, writes a program (cuts, shots, clips, sound), runs the program loop. |
 | "Make explainer inserts for this video, exactly on my words." | Writes blocks and a `.vf.json` with cues from the transcript, then runs the motion loop. |
 | "I re-recorded that sentence, fix the timing."                | Runs `clips --transcript new.json`; updates phrases only where the words changed.        |
 | "Make the headline land on 'extra' instead."                  | Changes one cue in the JSON, checks, looks at the still.                                 |
@@ -63,6 +82,6 @@ Validate first, look at the QA frames around every authored event, then render. 
 
 Every docs page also has a **Copy page as Markdown** button.
 
-## Motion skill and setup <span class="tag plan">planned</span>
+## The agent skill
 
-A motion-project skill and `visualfries setup` (speech-to-text providers, API keys in `.env`, brand fonts) are planned. Until then, point your agent at `/llms.txt` or add this page to its instructions.
+The package ships an agent skill, `node_modules/visualfries/skills/visualfries/SKILL.md`, and the full motion guide, `node_modules/visualfries/docs/MOTION.md`. Point your agent at both, or at `/llms.txt`. A `visualfries setup` command (speech-to-text providers, API keys in `.env`, brand fonts) is <span class="tag plan">planned</span>.

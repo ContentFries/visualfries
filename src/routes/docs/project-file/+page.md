@@ -20,7 +20,7 @@ A motion project is one JSON file, usually named `<name>.vf.json`. It lists clip
 }
 ```
 
-A fragment: a project needs at least one clip.
+A fragment: a project needs at least one clip, or `cuts` or `shots` for a whole [program](/docs/programs).
 
 | Field        | Type              | Meaning                                                                                                              |
 | ------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -34,7 +34,12 @@ A fragment: a project needs at least one clip.
 | `brand`      | path or object    | Brand file or inline brand: colours, fonts, logo and radius, as `--brand-*` tokens in every block.                   |
 | `style`      | name or object    | The video style: a built-in name (`kinetic` …), a style file or an inline layer. Sets the motion energy.             |
 | `safeZone`   | string            | Safe insets for blocks: `all` (default), `tiktok`, `meta` or `youtube`.                                              |
-| `clips`      | list              | Required, at least one. Described below.                                                                             |
+| `footage`    | object            | Named videos the blocks draw: `src`, `matte`, `start`, `margin`, and in a program `transcript` and `audio`. See [Footage](/docs/footage). |
+| `cuts`       | list              | A program's cut list over raw footage; phrases of each take's transcript. See [Programs](/docs/programs).            |
+| `shots`      | list              | How a program frames the footage over time. See [Shots, transitions and keys](/docs/shots-and-transitions).          |
+| `sfx`        | list              | Sound effects at program anchors. See [Program sound](/docs/program-sound).                                          |
+| `mix`        | object            | Levels of a program's mix: `sfx`, `music`, `loudness` (−14 LUFS), `truePeak` (−1 dBTP).                              |
+| `clips`      | list              | At least one, unless the project has `cuts` or `shots`. Described below.                                             |
 
 Ship fonts with the project. A render must never depend on what happens to be installed on the machine.
 

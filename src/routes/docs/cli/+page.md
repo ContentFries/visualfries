@@ -1,10 +1,18 @@
 ---
-title: 'CLI: clips, check, still, render'
-description: Reference for the VisualFries motion CLI. Resolve transcript cues with clips, test every block in seconds with check, review moments as a contact sheet with still, and render MP4 or ProRes 4444 with render.
-updated: 2026-09-27
+title: 'CLI: program, check, still, render'
+description: Reference for the VisualFries motion CLI. Resolve a whole program with program and transcript cues with clips, test every block or segment in seconds with check, review moments as a contact sheet with still, render a program as one video or its clips as inserts with render, and make mattes and beat grids.
+updated: 2026-10-22
 ---
 
-Four commands cover the life of a motion project: see where things land, check that blocks behave, look at moments, render. All of them accept `--transcript <file>` to work against a new voiceover.
+Four commands cover the life of a motion project: see where things land (`clips`, or `program` for a [program](/docs/programs)), check that blocks behave, look at moments, render. They accept `--transcript <file>` to work against a new voiceover; in a program, point `footage.<name>.transcript` at the new take's transcript instead.
+
+## program
+
+```bash
+npx visualfries program reel.vf.json [--format <WxH>] [--json]
+```
+
+For a project with `cuts` or `shots`. Resolves the whole program (cuts, program words, shots, clips, transitions, audio pieces and segments), measures every audio edit point on the sound and saves the result as `.visualfries/program/<format>.json`. Prints one line per cut, shot, clip, transition, music item and segment, then every warning and error; exits with code 1 on errors. `--format` resolves another frame size of the same project; `--json` prints the whole resolved program, including its `events`. See [Programs](/docs/programs).
 
 ## clips
 
@@ -17,10 +25,12 @@ Resolves every clip and cue against the transcript and prints program times, fra
 ## check
 
 ```bash
-npx visualfries check project.vf.json [--clip <id>]... [--determinism] [--json]
+npx visualfries check project.vf.json [--clip <id>]... [--determinism] [--export inserts] [--json]
 ```
 
 With music beats in the project, it first prints each music item's bar grid (bar, start, BPM, energy, first beats): a BPM column at twice the tempo you hear calls for `"tempo": "half"` on the music item. Then it mounts every block and runs it at every fifth frame and around each cue, without rendering video. Finds resolution errors, runtime errors (unknown cues, bad eases, `map()` going back in time) and CSS animations on wall-clock time. `--determinism` also captures about a dozen sampled frames forward and backward and fails when they differ. An unknown `--clip` id is an error. The 16 clips of the CF004 example check in about six seconds.
+
+In a program, `check` first lists the program's warnings and errors, mixes the sound and prints its loudness, then checks every segment (a range between hard cuts) with every clip on screen in it; `--determinism` compares each segment forward, backward, scrambled and against a page holding the whole program. `--export inserts` adds, as notes, every place where inserts would rely on the program render (cut and shot transitions, reframing shots, clips with audio).
 
 ## still
 
@@ -28,7 +38,7 @@ With music beats in the project, it first prints each music item's bar grid (bar
 npx visualfries still project.vf.json --clip <id> [--at <moment>]... [--columns <n>] --output sheet.png
 ```
 
-Without `--at` it renders frame 0, frame 10, each cue plus 0.6 s and the last frame as one labelled contact sheet. With one `--at` it writes a single frame. Moments use the [clip moment grammar](/docs/clip-api): `extra`, `extra.end+0.3`, `2.5s`, `f120`, `mid`, `end`.
+Without `--at` it renders frame 0, frame 10, each cue plus 0.6 s and the last frame as one labelled contact sheet. With one `--at` it writes a single frame. Moments use the [clip moment grammar](/docs/clip-api): `extra`, `extra.end+0.3`, `2.5s`, `f120`, `mid`, `end`. In a program, `still` draws the whole program (footage and every clip on screen), `--clip` is optional and `--at` takes program moments (`2.5s`, `f120`, `end`); with `--clip`, the moments are that clip's.
 
 ## render
 
@@ -70,6 +80,25 @@ Renders clips to `out/<id>.mp4`, or `out/<id>.mov` (ProRes 4444) for `"alpha": t
 | `stale`                                           | Present and `true` on kept entries timed against another transcript.             |
 
 A render refuses to start when any requested clip has errors, and verifies that every frame was written before encoding.
+
+### Rendering a program
+
+```bash
+npx visualfries render reel.vf.json --output out/ [--format <WxH>] [--jobs <n>] [--no-cache] [--stems]
+npx visualfries render reel.vf.json --export inserts --output inserts/ [--handles <frames>] [--clip <id>]... [--jobs <n>]
+```
+
+With `cuts` or `shots`, `render` makes the whole program one video (`--export video`, the default there). `--output` is an `.mp4`, or a directory that gets `<project>[.<format>].mp4`; `--format 1920x1080` renders another frame size from the same project. The sound is mixed first (speech, effects and music, normalised to −14 LUFS and −1 dBTP; see [Program sound](/docs/program-sound)), then each segment is drawn or taken from the cache in `.visualfries/segments/`, and the segments are joined and encoded once. `--no-cache` draws every segment again; `--stems` also writes `<name>.speech.wav`, `<name>.sfx.wav` and `<name>.music.wav`. The resolved program is saved beside the video as `<name>.program.json`, and the result is printed as JSON.
+
+`--export inserts` renders every clip of the program as its own frame-sized file instead, with `--handles` frames before and after (default 10), transparent unless the clip says `"alpha": false`, and `manifest.json` with the cut list under each insert. See [Inserts for an editor](/docs/programs#inserts-for-an-editor).
+
+## cache
+
+```bash
+npx visualfries cache project.vf.json [--clear]
+```
+
+Prints the size of the project's `.visualfries/` cache: extracted footage frames and rendered program segments. `--clear` removes both; the next render extracts and draws what it needs again.
 
 ## matte
 

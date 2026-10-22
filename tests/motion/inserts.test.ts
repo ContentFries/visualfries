@@ -262,7 +262,7 @@ describe('a behind clip without a cut list (holdout, as #82)', () => {
 		// The footage starts at program frame 13 (0.5 s → round(12.5)); the clip at frame 5: 8
 		// frames of nothing cut first.
 		expect(args.slice(0, 4)).toEqual(['-ss', '0.000000', '-i', '/x/t.matte.mp4']);
-		expect(args.join(' ')).toContain('tpad=start=8:');
+		expect(args.join(' ')).toContain('setpts=(N+8)/25/TB');
 		expect(args[args.indexOf('-map') + 1]).toBe('[vf_v]');
 		expect(args).toContain('2:a:0');
 	});
@@ -294,9 +294,9 @@ describe('a behind clip without a cut list (holdout, as #82)', () => {
 			const c = {
 				...resolveMotionProject(p, null).clips[0],
 				startFrame: 0,
-				frames: 10,
+				frames: 14,
 				start: 0,
-				duration: 0.4
+				duration: 0.56
 			};
 			const out = path.join(dir, 'out.mov');
 			// Input 0 stands in for the piped frames: opaque red.
@@ -304,7 +304,7 @@ describe('a behind clip without a cut list (holdout, as #82)', () => {
 				'-f',
 				'lavfi',
 				'-i',
-				'color=red:s=64x36:r=25:d=0.4,format=rgba',
+				'color=red:s=64x36:r=25:d=0.56,format=rgba',
 				...encodeInputs({ project: p, dir }, c),
 				'-c:v',
 				'prores_ks',
@@ -332,6 +332,8 @@ describe('a behind clip without a cut list (holdout, as #82)', () => {
 			const row = alpha(5);
 			expect(Math.max(...row.subarray(0, 11))).toBeLessThan(5);
 			expect(Math.min(...row.subarray(15))).toBeGreaterThan(250);
+			// Clip frames 12–13 come after the footage's last frame: nothing cut.
+			expect(Math.min(...alpha(13))).toBeGreaterThan(250);
 		} finally {
 			await fs.rm(dir, { recursive: true, force: true });
 		}

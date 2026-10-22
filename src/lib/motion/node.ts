@@ -2103,12 +2103,14 @@ export function encodeInputs(
 	let next = 1;
 	const holdout = holdoutFootage(loaded.project, clip.id);
 	if (holdout && 'error' in holdout) throw new Error(`Clip "${clip.id}": ${holdout.error}`);
-	if (holdout) {
-		const footage = loaded.project.footage![holdout.footage];
-		const matte = path.resolve(loaded.dir, footage.matte!);
-		// Footage frame shown at the clip's first frame (same rounding as <Footage>).
-		const first = clip.startFrame - Math.round((footage.start ?? 0) * clip.fps);
-		const pad = Math.max(0, -first);
+	const footage = holdout ? loaded.project.footage![holdout.footage] : null;
+	// Footage frame shown at the clip's first frame (same rounding as <Footage>), and the clip
+	// frames before the footage starts.
+	const first = clip.startFrame - Math.round((footage?.start ?? 0) * clip.fps);
+	const pad = Math.max(0, -first);
+	const cut = !!footage && pad < clip.frames;
+	if (cut) {
+		const matte = path.resolve(loaded.dir, footage!.matte!);
 		const [w, h] = clip.size;
 		args.push('-ss', (Math.max(0, first) / clip.fps).toFixed(6), '-i', matte);
 		args.push(
@@ -2116,9 +2118,12 @@ export function encodeInputs(
 			[
 				'[0:v]format=yuva444p12le,split[vf_c][vf_x]',
 				'[vf_x]alphaextract,format=gray[vf_a]',
+				// The matte starts `pad` frames into the clip; before it and after it ends, blend
+				// passes the alpha through (padding with black would come out as limited-range 16
+				// on some ffmpeg builds and cut 6 %).
 				`[${next}:v]fps=${clip.fps},scale=${w}:${h}:flags=bicubic,format=gray,` +
-					`tpad=start=${pad}:stop=-1:color=black,trim=end_frame=${clip.frames},setpts=N/${clip.fps}/TB,negate[vf_m]`,
-				'[vf_a][vf_m]blend=all_mode=multiply,format=gray[vf_na]',
+					`trim=end_frame=${clip.frames - pad},setpts=(N+${pad})/${clip.fps}/TB,negate[vf_m]`,
+				'[vf_a][vf_m]blend=all_mode=multiply:eof_action=pass,format=gray[vf_na]',
 				'[vf_c][vf_na]alphamerge,format=yuva444p12le[vf_v]'
 			].join(';')
 		);
@@ -2147,7 +2152,7 @@ export function encodeInputs(
 			clip.duration.toFixed(6),
 			...(clip.alpha ? ['-c:a', 'pcm_s16le'] : ['-c:a', 'aac', '-b:a', '192k'])
 		);
-	} else if (holdout) {
+	} else if (cut) {
 		args.push('-map', video);
 	}
 	return args;

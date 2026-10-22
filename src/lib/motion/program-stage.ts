@@ -796,7 +796,7 @@ export function createProgramScene(
 		const out: { id: string; hole: NonNullable<ReturnType<HoleSource>> }[] = [];
 		mounted.forEach((m, i) => {
 			if (m.shown === null || !m.controller.holes?.length) return;
-			if ((now.clips[i].side ?? 'a') !== s) return;
+			if (sideOf(now, i) !== s) return;
 			for (const source of m.controller.holes) {
 				let hole: ReturnType<HoleSource>;
 				try {
@@ -841,15 +841,17 @@ export function createProgramScene(
 		const maskOf = (url: string | null) => (url ? loaded[masks.indexOf(url)] : null);
 		const { width: w, height: h } = frames;
 		const under = blank(hole, w, h);
-		for (const { hole: x } of holes) drawRegion(under, clean, x.shape, { mask: maskOf(x.mask) });
+		for (const { hole: x } of holes)
+			drawRegion(under, clean, x.shape, { mask: maskOf(x.mask), outside: x.outside });
 		const over = blank(cut, w, h);
 		if (subjectOn && subject) {
 			over.drawImage(subject, 0, 0, w, h);
-			for (const { hole: x } of holes) applyRegion(over, x.shape, 'out', maskOf(x.mask));
+			for (const { hole: x } of holes)
+				applyRegion(over, x.shape, x.outside ? 'in' : 'out', maskOf(x.mask));
 		}
 		if (subject)
 			for (const { hole: x } of holes)
-				if (x.rim) drawRim(over, subject, x.shape, x.rim, x.near, maskOf(x.mask));
+				if (x.rim) drawRim(over, subject, x.shape, x.rim, x.near, maskOf(x.mask), x.outside);
 	}
 
 	function drawSide(

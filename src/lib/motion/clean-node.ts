@@ -6,13 +6,13 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
-import { CLEAN_DEFAULTS, CLEAN_VERSION, cleanPlate, defaultGrow } from './clean-plate.js';
+import { CLEAN_DEFAULTS, CLEAN_VERSION, cleanFrame, defaultGrow } from './clean-plate.js';
 import type { FrameRange } from './footage-map.js';
 
 /**
  * Clean plates in Node: every frame of an extracted footage range with the subject removed (see
- * `clean-plate.ts`), written as JPEGs next to the range's plates, once. The footage and its matte
- * are decoded straight from their files with the same filters as the plates and cut-outs, so
+ * `clean-plate.ts`), written as JPEGs next to the range's plates, once. The range's own plates are
+ * the picture (so the colours match them) and the matte is decoded with the cut-outs' filters, so
  * clean frame n belongs to plate n; the frames are cleaned on worker threads and cached under a
  * key of the method and its settings (the range folder itself is keyed by the source and matte).
  */
@@ -33,8 +33,6 @@ export type CleanSource = {
 	matte: string;
 	width: number;
 	height: number;
-	/** Same rate as the project: seek straight to the range (see `extractFootageRange`). */
-	direct: boolean;
 };
 
 /** Folder name of the clean frames of a range for `spec` (its settings and the image file). */
@@ -85,12 +83,8 @@ export async function buildCleanRange(
 		return { frames: done.frames, seconds: 0, cached: true, full: done.full ?? [] };
 	}
 	const started = Date.now();
-	const { width: w, height: h, direct } = source;
+	const { width: w, height: h } = source;
 	const count = range.last - range.first + 1;
-	const seek = direct ? ['-ss', (range.first / fps).toFixed(6)] : [];
-	const pick = direct
-		? `fps=${fps}`
-		: `fps=${fps},trim=start_frame=${range.first}:end_frame=${range.last + 1},setpts=PTS-STARTPTS`;
 	const image = spec.image ? await decodeImage(spec.image, w, h) : null;
 	const tmp = `${target}.tmp-${process.pid}-${randomUUID()}`;
 	await fs.mkdir(tmp, { recursive: true });
@@ -101,8 +95,19 @@ export async function buildCleanRange(
 		image
 	);
 	try {
+		// The clean plate starts from the extracted plates themselves (the JPEGs the stage
+		// draws), so outside the hole it has their colours to a fraction of a level and a hole
+		// leaves no seam; decoding the video again would not (a BT.709 video comes out about 5
+		// levels of red apart, and even a BT.601 decode a level or two).
 		const picture = decoder(
-			[...seek, '-i', source.src, '-vf', pick, '-frames:v', String(count)],
+			[
+				'-start_number',
+				String(range.first),
+				'-i',
+				path.join(dir, 'plate', '%06d.jpg'),
+				'-frames:v',
+				String(count)
+			],
 			'rgb24',
 			procs
 		);
@@ -161,7 +166,7 @@ export async function buildCleanRange(
 			const done = await job;
 			if (stopped) throw stopped;
 			// With a picture of the empty scene, a frame the matte covers still gets a plate.
-			if (done.full && !spec.image) full.push(range.first + n);
+			if (done.full) full.push(range.first + n);
 			n++;
 			if (!encoder.stdin!.write(done.rgb))
 				await Promise.race([
@@ -284,13 +289,11 @@ const cleanModule = () =>
 
 const WORKER = `
 const { parentPort, workerData } = require('node:worker_threads');
-import(workerData.module).then(({ cleanPlate }) => {
+import(workerData.module).then(({ cleanFrame }) => {
 	const { grow, image } = workerData;
 	parentPort.on('message', ({ id, rgb, matte, w, h }) => {
-		const out = cleanPlate(rgb, matte, w, h, { grow, image });
-		let full = true;
-		for (let i = 0; i < matte.length && full; i++) if (matte[i] < 6) full = false;
-		parentPort.postMessage({ id, rgb: out, full }, [out.buffer]);
+		const out = cleanFrame(rgb, matte, w, h, { grow, image });
+		parentPort.postMessage({ id, rgb: out.rgb, full: out.full }, [out.rgb.buffer]);
 	});
 	parentPort.postMessage({ ready: true });
 });
@@ -350,10 +353,8 @@ class CleanPool {
 		w: number,
 		h: number
 	): Promise<{ rgb: Uint8Array; full: boolean }> {
-		if (!this.#workers.length) {
-			const full = !matte.some((v) => v < CLEAN_DEFAULTS.threshold);
-			return { rgb: cleanPlate(rgb, matte, w, h, { grow: this.#grow, image: this.#image }), full };
-		}
+		if (!this.#workers.length)
+			return cleanFrame(rgb, matte, w, h, { grow: this.#grow, image: this.#image });
 		const slot = this.#workers.reduce((a, b) => (b.busy < a.busy ? b : a));
 		await slot.ready;
 		slot.busy++;

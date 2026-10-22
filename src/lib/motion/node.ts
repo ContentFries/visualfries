@@ -1549,9 +1549,7 @@ async function extractFootage(
 		const extracted = await extractFootageRange(loaded.dir, source, fps, range);
 		roots.push(extracted.dir);
 		if (extracted.cleanFull.length)
-			warnings.push(
-				`Footage "${source.name}": the clean plate cannot be built for ${extracted.cleanFull.length} frame${extracted.cleanFull.length > 1 ? 's' : ''} (${frameList(extracted.cleanFull, fps)}): the matte covers the whole picture, so there is no background to fill from and the plate keeps the footage. Use "clean": { "image": … } or keep holes off those frames.`
-			);
+			warnings.push(cleanFullWarning(source.name, extracted.cleanFull, fps));
 		return extracted.range;
 	};
 	const attach = (source: FootageSource, startFrame: number, ranges: FootageRange[]) => {
@@ -1614,6 +1612,61 @@ async function extractFootage(
 		clip.footageMap = map;
 	}
 	return { roots, frames, map, warnings };
+}
+
+/**
+ * The warning about frames of a footage whose matte covers the whole picture, which keep the
+ * footage instead of a clean plate.
+ */
+function cleanFullWarning(name: string, full: number[], fps: number): string {
+	return `Footage "${name}": the clean plate cannot be built for ${full.length} frame${full.length > 1 ? 's' : ''} (${frameList(full, fps)}): the matte covers the whole picture, so there is no background to fill from and the plate keeps the footage. Use "clean": { "image": … } or keep holes off those frames.`;
+}
+
+/**
+ * The clean plate warnings of the plates already built for the project's current footage and
+ * settings (`program` tells them without extracting anything; `check` and `render` build the
+ * plates and tell theirs).
+ */
+export async function cleanPlateWarnings(loaded: LoadedMotionProject): Promise<string[]> {
+	const out: string[] = [];
+	const root = path.join(loaded.dir, '.visualfries', 'footage');
+	if (!existsSync(root)) return out;
+	const folders = await fs.readdir(root);
+	for (const [name, spec] of Object.entries(loaded.project.footage ?? {})) {
+		if (spec.clean === undefined || !spec.matte) continue;
+		const src = path.resolve(loaded.dir, spec.src);
+		const matte = path.resolve(loaded.dir, spec.matte);
+		const stats = await Promise.all([src, matte].map((f) => fs.stat(f).catch(() => null)));
+		if (!stats[0] || !stats[1]) continue;
+		const sizes = stats.map((st) => [st!.size, st!.mtimeMs] as [number, number]);
+		const options = spec.clean === true ? {} : spec.clean;
+		const clean: CleanSpec = {
+			...(options.image ? { image: path.resolve(loaded.dir, options.image) } : {}),
+			...(options.grow !== undefined ? { grow: options.grow } : {})
+		};
+		const full: number[] = [];
+		for (const folder of folders.filter((f) => f.startsWith(`${name}-`)).sort()) {
+			const done = await fs
+				.readFile(path.join(root, folder, 'done.json'), 'utf8')
+				.then(JSON.parse, () => null);
+			if (!done) continue;
+			// Only ranges of this source and matte as they are now (older ones linger in the cache).
+			const range = { first: done.first, last: done.last };
+			const key = footageCacheKey({ src, matte, sizes, fps: loaded.project.fps, range });
+			if (folder !== `${name}-${key}`) continue;
+			const plates = path.join(
+				root,
+				folder,
+				await cleanFolder(clean, [done.width, done.height]).catch(() => '')
+			);
+			const built = await fs
+				.readFile(path.join(plates, 'done.json'), 'utf8')
+				.then(JSON.parse, () => null);
+			if (built?.full?.length) full.push(...built.full);
+		}
+		if (full.length) out.push(cleanFullWarning(name, full, loaded.project.fps));
+	}
+	return out;
 }
 
 /** Source frames as seconds, runs joined: "12.40–13.10 s, 20.00 s". */
@@ -1746,7 +1799,7 @@ async function extractFootageRange(
 		const report = await buildCleanRange(
 			dir,
 			folder,
-			{ name, src, matte, width: info.width, height: info.height, direct },
+			{ name, src, matte, width: info.width, height: info.height },
 			source.clean,
 			fps,
 			{ first: done.first, last: done.last }

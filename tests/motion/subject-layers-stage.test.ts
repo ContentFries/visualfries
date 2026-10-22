@@ -153,6 +153,67 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('subject layers on the stage', () =>
 		expect(isSky(at(hx + 110, screen(209)))).toBe(true);
 	}, 300_000);
 
+	it('keeps the hole on the side on screen through a cut transition', async () => {
+		const loaded = await write(dir, 'wipe.vf.json', {
+			footage,
+			cuts: [
+				{ source: 'talk', in: 0, out: 1.5 },
+				{ source: 'talk', in: 1.5, out: 3, transition: { type: 'wipe', duration: 0.6 } }
+			],
+			clips: [
+				{
+					id: 'lid',
+					block: '@visualfries/subject',
+					from: 0.8,
+					until: 2.5,
+					props: { region: LID },
+					keys: [
+						{ at: 0, y: 0 },
+						{ at: 0.2, y: -400 }
+					]
+				}
+			]
+		});
+		const { resolveProgram } = await import('../../src/lib/motion/program.js');
+		const wipe = resolveProgram(loaded.project, loaded.inputs).transitions[0];
+		// Late in the window, past the cut: the incoming side covers nearly the whole frame.
+		const late = wipe.startFrame + wipe.frames - 2;
+		expect(late).toBeGreaterThan(wipe.cutFrame);
+		const at = pixels((await captureProgramFrames(loaded, [late])).get(late)!, SW);
+		const hx = Math.round(headX(late));
+		for (const y of [165, 185]) expect(isSky(at(hx, y)), `hole at ${y}`).toBe(true);
+		expect(isSkin(at(hx, 260))).toBe(true);
+	}, 300_000);
+
+	it('cuts everything but the region with `outside`, for a line and for a path', async () => {
+		// Region: the body (below y = 380); `outside` lifts everything else, the head included.
+		await fs.writeFile(
+			path.join(dir, 'Outside.svelte'),
+			`<script>
+	import { Subject, useClip } from 'visualfries/motion';
+	const clip = useClip();
+	const region = clip.props.path
+		? { path: 'M -10 380 L 370 380 L 370 700 L -10 700 Z' }
+		: { below: { through: [[0, 380], [360, 380]] } };
+</script>
+<Subject {region} outside freeze hole y={-clip.t * 300} />
+`
+		);
+		for (const variant of [{}, { path: true }]) {
+			const loaded = await write(dir, 'outside.vf.json', {
+				footage,
+				cuts: [{ source: 'talk', in: 0, out: 3 }],
+				clips: [{ id: 'up', block: 'Outside.svelte', from: 1, until: 2.5, props: variant }]
+			});
+			const at = pixels((await captureProgramFrames(loaded, [60])).get(60)!, SW);
+			const hx = Math.round(headX(60));
+			const label = variant.path ? 'path' : 'line';
+			// The head flew up 300 px: sky where it was; the body (the region) stays.
+			for (const y of [200, 260, 320]) expect(isSky(at(hx, y)), `${label} head ${y}`).toBe(true);
+			expect(isBody(at(hx, 450)), `${label} body`).toBe(true);
+		}
+	}, 300_000);
+
 	it('cuts a hole in the body from a block, with the clean plate and a behind clip showing through', async () => {
 		await fs.writeFile(path.join(dir, 'Gag.svelte'), GAG);
 		await fs.writeFile(path.join(dir, 'Bar.svelte'), BAR);

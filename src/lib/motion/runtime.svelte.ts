@@ -432,6 +432,8 @@ export type HoleSource = (view: { source: string; frame: number }) => {
 	rim: import('./subject-canvas.js').Rim | null;
 	/** The point an opening rim is centred near (the head), footage pixels. */
 	near: { x: number; y: number } | null;
+	/** The hole is everything but `shape` (`<Subject outside>`). */
+	outside: boolean;
 } | null;
 
 /** What a region layer reports to `check`: the share of the subject its region holds. */

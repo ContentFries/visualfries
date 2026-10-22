@@ -5,8 +5,14 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { cleanPlate, defaultGrow, holeMask } from '../../src/lib/motion/clean-plate.js';
-import { loadMotionProject, prepareFootage } from '../../src/lib/motion/node.js';
+import { cleanFrame, cleanPlate, defaultGrow, holeMask } from '../../src/lib/motion/clean-plate.js';
+import {
+	cleanPlateWarnings,
+	findChromium,
+	loadMotionProject,
+	prepareFootage
+} from '../../src/lib/motion/node.js';
+import { checkProgram } from '../../src/lib/motion/program-node.js';
 import { resolveMotionProject } from '../../src/lib/motion/resolve.js';
 // @ts-expect-error: a plain .mjs helper shared with the subject layer tests
 import { SW, SH, ffmpeg, writeFootage } from './fixtures/subject/footage.mjs';
@@ -90,9 +96,17 @@ describe('clean plate (fill)', () => {
 		expect([...out.subarray(0, 3)]).toEqual([10, 10, 10]);
 	});
 
-	it('keeps the picture where nothing is left to fill from', () => {
+	it('keeps the picture where nothing is left to fill from, and says so', () => {
 		const { rgb, matte } = scene(8, 8, () => [1, 2, 3], [0, 0, 8, 8]);
 		expect(Buffer.from(cleanPlate(rgb, matte, 8, 8)).equals(Buffer.from(rgb))).toBe(true);
+		expect(cleanFrame(rgb, matte, 8, 8).full).toBe(true);
+		// The matte leaves a border, but the grown hole covers it: nothing to fill from either.
+		const grown = scene(20, 20, () => [1, 2, 3], [2, 2, 18, 18]);
+		expect(cleanFrame(grown.rgb, grown.matte, 20, 20, { grow: 3 }).full).toBe(true);
+		expect(cleanFrame(grown.rgb, grown.matte, 20, 20, { grow: 1 }).full).toBe(false);
+		// A picture of the empty scene fills any frame.
+		const image = new Uint8Array(8 * 8 * 3);
+		expect(cleanFrame(rgb, matte, 8, 8, { image }).full).toBe(false);
 	});
 
 	it('grows about 1.1 % of the short side by default', () => {
@@ -202,6 +216,99 @@ describe.skipIf(!hasFfmpeg)('clean plates in the footage cache', () => {
 		expect(other.range).not.toBe(base.range);
 		expect(other.hashes).toEqual(base.hashes);
 	}, 240_000);
+
+	it('has the colours of the plates, also for footage tagged BT.709', async () => {
+		const tagged = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-clean-709-'));
+		try {
+			writeFootage(tagged, 1, true);
+			const file = path.join(tagged, 'p.vf.json');
+			await fs.writeFile(
+				file,
+				JSON.stringify({
+					size: [SW, SH],
+					fps: 30,
+					footage: { talk: { src: 'talk.mp4', matte: 'talk.matte.mp4', clean: true } },
+					cuts: [{ source: 'talk', in: 0, out: 1 }],
+					clips: []
+				})
+			);
+			const loaded = await loadMotionProject(file);
+			const [range] = await prepareFootage(loaded, []);
+			const folder = (await fs.readdir(range)).find((f) => f.startsWith('clean-'))!;
+			const rgb = (jpg: string) =>
+				ffmpeg(['-i', jpg, '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1']);
+			const plate = rgb(path.join(range, 'plate', '000010.jpg'));
+			const clean = rgb(path.join(range, folder, '000010.jpg'));
+			// The sky left of the speaker and the saturated field below: the plate's colours to a
+			// level on the sky, two on the field (a JPEG round trip of a saturated green), where
+			// a BT.709 decode of the footage puts red about 5 levels off.
+			for (const [x0, y0, most] of [
+				[10, 40, 1],
+				[10, 500, 2.01]
+			]) {
+				const mean = (b: Buffer, c: number) => {
+					let sum = 0;
+					for (let y = y0; y < y0 + 30; y++)
+						for (let x = x0; x < x0 + 30; x++) sum += b[3 * (y * SW + x) + c];
+					return sum / 900;
+				};
+				for (const c of [0, 1, 2])
+					expect(
+						Math.abs(mean(clean, c) - mean(plate, c)),
+						`${x0},${y0} channel ${c}`
+					).toBeLessThan(most);
+			}
+		} finally {
+			await fs.rm(tagged, { recursive: true, force: true });
+		}
+	}, 120_000);
+
+	it.skipIf(!findChromium())(
+		'tells check and program about frames the matte covers whole',
+		async () => {
+			const covered = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-clean-full-'));
+			try {
+				writeFootage(covered, 1);
+				// The matte covers the whole picture for the first 10 frames.
+				ffmpeg([
+					'-f',
+					'lavfi',
+					'-i',
+					`color=black:s=${SW}x${SH}:r=30:d=1`,
+					'-vf',
+					`geq=lum='if(lt(N,10),255,if(lt(pow((X-180)/70,2)+pow((Y-240)/90,2),1),255,0))':cb=128:cr=128`,
+					'-pix_fmt',
+					'yuv420p',
+					path.join(covered, 'talk.matte.mp4')
+				]);
+				const file = path.join(covered, 'p.vf.json');
+				await fs.writeFile(
+					file,
+					JSON.stringify({
+						size: [SW, SH],
+						fps: 30,
+						footage: { talk: { src: 'talk.mp4', matte: 'talk.matte.mp4', clean: true } },
+						cuts: [{ source: 'talk', in: 0, out: 1 }],
+						clips: []
+					})
+				);
+				const loaded = await loadMotionProject(file);
+				expect(await cleanPlateWarnings(loaded)).toEqual([]);
+				const results = await checkProgram(loaded);
+				const told = results.flatMap((r) => r.warnings.map((w) => w.message));
+				const expected =
+					'Footage "talk": the clean plate cannot be built for 10 frames (0.00–0.30 s of the source)';
+				expect(told.filter((m) => m.startsWith(expected))).toHaveLength(1);
+				// `program` reads the same from the plates check built.
+				const cached = await cleanPlateWarnings(loaded);
+				expect(cached).toHaveLength(1);
+				expect(cached[0].startsWith(expected)).toBe(true);
+			} finally {
+				await fs.rm(covered, { recursive: true, force: true });
+			}
+		},
+		180_000
+	);
 
 	it('refuses a clean plate without a matte', async () => {
 		const file = path.join(dir, 'nomatte.vf.json');

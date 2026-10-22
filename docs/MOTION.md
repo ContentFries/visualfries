@@ -593,8 +593,9 @@ region layer itself also works in inserts mode.
 of the short side (12 px at 1080 × 1920, `"grow"` to change it), so the hair fringe and a
 phone's sharpening halo go too, and the hole is filled by push-pull from all around it, then
 relaxed so a gradient (sky toward the horizon) runs straight through. Outside the grown hole the
-plate is the footage pixel for pixel, so a hole never leaves a seam or an outline where the
-speaker was. It suits sky, walls, out-of-focus backgrounds and handheld footage (each frame is
+plate is the footage's own extracted frame, encoded once more: within a level of it on natural
+colour (about two on a saturated one), so the edge of a hole in the background does not show
+and no outline is left where the speaker was. It suits sky, walls, out-of-focus backgrounds and handheld footage (each frame is
 filled from itself, so camera shake and parallax cost nothing); detail does not continue into the
 hole (a branch behind the head comes out as soft green). `{ "image": "empty.jpg" }` shows a
 still of the empty scene in the hole instead, scaled to cover the frame: best for a tripod shot

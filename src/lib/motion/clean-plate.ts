@@ -38,7 +38,7 @@ export const CLEAN_DEFAULTS = { threshold: 6, growShare: 0.011 } as const;
  * Version of the plate algorithm, part of the cache key of every cleaned range: raise it when
  * the pixels it makes change.
  */
-export const CLEAN_VERSION = 2;
+export const CLEAN_VERSION = 3;
 
 /** Pixels the hole grows by for a frame `width` × `height` (about 12 px at 1080 × 1920). */
 export const defaultGrow = (width: number, height: number) =>
@@ -276,6 +276,20 @@ export function cleanPlate(
 	height: number,
 	opts: CleanOptions = {}
 ): Uint8Array {
+	return cleanFrame(rgb, matte, width, height, opts).rgb;
+}
+
+/**
+ * `cleanPlate`, also telling whether the frame had nothing to fill from (`full`: the grown hole
+ * covers the whole picture and no image was supplied, so the plate keeps the footage).
+ */
+export function cleanFrame(
+	rgb: Uint8Array,
+	matte: Uint8Array,
+	width: number,
+	height: number,
+	opts: CleanOptions = {}
+): { rgb: Uint8Array; full: boolean } {
 	const threshold = opts.threshold ?? CLEAN_DEFAULTS.threshold;
 	const grow = opts.grow ?? defaultGrow(width, height);
 	const hole = holeMask(matte, width, height, threshold, grow);
@@ -287,7 +301,7 @@ export function cleanPlate(
 				out[3 * i + 1] = opts.image[3 * i + 1];
 				out[3 * i + 2] = opts.image[3 * i + 2];
 			}
-		return out;
+		return { rgb: out, full: false };
 	}
 	const known = new Uint8Array(width * height);
 	let holes = 0;
@@ -296,7 +310,8 @@ export function cleanPlate(
 		holes += hole[i];
 	}
 	// Nothing to fill, or nothing to fill from.
-	if (!holes || holes === known.length) return out;
+	if (!holes) return { rgb: out, full: false };
+	if (holes === known.length) return { rgb: out, full: true };
 	const half = pushPull(rgb, known, width, height);
 	// The hole at full resolution, from the half-resolution fill sampled bilinearly (pixel
 	// centres aligned); the column weights are the same on every row.
@@ -331,5 +346,5 @@ export function cleanPlate(
 			}
 		}
 	}
-	return out;
+	return { rgb: out, full: false };
 }

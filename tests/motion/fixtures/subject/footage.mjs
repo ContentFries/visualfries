@@ -20,8 +20,11 @@ export function ffmpeg(args, input) {
 	return r.stdout;
 }
 
-/** `talk.mp4` and `talk.matte.mp4` (3 s, 30 fps) in `dir`. */
-export function writeFootage(dir, seconds = 3) {
+/**
+ * `talk.mp4` and `talk.matte.mp4` (3 s, 30 fps) in `dir`. `bt709` tags the video as BT.709, as
+ * phones do, so a decoder that follows the tag turns it into other RGB than one that does not.
+ */
+export function writeFootage(dir, seconds = 3, bt709 = false) {
 	// Sky: blue, lighter toward the horizon at y = 420; field below. Head light skin, body dark.
 	const r = `if(gt(${SUBJECT},0),if(lt(Y,330),225,60),if(lt(Y,420),70+Y/6,60))`;
 	const g = `if(gt(${SUBJECT},0),if(lt(Y,330),180,60),if(lt(Y,420),120+Y/5,150))`;
@@ -37,6 +40,18 @@ export function writeFootage(dir, seconds = 3) {
 		'30',
 		'-crf',
 		'12',
+		...(bt709
+			? [
+					'-colorspace',
+					'bt709',
+					'-color_primaries',
+					'bt709',
+					'-color_trc',
+					'bt709',
+					'-color_range',
+					'tv'
+				]
+			: []),
 		path.join(dir, 'talk.mp4')
 	]);
 	ffmpeg([

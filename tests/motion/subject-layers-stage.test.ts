@@ -109,11 +109,20 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('subject layers on the stage', () =>
 
 	it('lines the hole and the piece up with a zoomed camera', async () => {
 		// Shot keys zoom 1.3× about the face (the head's column, 64 px below its top at y = 150),
-		// so source y maps to 214 + (y − 214) × 1.3 on screen.
+		// so source y maps to 214 + (y − 214) × 1.3 on screen; a slight turn goes through the
+		// rotated path of the camera.
 		const loaded = await write(dir, 'zoom.vf.json', {
 			footage,
 			cuts: [{ source: 'talk', in: 0, out: 3 }],
-			shots: [{ id: 'close', shot: 'full', from: 0, until: 3, keys: [{ at: 0, scale: 1.3 }] }],
+			shots: [
+				{
+					id: 'close',
+					shot: 'full',
+					from: 0,
+					until: 3,
+					keys: [{ at: 0, scale: 1.3, rotation: 0.01 }]
+				}
+			],
 			clips: [
 				{
 					id: 'lid',

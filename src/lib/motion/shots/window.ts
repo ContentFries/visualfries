@@ -25,6 +25,8 @@ const MARGIN = 0.05;
  */
 const PORTRAIT_TOP = 0.15;
 const PORTRAIT_BOTTOM = 0.35;
+/** In portrait the panel keeps at least this share of the safe area, however big the window. */
+const MIN_PANEL = 0.15;
 /** How much closer the camera goes inside the window, so the face reads at its small size. */
 const ZOOM = 1.2;
 /** Corner radius as a share of the window's shorter side. */
@@ -60,7 +62,9 @@ export function aspectParam(v: unknown): number | null {
  * `aspect` is the window's width over height (`"4:5"`, `"1:1"`, `"16:9"` or a number; default
  * 16:9 in landscape, 1:1 in square and portrait); without `size` a window of another aspect
  * keeps the default window's area, so `"4:5"` gives a close selfie's head more height without a
- * bigger window. `headroom` keeps the whole head in the window (see `frameOnHead`).
+ * bigger window. A window that would leave the frame (or, in portrait, the safe area less 15 %
+ * of it for the panel) shrinks to fit, keeping its aspect. `headroom` keeps the whole head in
+ * the window (see `frameOnHead`).
  */
 export const windowShot: ShotModule = {
 	name: 'window',
@@ -86,14 +90,29 @@ export const windowShot: ShotModule = {
 		const aspect = aspectParam(params.aspect) ?? ASPECT[cls];
 		// Without `size` a window of another aspect keeps the default window's area.
 		const share = numberParam(params, 'size', SHARE[cls] * Math.sqrt(aspect / ASPECT[cls]));
-		const width = Math.round(W * share);
-		const height = Math.round(width / aspect);
+		const high = Math.round(safe?.top ?? H * PORTRAIT_TOP);
+		const low = H - Math.round(safe?.bottom ?? H * PORTRAIT_BOTTOM);
+		// The window never leaves its room, whatever `size` and `aspect` ask: in portrait the safe
+		// area less the margin and a `MIN_PANEL` share of it for the panel, elsewhere the frame
+		// less its margins. A window too big shrinks, keeping its aspect.
+		const room =
+			cls === 'portrait'
+				? { width: W - 2 * m, height: Math.floor((low - high) * (1 - MIN_PANEL)) - m }
+				: { width: W - 2 * m, height: H - 2 * m };
+		let width = Math.round(W * share);
+		let height = Math.round(width / aspect);
+		if (height > room.height) {
+			height = room.height;
+			width = Math.round(height * aspect);
+		}
+		if (width > room.width) {
+			width = room.width;
+			height = Math.round(width / aspect);
+		}
 		let clip: Rect;
 		let panel: Rect;
 		let closed: Rect;
 		if (cls === 'portrait') {
-			const high = Math.round(safe?.top ?? H * PORTRAIT_TOP);
-			const low = H - Math.round(safe?.bottom ?? H * PORTRAIT_BOTTOM);
 			const y = top ? high : low - height;
 			clip = { x: Math.round((W - width) / 2), y, width, height };
 			// The panel takes the rest of the safe area on the other side of the window.

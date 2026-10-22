@@ -583,7 +583,13 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             const { camera, blur, dim } = layout.backdrop;
             const { clip } = layout;
             place(back, { ...camera, x: px(camera.x - clip.x), y: px(camera.y - clip.y) });
-            back.style.filter = filters.plate(`${s.name}-back`, { dim, blur }, layout.motionBlur);
+            // Under a dimmed room the copy is part of the room: dimmed and blurred with it too.
+            const roomDim = layout.room?.dim ?? 0;
+            const look = {
+                dim: px(1 - (1 - dim) * (1 - roomDim)),
+                blur: px(Math.hypot(blur, layout.room?.blur ?? 0))
+            };
+            back.style.filter = filters.plate(`${s.name}-back`, look, layout.motionBlur);
             const copy = show(back, url);
             if (copy)
                 pending.push(copy);

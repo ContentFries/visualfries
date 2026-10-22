@@ -256,7 +256,9 @@ export function frameOnHead(
 	const [fw, fh] = footage;
 	const cover = Math.max(clip.width / fw, clip.height / fh);
 	let scale = cover * zoom;
-	const room = framing.headroom === false || !subject ? null : framing.headroom * clip.height;
+	// The scale holds through frames the matte misses (the shot's head size still applies); only
+	// the head's place needs this frame's subject.
+	const room = framing.headroom === false ? null : framing.headroom * clip.height;
 	const span = room === null ? null : (framing.head ?? subject?.headHeight ?? null);
 	if (room !== null && span) {
 		let fit = (clip.height - room) / (span * fh);

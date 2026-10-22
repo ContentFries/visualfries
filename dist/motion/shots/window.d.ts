@@ -18,6 +18,8 @@ export declare function aspectParam(v: unknown): number | null;
  * `aspect` is the window's width over height (`"4:5"`, `"1:1"`, `"16:9"` or a number; default
  * 16:9 in landscape, 1:1 in square and portrait); without `size` a window of another aspect
  * keeps the default window's area, so `"4:5"` gives a close selfie's head more height without a
- * bigger window. `headroom` keeps the whole head in the window (see `frameOnHead`).
+ * bigger window. A window that would leave the frame (or, in portrait, the safe area less 15 %
+ * of it for the panel) shrinks to fit, keeping its aspect. `headroom` keeps the whole head in
+ * the window (see `frameOnHead`).
  */
 export declare const windowShot: ShotModule;

@@ -272,7 +272,8 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
   window's width over height: `"4:5"`, `"1:1"`, `"16:9"` or a number (default 16:9 in
   landscape, 1:1 in square and portrait); without `size` a window of another aspect keeps the
   default window's area, so `"4:5"` gives a close selfie's head more height at the same size on
-  screen.
+  screen. A window that would leave the frame (in portrait: the safe area, less 15 % of it kept
+  for the panel) shrinks to fit, keeping its aspect.
 - `behind`: the stage for a word behind the speaker's head. The footage stays framed like
   `full` (`params.scale` goes closer), the room dims and blurs (`params.dim`, default 0.55;
   `params.blur`, 12 px at 1080 px) while the speaker, cut out by the matte, stays sharp in front,

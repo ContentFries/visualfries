@@ -30,22 +30,25 @@ const PEAK_TOP = 0.1;
 type Span = { startFrame: number; frames: number };
 
 /**
- * The head's height a shot frames for (see `ShotInput.head`): a high percentile of the matte's
- * per-frame measure over every frame of the shot, so one tall frame (a lean, a hand) does not
- * shrink the whole shot and the shot does not breathe with every lean. Null without a matte
- * that measures heads.
+ * The head's height a shot frames `source` for (see `ShotInput.head`): a high percentile of the
+ * matte's per-frame measure over every frame of the shot that shows that source, so one tall
+ * frame (a lean, a hand) does not shrink the whole shot and the shot does not breathe with every
+ * lean, while a shot across a cut from a close take to a wide one frames each for its own head.
+ * Null without a matte that measures heads.
  */
 export function shotHead(
 	shot: Span,
 	map: FootageMap | null,
-	footage: Record<string, FootageFrames>
+	footage: Record<string, FootageFrames>,
+	source: string
 ): number | null {
 	if (!map) return null;
 	const heights: number[] = [];
 	for (let f = shot.startFrame; f < shot.startFrame + shot.frames; f++) {
 		const view = programFootageAt(map, f);
-		const frames = view ? footage[view.source] : undefined;
-		const box = frames && view ? sourceSubjectBox(frames, view.frame) : null;
+		if (view?.source !== source) continue;
+		const frames = footage[view.source];
+		const box = frames ? sourceSubjectBox(frames, view.frame) : null;
 		if (box?.headHeight !== undefined) heights.push(box.headHeight);
 	}
 	if (!heights.length) return null;
@@ -61,15 +64,17 @@ export type FramingData = Pick<
 /**
  * The framing of a program (or a segment of it): the layout of a side showing `view` at
  * program frame `f`, from the shot track or from `shot` alone, and the smoothed subject of a
- * view. Head sizes are measured once per shot.
+ * view. Head sizes are measured once per shot and source.
  */
 export function programFraming(data: FramingData) {
 	const heads = new Map<string, number | null>();
-	const headOf = (shot: { id?: string }) => {
+	/** The head size `shot` frames `source` for (see `shotHead`). */
+	const headOf = (shot: { id?: string }, source: string | null) => {
 		const span = shot.id ? data.shots.find((s) => s.id === shot.id) : undefined;
-		if (!span) return null;
-		if (!heads.has(span.id)) heads.set(span.id, shotHead(span, data.footageMap, data.footage));
-		return heads.get(span.id)!;
+		if (!span || source === null) return null;
+		const key = `${span.id}\u0000${source}`;
+		if (!heads.has(key)) heads.set(key, shotHead(span, data.footageMap, data.footage, source));
+		return heads.get(key)!;
 	};
 	const framesOf = (view: FootageView | null) =>
 		view ? (data.footage[view.source] ?? null) : null;
@@ -135,7 +140,7 @@ export function programFraming(data: FramingData) {
 			safe: data.format.safe,
 			subject: subjectOf(view),
 			headTop: headTopOf(view),
-			headOf
+			headOf: (s) => headOf(s, view?.source ?? null)
 		};
 		return shot ? shotLayout(shot, input, f) : shotLayoutAt(data.shots, f, input);
 	}
@@ -159,16 +164,23 @@ export type HeadCrop = {
 	shot: string;
 	/** `top`: the top of the head is cut or touches the edge; `face`: the face is cut below. */
 	edge: 'top' | 'face';
-	/** Program frames, first and last cut. */
+	/** Program frames, first and last cut, over every stretch of the shot cut at this edge. */
 	from: number;
 	to: number;
+	/** Each stretch, first and last frame. */
+	ranges: [number, number][];
 	/**
 	 * The worst frame: pixels of the head past the window's edge (0 for a head touching the top
 	 * edge), and as a share of the head (null: the matte gives no head size).
 	 */
 	pixels: number;
 	share: number | null;
+	/** The recording itself has the head at its top edge: no framing adds room above it. */
+	bare: boolean;
 };
+
+/** A head top this close to the recording's top edge (of its height) has no room above it. */
+const BARE = 0.01;
 
 /**
  * Where a shot's camera window cuts the speaker's head for at least `CROP_FRAMES` frames in a
@@ -176,7 +188,7 @@ export type HeadCrop = {
  * edge (or past it), or more than `FACE_CUT` of the head below its bottom edge. The head is
  * where each frame's matte puts it (not smoothed: a lean that the calm framing lags behind
  * counts). Morphs and cut or shot transition windows are skipped (the head is in motion there).
- * `range` limits the frames looked at (a segment).
+ * The stretches of one shot at one edge make one crop. `range` limits the frames looked at.
  */
 export function headCrops(
 	data: FramingData & { transitions: readonly ProgramTransition[] },
@@ -190,29 +202,35 @@ export function headCrops(
 		data.transitions.some(
 			(t) => t.kind !== 'clip' && f >= t.startFrame && f < t.startFrame + t.frames
 		);
+	type Run = { from: number; to: number; pixels: number; share: number | null; bare: number };
 	for (const shot of data.shots) {
 		const from = Math.max(shot.startFrame + shot.morphFrames, range.startFrame);
 		const to = Math.min(shot.startFrame + shot.frames, range.startFrame + range.frames);
-		const runs: Record<HeadCrop['edge'], HeadCrop | null> = { top: null, face: null };
+		const done: Record<HeadCrop['edge'], Run[]> = { top: [], face: [] };
+		const runs: Record<HeadCrop['edge'], Run | null> = { top: null, face: null };
 		const close = (edge: HeadCrop['edge']) => {
 			const run = runs[edge];
-			if (run && run.to - run.from + 1 >= CROP_FRAMES) out.push(run);
+			if (run && run.to - run.from + 1 >= CROP_FRAMES) done[edge].push(run);
 			runs[edge] = null;
 		};
-		const mark = (edge: HeadCrop['edge'], f: number, pixels: number, share: number | null) => {
-			const run = runs[edge];
-			if (!run) runs[edge] = { shot: shot.id, edge, from: f, to: f, pixels, share };
-			else {
-				run.to = f;
-				if (pixels > run.pixels || (share ?? 0) > (run.share ?? 0))
-					Object.assign(run, { pixels, share });
-			}
+		const mark = (
+			edge: HeadCrop['edge'],
+			f: number,
+			pixels: number,
+			share: number | null,
+			bare: boolean
+		) => {
+			const run = (runs[edge] ??= { from: f, to: f, pixels, share, bare: 0 });
+			run.to = f;
+			run.bare += bare ? 1 : 0;
+			if (pixels > run.pixels || (share ?? 0) > (run.share ?? 0))
+				Object.assign(run, { pixels, share });
 		};
 		for (let f = from; f < to; f++) {
 			const view = programFootageAt(map, f);
 			const frames = view && !inWindow(f) ? data.footage[view.source] : undefined;
 			const box = frames && view ? sourceSubjectBox(frames, view.frame) : null;
-			if (!box) {
+			if (!box || !view) {
 				close('top');
 				close('face');
 				continue;
@@ -220,20 +238,38 @@ export function headCrops(
 			const { camera, clip } = framing.layoutFor(f, view);
 			const top = camera.y + box.headY * camera.height;
 			// The shot's head size, not the frame's: one odd matte frame would make odd numbers.
-			const size = framing.headOf(shot) ?? box.headHeight;
+			const size = framing.headOf(shot, view.source) ?? box.headHeight;
 			const head = size ? size * camera.height : null;
 			const share = (v: number) => (head ? Math.round((v / head) * 100) / 100 : null);
 			if (top - clip.y < TOP_ROOM * clip.height) {
 				const cut = Math.max(0, clip.y - top);
-				mark('top', f, Math.round(cut), share(cut));
+				mark('top', f, Math.round(cut), share(cut), box.headY <= BARE);
 			} else close('top');
 			const below = head === null ? 0 : top + head - (clip.y + clip.height);
 			if (head !== null && below > FACE_CUT * head)
-				mark('face', f, Math.round(below), share(below));
+				mark('face', f, Math.round(below), share(below), false);
 			else close('face');
 		}
 		close('top');
 		close('face');
+		for (const edge of ['top', 'face'] as const) {
+			const list = done[edge];
+			if (!list.length) continue;
+			const worst = list.reduce((a, b) =>
+				b.pixels > a.pixels || (b.share ?? 0) > (a.share ?? 0) ? b : a
+			);
+			const frames = list.reduce((n, r) => n + r.to - r.from + 1, 0);
+			out.push({
+				shot: shot.id,
+				edge,
+				from: list[0].from,
+				to: list[list.length - 1].to,
+				ranges: list.map((r) => [r.from, r.to]),
+				pixels: worst.pixels,
+				share: worst.share,
+				bare: list.reduce((n, r) => n + r.bare, 0) * 2 >= frames
+			});
+		}
 	}
 	return out.sort((a, b) => a.from - b.from);
 }
@@ -248,6 +284,21 @@ export function headCropMessage(
 	fps: number
 ): string {
 	const s = (f: number) => `${(f / fps).toFixed(2)} s`;
+	const when = crop.ranges.map(([a, b]) => `${s(a)} to ${s(b + 1)}`);
+	const span =
+		when.length === 1
+			? `from ${when[0]}`
+			: `from ${when.slice(0, -1).join(', ')} and ${when[when.length - 1]}`;
+	const share = crop.share === null ? '' : `, ${Math.round(crop.share * 100)} % of the head`;
+	const what =
+		crop.edge === 'face'
+			? `cuts the speaker's face off at the bottom (up to ${crop.pixels} px of the head below the window${share})`
+			: crop.pixels > 0
+				? `cuts off the top of the speaker's head (by up to ${crop.pixels} px${share})`
+				: "leaves no room above the speaker's head (it touches the window's top edge)";
+	const head = `Shot "${crop.shot}" (${shot.shot}) ${what} ${span}, its keys included.`;
+	if (crop.bare)
+		return `${head} The recording itself has the head at its top edge there, so no framing param adds room above it: keep it, or use another take.`;
 	const keyed = (k: string) => shot.keys?.some((key) => k in key.values) ?? false;
 	const tries: string[] = [];
 	if (typeof shot.params.headroom !== 'number')
@@ -256,7 +307,12 @@ export function headCropMessage(
 		);
 	if (shot.shot === 'window') {
 		const aspect = aspectParam(shot.params.aspect);
-		if (aspect === null || aspect > 0.8) tries.push('a taller "aspect" such as "4:5"');
+		if (aspect === null || aspect > 0.8)
+			tries.push(
+				shot.params.size === undefined
+					? 'a taller "aspect" such as "4:5" (it keeps the window area)'
+					: 'a taller "aspect" such as "4:5" (the window shrinks to stay in the frame)'
+			);
 		tries.push('a lower "zoom"');
 	}
 	if (shot.shot === 'strip') tries.push('a larger "size"');
@@ -271,12 +327,7 @@ export function headCropMessage(
 		tries.push(
 			'framing the speaker in a "window" or a "strip", where the camera can back off; the footage has no more room around the head in this shot'
 		);
-	const share = crop.share === null ? '' : `, ${Math.round(crop.share * 100)} % of the head`;
-	const what =
-		crop.edge === 'face'
-			? `cuts the speaker's face off at the bottom (up to ${crop.pixels} px of the head below the window${share})`
-			: crop.pixels > 0
-				? `cuts off the top of the speaker's head (by up to ${crop.pixels} px${share})`
-				: "leaves no room above the speaker's head (it touches the window's top edge)";
-	return `Shot "${crop.shot}" (${shot.shot}) ${what} from ${s(crop.from)} to ${s(crop.to + 1)}, its keys included. If the crop is not meant, try: ${tries.join('; ')}. Look at a still of the shot before deciding.`;
+	const unless =
+		crop.edge === 'top' && crop.pixels === 0 ? 'If that is not meant' : 'If the crop is not meant';
+	return `${head} ${unless}, try: ${tries.join('; ')}. Look at a still of the shot before deciding.`;
 }

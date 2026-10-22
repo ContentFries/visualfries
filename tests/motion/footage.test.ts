@@ -154,6 +154,37 @@ describe('subject boxes', () => {
 		expect(box.headHeight).toBeCloseTo((1.4 * 16) / 80, 3);
 	});
 
+	it('measures the head alone beside a hand or a second person, and past a speck above it', () => {
+		const w = 80,
+			h = 80;
+		/** The ellipse head of the test above at column `cx`, from row 10, plus `more`. */
+		const matte = (cx: number, more: (x: number, y: number) => boolean) => {
+			const gray = new Uint8Array(w * h);
+			for (let y = 0; y < h; y++)
+				for (let x = 0; x < w; x++) {
+					const head = ((x + 0.5 - cx) / 8) ** 2 + ((y + 0.5 - 21) / 11) ** 2 <= 1;
+					if (head || more(x, y)) gray[y * w + x] = 255;
+				}
+			return measureSubject(gray, w, h)!;
+		};
+		const alone = matte(20, () => false).headHeight!;
+		expect(alone).toBeCloseTo((1.4 * 16) / 80, 3);
+		// A raised hand a few pixels beside the face, as tall as the head.
+		expect(matte(20, (x, y) => x >= 32 && x < 44 && y >= 14 && y < 34).headHeight).toBeCloseTo(
+			alone,
+			3
+		);
+		// A second person's head at the same height further right.
+		expect(
+			matte(20, (x, y) => ((x + 0.5 - 60) / 8) ** 2 + ((y + 0.5 - 21) / 11) ** 2 <= 1).headHeight
+		).toBeCloseTo(alone, 3);
+		// A speck of matte six rows above the head: the head's top is the speck's, the size still
+		// reaches the chin.
+		const speck = matte(20, (x, y) => x === 20 && y === 4);
+		expect(speck.headY).toBeCloseTo(4 / 80, 3);
+		expect(speck.headHeight).toBeCloseTo((10 - 4 + 1.4 * 16) / 80, 3);
+	});
+
 	it('looks up and smooths the box for a program frame', () => {
 		const box = (x: number) => ({
 			x,
@@ -240,11 +271,24 @@ describe('prepareFootage subject boxes', () => {
 			const { headHeight: _, ...rest } = b;
 			return rest;
 		});
-		await fs.writeFile(donePath, JSON.stringify({ ...done, boxes: old }));
+		// As written before the measure had a version.
+		const { measure: _measure, ...unversioned } = done;
+		expect(_measure).toBeGreaterThan(1);
+		await fs.writeFile(donePath, JSON.stringify({ ...unversioned, boxes: old }));
 		const again = await loadMotionProject(path.join(dir, 'p.vf.json'));
 		await prepareFootage(again, again.resolved.clips);
 		expect(await fs.readdir(cache)).toEqual([folder]);
 		expect(again.resolved.clips[0].footage!.talk.boxes).toEqual(done.boxes);
+		// A cache that cannot be written still gives this run the new boxes.
+		await fs.writeFile(donePath, JSON.stringify({ ...unversioned, boxes: old }));
+		await fs.chmod(path.join(cache, folder), 0o555);
+		try {
+			const locked = await loadMotionProject(path.join(dir, 'p.vf.json'));
+			await prepareFootage(locked, locked.resolved.clips);
+			expect(locked.resolved.clips[0].footage!.talk.boxes).toEqual(done.boxes);
+		} finally {
+			await fs.chmod(path.join(cache, folder), 0o755);
+		}
 		await fs.rm(dir, { recursive: true, force: true });
 	});
 });

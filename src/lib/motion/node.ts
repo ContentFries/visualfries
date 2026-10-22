@@ -1597,7 +1597,8 @@ async function extractFootageRange(
 					total,
 					width: info.width,
 					height: info.height,
-					boxes
+					boxes,
+					measure: BOX_MEASURE
 				})
 			);
 			// Publish atomically. If another run published the same frames first, keep theirs:
@@ -1610,20 +1611,29 @@ async function extractFootageRange(
 		}
 	}
 	const done = JSON.parse(await fs.readFile(path.join(dir, 'done.json'), 'utf8'));
-	// Boxes measured before heads had a size: measure them again in place, keeping the frames
-	// (the cache key, and so every cached frame, stays valid).
-	const boxes = done.boxes as (SubjectBox | null)[] | undefined;
-	if (matte && boxes?.some((b) => b && b.headHeight === undefined)) {
+	// Boxes measured by an earlier `measureSubject` (before heads had a size): measure them again
+	// in place, keeping the frames (the cache key, and so every cached frame, stays valid).
+	if (matte && done.boxes && done.measure !== BOX_MEASURE) {
 		done.boxes = await matteBoxes(matte, info, fps, range, done.last - done.first + 1);
+		done.measure = BOX_MEASURE;
 		const tmp = path.join(dir, `done.json.tmp-${process.pid}-${randomUUID()}`);
-		await fs.writeFile(tmp, JSON.stringify(done));
-		await fs.rename(tmp, path.join(dir, 'done.json'));
+		// A cache that cannot be written (read-only, shared) keeps the new boxes for this run.
+		await fs
+			.writeFile(tmp, JSON.stringify(done))
+			.then(() => fs.rename(tmp, path.join(dir, 'done.json')))
+			.catch(() => fs.rm(tmp, { force: true }).catch(() => {}));
 	}
 	return {
 		dir,
 		range: { url: originUrl(dir) + '/', first: done.first, last: done.last, boxes: done.boxes }
 	};
 }
+
+/**
+ * Version of `measureSubject`, kept with every extracted range: boxes of another version are
+ * measured again from the matte (see `extractFootageRange`). Raise it when the measure changes.
+ */
+const BOX_MEASURE = 2;
 
 /** Width of the downscaled matte the subject boxes are measured on. */
 const BOX_SAMPLE_WIDTH = 160;
@@ -1670,6 +1680,8 @@ async function matteBoxes(
 const HEAD_RATIO = 1.4;
 /** Rows below the top of the head searched for its widest row, in head widths. */
 const HEAD_SPAN = 1.2;
+/** The narrowest row that starts a head, as a share of the matte's width (narrower: a speck). */
+const HEAD_MIN = 0.04;
 
 /** Subject box of one greyscale matte frame, in 0–1 coordinates. Exported for tests. */
 export function measureSubject(gray: Uint8Array, w: number, h: number): SubjectBox | null {
@@ -1697,18 +1709,34 @@ export function measureSubject(gray: Uint8Array, w: number, h: number): SubjectB
 				n++;
 			}
 	// The head's size: its widest row from the top down, until the rows reach HEAD_SPAN times
-	// that width below the top (past the widest row of a head, short of the shoulders).
+	// that width below the top (past the widest row of a head, short of the shoulders). A row
+	// counts only its run of subject pixels around the head's column, so a hand beside the face
+	// or a second person does not widen it, and the count starts at the first row wide enough to
+	// be a head, so a speck of matte above it does not end it early.
+	const column = Math.round(sum / n);
+	const least = Math.max(1, HEAD_MIN * w);
+	let top = -1;
 	let widest = 0;
-	for (let y = y0; y < h && !(widest && y - y0 >= HEAD_SPAN * widest); y++) {
-		let first = -1,
-			last = -1;
-		for (let x = 0; x < w; x++)
-			if (gray[y * w + x] >= 128) {
-				if (first < 0) first = x;
-				last = x;
+	for (let y = y0; y < h && !(top >= 0 && y - top >= HEAD_SPAN * widest); y++) {
+		let run = 0;
+		let nearest = Infinity;
+		for (let x = 0; x < w; ) {
+			if (gray[y * w + x] < 128) {
+				x++;
+				continue;
 			}
-		if (first >= 0) widest = Math.max(widest, last + 1 - first);
+			const start = x;
+			while (x < w && gray[y * w + x] >= 128) x++;
+			const off = column < start ? start - column : column >= x ? column - x + 1 : 0;
+			if (off < nearest) {
+				nearest = off;
+				run = x - start;
+			}
+		}
+		if (top < 0 && run >= least) top = y;
+		if (top >= 0) widest = Math.max(widest, run);
 	}
+	const headHeight = top < 0 ? 0 : (top - y0 + HEAD_RATIO * widest) / h;
 	const r = (v: number) => Math.round(v * 10000) / 10000;
 	return {
 		x: r(x0 / w),
@@ -1718,7 +1746,7 @@ export function measureSubject(gray: Uint8Array, w: number, h: number): SubjectB
 		headX: r((sum / n + 0.5) / w),
 		headY: r(y0 / h),
 		// Pixels of the downscaled matte are square: its width over its height is the footage's.
-		headHeight: r(Math.min(1 - y0 / h, (HEAD_RATIO * widest) / h))
+		headHeight: r(Math.min(1 - y0 / h, headHeight))
 	};
 }
 

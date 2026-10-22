@@ -8,7 +8,14 @@ import {
 	type ShotLayout,
 	type ShotSpan
 } from '$lib/motion/shots/index.js';
-import { headCropMessage, headCrops, shotHead, type FramingData } from '$lib/motion/framing.js';
+import {
+	headCropMessage,
+	headCrops,
+	programFraming,
+	shotHead,
+	type FramingData
+} from '$lib/motion/framing.js';
+import { programFootageAt } from '$lib/motion/footage-map.js';
 import type { FootageFrames, SubjectBox } from '$lib/motion/resolve.js';
 import type { FootageMap } from '$lib/motion/footage-map.js';
 import type { ProgramTransition } from '$lib/motion/program.js';
@@ -253,6 +260,51 @@ describe('head-aware framing', () => {
 		).toBeUndefined();
 	});
 
+	it("holds the shot's scale through frames the matte misses", () => {
+		const seen = layout('strip', PORTRAIT, { head: 0.5, params: H({ size: 0.5 }) });
+		const missed = layout('strip', PORTRAIT, {
+			head: 0.5,
+			subject: null,
+			params: H({ size: 0.5 })
+		});
+		expect(seen.camera.width).toBeLessThan(1080);
+		expect(missed.camera.width).toBe(seen.camera.width);
+		expect(missed.backdrop).toBeDefined();
+	});
+
+	it('keeps a window of any size and aspect inside its room', () => {
+		const frame = (l: ShotLayout, [W, H]: [number, number]) =>
+			l.clip.x >= 0 &&
+			l.clip.y >= 0 &&
+			l.clip.x + l.clip.width <= W &&
+			l.clip.y + l.clip.height <= H;
+		const tall = layout('window', LANDSCAPE, { params: { size: 0.5, aspect: '4:5' } });
+		expect(frame(tall, LANDSCAPE)).toBe(true);
+		expect(tall.clip.height).toBe(1080 - 2 * 54);
+		expect(tall.clip.width / tall.clip.height).toBeCloseTo(0.8, 2);
+		expect(tall.slots.panel.width).toBeGreaterThan(0);
+		const safe = { top: 288, right: 300, bottom: 672, left: 120 };
+		for (const params of [
+			{ size: 0.7, aspect: '4:5' },
+			{ size: 0.6, aspect: 0.5 },
+			{ size: 0.7, aspect: 0.5, corner: 'bottom-left' }
+		]) {
+			const l = shotLayout(
+				{ shot: 'window', params },
+				{ cls: 'portrait', size: PORTRAIT, footage: SELFIE_FOOTAGE, subject: SELFIE, safe }
+			);
+			expect(l.slots.panel.height, JSON.stringify(params)).toBeGreaterThanOrEqual(0.15 * 960 - 1);
+			expect(l.clip.y, JSON.stringify(params)).toBeGreaterThanOrEqual(288);
+			expect(l.clip.y + l.clip.height, JSON.stringify(params)).toBeLessThanOrEqual(1248);
+		}
+		// The biggest square window the param check allows is as it was.
+		const square = shotLayout(
+			{ shot: 'window', params: { size: 0.7 } },
+			{ cls: 'portrait', size: PORTRAIT, footage: SELFIE_FOOTAGE, subject: SELFIE, safe }
+		);
+		expect(square.clip).toMatchObject({ width: 756, height: 756 });
+	});
+
 	it('keeps the open edge covered all through a morph to a shot without a backdrop', () => {
 		const a = layout('strip', PORTRAIT, { params: H({ size: 0.5 }) });
 		const b = layout('full', PORTRAIT);
@@ -267,10 +319,10 @@ describe('head-aware framing', () => {
 	});
 });
 
-/** One source shown from program frame 0, a box per source frame. */
-function program(boxes: (SubjectBox | null)[]) {
+/** Extracted frames of a source with a box per frame. */
+function source(boxes: (SubjectBox | null)[]): FootageFrames {
 	const url = 'http://visualfries.local/footage/';
-	const frames: FootageFrames = {
+	return {
 		url,
 		first: 0,
 		last: boxes.length - 1,
@@ -281,6 +333,10 @@ function program(boxes: (SubjectBox | null)[]) {
 		startFrame: 0,
 		subject: true
 	};
+}
+
+/** One source shown from program frame 0, a box per source frame. */
+function program(boxes: (SubjectBox | null)[]) {
 	const map: FootageMap = {
 		frames: boxes.length,
 		totals: { talk: boxes.length },
@@ -289,7 +345,22 @@ function program(boxes: (SubjectBox | null)[]) {
 		],
 		windows: []
 	};
-	return { footage: { talk: frames }, map };
+	return { footage: { talk: source(boxes) }, map };
+}
+
+/** Two takes cut together: `close` for frames 0–29, then `wide` for 30–59. */
+function twoTakes(close: SubjectBox, wide: SubjectBox) {
+	const map: FootageMap = {
+		frames: 60,
+		totals: { close: 60, wide: 60 },
+		spans: [
+			{ owner: 'a', kind: 'cut', source: 'close', startFrame: 0, frames: 30, srcIn: 0 },
+			{ owner: 'b', kind: 'cut', source: 'wide', startFrame: 30, frames: 30, srcIn: 0 }
+		],
+		windows: []
+	};
+	const all = (box: SubjectBox) => Array.from({ length: 60 }, () => box);
+	return { footage: { close: source(all(close)), wide: source(all(wide)) }, map };
 }
 
 const span = (shot: string, extra: Partial<ShotSpan> = {}): ShotSpan => ({
@@ -333,13 +404,34 @@ describe('shotHead', () => {
 			i === 50 ? null : { ...SELFIE, headHeight: 0.3 + (i % 10) / 100 }
 		);
 		const { footage, map } = program(boxes);
-		expect(shotHead({ startFrame: 0, frames: 100 }, map, footage)).toBeCloseTo(0.38, 5);
+		expect(shotHead({ startFrame: 0, frames: 100 }, map, footage, 'talk')).toBeCloseTo(0.38, 5);
 		// Just the shot's own frames.
-		expect(shotHead({ startFrame: 0, frames: 5 }, map, footage)).toBeCloseTo(0.34, 5);
-		expect(shotHead({ startFrame: 0, frames: 100 }, null, footage)).toBeNull();
+		expect(shotHead({ startFrame: 0, frames: 5 }, map, footage, 'talk')).toBeCloseTo(0.34, 5);
+		expect(shotHead({ startFrame: 0, frames: 100 }, null, footage, 'talk')).toBeNull();
 		const { headHeight: _, ...unsized } = SELFIE;
 		const old = program(Array.from({ length: 10 }, () => unsized));
-		expect(shotHead({ startFrame: 0, frames: 10 }, old.map, old.footage)).toBeNull();
+		expect(shotHead({ startFrame: 0, frames: 10 }, old.map, old.footage, 'talk')).toBeNull();
+	});
+
+	it('measures each source a shot shows on its own: a close take and a wide one', () => {
+		const wide = { ...STUDIO, headY: 0.3, headHeight: 0.15 };
+		const { footage, map } = twoTakes(SELFIE, wide);
+		const whole = { startFrame: 0, frames: 60 };
+		expect(shotHead(whole, map, footage, 'close')).toBeCloseTo(0.5, 5);
+		expect(shotHead(whole, map, footage, 'wide')).toBeCloseTo(0.15, 5);
+		// A headroom shot across the cut backs off for the close head only.
+		const shot = span('strip', { params: H({ size: 0.5 }) });
+		const framing = programFraming({ ...data([shot], []), footage, footageMap: map });
+		const at = (f: number) => framing.layoutFor(f, programFootageAt(map, f));
+		expect(at(10).backdrop).toBeDefined();
+		expect(at(40).backdrop).toBeUndefined();
+		expect(at(40).camera.width).toBe(1080);
+		// And check measures the wide take's face against its own head.
+		const quiet = span('strip', { params: { size: 0.5 } });
+		const wideOnly = headCrops({ ...data([quiet], []), footage, footageMap: map }).filter(
+			(c) => c.from >= 30
+		);
+		expect(wideOnly).toEqual([]);
 	});
 });
 
@@ -413,7 +505,7 @@ describe('head crop check', () => {
 	});
 
 	it('always suggests something, even where the shot has nothing left to change', () => {
-		const touching = { ...SELFIE, headY: 0, headHeight: 0.4 };
+		const touching = { ...SELFIE, headY: 0.015, headHeight: 0.4 };
 		const shot = span('full', { params: { headroom: 0.06 } });
 		const [crop] = headCrops(
 			data(
@@ -424,6 +516,51 @@ describe('head crop check', () => {
 		expect(crop).toMatchObject({ edge: 'top', pixels: 0 });
 		expect(headCropMessage(crop, shot, 30)).toContain(
 			'try: framing the speaker in a "window" or a "strip", where the camera can back off'
+		);
+	});
+
+	it('says so when the recording itself has no room above the head', () => {
+		const bare = { ...SELFIE, headY: 0, headHeight: 0.4 };
+		const shot = span('strip', { params: { size: 0.5 } });
+		const [crop] = headCrops(
+			data(
+				[shot],
+				Array.from({ length: 60 }, () => bare)
+			)
+		);
+		expect(crop).toMatchObject({ edge: 'top', pixels: 0, bare: true });
+		const message = headCropMessage(crop, shot, 30);
+		expect(message).toContain(
+			'The recording itself has the head at its top edge there, so no framing param adds room above it'
+		);
+		expect(message).not.toContain('"headroom"');
+		expect(message).not.toContain('If the crop is not meant');
+	});
+
+	it('makes one warning per shot and edge, listing every stretch', () => {
+		// A head that bobs up past the strip's edge three times.
+		const bob = Array.from({ length: 90 }, (_, i) =>
+			i % 30 >= 10 && i % 30 < 20 ? { ...SELFIE, headY: 0.09 } : SELFIE
+		);
+		const shot = span('strip', { params: { size: 0.4 }, frames: 90 });
+		const tops = headCrops(data([shot], bob)).filter((c) => c.edge === 'top');
+		expect(tops).toHaveLength(1);
+		expect(tops[0].ranges.length).toBeGreaterThan(1);
+		expect(tops[0].from).toBe(tops[0].ranges[0][0]);
+		expect(tops[0].to).toBe(tops[0].ranges[tops[0].ranges.length - 1][1]);
+		expect(headCropMessage(tops[0], shot, 30)).toMatch(
+			/ from [\d.]+ s to [\d.]+ s, .* and [\d.]+ s to [\d.]+ s, /
+		);
+	});
+
+	it('words a head that only touches the edge as such', () => {
+		const lean = Array.from({ length: 60 }, (_, i) =>
+			i >= 30 && i < 40 ? { ...SELFIE, headY: 0.115 } : SELFIE
+		);
+		const shot = span('strip', { params: { size: 0.4 } });
+		const [crop] = headCrops(data([shot], lean)).filter((c) => c.edge === 'top');
+		expect(headCropMessage(crop, shot, 30)).toContain(
+			'its keys included. If that is not meant, try:'
 		);
 	});
 
@@ -442,12 +579,59 @@ describe('head crop check', () => {
 
 	it('skips morph frames and limits itself to a range', () => {
 		const near = { ...SELFIE, headY: 0.3, headHeight: 0.2 };
-		const shot = span('strip', { params: { size: 0.25 }, morphFrames: 10 });
 		const all = Array.from({ length: 60 }, () => near);
-		expect(headCrops(data([shot], all))[0].from).toBe(10);
+		// Two strips that both cut the head: the morph between them (frames 30–39) moves nothing,
+		// so the head is cut there too, but the check leaves the morph out.
+		const a = span('strip', { id: 'a', params: { size: 0.25 }, frames: 30 });
+		const b = span('strip', {
+			id: 'b',
+			params: { size: 0.25 },
+			startFrame: 30,
+			frames: 30,
+			morphFrames: 10
+		});
+		const crops = headCrops(data([a, b], all)).filter((c) => c.edge === 'top');
+		expect(crops.map((c) => [c.shot, c.from, c.to])).toEqual([
+			['a', 0, 29],
+			['b', 40, 59]
+		]);
+		const shot = span('strip', { params: { size: 0.25 } });
 		expect(headCrops(data([shot], all), { startFrame: 30, frames: 10 })[0]).toMatchObject({
 			from: 30,
 			to: 39
 		});
+	});
+
+	it('skips cut and shot transition windows, not clip transitions', () => {
+		const near = { ...SELFIE, headY: 0.3, headHeight: 0.2 };
+		const all = Array.from({ length: 60 }, () => near);
+		const shot = span('strip', { params: { size: 0.25 } });
+		const window = (kind: string) =>
+			({ kind, startFrame: 0, frames: 20, cutFrame: 10 }) as unknown as ProgramTransition;
+		const cut = { ...data([shot], all), transitions: [window('cut')] };
+		expect(headCrops(cut).filter((c) => c.edge === 'top')[0].from).toBe(20);
+		const clip = { ...data([shot], all), transitions: [window('clip')] };
+		expect(headCrops(clip).filter((c) => c.edge === 'top')[0].from).toBe(0);
+	});
+
+	it('moves the headroom with the head calmly: a step in the matte becomes a ramp', () => {
+		// The head jumps up for good at frame 40 of a long shot.
+		const step = Array.from({ length: 120 }, (_, i) =>
+			i < 40
+				? { ...SELFIE, headY: 0.3, headHeight: 0.2 }
+				: { ...SELFIE, headY: 0.2, headHeight: 0.2 }
+		);
+		const shot = span('strip', { params: H({ size: 0.25 }), frames: 120 });
+		const d = data([shot], step);
+		const framing = programFraming(d);
+		const ys = Array.from(
+			{ length: 120 },
+			(_, f) => framing.layoutFor(f, programFootageAt(d.footageMap!, f)).camera.y
+		);
+		const total = Math.abs(ys[119] - ys[0]);
+		expect(total).toBeGreaterThan(100);
+		const steps = ys.slice(1).map((y, i) => Math.abs(y - ys[i]));
+		// Spread over about a second: no frame moves more than a tenth of the way.
+		expect(Math.max(...steps)).toBeLessThan(total / 10);
 	});
 });

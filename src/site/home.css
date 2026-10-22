@@ -148,9 +148,20 @@
 .home .duel .head h3{font-size:19px}
 .home .duel .media[data-ar="post"]{--ar:4/5}
 .home .duel .media[data-ar="wide"]{--ar:16/9}
+.home .duel.three{grid-template-columns:repeat(3,1fr)}
+.home .duel .media[data-ar="tall"]{--ar:9/16}
+.home .bro{margin-top:72px;padding-top:40px;border-top:1px dashed var(--line)}
+.home .bro .bro-h{font-size:clamp(28px,4vw,44px);line-height:1.05}
+.home .bro-score{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-l);padding:18px 18px 12px;margin:0 0 14px;display:grid;gap:10px}
+.home .bro-score .row{display:grid;grid-template-columns:150px 1fr 48px;align-items:center;gap:12px;font-weight:600}
+.home .bro-score .row b{font:700 20px var(--mono);text-align:right}
+.home .bro-score .bar{height:14px;border-radius:999px;background:var(--line);width:max(var(--w),4px)}
+.home .bro-score .bar.y{background:var(--yellow);box-shadow:0 0 24px rgba(255,225,0,.35)}
+.home .bro-score .tiny{font:11px var(--mono);color:var(--muted);letter-spacing:.04em;margin:2px 0 0}
+@media (max-width:560px){.home .bro-score .row{grid-template-columns:96px 1fr 40px;font-size:13px}}
 .home .duel .note{font-size:13.5px;color:var(--muted)}
 .home .compare .fine{margin-top:22px;font-size:14px;color:var(--muted);max-width:76ch}
-@media (max-width:760px){.home .duel{grid-template-columns:1fr}.home .brief .prompt{grid-template-columns:1fr}}
+@media (max-width:760px){.home .duel,.home .duel.three{grid-template-columns:1fr}.home .brief .prompt{grid-template-columns:1fr}}
 
 /* ===================== how it works ===================== */
 .home .how{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}

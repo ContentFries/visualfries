@@ -310,6 +310,14 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     // Side b shows only inside a cut or shot transition window.
     const b = side(stage, 'b');
     b.el.style.display = 'none';
+    // An insert draws its clip alone: the footage picture stays out, the subject only shows in
+    // the holdout pass.
+    if (seg.insert)
+        for (const s of [a, b]) {
+            s.fill.style.visibility = 'hidden';
+            s.plate.box.style.visibility = 'hidden';
+            s.subject.box.style.opacity = '0';
+        }
     const under = layer(stage, 'vf-under', `${ISOLATED};pointer-events:none`);
     const front = layer(stage, 'vf-clips', ISOLATED);
     const overlay = layer(stage, 'vf-overlay', `${ISOLATED};pointer-events:none`);
@@ -562,11 +570,14 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             hide(s.subject.img);
             return;
         }
-        const plate = show(s.plate.img, sourceFrameUrl(frames, view.view.frame, 'plate'));
+        const plate = seg.insert
+            ? null
+            : show(s.plate.img, sourceFrameUrl(frames, view.view.frame, 'plate'));
         if (plate)
             pending.push(plate);
-        // The subject covers behind clips only while one is on screen, or a dimmed room.
-        if ((behind || room) && frames.subject) {
+        // The subject covers behind clips only while one is on screen, or a dimmed room; in an
+        // insert it is only what a holdout cuts out.
+        if ((seg.insert ? seg.insert.holdout && behind : behind || room) && frames.subject) {
             const subject = show(s.subject.img, sourceFrameUrl(frames, view.view.frame, 'subject'));
             if (subject)
                 pending.push(subject);
@@ -668,6 +679,16 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                     out.push(`The push into clip "${t.owner}" slides everything below it off the frame, but the clip does not cover the frame: the empty stage shows around it. Use wipe, or give the clip a full-frame background.`);
             }
             return out;
+        },
+        holdout(on) {
+            const shown = !!seg.insert?.holdout && a.subject.img.style.display !== 'none';
+            if (on && !shown)
+                return false;
+            a.subject.box.style.opacity = on ? '' : '0';
+            a.behind.style.opacity = on ? '0' : '';
+            front.style.opacity = on ? '0' : '';
+            under.style.opacity = on ? '0' : '';
+            return on;
         },
         destroy() {
             for (const m of mounted)

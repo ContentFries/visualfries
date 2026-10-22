@@ -50,7 +50,7 @@ Usage:
 
 Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries clips <project.vf.json> [--clip <id>] [--json]
-  visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]
+  visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--export inserts] [--json]
   visualfries program <project.vf.json> [--format <WxH>] [--json]
                     resolve the whole program (cuts, shots, clips, transitions, audio,
                     segments) and save it as .visualfries/program/<format>.json
@@ -60,8 +60,12 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     moments ("2.5s", "f120", "end"); check runs per segment of the program
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
                     with "cuts" or "shots" renders the whole program as one video
-                    (--export video, the default there; --export inserts renders clips):
-                    [--format <WxH>] [--no-cache] [--stems]; segments are cached losslessly in
+                    (--export video, the default there) or, with --export inserts
+                    [--handles <frames>], each clip as the program draws it, alone: frame
+                    size, transparent, 10 frames of handle each side, "layer": "behind" as a
+                    holdout, manifest.json with the cut list under each insert; check
+                    --export inserts lists what inserts leave to the program render.
+                    Video: [--format <WxH>] [--no-cache] [--stems]; segments are cached losslessly in
                     .visualfries/segments/ and only changed segments are drawn again;
                     <name>.program.json is saved beside the video. The sound is speech, sfx
                     and music mixed and normalised (-14 LUFS, -1 dBTP; "mix" in the project);
@@ -1657,7 +1661,7 @@ async function motionCheckCommand(args) {
 	const file = args[0];
 	if (!file)
 		throw new Error(
-			'Usage: visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--json]'
+			'Usage: visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--export inserts] [--json]'
 		);
 	const { loadMotionProject, checkMotionProject, describeMusicGrid, motionProgram } =
 		await motionModule();
@@ -1680,6 +1684,14 @@ async function motionCheckCommand(args) {
 			.map(key)
 	);
 	const diagnostics = program.diagnostics.filter((d) => !shown.has(key(d)));
+	// What the inserts export of a program leaves to the program render.
+	const exportAs = readFlag(args, '--export');
+	if (exportAs !== undefined && exportAs !== 'inserts' && exportAs !== 'video')
+		throw new Error(`--export must be video or inserts, got "${exportAs}".`);
+	if (exportAs === 'inserts' && programMode) {
+		const { insertNotes } = await import('../dist/motion/inserts.js');
+		diagnostics.push(...insertNotes(program, loaded.project));
+	}
 	if (!json && diagnostics.length) {
 		console.log(`program (${program.frames} frames, ${program.segments.length} segments)`);
 		for (const d of diagnostics)
@@ -1992,7 +2004,8 @@ async function motionRenderCommand(args) {
 	if (!output)
 		throw new Error(
 			'Usage: visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]\n' +
-				'       visualfries render <program.vf.json> --output <dir|video.mp4> [--export video] [--format <WxH>] [--jobs <n>] [--no-cache] [--stems]'
+				'       visualfries render <program.vf.json> --output <dir|video.mp4> [--export video] [--format <WxH>] [--jobs <n>] [--no-cache] [--stems]\n' +
+				'       visualfries render <program.vf.json> --export inserts --output <dir|clip.mov> [--handles <frames>] [--clip <id>]... [--jobs <n>]'
 		);
 	const { loadMotionProject, renderMotionClips } = await motionModule();
 	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
@@ -2020,14 +2033,27 @@ async function motionRenderCommand(args) {
 		console.log(JSON.stringify(result, null, 2));
 		return;
 	}
-	const results = await renderMotionClips(loaded, {
+	const clipOptions = {
 		output,
 		clips: readAllFlags(args, '--clip'),
 		jobs: numberFlag(args, '--jobs'),
 		invalidate: readFlag(args, '--invalidate'),
 		keepFrames: hasFlag(args, '--keep-frames'),
 		onProgress: (msg) => console.error(msg)
-	});
+	};
+	if (programMode && readFlag(args, '--format') !== undefined)
+		throw new Error(
+			'--format renders the program video in another frame size; inserts take the project size.'
+		);
+	if (!programMode && readFlag(args, '--handles') !== undefined)
+		throw new Error(
+			'--handles adds frames around the inserts of a program (a project with "cuts" or "shots"); here a clip\'s handles are its own "from" and "tail".'
+		);
+	const results = programMode
+		? await (
+				await import('../dist/motion/inserts-node.js')
+			).renderProgramInserts(loaded, { ...clipOptions, handles: numberFlag(args, '--handles') })
+		: await renderMotionClips(loaded, clipOptions);
 	console.log(JSON.stringify({ output: path.resolve(output), clips: results }, null, 2));
 }
 

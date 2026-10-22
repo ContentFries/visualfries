@@ -201,6 +201,22 @@ in seconds. A clip's `audio` muxes that footage's sound into the rendered clip. 
 extracted once into `.visualfries/footage/` (JPEG plates, PNG cut-outs) and loaded before each
 frame is captured, so footage is frame-accurate in any seek order.
 
+**Words behind the speaker, as an overlay.** To lay a clip _behind_ the speaker over the
+original video in an editor, give an `alpha` clip `"layer": "behind"`. While encoding, its alpha
+is multiplied by the inverse of the matte of the project's one footage with a matte, aligned to
+the program frame by that footage's `start`: wherever the speaker is, the clip is transparent
+and the real footage shows through. No plate is drawn, so nothing is resampled; before and
+after the footage nothing is cut. The matte is scaled to the clip's size, so it lines up when
+the footage has the clip's aspect ratio; `check` and `render` warn when it does not. The alpha is straight:
+set the editor's alpha mode to straight. Everything in such a clip is held out; put what must
+stay in front of the speaker in a second clip on a higher track.
+
+```json
+"footage": { "talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "start": 0 } },
+"clips": [{ "id": "behind", "block": "blocks/BigWord.svelte", "from": "it was", "until": "amazing",
+            "alpha": true, "layer": "behind" }]
+```
+
 A project can also describe the whole program. `cuts` lists ranges of raw footage in order,
 `{ "source": "talk", "in": "today we fix", "out": "the slow export" }`: `in` and `out` are
 seconds of that file or words of its own transcript (`footage.talk.transcript`), and every
@@ -896,7 +912,9 @@ project with another `size`.
 time; the resolved program is saved beside the video. The cache works per segment (the range
 between two hard cuts): an edit redraws the segments whose content changed. A clip that spans
 several segments (a captions clip over the whole program) puts every one of them in play, and a
-cut that gets longer or shorter moves everything after it, so those segments are drawn again.
+cut that gets longer or shorter moves everything after it, so those segments are drawn again. To
+finish the edit in an editor instead, `--export inserts` renders each clip as its own file to lay over
+the rough cut (see [Inserts from a program](#inserts-from-a-program)).
 
 **9. Retake.** Point the footage at the new take and its transcript, or change which try a cut
 keeps (`occurrence`), and render again. Cut points, shots, clips, captions, keys, sound effects
@@ -914,6 +932,8 @@ visualfries still video.vf.json --clip B --at extra --at extra.end+0.5 --output 
 visualfries render video.vf.json --output out/ [--clip B] [--jobs 6]   # MP4 / MOV + manifest.json
 visualfries render video.vf.json --clip B --output b.mp4               # one clip straight to a file
 visualfries render program.vf.json --output out/ [--format 1080x1920]   # a cut list or shots: one video
+visualfries render program.vf.json --export inserts --output out/ [--handles 10]  # its clips, one file each
+visualfries check program.vf.json --export inserts               # what inserts leave to the program render
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover
 visualfries matte talk.mp4 --output talk.matte.mp4 --provider rvm   # subject matte (rvm local, fal.ai or --command)
 visualfries beats music.mp3                                      # music.beats.json (beat_this or --command)
@@ -931,7 +951,8 @@ the transcript it was timed against. Re-rendering some clips keeps the others; c
 against an older transcript are marked `stale`.
 
 With `cuts` or `shots`, `render` makes the whole program one video (`--export video`, the
-default there; `--export inserts` renders the clips one by one as without a cut list).
+default there; `--export inserts` renders each clip as its own file, see
+[Inserts from a program](#inserts-from-a-program)).
 `--format WxH` renders another frame size from the same project; `--output` is an `.mp4` or a
 directory that gets `<project>[.<format>].mp4`. Each segment (the range between two hard cuts)
 is drawn on its own pages and stored losslessly in `.visualfries/segments/<hash>-<engine>.mkv`;
@@ -1010,6 +1031,58 @@ stems of the same name left by an earlier render, since they no longer match the
 render result lists the mix: the speech loudness, each piece's gain, the master gain, the
 limiter's largest reduction, the loudness and true peak of the mix and of the delivered audio,
 and warnings.
+
+### Inserts from a program
+
+`render <program> --export inserts --output out/` renders every clip of a program as its own
+file for an editor to lay over the rough cut, with `manifest.json` as without a cut list
+(`--clip` picks clips, `--output name.mov` names the file of one). An insert is the clip exactly
+as the program draws it, alone:
+
+- **Time:** the clip's program window plus `--handles` frames before and after it (default 10;
+  never before the program's first frame or after its last), in which the clip holds its first
+  or last frame, as it does inside a transition window. The file starts at `programStartFrame`.
+  A clip in a `slot` shows only while the shot on screen frees the slot, handles included: where
+  the shot before or after it has no such slot, that handle is empty (transparent).
+- **Place:** frame coordinates. Every insert has the program's frame size, and the clip sits
+  where the program draws it: placement keys move it, and a clip in a shot's `slot` follows the
+  slot wherever the shot puts it, through morphs and whips. Laid over the program picture, an
+  insert lines up pixel for pixel, except where the program moves the clip with a transition:
+  a clip behind the subject inside a cut or shot transition window moves (or is covered) with
+  the footage in the program and stays still in the insert, and `check --export inserts` names
+  those frames. A slot-sized file would have no single size while a morph resizes the slot, and
+  could not carry a whip's travel.
+- **Alpha:** in a program every clip is drawn over the footage, so inserts are transparent
+  (ProRes 4444 `.mov`) unless the clip says `"alpha": false`: it is then drawn over its
+  `background` (or the project's) as an H.264 `.mp4`. A behind clip is always transparent;
+  `"alpha": false` on it is a warning. The alpha is straight (colours not multiplied by it), as
+  in every transparent clip VisualFries renders: set the editor's alpha mode to straight. Read as
+  premultiplied, soft edges come out too bright (a halo of about 30 levels around a holdout).
+- **Behind:** a clip with `"layer": "behind"` becomes a holdout insert. Each frame is drawn
+  twice on the page: the clip, then the subject alone where the program draws it over the clip,
+  which is erased from the first (alpha × (1 − subject alpha), colours kept). Laid over the
+  footage, the clip sits behind the speaker exactly as in the program render. The cut list maps
+  every frame, handles included, to its source frame, so the holdout follows the speaker across
+  cuts.
+
+Each manifest entry adds to the fields of a clip render: `handles` (`before`, `after`), `clip`
+(the clip's own `startFrame` and `frames`), `layer`, `slot`, `holdout`, `sources` (the cut list
+under the file: program frames `startFrame` to `startFrame + frames` show source frames `srcIn`
+to `srcOut` of `source`, at the project rate) and `notes`. The manifest itself adds
+`"export": "inserts"` and the program's `frames`.
+
+Not in inserts: the cut list itself (the editor has the rough cut), shots (the framing of the
+footage, fills, a window's ring, a dimmed room, the footage's motion blur), cut and shot
+transitions, a clip's own `transition`, the program's sound and a clip's `audio`. They stay in
+the program render (`--export video`). `check --export inserts` lists, as `info`, where a
+program relies on them: clips that arrive or leave with a cut or shot transition (the insert
+cuts in or out), clips with their own transition, clips in a slot of a shot that reframes the
+footage (`punch`, `strip`, `window`, `whip`, a shot with keys; such an insert lines up with the
+program's framing, so frame the footage like the shot or use the program render), behind clips
+under such a shot, behind clips inside a cut or shot transition window, and clips with `audio`;
+as a `warning`, `"alpha": false` on a behind clip. `render` prints the same notes and writes
+them into the manifest. A render that was killed leaves its partial encode
+(`.<clip>.partial-<pid>.mov`); the next render into that folder removes it.
 
 ## How frames are made
 

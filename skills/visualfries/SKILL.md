@@ -346,6 +346,9 @@ Work like an editor, in this order; each step ends on its criterion:
    formats). Done when the video plays to its last frame, a contact sheet of it shows what the
    stills showed, and the hand-over names the render time, the segments drawn and cached, the
    delivered loudness and the cut points the creator should listen to.
+   When the creator finishes the edit in an editor, add `--export inserts` (one transparent file
+   per clip, 10-frame handles, `manifest.json` with program and source frames; `check
+--export inserts` lists what stays in the program render).
 
 Traps the guide explains: a phrase in `until` means its end (`"edge": "start"` to stop where it
 begins); a few frames between two shots squeeze a move into them; a slotted clip should last until

@@ -43,5 +43,16 @@ jobs:
       - name: Unit tests
         run: pnpm exec vitest run
 
+      # Projects without a cut list must render exactly as on main: render both builds here, on
+      # the same Chromium and ffmpeg, and compare file bytes and manifests.
+      - name: Legacy inserts against main
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --depth=1 origin main
+          mkdir -p "$RUNNER_TEMP/vf-main"
+          git archive FETCH_HEAD dist static/demo/quote package.json | tar -x -C "$RUNNER_TEMP/vf-main"
+          ln -s "$PWD/node_modules" "$RUNNER_TEMP/vf-main/node_modules"
+          VF_MAIN_ROOT="$RUNNER_TEMP/vf-main" pnpm exec vitest run tests/motion/inserts-legacy.test.ts
+
       - name: Build package and site
         run: pnpm build

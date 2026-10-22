@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import { existsSync, rmSync, statSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -19,6 +19,7 @@ import {
 	type LoadedMotionProject
 } from './node.js';
 import type { ProgramSegment, ResolvedProgram } from './program.js';
+import { removeOrphans, trackPartial } from './partials.js';
 import { STEMS, encodeProgramMix, writeWav, type MixReport, type StemName } from './audio.js';
 import { assertProgramRenders, openSegment } from './program-node.js';
 
@@ -418,68 +419,6 @@ async function joinAndEncode(
 }
 
 // ---------------------------------------------------------------- cache housekeeping
-
-/** Temporary files of this process, removed when it is interrupted. */
-const partials = new Set<string>();
-let onSignal: ((signal: NodeJS.Signals) => void) | null = null;
-/** Set by SIGINT or SIGTERM: no render of this process writes another temporary file. */
-let interrupted: NodeJS.Signals | null = null;
-
-/**
- * Registers a temporary file: SIGINT or SIGTERM removes it before the process exits, and a
- * render still running then stops at its next file. Returns the call that unregisters it.
- */
-function trackPartial(file: string): () => void {
-	if (interrupted) throw new Error(`Render stopped by ${interrupted}.`);
-	partials.add(file);
-	if (!onSignal) {
-		onSignal = (signal) => {
-			interrupted = signal;
-			for (const f of partials) rmSync(f, { force: true });
-			partials.clear();
-			process.off('SIGINT', onSignal!);
-			process.off('SIGTERM', onSignal!);
-			onSignal = null;
-			// Others listening (Playwright closes its browsers) end the process; else end it as
-			// the signal would have.
-			if (!process.listenerCount(signal)) process.kill(process.pid, signal);
-		};
-		process.on('SIGINT', onSignal);
-		process.on('SIGTERM', onSignal);
-	}
-	return () => {
-		partials.delete(file);
-		if (!partials.size && onSignal) {
-			process.off('SIGINT', onSignal);
-			process.off('SIGTERM', onSignal);
-			onSignal = null;
-		}
-	};
-}
-
-const alive = (pid: number) => {
-	try {
-		process.kill(pid, 0);
-		return true;
-	} catch (error) {
-		return (error as NodeJS.ErrnoException).code === 'EPERM';
-	}
-};
-
-/**
- * Removes temporary files (partial intermediates and encodes, join lists) whose name carries
- * the id of a process no longer running: `pattern` captures it.
- */
-async function removeOrphans(dir: string, pattern: RegExp) {
-	const names = await fs.readdir(dir).catch(() => [] as string[]);
-	await Promise.all(
-		names.map(async (name) => {
-			const m = pattern.exec(name);
-			if (!m || Number(m[1]) === process.pid || alive(Number(m[1]))) return;
-			await fs.rm(path.join(dir, name), { force: true });
-		})
-	);
-}
 
 /** Milliseconds a file time may lag the clock it is compared with (see `pruneSegments`). */
 const MTIME_SLACK = 100;

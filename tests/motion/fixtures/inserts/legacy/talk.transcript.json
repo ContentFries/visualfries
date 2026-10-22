@@ -1,0 +1,10 @@
+{
+	"words": [
+		{ "text": "A", "startMs": 300, "endMs": 400 },
+		{ "text": "faster", "startMs": 450, "endMs": 800 },
+		{ "text": "export:", "startMs": 850, "endMs": 1300 },
+		{ "text": "open", "startMs": 1500, "endMs": 1700 },
+		{ "text": "the", "startMs": 1750, "endMs": 1850 },
+		{ "text": "settings.", "startMs": 1900, "endMs": 2400 }
+	]
+}

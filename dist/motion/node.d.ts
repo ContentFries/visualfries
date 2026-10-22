@@ -9,6 +9,8 @@ import { type BarRow, type BeatsFile, type MusicBeats } from './beat-grid.js';
 import { type MusicTrack, type PlacedMusic } from './music.js';
 import { type FootageMap, type FrameRange } from './footage-map.js';
 import type { FootageFrames, SubjectBox } from './resolve.js';
+/** `.<clip>.partial-<pid>.mp4|mov`: a clip's encode before it replaces the file. */
+export declare const PARTIAL_CLIP: RegExp;
 export type LoadedMotionProject = {
     file: string;
     dir: string;
@@ -257,6 +259,14 @@ export type ClipCheck = {
  * errors, runtime errors (unknown cue, bad ease, map order), wall-clock CSS animations and,
  * optionally, whether sampled frames come out identical in two seek orders.
  */
+/**
+ * Clips behind the subject without a cut list whose footage matte has another aspect ratio than
+ * the clip: the holdout scales the matte to the clip's size, so it would not line up.
+ */
+export declare function holdoutAspectWarnings(loaded: Pick<LoadedMotionProject, 'project' | 'dir' | 'cutList'>, clips: Pick<ResolvedClip, 'id' | 'size'>[]): Promise<{
+    clip: string;
+    message: string;
+}[]>;
 export declare function checkMotionProject(loaded: LoadedMotionProject, opts?: {
     clips?: string[];
     determinism?: boolean;
@@ -305,9 +315,37 @@ export type RenderedClip = {
     style: string | null;
     /** Set when the clip was rendered against another transcript or music beats than the newest render. */
     stale?: boolean;
+    /** Inserts of a program: frames of the file before the clip's first frame and after its last. */
+    handles?: {
+        before: number;
+        after: number;
+    };
+    /** Inserts of a program: the clip's own program frames (the file without its handles). */
+    clip?: {
+        startFrame: number;
+        frames: number;
+    };
+    /** Inserts of a program: where the program draws the clip. */
+    layer?: 'front' | 'behind';
+    slot?: string | null;
+    /** The subject is cut out of the alpha (`layer: "behind"`). */
+    holdout?: boolean;
+    /** Inserts of a program: the cut list under the file (program frames → source frames). */
+    sources?: {
+        cut: string;
+        source: string;
+        startFrame: number;
+        frames: number;
+        srcIn: number;
+        srcOut: number;
+    }[];
+    /** Inserts of a program: what the insert leaves to the program render. */
+    notes?: string[];
 };
 /** Video settings of every finished H.264 file: clips, and programs after their one final encode. */
 export declare const H264_FINAL: string[];
+/** Video settings of every transparent clip: ProRes 4444 with a 16-bit alpha channel. */
+export declare const PRORES_4444: string[];
 /** The encoder went away while frames were being piped; the frames themselves were fine. */
 export declare class FramePipeError extends Error {
 }
@@ -322,6 +360,14 @@ type FrameSink = {
  */
 export declare function ffmpegFramePipe(args: string[]): FrameSink;
 /**
+ * ffmpeg inputs, filters and mapping that follow the piped frames (input 0): the holdout of a
+ * clip with `"layer": "behind"` (alpha × (1 − matte) of the footage `holdoutFootage` names,
+ * aligned to the program frame by its `start`) and the sound of the clip's `audio` footage, cut
+ * to the clip's program range. Silence fills anything the audio footage does not cover; outside
+ * its footage the holdout cuts nothing.
+ */
+export declare function encodeInputs(loaded: Pick<LoadedMotionProject, 'project' | 'dir'>, clip: Pick<ResolvedClip, 'id' | 'audio' | 'alpha' | 'fps' | 'start' | 'startFrame' | 'frames' | 'duration' | 'size'>): string[];
+/**
  * Pages take frames in turn (page j renders j, j + jobs, …) and a reorder buffer hands them to
  * ffmpeg in order. A page waits while it is more than a few frames ahead of the encoder, so
  * memory stays flat; frames are deterministic in any order, which `check --determinism` proves.
@@ -329,6 +375,8 @@ export declare function ffmpegFramePipe(args: string[]): FrameSink;
 export declare function pipeFrames(frames: number, jobs: number, open: () => Promise<Pick<MotionPage, 'capture' | 'close'>>, sink: FrameSink, opts?: {
     signal?: AbortSignal;
 }): Promise<void>;
+/** The original path, kept as the fallback and for --keep-frames: PNG files, then one encode. */
+export declare function framesThenEncode(clip: Pick<ResolvedClip, 'id' | 'frames' | 'fps'>, jobs: number, open: () => Promise<MotionPage>, encode: string[], keep?: boolean): Promise<void>;
 export declare function renderMotionClips(loaded: LoadedMotionProject, opts: {
     output: string;
     clips?: string[];
@@ -337,4 +385,10 @@ export declare function renderMotionClips(loaded: LoadedMotionProject, opts: {
     keepFrames?: boolean;
     onProgress?: (msg: string) => void;
 }): Promise<RenderedClip[]>;
+/**
+ * Writes `manifest.json` in `output`: the rendered clips merged into the entries of an earlier
+ * render that are still in the project, each marked `stale` when it was timed against another
+ * transcript or other beats. `extra` adds fields after the project's hashes.
+ */
+export declare function writeRenderManifest(loaded: LoadedMotionProject, output: string, results: RenderedClip[], onProgress?: (msg: string) => void, extra?: Record<string, unknown>): Promise<void>;
 export {};

@@ -132,6 +132,11 @@ export type ProgramScene = {
 	draw(f: number): Promise<void>;
 	/** What `check` should warn about at the frame last drawn (see `pushGaps`). */
 	warnings(f: number): string[];
+	/**
+	 * A holdout insert's second pass: `true` shows the subject alone (as drawn at the frame last
+	 * drawn) and returns whether there is one to cut out; `false` shows the clips again.
+	 */
+	holdout(on: boolean): boolean;
 	destroy(): void;
 };
 
@@ -442,6 +447,14 @@ export function createProgramScene(
 	// Side b shows only inside a cut or shot transition window.
 	const b = side(stage, 'b');
 	b.el.style.display = 'none';
+	// An insert draws its clip alone: the footage picture stays out, the subject only shows in
+	// the holdout pass.
+	if (seg.insert)
+		for (const s of [a, b]) {
+			s.fill.style.visibility = 'hidden';
+			s.plate.box.style.visibility = 'hidden';
+			s.subject.box.style.opacity = '0';
+		}
 	const under = layer(stage, 'vf-under', `${ISOLATED};pointer-events:none`);
 	const front = layer(stage, 'vf-clips', ISOLATED);
 	const overlay = layer(stage, 'vf-overlay', `${ISOLATED};pointer-events:none`);
@@ -699,10 +712,13 @@ export function createProgramScene(
 			hide(s.subject.img);
 			return;
 		}
-		const plate = show(s.plate.img, sourceFrameUrl(frames, view.view.frame, 'plate'));
+		const plate = seg.insert
+			? null
+			: show(s.plate.img, sourceFrameUrl(frames, view.view.frame, 'plate'));
 		if (plate) pending.push(plate);
-		// The subject covers behind clips only while one is on screen, or a dimmed room.
-		if ((behind || room) && frames.subject) {
+		// The subject covers behind clips only while one is on screen, or a dimmed room; in an
+		// insert it is only what a holdout cuts out.
+		if ((seg.insert ? seg.insert.holdout && behind : behind || room) && frames.subject) {
 			const subject = show(s.subject.img, sourceFrameUrl(frames, view.view.frame, 'subject'));
 			if (subject) pending.push(subject);
 		} else hide(s.subject.img);
@@ -803,6 +819,15 @@ export function createProgramScene(
 					);
 			}
 			return out;
+		},
+		holdout(on) {
+			const shown = !!seg.insert?.holdout && a.subject.img.style.display !== 'none';
+			if (on && !shown) return false;
+			a.subject.box.style.opacity = on ? '' : '0';
+			a.behind.style.opacity = on ? '0' : '';
+			front.style.opacity = on ? '0' : '';
+			under.style.opacity = on ? '0' : '';
+			return on;
 		},
 		destroy() {
 			for (const m of mounted) unmount(m.instance);

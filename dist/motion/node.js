@@ -22,6 +22,10 @@ import { BeatsFileShape, barRows, formatBarGrid } from './beat-grid.js';
 import { musicEnds, musicTrack, placeMusic } from './music.js';
 import { fileSha256 } from './beats.js';
 import { footageMap, footageRanges } from './footage-map.js';
+import { holdoutFootage } from './inserts.js';
+import { removeOrphans, trackPartial } from './partials.js';
+/** `.<clip>.partial-<pid>.mp4|mov`: a clip's encode before it replaces the file. */
+export const PARTIAL_CLIP = /^\..+\.partial-(\d+)\.(?:mp4|mov)$/;
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CHROMIUM_FLAGS = ['--enable-blink-features=CanvasDrawElement', '--font-render-hinting=none'];
@@ -368,6 +372,17 @@ export async function loadMotionProject(file, opts = {}) {
     if (cutList.mode === 'inserts') {
         const resolved = resolveMotionProject(project, words, musicBeats, look);
         resolved.diagnostics.unshift(...musicDiagnostics);
+        // A clip behind the subject renders as a holdout of the one footage with a matte.
+        for (const clip of project.clips) {
+            const holdout = holdoutFootage(project, clip.id);
+            if (holdout && 'error' in holdout)
+                resolved.diagnostics.push({
+                    level: 'error',
+                    clip: clip.id,
+                    field: 'layer',
+                    message: holdout.error
+                });
+        }
         return { ...common, words, transcriptHash: hashes.transcript, resolved, cutList };
     }
     // Program mode: clips resolve against the program transcript, and a broken cut list is an
@@ -1325,6 +1340,33 @@ export function frameForAt(clip, at) {
  * errors, runtime errors (unknown cue, bad ease, map order), wall-clock CSS animations and,
  * optionally, whether sampled frames come out identical in two seek orders.
  */
+/**
+ * Clips behind the subject without a cut list whose footage matte has another aspect ratio than
+ * the clip: the holdout scales the matte to the clip's size, so it would not line up.
+ */
+export async function holdoutAspectWarnings(loaded, clips) {
+    const out = [];
+    // With a cut list the stage draws the subject itself; only the encode-time holdout stretches.
+    if (loaded.cutList.mode !== 'inserts')
+        return out;
+    for (const clip of clips) {
+        const holdout = holdoutFootage(loaded.project, clip.id);
+        if (!holdout || 'error' in holdout)
+            continue;
+        const matte = path.resolve(loaded.dir, loaded.project.footage[holdout.footage].matte);
+        if (!existsSync(matte))
+            continue;
+        const { width, height } = await probeVideo(matte);
+        const [w, h] = clip.size;
+        if (Math.abs(width / height - w / h) <= 0.01 * (w / h))
+            continue;
+        out.push({
+            clip: clip.id,
+            message: `The matte of footage "${holdout.footage}" is ${width}×${height} and the clip ${w}×${h}: the holdout stretches the matte to the clip, so it does not line up with the footage. Render at the footage's aspect ratio.`
+        });
+    }
+    return out;
+}
 export async function checkMotionProject(loaded, opts = {}) {
     assertKnownClips(loaded, opts.clips);
     const wanted = opts.clips?.length ? opts.clips : loaded.project.clips.map((c) => c.id);
@@ -1371,6 +1413,8 @@ export async function checkMotionProject(loaded, opts = {}) {
         .filter((r) => !r.errors.length)
         .map((r) => loaded.resolved.clips.find((c) => c.id === r.id))
         .filter((c) => !!c);
+    for (const w of await holdoutAspectWarnings(loaded, runnable))
+        results.find((r) => r.id === w.clip)?.warnings.push({ message: `layer: ${w.message}` });
     if (runnable.length) {
         const bundle = await bundleMotionProject(loaded, runnable);
         const browser = await launch();
@@ -1571,6 +1615,17 @@ export const H264_FINAL = [
     '-movflags',
     '+faststart'
 ];
+/** Video settings of every transparent clip: ProRes 4444 with a 16-bit alpha channel. */
+export const PRORES_4444 = [
+    '-c:v',
+    'prores_ks',
+    '-profile:v',
+    '4444',
+    '-pix_fmt',
+    'yuva444p10le',
+    '-alpha_bits',
+    '16'
+];
 /** The encoder went away while frames were being piped; the frames themselves were fine. */
 export class FramePipeError extends Error {
 }
@@ -1613,34 +1668,57 @@ export function ffmpegFramePipe(args) {
     };
 }
 /**
- * ffmpeg input and mapping that mux the sound of the clip's `audio` footage, cut to the clip's
- * program range. Silence fills anything the footage does not cover.
+ * ffmpeg inputs, filters and mapping that follow the piped frames (input 0): the holdout of a
+ * clip with `"layer": "behind"` (alpha × (1 − matte) of the footage `holdoutFootage` names,
+ * aligned to the program frame by its `start`) and the sound of the clip's `audio` footage, cut
+ * to the clip's program range. Silence fills anything the audio footage does not cover; outside
+ * its footage the holdout cuts nothing.
  */
-function audioInput(loaded, clip) {
-    if (!clip.audio)
-        return [];
-    const footage = loaded.project.footage?.[clip.audio];
-    if (!footage)
-        throw new Error(`Clip "${clip.id}": unknown audio footage "${clip.audio}".`);
-    const src = path.resolve(loaded.dir, footage.src);
-    // The picture places the footage on a whole frame; the sound follows the same frame.
-    const from = clip.start - Math.round((footage.start ?? 0) * clip.fps) / clip.fps;
-    const delayMs = Math.max(0, Math.round(-from * 1000));
-    return [
-        '-ss',
-        Math.max(0, from).toFixed(6),
-        '-i',
-        src,
-        '-map',
-        '0:v',
-        '-map',
-        '1:a:0',
-        '-af',
-        `${delayMs ? `adelay=${delayMs}:all=1,` : ''}apad`,
-        '-t',
-        clip.duration.toFixed(6),
-        ...(clip.alpha ? ['-c:a', 'pcm_s16le'] : ['-c:a', 'aac', '-b:a', '192k'])
-    ];
+export function encodeInputs(loaded, clip) {
+    const args = [];
+    let video = '0:v';
+    let next = 1;
+    const holdout = holdoutFootage(loaded.project, clip.id);
+    if (holdout && 'error' in holdout)
+        throw new Error(`Clip "${clip.id}": ${holdout.error}`);
+    const footage = holdout ? loaded.project.footage[holdout.footage] : null;
+    // Footage frame shown at the clip's first frame (same rounding as <Footage>), and the clip
+    // frames before the footage starts.
+    const first = clip.startFrame - Math.round((footage?.start ?? 0) * clip.fps);
+    const pad = Math.max(0, -first);
+    const cut = !!footage && pad < clip.frames;
+    if (cut) {
+        const matte = path.resolve(loaded.dir, footage.matte);
+        const [w, h] = clip.size;
+        args.push('-ss', (Math.max(0, first) / clip.fps).toFixed(6), '-i', matte);
+        args.push('-filter_complex', [
+            '[0:v]format=yuva444p12le,split[vf_c][vf_x]',
+            '[vf_x]alphaextract,format=gray[vf_a]',
+            // The matte starts `pad` frames into the clip; before it and after it ends, blend
+            // passes the alpha through (padding with black would come out as limited-range 16
+            // on some ffmpeg builds and cut 6 %).
+            `[${next}:v]fps=${clip.fps},scale=${w}:${h}:flags=bicubic,format=gray,` +
+                `trim=end_frame=${clip.frames - pad},setpts=(N+${pad})/${clip.fps}/TB,negate[vf_m]`,
+            '[vf_a][vf_m]blend=all_mode=multiply:eof_action=pass,format=gray[vf_na]',
+            '[vf_c][vf_na]alphamerge,format=yuva444p12le[vf_v]'
+        ].join(';'));
+        video = '[vf_v]';
+        next++;
+    }
+    if (clip.audio) {
+        const footage = loaded.project.footage?.[clip.audio];
+        if (!footage)
+            throw new Error(`Clip "${clip.id}": unknown audio footage "${clip.audio}".`);
+        const src = path.resolve(loaded.dir, footage.src);
+        // The picture places the footage on a whole frame; the sound follows the same frame.
+        const from = clip.start - Math.round((footage.start ?? 0) * clip.fps) / clip.fps;
+        const delayMs = Math.max(0, Math.round(-from * 1000));
+        args.push('-ss', Math.max(0, from).toFixed(6), '-i', src, '-map', video, '-map', `${next}:a:0`, '-af', `${delayMs ? `adelay=${delayMs}:all=1,` : ''}apad`, '-t', clip.duration.toFixed(6), ...(clip.alpha ? ['-c:a', 'pcm_s16le'] : ['-c:a', 'aac', '-b:a', '192k']));
+    }
+    else if (cut) {
+        args.push('-map', video);
+    }
+    return args;
 }
 /**
  * Pages take frames in turn (page j renders j, j + jobs, …) and a reorder buffer hands them to
@@ -1713,7 +1791,7 @@ export async function pipeFrames(frames, jobs, open, sink, opts = {}) {
     await sink.end();
 }
 /** The original path, kept as the fallback and for --keep-frames: PNG files, then one encode. */
-async function framesThenEncode(clip, jobs, open, encode, keep) {
+export async function framesThenEncode(clip, jobs, open, encode, keep) {
     const framesDir = await fs.mkdtemp(path.join(os.tmpdir(), `vf-frames-${clip.id}-`));
     const per = Math.ceil(clip.frames / jobs);
     try {
@@ -1763,6 +1841,10 @@ export async function renderMotionClips(loaded, opts) {
             throw new Error(`Clip "${clips[0].id}" renders ${ext === '.mov' ? 'a transparent .mov' : 'an .mp4'}; use --output <name>${ext}.`);
     }
     await fs.mkdir(single ? path.dirname(single) : opts.output, { recursive: true });
+    // Partial encodes left by a render that was killed before it could clean up.
+    await removeOrphans(single ? path.dirname(single) : opts.output, PARTIAL_CLIP);
+    for (const w of await holdoutAspectWarnings(loaded, clips))
+        opts.onProgress?.(`Warning: ${w.clip}: ${w.message}`);
     const bundle = await bundleMotionProject(loaded, clips);
     // libx264 with yuv420p needs even dimensions; fail before capturing, not after.
     for (const clip of clips) {
@@ -1778,23 +1860,12 @@ export async function renderMotionClips(loaded, opts) {
         for (const clip of clips) {
             const t0 = Date.now();
             const file = single ?? path.resolve(opts.output, `${clip.id}.${clip.alpha ? 'mov' : 'mp4'}`);
-            const codec = clip.alpha
-                ? [
-                    '-c:v',
-                    'prores_ks',
-                    '-profile:v',
-                    '4444',
-                    '-pix_fmt',
-                    'yuva444p10le',
-                    '-alpha_bits',
-                    '16'
-                ]
-                : H264_FINAL;
+            const codec = clip.alpha ? PRORES_4444 : H264_FINAL;
             // ffmpeg truncates its output as soon as it opens it, and the piped encode opens it before
             // the first frame. Encode next to the target and replace it only on success, so a failed
             // render keeps the last good file.
             const partial = path.join(path.dirname(file), `.${path.basename(file, path.extname(file))}.partial-${process.pid}${path.extname(file)}`);
-            const encode = [...audioInput(loaded, clip), ...codec, partial];
+            const encode = [...encodeInputs(loaded, clip), ...codec, partial];
             let mode = '';
             const open = async () => {
                 const page = await openClip(browser, bundle, clip, { invalidate: opts.invalidate });
@@ -1802,6 +1873,7 @@ export async function renderMotionClips(loaded, opts) {
                 return page;
             };
             let piped = !opts.keepFrames;
+            const untrack = trackPartial(partial);
             try {
                 if (piped) {
                     try {
@@ -1833,6 +1905,7 @@ export async function renderMotionClips(loaded, opts) {
             }
             finally {
                 await fs.rm(partial, { force: true });
+                untrack();
             }
             const r = {
                 id: clip.id,
@@ -1859,8 +1932,17 @@ export async function renderMotionClips(loaded, opts) {
     }
     if (single)
         return results;
+    await writeRenderManifest(loaded, opts.output, results, opts.onProgress);
+    return results;
+}
+/**
+ * Writes `manifest.json` in `output`: the rendered clips merged into the entries of an earlier
+ * render that are still in the project, each marked `stale` when it was timed against another
+ * transcript or other beats. `extra` adds fields after the project's hashes.
+ */
+export async function writeRenderManifest(loaded, output, results, onProgress, extra = {}) {
     // Re-rendering some clips updates their entries and keeps the rest of the manifest.
-    const manifestPath = path.resolve(opts.output, 'manifest.json');
+    const manifestPath = path.resolve(output, 'manifest.json');
     let previous = [];
     try {
         previous = JSON.parse(await fs.readFile(manifestPath, 'utf8')).clips ?? [];
@@ -1880,14 +1962,14 @@ export async function renderMotionClips(loaded, opts) {
     }));
     const stale = kept.filter((c) => c.stale).map((c) => c.id);
     if (stale.length) {
-        opts.onProgress?.(`Warning: ${stale.join(', ')} were rendered against another transcript or other music beats; their placement may be off. Re-render them.`);
+        onProgress?.(`Warning: ${stale.join(', ')} were rendered against another transcript or other music beats; their placement may be off. Re-render them.`);
     }
     // Entries written before brands existed have no hashes; they count as "no brand, no style".
     const otherLook = kept
         .filter((c) => (c.brand ?? null) !== loaded.brand.hash || (c.style ?? null) !== loaded.style.hash)
         .map((c) => c.id);
     if (otherLook.length) {
-        opts.onProgress?.(`Warning: ${otherLook.join(', ')} were rendered with another brand or style. Re-render them to match.`);
+        onProgress?.(`Warning: ${otherLook.join(', ')} were rendered with another brand or style. Re-render them to match.`);
     }
     const merged = [...kept, ...results].sort((a, b) => a.programStartFrame - b.programStartFrame);
     await fs.writeFile(manifestPath, JSON.stringify({
@@ -1897,7 +1979,7 @@ export async function renderMotionClips(loaded, opts) {
         ...(loaded.musicHash ? { music: loaded.musicHash } : {}),
         brand: loaded.brand.hash,
         style: loaded.style.hash,
+        ...extra,
         clips: merged
     }, null, 2));
-    return results;
 }

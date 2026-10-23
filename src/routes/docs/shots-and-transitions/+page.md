@@ -62,6 +62,8 @@ Shots add events to the program for sounds to land on:
 
 `check` warns wherever a shot's camera window cuts the speaker's head for more than a few frames, keys included. The warning names the shot, the time range, how much is cut and what to try: `headroom`, a taller window `aspect`, a larger strip `size`, a lower `zoom` or `scale`. It stays a warning: look at a still and decide, since a tight crop can be the creator's choice.
 
+**Text over the face.** `check` also warns where a clip's text covers the speaker's face: it measures the text boxes of every front clip in the page and compares them with the head where the shot's camera puts it (from the matte). A clip warns once, when its text has covered at least a tenth of the face for half a second, with the first program time, the share covered and the side of the frame clear of the head. Faded-out text, clips with `"layer": "behind"`, clips that draw the speaker over their own text with a `<Subject>` layer and full-frame cards are left out. Look at a still at that time and decide: move the text to the free side, put it behind the speaker, or give it a slot beside a `strip` or `window`.
+
 ## Transitions
 
 A `transition` on a cut, a shot or a clip hands the frame over inside a window around the cut. Write it as the type alone, or with options:

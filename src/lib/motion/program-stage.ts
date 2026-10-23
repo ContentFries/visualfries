@@ -9,7 +9,7 @@ import { brandTokens } from './brand.js';
 import { formatTokens } from './format.js';
 import { seekTimeline } from './seek.js';
 import { programFootageAt, transitionSidesAt, type FootageView } from './footage-map.js';
-import { sourceFrameUrl } from './footage.js';
+import { sourceFrameUrl, sourceSubjectBox } from './footage.js';
 import { programFraming } from './framing.js';
 import type { ProgramTransition } from './program.js';
 import { clipFrameAt, type StageClip, type StageSegment } from './segments.js';
@@ -20,6 +20,15 @@ import type { Point } from './transitions/contract.js';
 import { keyTracks, placementTransform, type Animatable, type KeyTracks } from './keys.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import type { CameraView, HoleSource } from './runtime.svelte.js';
+import {
+	FACE_TEXT_SECONDS,
+	FACE_TEXT_SHARE,
+	TEXT_OPACITY,
+	faceCovered,
+	headOnStage,
+	intersect,
+	textOverFaceMessage
+} from './text-over-face.js';
 
 /**
  * The program's layer tree on one stage, for a segment of the program:
@@ -137,9 +146,9 @@ export type ProgramScene = {
 	/** What `check` should warn about at the frame last drawn (see `pushGaps`). */
 	warnings(f: number): string[];
 	/**
-	 * Measures what `check` cannot see from the plan at the frame last drawn: subject region
-	 * layers whose region holds none of the speaker for half a second or more (frames checked in
-	 * ascending order).
+	 * Measures what `check` cannot see from the plan at the frame last drawn (frames checked in
+	 * ascending order): subject region layers whose region holds none of the speaker for half a
+	 * second or more, and text that covers the speaker's face (see `faceText`).
 	 */
 	measure(f: number): Promise<string[]>;
 	/**
@@ -638,6 +647,10 @@ export function createProgramScene(
 	};
 	/** Per clip, the run of checked frames where its region was empty (see `measure`). */
 	const empty = new Map<string, { from: number; what: string; told: boolean }>();
+	/** Per clip, the run of checked frames where its text covered the face (see `faceText`). */
+	const overFace = new Map<string, { from: number; share: number }>();
+	/** Clips already warned about text over the face: once per clip. */
+	const toldFace = new Set<string>();
 
 	/** The extracted frames of the source a view shows; null without them. */
 	const framesOf = (view: FootageView | null) => (view ? (seg.footage[view.source] ?? null) : null);
@@ -942,6 +955,72 @@ export function createProgramScene(
 		} else hide(s.subject.img);
 	}
 
+	/**
+	 * Text over the speaker's face at the frame last drawn: the boxes of every visible text of a
+	 * front clip, measured in the page, against the head's box where the shot puts it. A clip
+	 * warns once, after its text has covered at least `FACE_TEXT_SHARE` of the face in the frames
+	 * checked for `FACE_TEXT_SECONDS`. Clips behind the subject, clips with a subject layer of
+	 * their own (they work with the speaker on purpose) and frames where a clip paints over the
+	 * whole head are left out; cut and shot transition windows leave the runs as they are.
+	 */
+	function faceText(f: number): string[] {
+		const now = last?.f === f ? last : null;
+		if (!now || now.b || seg.insert) return [];
+		const view = now.a.view;
+		const frames = framesOf(view);
+		const box = frames && view ? sourceSubjectBox(frames, view.frame) : null;
+		// Footage faded out by a shot key shows no face.
+		const faded = (now.a.layout.opacity ?? 1) < TEXT_OPACITY;
+		const head = box && !faded ? headOnStage(box, now.a.layout) : null;
+		if (!head) {
+			overFace.clear();
+			return [];
+		}
+		const out: string[] = [];
+		let hidden: boolean | null = null;
+		for (const m of mounted) {
+			const id = m.data.id;
+			const root = m.controller.root;
+			if (
+				m.shown === null ||
+				toldFace.has(id) ||
+				m.data.layer === 'behind' ||
+				root.querySelector('.vf-subject-layer')
+			) {
+				overFace.delete(id);
+				continue;
+			}
+			const share = faceCovered(head, textBoxes(root, stage, seg.size));
+			if (share < FACE_TEXT_SHARE) {
+				overFace.delete(id);
+				continue;
+			}
+			const run = overFace.get(id) ?? { from: f, share };
+			run.share = Math.max(run.share, share);
+			overFace.set(id, run);
+			if (f - run.from < FACE_TEXT_SECONDS * seg.fps) continue;
+			// A clip that paints over the whole head (a full-frame card) hides the face: the text
+			// is on the card. Looked for only once a warning is due.
+			hidden ??= mounted.some(
+				(x) =>
+					x.shown !== null &&
+					x.data.layer !== 'behind' &&
+					coversArea(x.controller.root, stage, seg.size, head)
+			);
+			overFace.delete(id);
+			if (hidden) continue;
+			toldFace.add(id);
+			out.push(
+				textOverFaceMessage(
+					{ clip: id, block: m.data.block, frame: run.from, share: run.share, head },
+					seg.size,
+					seg.fps
+				)
+			);
+		}
+		return out;
+	}
+
 	function inSegment(f: number) {
 		if (f < seg.startFrame || f >= seg.startFrame + seg.frames)
 			throw new Error(
@@ -1076,6 +1155,7 @@ export function createProgramScene(
 					);
 				}
 			}
+			out.push(...faceText(f));
 			return out;
 		},
 		holdout(on) {
@@ -1096,12 +1176,99 @@ export function createProgramScene(
 	};
 }
 
+type TextLook = { opacity: number; clip: Rect | null };
+
+/**
+ * The boxes of the text inside `root` that can be read, in stage pixels: each line box of each
+ * text node, cut to the ancestors that clip their overflow. Hidden text and text under
+ * `TEXT_OPACITY` (its own opacity times its ancestors') are left out.
+ */
+function textBoxes(root: HTMLElement, stage: HTMLElement, size: [number, number]): Rect[] {
+	const frame = stage.getBoundingClientRect();
+	if (!frame.width || !frame.height) return [];
+	const sx = size[0] / frame.width;
+	const sy = size[1] / frame.height;
+	const rect = (r: DOMRect): Rect => ({ x: r.x, y: r.y, width: r.width, height: r.height });
+	/** Per element: the opacity down to it and what its ancestors clip it to; null: unread. */
+	const looks = new Map<Element, TextLook | null>();
+	const lookOf = (el: Element | null): TextLook | null => {
+		if (!el || el === stage) return { opacity: 1, clip: null };
+		if (looks.has(el)) return looks.get(el)!;
+		const up = lookOf(el.parentElement);
+		let look: TextLook | null = null;
+		if (up) {
+			const style = getComputedStyle(el);
+			const opacity = up.opacity * Number(style.opacity || 1);
+			let clip = up.clip;
+			if (style.overflowX !== 'visible' || style.overflowY !== 'visible') {
+				const own = rect(el.getBoundingClientRect());
+				clip = clip ? (intersect(clip, own) ?? { ...own, width: 0, height: 0 }) : own;
+			}
+			look = opacity < TEXT_OPACITY ? null : { opacity, clip };
+		}
+		looks.set(el, look);
+		return look;
+	};
+	const out: Rect[] = [];
+	const range = document.createRange();
+	const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+	for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+		const parent = node.parentElement;
+		if (!node.nodeValue?.trim() || !parent || /^(STYLE|SCRIPT)$/.test(parent.tagName)) continue;
+		const look = lookOf(parent);
+		if (!look || getComputedStyle(parent).visibility !== 'visible') continue;
+		range.selectNodeContents(node);
+		for (const r of range.getClientRects()) {
+			const box = look.clip ? intersect(rect(r), look.clip) : rect(r);
+			if (box)
+				out.push({
+					x: (box.x - frame.x) * sx,
+					y: (box.y - frame.y) * sy,
+					width: box.width * sx,
+					height: box.height * sy
+				});
+		}
+	}
+	return out;
+}
+
 /**
  * Whether something inside `root` paints over the whole stage: an element covering the stage's
  * box with an opaque background colour, a background image, or an image, canvas or video.
  */
 function coversStage(root: HTMLElement, stage: HTMLElement): boolean {
 	const frame = stage.getBoundingClientRect();
+	return coversBox(root, frame);
+}
+
+/**
+ * Whether something inside `root` paints over `area` of the stage (stage pixels), as
+ * `coversStage` asks of the whole stage. A subject layer's canvas does not count: it holds the
+ * speaker, not a background.
+ */
+function coversArea(
+	root: HTMLElement,
+	stage: HTMLElement,
+	size: [number, number],
+	area: Rect
+): boolean {
+	const frame = stage.getBoundingClientRect();
+	const sx = frame.width / size[0];
+	const sy = frame.height / size[1];
+	const left = frame.left + area.x * sx;
+	const top = frame.top + area.y * sy;
+	return coversBox(
+		root,
+		{ left, top, right: left + area.width * sx, bottom: top + area.height * sy },
+		'.vf-subject-layer'
+	);
+}
+
+function coversBox(
+	root: HTMLElement,
+	frame: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>,
+	skip?: string
+): boolean {
 	const covers = (r: DOMRect) =>
 		r.left <= frame.left + 1 &&
 		r.top <= frame.top + 1 &&
@@ -1109,6 +1276,7 @@ function coversStage(root: HTMLElement, stage: HTMLElement): boolean {
 		r.bottom >= frame.bottom - 1;
 	for (const el of root.querySelectorAll<HTMLElement>('*')) {
 		if (!covers(el.getBoundingClientRect())) continue;
+		if (skip && el.closest(skip)) continue;
 		if (/^(IMG|CANVAS|VIDEO)$/.test(el.tagName)) return true;
 		const style = getComputedStyle(el);
 		if (style.backgroundImage !== 'none') return true;

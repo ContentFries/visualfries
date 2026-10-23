@@ -455,6 +455,24 @@ It names the shot, the time range, how much is cut and what to try (`headroom`, 
 `aspect`, a larger strip `size`, a lower `zoom`, `scale` or `scale` key). It stays a warning:
 look at a still and decide, since some creators want a tight crop.
 
+`check` also warns where a clip's text covers the speaker's face. At the frames it checks
+(every fifth, plus edges and cues) it measures the line boxes of every visible text in each
+front clip in the page, cut to ancestors that clip their overflow, and compares them with the
+head where the shot's camera puts it that frame (the matte's head box, keys and rotation
+included, inside the camera window). A clip warns once, when its text has covered at least a
+tenth of the face (the ellipse inside the head box) for half a second of checked frames: below a
+tenth the glyphs only touch the hair, an ear or the room beside the chin, and a word flying past
+the face on its way in is not worth a warning. The warning names the clip and its block, the
+first program time, the largest share covered and the side of the frame that is clear of the
+head (`Clip "k-zvyk" (blocks/Callout.svelte): its text covers the speaker's face from 304.60 s
+… The right side of the frame (x 1188–1920 of 1920 px) is clear of the head`). Text under 0.1
+opacity, clips with `"layer": "behind"`, clips with a `<Subject>` layer of their own (the
+speaker is drawn over their text on purpose), frames where a clip paints over the whole head
+(a full-frame card) and cut or shot transition windows are left out; footage without a matte
+is not checked. Nothing moves by itself: look at a still at that time and decide (move the
+text to the free side, put it behind the speaker, or give it a slot beside a `strip` or
+`window`). It adds well under a millisecond per checked frame.
+
 The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full`,
 `strip` and `window`, 0.3 s into `behind` from `full` (0.7 s from a framed shot), 0.16 s into
 `punch`, 0.45 s out of a punch, 0.42 s
@@ -1227,7 +1245,9 @@ sound](#program-sound)). Music plays at a steady level under the speech and ends
 transition window (`program` prints them), every event, and the first frames of every shot
 move. Ask of each frame: is any text over the face, cut by the frame or covered where it should
 be read, does a slot ever show empty, does the frame stand still for more than two seconds, do
-accents and descenders keep their room. A sheet of about ten moments per `still` call stays
+accents and descenders keep their room. Add a still at every time `check` names for text over
+the face; it only finds text the page lays out (not text drawn on a canvas or baked into an
+image), so look anyway. A sheet of about ten moments per `still` call stays
 quick. `still` and `check` draw the project's own size; to look at another format, copy the
 project with another `size`.
 
@@ -1268,7 +1288,9 @@ back in time, `NaN`/`undefined`/`Infinity` in SVG geometry, transforms and raw `
 (broken math renders nothing and throws nothing — e.g. a shadowed variable in a `points`
 formula; styles set through Svelte drop invalid values silently and are not seen), CSS
 animations running on wall-clock time, and with `--determinism` frames
-that differ between seek orders. Run it after every edit; it takes seconds.
+that differ between seek orders. In a program it also warns where a shot cuts the speaker's
+head and where a clip's text covers the face (see [Footage and mattes](#footage-and-mattes)).
+Run it after every edit; it takes seconds.
 
 `manifest.json` lists every clip's program start frame for placing it on an NLE timeline and
 the transcript it was timed against. Re-rendering some clips keeps the others; clips timed

@@ -4,6 +4,7 @@ import { bundleMotionProject, frameForAt, launch, openStagePage } from './node.j
 import { resolveProgram } from './program.js';
 import { resolveMoment } from './moment.js';
 import { headCropMessage, headCrops } from './framing.js';
+import { textOverFaceClip } from './text-over-face.js';
 import { edgeFrames, scrambled, segmentAt, segmentCheckFrames, segmentStage, wholeProgram } from './segments.js';
 /** One page with a segment of the program loaded; `capture` takes program frames. */
 export async function openSegment(browser, bundle, program, segment, opts = {}) {
@@ -213,6 +214,18 @@ export async function checkProgram(loaded, opts = {}) {
         await browser.close();
         await fs.rm(bundle.dir, { recursive: true, force: true });
     }
+    // Text over the face is told once per clip, in the first segment it is found in.
+    const toldFace = new Set();
+    for (const r of results)
+        r.warnings = r.warnings.filter((w) => {
+            const clip = textOverFaceClip(w.message);
+            if (clip === null)
+                return true;
+            if (toldFace.has(clip))
+                return false;
+            toldFace.add(clip);
+            return true;
+        });
     for (const r of results)
         r.ok = r.errors.length === 0;
     return results;

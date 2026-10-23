@@ -118,7 +118,8 @@ npx visualfries beats music/bed.mp3
 7. **Check and look.** Run `visualfries program` after every edit until it shows no errors, then `check --determinism`. Look at stills of:
    - every cut;
    - the first, middle and last frame of every transition window;
-   - every event and the first frames of every shot move.
+   - every event and the first frames of every shot move;
+   - every time `check` names for a cut head or for text over the face.
 
    Ten moments per `still` call is a good size.
 8. **Render.** Run `visualfries render reel.vf.json --output out/`, adding `--format 1920x1080` for 16:9 from the same project.

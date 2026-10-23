@@ -6,7 +6,7 @@
 	let { title = '', description = '', updated = '', children } = $props();
 
 	const current = $derived(findPage(page.url.pathname));
-	const url = $derived(`https://visualfries.com${pageUrl(current.page?.slug ?? '')}`);
+	const url = $derived(`https://www.visualfries.com${pageUrl(current.page?.slug ?? '')}`);
 	const mdUrl = $derived(`${pageUrl(current.page?.slug ?? '')}.md`);
 	let copied = $state('');
 
@@ -30,7 +30,7 @@
 				description,
 				url,
 				dateModified: updated || undefined,
-				isPartOf: { '@type': 'WebSite', name: 'VisualFries', url: 'https://visualfries.com/' },
+				isPartOf: { '@type': 'WebSite', name: 'VisualFries', url: 'https://www.visualfries.com/' },
 				about: {
 					'@type': 'SoftwareSourceCode',
 					name: 'VisualFries',
@@ -40,12 +40,12 @@
 			{
 				'@type': 'BreadcrumbList',
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Docs', item: 'https://visualfries.com/docs' },
+					{ '@type': 'ListItem', position: 1, name: 'Docs', item: 'https://www.visualfries.com/docs' },
 					{
 						'@type': 'ListItem',
 						position: 2,
 						name: current.page ? sectionLabel(current.page.section) : 'Docs',
-						item: `https://visualfries.com${pageUrl(pages.find((p) => p.section === current.page?.section)?.slug ?? '')}`
+						item: `https://www.visualfries.com${pageUrl(pages.find((p) => p.section === current.page?.section)?.slug ?? '')}`
 					},
 					{ '@type': 'ListItem', position: 3, name: title, item: url }
 				]

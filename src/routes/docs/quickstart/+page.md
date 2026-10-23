@@ -21,7 +21,7 @@ Requires Node.js 20 or newer. Rendering also needs [ffmpeg](https://ffmpeg.org) 
 ## 2. Get the project
 
 ```bash
-curl -LO https://visualfries.com/demo/quote.zip
+curl -LO https://www.visualfries.com/demo/quote.zip
 unzip quote.zip -d quote && cd quote
 ```
 

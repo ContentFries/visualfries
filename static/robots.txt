@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /browser-export-spike
 
-Sitemap: https://visualfries.com/sitemap.xml
+Sitemap: https://www.visualfries.com/sitemap.xml

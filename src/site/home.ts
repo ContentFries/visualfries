@@ -4,7 +4,7 @@
  * Framework-free; returns a cleanup function.
  */
 const AGENT_PROMPT = `Install VisualFries: npm install visualfries svelte playwright && npx playwright install chromium && npx visualfries doctor.
-Before writing anything, read https://visualfries.com/docs/programs.md, https://visualfries.com/docs/shots-and-transitions.md and https://visualfries.com/docs/program-sound.md (the same guide ships in the package as node_modules/visualfries/docs/MOTION.md, "Programs", and the agent skill as node_modules/visualfries/skills/visualfries/SKILL.md). Start from the worked example static/demo/reel in https://github.com/ContentFries/visualfries.
+Before writing anything, read https://www.visualfries.com/docs/programs.md, https://www.visualfries.com/docs/shots-and-transitions.md and https://www.visualfries.com/docs/program-sound.md (the same guide ships in the package as node_modules/visualfries/docs/MOTION.md, "Programs", and the agent skill as node_modules/visualfries/skills/visualfries/SKILL.md). Start from the worked example static/demo/reel in https://github.com/ContentFries/visualfries.
 Then: edit take.mp4 (with its word-level transcript, take.transcript.json) into a 9:16 reel as one program. Make the matte with visualfries matte. Cut the pauses and the failed tries, put the key word of the hook behind my head, a strip with a checklist where I list things, a whip to a card for the one thing worth showing, captions low on the chest, a sound on every move and a music bed that ends on a bar.
 Loop: program -> check --determinism -> still -> render. Show me the stills before you render.`;
 

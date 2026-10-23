@@ -21,7 +21,7 @@
 				codeRepository: 'https://github.com/ContentFries/visualfries',
 				programmingLanguage: ['TypeScript', 'Svelte'],
 				license: 'https://opensource.org/licenses/MIT',
-				url: 'https://visualfries.com/',
+				url: 'https://www.visualfries.com/',
 				author: { '@type': 'Organization', name: 'ContentFries' }
 			},
 			{
@@ -76,12 +76,12 @@
 <svelte:head>
 	<title>{title}</title>
 	<meta name="description" content={description} />
-	<link rel="canonical" href="https://visualfries.com/" />
+	<link rel="canonical" href="https://www.visualfries.com/" />
 	<meta property="og:type" content="website" />
 	<meta property="og:title" content={title} />
 	<meta property="og:description" content={description} />
-	<meta property="og:url" content="https://visualfries.com/" />
-	<meta property="og:image" content="https://visualfries.com/media/v2/explainer.jpg" />
+	<meta property="og:url" content="https://www.visualfries.com/" />
+	<meta property="og:image" content="https://www.visualfries.com/media/v2/explainer.jpg" />
 	<meta name="twitter:card" content="summary_large_image" />
 	<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt" />
 	<link rel="describedby" type="text/plain" href="/llms.txt" />

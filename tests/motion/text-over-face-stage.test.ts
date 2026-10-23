@@ -108,7 +108,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('text over the face in check', () =>
 		still('0x223344', '720x120', path.join(dir, 'wide.jpg'));
 		await fs.mkdir(path.join(dir, 'long'));
 		writeFootage(path.join(dir, 'long'), 12);
-	});
+	}, 120_000);
 	afterAll(async () => {
 		await fs.rm(dir, { recursive: true, force: true });
 	});

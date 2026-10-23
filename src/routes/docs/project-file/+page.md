@@ -90,7 +90,7 @@ Ship fonts with the project. A render must never depend on what happens to be in
 | Nearest beat        | `{ "downbeat": "after", "at": "the drop" }`                          | First (down)beat at or after another anchor; `"before"`: last one.                       |
 | Beat offset         | `{ "bar": 9, "offset": "-1b" }`                                      | Any object anchor's `offset` can count beats instead of seconds.                         |
 
-`from` is searched in the whole transcript. `until` is searched from the clip's start onward, so its `occurrence` counts only matches after `from`. Cue phrases are searched inside the clip, so a common word can be a cue as long as it is said once there. Use two or three words for `from` and `until`. The full rules, including what happens when a phrase is missing or appears twice, are in [Time and cues](/docs/time-and-cues). Music, beats files and corrections (`tempo`, `downbeat`, `shift`) are described in `docs/MOTION.md` under "Music and beats".
+`from` is searched in the whole transcript; a phrase said more than once resolves to the first occurrence at or after the previous clip. `until` is searched from the clip's start onward, so its `occurrence` counts only matches after `from`, and a repeat there resolves to the first one. Cue phrases are searched inside the clip, so a common word can be a cue as long as it is said once there. Use two or three words for `from` and `until`. The full rules, including what happens when a phrase is missing or appears twice, are in [Time and cues](/docs/time-and-cues). Music, beats files and corrections (`tempo`, `downbeat`, `shift`) are described in `docs/MOTION.md` under "Music and beats".
 
 ## Word bindings
 

@@ -59,6 +59,16 @@ my-video/
   ambiguous phrase lists every occurrence with its time. Nothing is ever matched silently.
 - One-word `from`/`until` anchors produce a warning: they are searched in the whole
   transcript and easily become ambiguous after a re-take.
+- **A phrase said more than once resolves by program order** in `from` of clips and shots and
+  in `at` of `sfx`: write these items in the order they play, and a repeated phrase is its
+  first occurrence at or after the previous item of the same kind (where the previous clip,
+  shot or sfx is said, or its time when an offset puts it earlier). In `until` of clips and
+  shots it is the first occurrence after the item's start. `check` and `program` print each
+  phrase picked this way as an info line with the other occurrences, so a wrong pick is easy to
+  spot; `occurrence` always wins. The phrase stays ambiguous for the first item of its kind,
+  when every occurrence lies before the previous item, in cues, `words` and keys (inside one item
+  a repeat is a real choice), and in cut points, where a repeated sentence is usually a retake
+  and the try is yours to pick.
 - A cue keeps its phrase's words: `clip.has('duplicate', word)` tells whether a word belongs
   to the cue, so a phrase is declared once.
 - **`words`** binds transcript words for the block: a phrase, `"clip"` (every word in the

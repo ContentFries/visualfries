@@ -4,10 +4,12 @@ import { pickMusic, type MotionBeatRef, type MusicBeats } from './beat-grid.js';
 import {
 	AnchorError,
 	isProgramEnd,
+	orderPoint,
 	resolveAnchor,
 	resolvePhrase,
 	type AnchorContext,
 	type BeatContext,
+	type PhraseOrder,
 	type Window
 } from './anchors.js';
 import type { FootageMap } from './footage-map.js';
@@ -170,13 +172,20 @@ export type ProjectLook = { brand?: ResolvedBrand; style?: ResolvedStyle };
  */
 export type ProgramEnd = { end?: number | null };
 
+/**
+ * Where the previous clip stands in program order (see `orderPoint`); null before the first.
+ * `resolveMotionClip` reads it for a repeated phrase in `from` and moves it to its own start.
+ */
+export type ClipOrder = { at: number | null };
+
 export function resolveMotionClip(
 	clip: MotionClip,
 	project: Pick<MotionProject, 'fps' | 'size' | 'background' | 'safeZone'>,
 	words: MotionWord[] | null,
 	diagnostics: MotionDiagnostic[],
 	music: MusicBeats[] = [],
-	look: ProjectLook & ProgramEnd & { format?: ResolvedFormat } = {}
+	look: ProjectLook & ProgramEnd & { format?: ResolvedFormat } = {},
+	previous: ClipOrder = { at: null }
 ): ResolvedClip | null {
 	const fps = project.fps;
 	const beats: BeatContext = { music, clip: clip.music };
@@ -184,14 +193,29 @@ export function resolveMotionClip(
 	const fail = (field: string, error: unknown) => {
 		diagnostics.push({ level: 'error', clip: clip.id, field, message: (error as Error).message });
 	};
+	const order = (field: string, after: number | null, what: string): PhraseOrder => ({
+		after,
+		what,
+		picked: (message) => diagnostics.push({ level: 'info', clip: clip.id, field, message })
+	});
 	let startSec: number;
 	let endSec: number;
 	try {
-		startSec = resolveAnchor(
+		const hit = resolveAnchor(
 			clip.from,
-			{ words, fps, window: null, localBase: null, beats, end: programEnd },
+			{
+				words,
+				fps,
+				window: null,
+				localBase: null,
+				beats,
+				end: programEnd,
+				order: order('from', previous.at, 'the previous clip')
+			},
 			'start'
-		).time;
+		);
+		startSec = hit.time;
+		previous.at = orderPoint(hit);
 	} catch (error) {
 		fail('from', error);
 		return null;
@@ -205,7 +229,8 @@ export function resolveMotionClip(
 				window: { from: startSec, to: Infinity },
 				localBase: null,
 				beats,
-				end: programEnd
+				end: programEnd,
+				order: order('until', startSec, "the clip's start")
 			},
 			'end'
 		).time;
@@ -362,6 +387,7 @@ export function resolveMotionProject(
 		diagnostics.push({ level: 'warning', field: 'safeZone', message: format.fallback });
 	const ids = new Set<string>();
 	const clips: ResolvedClip[] = [];
+	const previous: ClipOrder = { at: null };
 	for (const clip of project.clips) {
 		if (ids.has(clip.id)) {
 			diagnostics.push({
@@ -389,10 +415,15 @@ export function resolveMotionProject(
 				message: `Unknown music "${clip.music}". Music with beats: ${music.map((m) => m.id ?? m.name).join(', ') || 'none'}`
 			});
 		}
-		const resolved = resolveMotionClip(clip, project, words, diagnostics, music, {
-			...look,
-			format
-		});
+		const resolved = resolveMotionClip(
+			clip,
+			project,
+			words,
+			diagnostics,
+			music,
+			{ ...look, format },
+			previous
+		);
 		if (resolved) clips.push(resolved);
 	}
 	return { fps: project.fps, size: project.size, clips, diagnostics };

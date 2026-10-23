@@ -104,6 +104,11 @@ Program tools for common needs:
   → "Subject layers".
 - Images in blocks: keep every picture mounted and switch with `opacity`; never swap `src` per
   frame (it decodes late and fails `check --determinism`).
+- A phrase said twice: write shots, clips and `sfx` in the order they play. A repeated phrase in
+  their `from` (sfx `at`) resolves to the first occurrence at or after the previous item of the
+  same kind, in `until` to the first after the item's start. `program` and `check` print every
+  pick as an `info` line with the other occurrences: read them, and pin a wrong one with
+  `{ "say": …, "occurrence": n }`. Cues, keys and cut points stay strict.
 - Brand `extra` colour names are kebab case (`wood-dark`).
 
 ## Speaker Depth (type behind a talking head)

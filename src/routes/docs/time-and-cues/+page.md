@@ -50,6 +50,16 @@ Phrase "small" is ambiguous: #1 at 79.09s (…); #2 at 83.61s (…).
 Use a longer phrase or { "say": "small", "occurrence": n }.
 ```
 
+In a long edit the same phrase often comes back minutes later. Clips, shots and `sfx` items written in the order they play resolve it by **program order**: in `from` (and an sfx's `at`) the phrase is its first occurrence at or after the previous item of the same kind, where the previous clip, shot or sfx is said; in `until` it is the first occurrence after the item's start. `check` and `program` print every phrase picked this way, with the other occurrences, so a wrong pick shows:
+
+```text
+info: sfx3 sfx[2].at: Phrase "website goes down" occurs 2 times; program order picked #1 at 3.63s,
+the first at or after the previous sfx (3.27s). Other occurrences: #2 at 821.93s (…).
+If that is the wrong one, pin it with { "say": "website goes down", "occurrence": n }.
+```
+
+An explicit `occurrence` always wins. The phrase stays ambiguous for the first item of its kind, when every occurrence lies before the previous item, and inside an item: cues, word bindings and keys. Cut points stay strict too, since a sentence said twice there is usually a retake.
+
 Matching ignores case and punctuation, and keeps diacritics.
 
 ## See the result

@@ -2,7 +2,8 @@
 	"release-type": "node",
 	"packages": {
 		".": {
-			"package-name": "visualfries"
+			"package-name": "visualfries",
+			"exclude-paths": ["src/routes", "src/site", "static", "wrangler.jsonc"]
 		}
 	},
 	"bump-minor-pre-major": true,

@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { MotionProjectShape } from '$lib/motion/project.js';
+import { propFiles } from '$lib/motion/program.js';
 import { propFileRefs, resolveMotionProject, withFileUrls } from '$lib/motion/resolve.js';
 import {
 	bundleMotionProject,
@@ -20,8 +21,11 @@ const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
 
 /** A block that fills the frame with the picture `props.pic` names. */
 const BLOCK = `<script>
-	import { useClip } from 'visualfries/motion';
+	import { useClip, useReady } from 'visualfries/motion';
 	const clip = useClip();
+	const img = new Image();
+	img.src = clip.props.pic.src;
+	useReady(img.decode());
 </script>
 <img src={clip.props.pic.src} alt="" style="position:absolute;inset:0;width:100%;height:100%" />
 `;
@@ -109,6 +113,49 @@ describe('project files in block props', () => {
 		await expect(bundleMotionProject(loose, loose.resolved.clips)).rejects.toThrow(
 			/Clip "pic": props: "\.\.\/secret\.png" is not inside the project folder/
 		);
+	});
+
+	it('names URLs, unreadable paths and objects with "file" next to other keys', async () => {
+		const p = await project({
+			props: {
+				web: { file: 'https://example.com/a.png' },
+				bad: { file: 'assets/a\u0000.png' },
+				doc: { file: 'README.md', lines: 3 }
+			}
+		});
+		const loaded = await loadMotionProject(p.file);
+		expect(loaded.resolved.diagnostics.map((d) => [d.level, d.field, d.message])).toEqual([
+			['error', 'props.web', expect.stringMatching(/^"https:\/\/example\.com\/a\.png" is a URL/)],
+			['error', 'props.bad', expect.stringContaining('Cannot read "assets/a\u0000.png": ')],
+			['warning', 'props.doc', expect.stringMatching(/^This object has "file" next to other keys/)]
+		]);
+	});
+
+	it('hands each page its own copy of the props, however often the project is bundled', async () => {
+		const p = await project({ props: { pic: { src: { file: 'assets/plain' } } } });
+		await fs.writeFile(path.join(p.dir, 'assets', 'plain'), 'one');
+		const loaded = await loadMotionProject(p.file);
+		const abs = path.join(p.dir, 'assets', 'plain');
+		for (let i = 0; i < 2; i++) {
+			const bundle = await bundleMotionProject(loaded, loaded.resolved.clips);
+			await fs.rm(bundle.dir, { recursive: true, force: true });
+			expect(bundle.files).toContain(abs);
+			expect(bundle.props.pic).toEqual({ pic: { src: expect.stringMatching(/\/assets\/plain$/) } });
+		}
+		// The resolved clips keep the path as written.
+		expect(loaded.resolved.clips[0].props).toEqual({ pic: { src: { file: 'assets/plain' } } });
+	});
+
+	it('hashes every file props name, with or without an extension', async () => {
+		expect(propFiles([{ logo: { file: 'assets/logo' }, title: 'Home' }])).toEqual(['assets/logo']);
+		const p = await project({ props: { pic: { src: { file: 'assets/logo' } } } });
+		await fs.writeFile(path.join(p.dir, 'assets', 'logo'), 'one');
+		const hash = async () =>
+			(await motionProgram(await loadMotionProject(p.file))).program.hashes.assets['assets/logo'];
+		const before = await hash();
+		expect(before).toBeTruthy();
+		await fs.writeFile(path.join(p.dir, 'assets', 'logo'), 'two');
+		expect(await hash()).not.toBe(before);
 	});
 
 	it('resolves exactly as before when the files are not checked (in the browser)', () => {

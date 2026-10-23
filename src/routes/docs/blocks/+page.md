@@ -67,7 +67,7 @@ A block can also own a WebGL canvas. To run a shader over the block's own HTML, 
 ## Data and styling
 
 - **Props** come from the clip's `props` in the project file: read them as `clip.props` or as component props.
-- **Pictures per clip** go in `props` as project files: `{ "file": "assets/web/home.png" }`, relative to the project, anywhere in `props`. The block gets a URL instead of the object, so `"props": { "shot": { "file": "assets/web/home.png" } }` is read as `<img src={clip.props.shot} alt="" />`. The file must be inside the project folder; a missing one is an error of the clip that names the path. Only those files are served to the page.
+- **Pictures per clip** go in `props` as project files: `{ "file": "assets/web/home.png" }`, relative to the project, anywhere in `props`. The block gets a URL instead of the object, so `"props": { "shot": { "file": "assets/web/home.png" } }` is read as `<img src={clip.props.shot} alt="" />`. The file must be inside the project folder; a missing one, or a URL, is an error of the clip that names the path. A `{ "file" }` with no other keys is reserved for this; one with more keys reaches the block as it is, with a warning. Only those files are served to the page (a symlinked folder inside the project counts as part of it).
 - **Transcript words** come from `words` bindings: `clip.words.row`, or the words of a cue: `clip.cue.duplicate.words`.
 - **Shared components and CSS** live in your project (for example `theme/`). Import components with relative paths; list global CSS under `css`.
 - **Fonts** are loaded before a block mounts, so measuring text in `onMount` is safe.

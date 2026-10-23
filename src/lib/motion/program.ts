@@ -29,7 +29,7 @@ import {
 } from './music.js';
 import { resolveFormat, type FormatClass, type ResolvedFormat } from './format.js';
 import { resolveMoment } from './moment.js';
-import { resolveMotionProject, type ResolvedClip } from './resolve.js';
+import { propFileRefs, resolveMotionProject, type ResolvedClip } from './resolve.js';
 import {
 	micro,
 	programEnd,
@@ -1800,9 +1800,13 @@ function checkIds(
 	}
 }
 
-/** Strings in clip props that may name a project file (no URLs, data or colours). */
+/**
+ * Strings in clip props that may name a project file (no URLs, data or colours), and every
+ * `{ "file" }` path, with or without an extension.
+ */
 export function propFiles(props: (Record<string, unknown> | undefined)[]): string[] {
 	const found = new Set<string>();
+	for (const p of props) for (const ref of propFileRefs(p)) found.add(ref.file);
 	const walk = (value: unknown) => {
 		if (typeof value === 'string') {
 			if (

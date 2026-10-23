@@ -50,11 +50,11 @@ Phrase "small" is ambiguous: #1 at 79.09s (…); #2 at 83.61s (…).
 Use a longer phrase or { "say": "small", "occurrence": n }.
 ```
 
-In a long edit the same phrase often comes back minutes later. Clips, shots and `sfx` items written in the order they play resolve it by **program order**: in `from` (and an sfx's `at`) the phrase is its first occurrence at or after the previous item of the same kind, where the previous clip, shot or sfx is said; in `until` it is the first occurrence after the item's start. `check` and `program` print every phrase picked this way, with the other occurrences, so a wrong pick shows:
+In a long edit the same phrase often comes back minutes later. Clips, shots and `sfx` items written in the order they play resolve it by **program order**: in `from` (and an sfx's `at`) the phrase is its first occurrence that starts, or puts the item, at or after the previous item of the same kind, counted from where that item's phrase is said; in `until` it is the first occurrence at or after the item's start. The rule reads the order the items are written in, so a project that lists them grouped by kind (all lower thirds, then all cards) gets wrong picks. `check` and `program` print every phrase picked this way, with the other occurrences, so a wrong pick shows:
 
 ```text
 info: sfx3 sfx[2].at: Phrase "website goes down" occurs 2 times; program order picked #1 at 3.63s,
-the first at or after the previous sfx (3.27s). Other occurrences: #2 at 821.93s (…).
+the first that starts or lands at or after the previous sfx (3.27s). Other occurrences: #2 at 821.93s (…).
 If that is the wrong one, pin it with { "say": "website goes down", "occurrence": n }.
 ```
 

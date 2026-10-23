@@ -60,15 +60,17 @@ my-video/
 - One-word `from`/`until` anchors produce a warning: they are searched in the whole
   transcript and easily become ambiguous after a re-take.
 - **A phrase said more than once resolves by program order** in `from` of clips and shots and
-  in `at` of `sfx`: write these items in the order they play, and a repeated phrase is its
-  first occurrence at or after the previous item of the same kind (where the previous clip,
-  shot or sfx is said, or its time when an offset puts it earlier). In `until` of clips and
-  shots it is the first occurrence after the item's start. `check` and `program` print each
-  phrase picked this way as an info line with the other occurrences, so a wrong pick is easy to
-  spot; `occurrence` always wins. The phrase stays ambiguous for the first item of its kind,
-  when every occurrence lies before the previous item, in cues, `words` and keys (inside one item
-  a repeat is a real choice), and in cut points, where a repeated sentence is usually a retake
-  and the try is yours to pick.
+  in `at` of `sfx`: a repeated phrase is its first occurrence that starts, or puts the item, at
+  or after the previous item of the same kind. That item counts from where its phrase is said
+  when it stands on one (also through an offset or a nearest beat), else from its time. In
+  `until` of clips and shots it is the first occurrence at or after the item's start. The rule
+  reads the order the items are written in, so write each kind in the order it plays: a project
+  that lists clips grouped by kind (all lower thirds, then all cards) gets wrong picks. `check`
+  and `program` print each phrase picked this way as an info line with the other occurrences,
+  so a wrong pick is easy to spot; `occurrence` always wins. The phrase stays ambiguous for the
+  first item of its kind, when every occurrence lands before the previous item, in cues, `words`
+  and keys (inside one item a repeat is a real choice), and in cut points, where a repeated
+  sentence is usually a retake and the try is yours to pick.
 - A cue keeps its phrase's words: `clip.has('duplicate', word)` tells whether a word belongs
   to the cue, so a phrase is declared once.
 - **`words`** binds transcript words for the block: a phrase, `"clip"` (every word in the
@@ -271,11 +273,14 @@ relative to the project, and the block reads a URL for its `src`:
 <img src={clip.props.shot} alt="" />
 ```
 
-Only an object with `file` as its only key is a file; it must be a file inside the project
-folder. A missing file, or a path that leads out of the project folder, is an error of the clip
-that names the path (`props.shot`), in `check`, `program`, `still` and `render`. The page is
-served that one file and nothing else around it, and the resolved program keeps the path as
-written. Editing the file redraws the segments that show the clip, as for any file props name.
+An object whose only key is `file` is reserved for this anywhere in `props`; one with other
+keys next to `file` reaches the block as it is, with a warning. The file must be inside the
+project folder. A missing file, a path that leads out of the project folder, or a URL (put a
+URL in props as a plain string) is an error of the clip that names it (`props.shot`), in
+`check`, `program`, `still` and `render`. The page is served that one file and nothing else
+around it; the check is on the path, so a symlinked folder inside the project is served as part
+of it. The resolved program keeps the path as written, and editing the file redraws the
+segments that show the clip.
 
 ## Footage and mattes
 

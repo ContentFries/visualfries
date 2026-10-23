@@ -197,12 +197,22 @@ export function isPropFile(value: unknown): value is PropFile {
 export function propFileRefs(
 	props: Record<string, unknown> | undefined
 ): { at: string; file: string }[] {
-	const out: { at: string; file: string }[] = [];
+	return walkProps(props).filter((r): r is { at: string; file: string } => r.file !== null);
+}
+
+/**
+ * Objects in props with a `file` key, by where they sit: `file` is the path of a `{ file }`, or
+ * null for an object that has other keys next to it (handed to the block as it is).
+ */
+function walkProps(props: Record<string, unknown> | undefined) {
+	const out: { at: string; file: string | null }[] = [];
 	const walk = (value: unknown, at: string) => {
 		if (isPropFile(value)) out.push({ at, file: value.file });
 		else if (Array.isArray(value)) value.forEach((v, i) => walk(v, `${at}[${i}]`));
-		else if (value && typeof value === 'object')
+		else if (value && typeof value === 'object') {
+			if ('file' in value) out.push({ at, file: null });
 			for (const [k, v] of Object.entries(value)) walk(v, `${at}.${k}`);
+		}
 	};
 	for (const [k, v] of Object.entries(props ?? {})) walk(v, k);
 	return out;
@@ -388,9 +398,16 @@ export function resolveMotionClip(
 		}
 	}
 
-	for (const ref of propFileRefs(clip.props)) {
-		const problem = look.files?.[ref.file];
-		if (problem) fail(`props.${ref.at}`, new Error(problem));
+	for (const ref of walkProps(clip.props)) {
+		if (ref.file === null)
+			diagnostics.push({
+				level: 'warning',
+				clip: clip.id,
+				field: `props.${ref.at}`,
+				message:
+					'This object has "file" next to other keys, so the block gets it as it is. To name a project file, write { "file": "…" } alone (the block then gets its URL) and put the other values beside it.'
+			});
+		else if (look.files?.[ref.file]) fail(`props.${ref.at}`, new Error(look.files[ref.file]!));
 	}
 
 	// Without music the clip gets no beat fields at all, so it resolves exactly as before.

@@ -7,7 +7,7 @@
 
 VisualFries is an open-source Svelte 5 engine for visual content for social media. A JSON document describes what is on screen, when, and in which format; visuals are Svelte components and real HTML/CSS; animation is GSAP. Scene documents mount live in an editor, motion clips are timed by the words of a transcript and render frame by frame in headless Chromium. It is the engine behind [ContentFries](https://contentfries.com).
 
-**Docs: [visualfries.com/docs](https://visualfries.com/docs)** · for agents: [visualfries.com/llms.txt](https://visualfries.com/llms.txt)
+**Docs: [visualfries.com/docs](https://www.visualfries.com/docs)** · for agents: [visualfries.com/llms.txt](https://www.visualfries.com/llms.txt)
 
 > VisualFries is in alpha. Scenes power a production app today; motion projects are new and experimental. APIs may change.
 
@@ -72,7 +72,7 @@ npx playwright install chromium             # or set VISUALFRIES_CHROMIUM_PATH
 npx visualfries doctor
 ```
 
-Requires Svelte 5. Rendering needs Playwright, ffmpeg and a Chromium browser; no GPU. Try the [quote project](https://visualfries.com/demo/quote.zip) from the homepage.
+Requires Svelte 5. Rendering needs Playwright, ffmpeg and a Chromium browser; no GPU. Try the [quote project](https://www.visualfries.com/demo/quote.zip) from the homepage.
 
 ## Command line
 
@@ -94,18 +94,18 @@ npx visualfries render scene.json --output out.mp4
 
 |                                                                                                                 |                                                |
 | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| [Quickstart](https://visualfries.com/docs/quickstart)                                                           | A motion project from zero to MP4 in six steps |
-| [Time and cues](https://visualfries.com/docs/time-and-cues)                                                     | Anchoring clips to spoken phrases              |
-| [Motion blocks](https://visualfries.com/docs/blocks) · [The clip object](https://visualfries.com/docs/clip-api) | Writing blocks                                 |
-| [Scenes in an app](https://visualfries.com/docs/scenes) · [Composer API](https://visualfries.com/docs/composer) | Scene JSON, live editing                       |
-| [CLI](https://visualfries.com/docs/cli) · [Scene CLI](https://visualfries.com/docs/scene-cli)                   | Commands                                       |
-| [VisualFries for agents](https://visualfries.com/docs/agents)                                                   | How an AI agent should work with VisualFries   |
+| [Quickstart](https://www.visualfries.com/docs/quickstart)                                                           | A motion project from zero to MP4 in six steps |
+| [Time and cues](https://www.visualfries.com/docs/time-and-cues)                                                     | Anchoring clips to spoken phrases              |
+| [Motion blocks](https://www.visualfries.com/docs/blocks) · [The clip object](https://www.visualfries.com/docs/clip-api) | Writing blocks                                 |
+| [Scenes in an app](https://www.visualfries.com/docs/scenes) · [Composer API](https://www.visualfries.com/docs/composer) | Scene JSON, live editing                       |
+| [CLI](https://www.visualfries.com/docs/cli) · [Scene CLI](https://www.visualfries.com/docs/scene-cli)                   | Commands                                       |
+| [VisualFries for agents](https://www.visualfries.com/docs/agents)                                                   | How an AI agent should work with VisualFries   |
 
 The docs site lives in this repository (`src/routes`); every page is also available as Markdown by appending `.md` to its URL. Deeper notes for contributors are in [`docs/`](docs).
 
 ## Roadmap
 
-Stills and carousels from the same blocks, quote cards on AI-generated backgrounds with a text safe zone, editing text without re-rendering, turning a post into a short reel, speech-to-text adapters with `visualfries setup`, and export in the viewer's browser. See [Stills, carousels, AI backgrounds](https://visualfries.com/docs/stills).
+Stills and carousels from the same blocks, quote cards on AI-generated backgrounds with a text safe zone, editing text without re-rendering, turning a post into a short reel, speech-to-text adapters with `visualfries setup`, and export in the viewer's browser. See [Stills, carousels, AI backgrounds](https://www.visualfries.com/docs/stills).
 
 ## Contributing
 

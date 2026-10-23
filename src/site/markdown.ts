@@ -7,7 +7,7 @@ const sources = import.meta.glob('/src/routes/docs/**/+page.md', {
 	eager: true
 }) as Record<string, string>;
 
-const SITE = 'https://visualfries.com';
+const SITE = 'https://www.visualfries.com';
 
 // The scene JSON behind the live examples page.
 const exampleScenes = import.meta.glob('/src/lib/examples/0*.json', {

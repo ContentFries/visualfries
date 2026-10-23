@@ -838,9 +838,9 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             overFace.set(id, run);
             if (f - run.from < FACE_TEXT_SECONDS * seg.fps)
                 continue;
-            // A clip that paints over the whole frame (a full-frame card) hides the face: the text
-            // is on the card. Looked for only once a warning is due.
-            hidden ??= mounted.some((x) => x.shown !== null && x.data.layer !== 'behind' && page.paintsStage(x.controller.root));
+            // A full-frame card or picture over the head hides the face: the text is on the card.
+            // Looked for only once a warning is due.
+            hidden ??= mounted.some((x) => x.shown !== null && x.data.layer !== 'behind' && page.hidesHead(x.controller.root, head));
             overFace.delete(id);
             if (hidden)
                 continue;
@@ -1024,8 +1024,13 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
 }
 /** A background or fill this opaque or more is a card behind the text, or text itself. */
 const CARD_ALPHA = 0.5;
-/** An element this opaque or more over the whole stage hides the footage. */
+/** An element this opaque or more over most of the stage hides the footage. */
 const HIDES = 0.9;
+/**
+ * The share of the stage's area an element covers from which it is a full-frame card, not a card
+ * a text sits on: a card inset from the frame edges or with round corners still fills the frame.
+ */
+const MOST = 0.8;
 /** The alpha of a computed CSS colour (`rgb(…)`, `rgba(…)`, `transparent`). */
 function alphaOf(color) {
     if (!color || color === 'transparent')
@@ -1045,10 +1050,12 @@ function textReader(stage, size) {
     const sx = frame.width ? size[0] / frame.width : 1;
     const sy = frame.height ? size[1] / frame.height : 1;
     const rect = (r) => ({ x: r.x, y: r.y, width: r.width, height: r.height });
-    const whole = (r) => r.x <= frame.left + 1 &&
-        r.y <= frame.top + 1 &&
-        r.x + r.width >= frame.right - 1 &&
-        r.y + r.height >= frame.bottom - 1;
+    const page = rect(frame);
+    /** Whether `r` (page pixels) covers at least `MOST` of the stage's area. */
+    const most = (r) => {
+        const on = intersect(r, page);
+        return !!on && on.width * on.height >= MOST * page.width * page.height;
+    };
     const looks = new Map();
     const lookOf = (el) => {
         if (!el || el === stage)
@@ -1068,7 +1075,7 @@ function textReader(stage, size) {
         let card = up.card;
         if (alphaOf(style.backgroundColor) >= CARD_ALPHA && style.visibility === 'visible') {
             own ??= rect(el.getBoundingClientRect());
-            if (!whole(own))
+            if (!most(own))
                 card = clip ? intersect(own, clip) : own;
         }
         const clipsText = up.clipsText ||
@@ -1128,25 +1135,64 @@ function textReader(stage, size) {
             return out;
         },
         /**
-         * Whether something visible inside `root` paints over the whole stage and hides the footage:
-         * an element covering the stage's box, at least `HIDES` in effective opacity, with an opaque
-         * background colour, or a JPEG image (which has no transparency). Canvases, videos, other
-         * images and gradients do not count: they may let the face show through.
+         * Whether something visible inside `root` is a full-frame card over the head and hides the
+         * footage: at least `HIDES` in effective opacity, over `MOST` of the stage's area and the
+         * whole head (stage pixels), with an opaque background colour, or a loaded image whose
+         * drawn picture does that (an `object-fit: contain` letterbox does not count). Canvases,
+         * videos and gradients do not count: the face may show through them.
          */
-        paintsStage(root) {
+        hidesHead(root, head) {
+            const area = {
+                x: frame.x + head.x / sx,
+                y: frame.y + head.y / sy,
+                width: head.width / sx,
+                height: head.height / sy
+            };
+            const over = (r) => most(r) &&
+                r.x <= area.x + 1 &&
+                r.y <= area.y + 1 &&
+                r.x + r.width >= area.x + area.width - 1 &&
+                r.y + r.height >= area.y + area.height - 1;
             for (const el of root.querySelectorAll('*')) {
-                if (!whole(rect(el.getBoundingClientRect())))
+                const box = rect(el.getBoundingClientRect());
+                if (!over(box))
                     continue;
                 const style = getComputedStyle(el);
                 if (style.visibility !== 'visible' || lookOf(el).opacity < HIDES)
                     continue;
                 if (alphaOf(style.backgroundColor) >= HIDES)
                     return true;
-                if (el instanceof HTMLImageElement && /\.jpe?g(\?|#|$)/i.test(el.currentSrc || el.src))
-                    return true;
+                if (el instanceof HTMLImageElement && el.complete && el.naturalWidth > 0)
+                    if (over(pictureBox(el, box, style)))
+                        return true;
             }
             return false;
         }
+    };
+}
+/**
+ * Where an image draws its picture inside its box `box` (page pixels): the whole box for `fill`
+ * and `cover`, the scaled picture placed by `object-position` for `contain`, `scale-down` and
+ * `none`.
+ */
+function pictureBox(img, box, style) {
+    const fit = style.objectFit;
+    if (fit === 'fill' || fit === 'cover' || !img.naturalWidth || !img.naturalHeight)
+        return box;
+    // The box may be scaled by transforms: CSS pixels of the image's own width map onto it.
+    const unit = img.offsetWidth ? box.width / img.offsetWidth : 1;
+    const contain = Math.min(box.width / img.naturalWidth, box.height / img.naturalHeight);
+    const scale = fit === 'none' ? unit : fit === 'scale-down' ? Math.min(unit, contain) : contain;
+    const width = img.naturalWidth * scale;
+    const height = img.naturalHeight * scale;
+    // The computed `object-position` is two lengths or percentages ("50% 50%", "0px 20%").
+    const [ox = '50%', oy = '50%'] = style.objectPosition.split(/\s+/);
+    const offset = (v, room) => v.endsWith('%') ? (parseFloat(v) / 100) * room : (parseFloat(v) || 0) * unit;
+    return {
+        x: box.x + offset(ox, box.width - width),
+        y: box.y + offset(oy, box.height - height),
+        width,
+        height
     };
 }
 /**

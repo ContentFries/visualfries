@@ -7,7 +7,7 @@ import path from 'node:path';
 import { findChromium, loadMotionProject } from '../../src/lib/motion/node.js';
 import { checkProgram } from '../../src/lib/motion/program-node.js';
 // @ts-expect-error: a plain .mjs helper shared with the subject layer tests
-import { SW, SH, writeFootage } from './fixtures/subject/footage.mjs';
+import { SW, SH, ffmpeg, writeFootage } from './fixtures/subject/footage.mjs';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -30,6 +30,34 @@ const WHITE_CARD = `<div style="position:absolute;left:30px;top:120px;width:300p
 const EMPTY_CANVAS = `<canvas width="360" height="640" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
 `;
 const SCRIM = `<div style="position:absolute;inset:0;background:linear-gradient(transparent 70%, rgba(0,0,0,.4))"></div>
+`;
+
+const TITLE = `<div style="position:absolute;left:110px;top:220px;font:700 30px sans-serif;color:#fff">TITLE</div>`;
+
+/** A full-frame card inset from the frame edges, with round corners, its title mid-frame. */
+const INSET_CARD = `<div style="position:absolute;inset:16px;background:#123;border-radius:24px"></div>
+${TITLE}
+`;
+
+/** A picture over the frame with a title over the face: a screenshot or a letterbox. */
+const picture = (src: string, fit = 'fill') => `<script>
+	import { useReady } from 'visualfries/motion';
+	import shot from '${src}';
+	const img = new Image();
+	img.src = shot;
+	useReady(img.decode().catch(() => {}));
+</script>
+<img src={shot} alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${fit}" />
+${TITLE}
+`;
+/** A full-frame JPEG that only gets its file long after the clip: never loaded while it shows. */
+const UNLOADED = `<script>
+	import { useClip } from 'visualfries/motion';
+	import later from './full.jpg';
+	const clip = useClip();
+</script>
+<img src={clip.t > 60 ? later : undefined} alt="" style="position:absolute;inset:0;width:100%;height:100%" />
+${TITLE}
 `;
 
 /** Text on the face, and a clean-plate layer of the body far below it. */
@@ -68,8 +96,18 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('text over the face in check', () =>
 		await fs.writeFile(path.join(dir, 'EmptyCanvas.svelte'), EMPTY_CANVAS);
 		await fs.writeFile(path.join(dir, 'Scrim.svelte'), SCRIM);
 		await fs.writeFile(path.join(dir, 'CleanBelow.svelte'), CLEAN_BELOW);
+		await fs.writeFile(path.join(dir, 'InsetCard.svelte'), INSET_CARD);
+		await fs.writeFile(path.join(dir, 'Screenshot.svelte'), picture('./shot.png'));
+		await fs.writeFile(path.join(dir, 'Letterbox.svelte'), picture('./wide.jpg', 'contain'));
+		await fs.writeFile(path.join(dir, 'Unloaded.svelte'), UNLOADED);
+		// A light full-frame screenshot and photo, and a wide strip that `contain` letterboxes.
+		const still = (colour: string, size: string, file: string) =>
+			ffmpeg(['-f', 'lavfi', '-i', `color=${colour}:s=${size}`, '-frames:v', '1', file]);
+		still('0xeeeeee', `${SW}x${SH}`, path.join(dir, 'shot.png'));
+		still('0xeeeeee', `${SW}x${SH}`, path.join(dir, 'full.jpg'));
+		still('0x223344', '720x120', path.join(dir, 'wide.jpg'));
 		await fs.mkdir(path.join(dir, 'long'));
-		writeFootage(path.join(dir, 'long'), 8);
+		writeFootage(path.join(dir, 'long'), 12);
 	});
 	afterAll(async () => {
 		await fs.rm(dir, { recursive: true, force: true });
@@ -137,7 +175,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('text over the face in check', () =>
 				footage: {
 					talk: { src: 'long/talk.mp4', matte: 'long/talk.matte.mp4', clean: true }
 				},
-				cuts: [{ source: 'talk', in: 0, out: 8 }],
+				cuts: [{ source: 'talk', in: 0, out: 12 }],
 				clips: [
 					// A white card over the whole head: its title is in a corner, the card hides the face.
 					clip('card-sticker', 'WhiteCard.svelte', 0.2, 1.2),
@@ -156,7 +194,13 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('text over the face in check', () =>
 						region: 'all',
 						freeze: false,
 						hole: false
-					})
+					}),
+					// Full-frame cards: inset with round corners, a loaded screenshot. A letterboxed
+					// picture and one that has not loaded hide nothing.
+					clip('inset-card', 'InsetCard.svelte', 8, 8.8),
+					clip('screenshot', 'Screenshot.svelte', 9, 9.8),
+					clip('letterbox', 'Letterbox.svelte', 10, 10.8),
+					clip('unloaded', 'Unloaded.svelte', 11, 11.8)
 				]
 			})
 		);
@@ -166,6 +210,13 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('text over the face in check', () =>
 			.flatMap((r) => r.warnings.map((w) => w.message))
 			.filter((m) => m.includes("covers the speaker's face"))
 			.map((m) => /^Clip "(.*?)"/.exec(m)![1]);
-		expect(warned).toEqual(['card-sticker', 'under-canvas', 'under-scrim', 'clean-below']);
+		expect(warned).toEqual([
+			'card-sticker',
+			'under-canvas',
+			'under-scrim',
+			'clean-below',
+			'letterbox',
+			'unloaded'
+		]);
 	}, 300_000);
 });

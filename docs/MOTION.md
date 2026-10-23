@@ -457,8 +457,8 @@ look at a still and decide, since some creators want a tight crop.
 
 `check` also warns where a clip's text covers the speaker's face. At the frames it checks
 (every fifth, plus edges and cues) it measures in the page every text of each front clip: its
-line boxes, or the box of the opaque card it sits on (a background at least half opaque that
-does not fill the frame), cut to ancestors that clip their overflow. It compares them with the
+line boxes, or the box of the opaque card it sits on (a background at least half opaque over
+less than 80 % of the frame), cut to ancestors that clip their overflow. It compares them with the
 head where the shot's camera puts it that frame (the matte's head box, keys and rotation
 included); only the part of the face inside the camera window can be covered. A clip warns
 once, when its text has covered at least a tenth of the face (the ellipse inside the head box)
@@ -477,16 +477,19 @@ is clear of the head`). Left out:
   the same clip after the text or in a later clip) over at least half of the face, read from
   the layer's pixels; a `"clean"` or `"plate"` layer, or one whose region misses the face, hides
   nothing;
-- frames where a clip paints over the whole frame: an element covering it, at least 0.9 opaque,
-  with an opaque background colour or a JPEG image (canvases, videos, other images and
-  gradients do not count, the face may show through them);
+- frames where a clip shows a full-frame card over the head: an element at least 0.9 opaque
+  (its own opacity times its ancestors') covering the whole head and at least 80 % of the frame
+  (inset or with round corners), with an opaque background colour, or a loaded image whose
+  drawn picture does that (an `object-fit: contain` letterbox only counts where the picture
+  is). Canvases, videos and gradients do not count: the face may show through them;
 - cut and shot transition windows (a run of frames ends there), and footage without a matte.
 
 Nothing moves by itself: look at a still at that time and decide (move the text to the free
 side, put it behind the speaker, or give it a slot beside a `strip` or `window`). It adds well
-under a millisecond per checked frame. Text boxes are the page's boxes around turned text, and a
-clip transition's moves count as they are drawn, so read the share as a measure, not a pixel
-count.
+under a millisecond per checked frame. Read the share as a measure, not a pixel count: text
+boxes are the page's boxes around turned text, a clip transition's moves count as they are
+drawn, a half-opaque chip that hugs the chin counts as its whole box, and inside one block the
+order of its elements decides what is over what (a `z-index` there is not followed).
 
 The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full`,
 `strip` and `window`, 0.3 s into `behind` from `full` (0.7 s from a framed shot), 0.16 s into

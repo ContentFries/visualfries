@@ -397,7 +397,7 @@ export function resolveProgram(
 		opts.format ? { ...project, size: format.size } : project,
 		words,
 		inputs.music ?? [],
-		{ ...inputs.look, end }
+		{ ...inputs.look, end, files: inputs.files }
 	);
 	diagnostics.push(...resolved.diagnostics);
 	const anchorCtx: AnchorContext = {

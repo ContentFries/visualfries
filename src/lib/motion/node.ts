@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -28,7 +28,13 @@ import {
 	type SourceInfo
 } from './cutlist.js';
 import { propFiles, resolveProgram, type ProgramHashes, type ResolvedProgram } from './program.js';
-import { resolveMotionProject, type ResolvedClip, type ResolvedProject } from './resolve.js';
+import {
+	propFileRefs,
+	resolveMotionProject,
+	withFileUrls,
+	type ResolvedClip,
+	type ResolvedProject
+} from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
 import { buildCleanRange, cleanFolder, type CleanSpec } from './clean-node.js';
@@ -499,6 +505,8 @@ export async function loadMotionProject(
 	}
 	const look = { brand: brand.resolved, style: style.resolved };
 	const inputs: ProgramInputs = { words, transcripts, sources, tracks, look };
+	const checked = propFilesOf(project, dir);
+	if (checked) inputs.files = checked;
 	if (isProgramProject(project)) {
 		inputs.sounds = await loadSounds(project, dir);
 		// Keyed props are checked against what each block marks animatable.
@@ -533,7 +541,7 @@ export async function loadMotionProject(
 		.filter((d) => d.level !== 'info')
 		.map((d) => ({ level: d.level as 'error' | 'warning', field: d.field, message: d.message }));
 	if (cutList.mode === 'inserts') {
-		const resolved = resolveMotionProject(project, words, musicBeats, look);
+		const resolved = resolveMotionProject(project, words, musicBeats, { ...look, files: checked });
 		resolved.diagnostics.unshift(...musicDiagnostics);
 		// A clip behind the subject renders as a holdout of the one footage with a matte.
 		for (const clip of project.clips) {
@@ -552,7 +560,8 @@ export async function loadMotionProject(
 	// error of the project (program time is undefined without it).
 	const resolved = resolveMotionProject(project, cutList.words, musicBeats, {
 		...look,
-		end: programEnd(project, cutList)
+		end: programEnd(project, cutList),
+		files: checked
 	});
 	resolved.diagnostics.unshift(
 		...cutList.diagnostics
@@ -567,6 +576,38 @@ export async function loadMotionProject(
 		resolved,
 		cutList
 	};
+}
+
+/**
+ * Where a file that clip props name (`{ "file": … }`) is on disk, or why it cannot be served.
+ * Only files inside the project folder are: props never open other paths.
+ */
+function projectFile(dir: string, file: string): { abs: string } | { error: string } {
+	const abs = path.resolve(dir, file);
+	const rel = path.relative(dir, abs);
+	if (!rel || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel))
+		return {
+			error: `"${file}" is not inside the project folder (${dir}); props can name only files inside it.`
+		};
+	const st = statSync(abs, { throwIfNoEntry: false });
+	if (!st) return { error: `File not found: ${abs} ("${file}", relative to the project folder).` };
+	if (!st.isFile()) return { error: `"${file}" is not a file (${abs}).` };
+	return { abs };
+}
+
+/** Every file clip props name, checked (see `ProjectFiles`); undefined when props name none. */
+function propFilesOf(
+	project: MotionProject,
+	dir: string
+): Record<string, string | null> | undefined {
+	const out: Record<string, string | null> = {};
+	for (const clip of project.clips)
+		for (const { file } of propFileRefs(clip.props)) {
+			if (file in out) continue;
+			const found = projectFile(dir, file);
+			out[file] = 'error' in found ? found.error : null;
+		}
+	return Object.keys(out).length ? out : undefined;
 }
 
 /**
@@ -972,6 +1013,14 @@ export async function bundleMotionProject(
 		return { family: f.family, url: originUrl(f.src), weight: f.weight, style: f.style };
 	});
 	files.push(...loaded.brand.assets);
+	// Files clip props name: each one is served alone, and the block reads its URL.
+	for (const clip of clips)
+		clip.props = withFileUrls(clip.props, (file) => {
+			const found = projectFile(loaded.dir, file);
+			if ('error' in found) throw new Error(`Clip "${clip.id}": props: ${found.error}`);
+			files.push(found.abs);
+			return originUrl(found.abs);
+		});
 	let css = '';
 	for (const file of loaded.project.css ?? []) {
 		const abs = path.resolve(loaded.dir, file);

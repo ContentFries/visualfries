@@ -258,6 +258,25 @@ cue) may still be decoding when a frame is captured, and that frame then depends
 {/each}
 ```
 
+A picture chosen per clip can come from `props` instead of an import: write
+`{ "file": "<path>" }` anywhere in `props` (also inside arrays and objects), with the path
+relative to the project, and the block reads a URL for its `src`:
+
+```json
+"clips": [{ "id": "home", "block": "blocks/Web.svelte", "from": "our website", "until": "end",
+            "props": { "shot": { "file": "assets/web/home.png" }, "caption": "The home page" } }]
+```
+
+```svelte
+<img src={clip.props.shot} alt="" />
+```
+
+Only an object with `file` as its only key is a file; it must be a file inside the project
+folder. A missing file, or a path that leads out of the project folder, is an error of the clip
+that names the path (`props.shot`), in `check`, `program`, `still` and `render`. The page is
+served that one file and nothing else around it, and the resolved program keeps the path as
+written. Editing the file redraws the segments that show the clip, as for any file props name.
+
 ## Footage and mattes
 
 A project can declare a video the blocks draw frame by frame, with an optional matte (greyscale,

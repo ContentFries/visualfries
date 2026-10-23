@@ -173,6 +173,62 @@ export type ProjectLook = { brand?: ResolvedBrand; style?: ResolvedStyle };
 export type ProgramEnd = { end?: number | null };
 
 /**
+ * Project files that clip props name as `{ "file": … }`, checked by the node tooling: by the path
+ * as written, why it cannot be served (outside the project folder, not found), or null when it
+ * can. Absent: not checked (in the browser).
+ */
+export type ProjectFiles = { files?: Record<string, string | null> };
+
+/** A project file in block props: `{ "file": "assets/home.png" }`, relative to the project. */
+export type PropFile = { file: string };
+
+/** Whether a props value names a project file: an object with a string `file` and nothing else. */
+export function isPropFile(value: unknown): value is PropFile {
+	return (
+		!!value &&
+		typeof value === 'object' &&
+		!Array.isArray(value) &&
+		Object.keys(value).length === 1 &&
+		typeof (value as PropFile).file === 'string'
+	);
+}
+
+/** Every `{ file }` in props, with where it sits (`shot`, `items[2].icon`). */
+export function propFileRefs(
+	props: Record<string, unknown> | undefined
+): { at: string; file: string }[] {
+	const out: { at: string; file: string }[] = [];
+	const walk = (value: unknown, at: string) => {
+		if (isPropFile(value)) out.push({ at, file: value.file });
+		else if (Array.isArray(value)) value.forEach((v, i) => walk(v, `${at}[${i}]`));
+		else if (value && typeof value === 'object')
+			for (const [k, v] of Object.entries(value)) walk(v, `${at}.${k}`);
+	};
+	for (const [k, v] of Object.entries(props ?? {})) walk(v, k);
+	return out;
+}
+
+/**
+ * Props with every `{ file }` replaced by `url(file)`: the node tooling serves those files to the
+ * page, so a block reads a URL string. Props without files come back as they are.
+ */
+export function withFileUrls(
+	props: Record<string, unknown>,
+	url: (file: string) => string
+): Record<string, unknown> {
+	if (!propFileRefs(props).length) return props;
+	const swap = (value: unknown): unknown =>
+		isPropFile(value)
+			? url(value.file)
+			: Array.isArray(value)
+				? value.map(swap)
+				: value && typeof value === 'object'
+					? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, swap(v)]))
+					: value;
+	return Object.fromEntries(Object.entries(props).map(([k, v]) => [k, swap(v)]));
+}
+
+/**
  * Where the previous clip stands in program order (see `orderPoint`); null before the first.
  * `resolveMotionClip` reads it for a repeated phrase in `from` and moves it to its own start.
  */
@@ -184,7 +240,7 @@ export function resolveMotionClip(
 	words: MotionWord[] | null,
 	diagnostics: MotionDiagnostic[],
 	music: MusicBeats[] = [],
-	look: ProjectLook & ProgramEnd & { format?: ResolvedFormat } = {},
+	look: ProjectLook & ProgramEnd & ProjectFiles & { format?: ResolvedFormat } = {},
 	previous: ClipOrder = { at: null }
 ): ResolvedClip | null {
 	const fps = project.fps;
@@ -332,6 +388,11 @@ export function resolveMotionClip(
 		}
 	}
 
+	for (const ref of propFileRefs(clip.props)) {
+		const problem = look.files?.[ref.file];
+		if (problem) fail(`props.${ref.at}`, new Error(problem));
+	}
+
 	// Without music the clip gets no beat fields at all, so it resolves exactly as before.
 	let musicFields: { beats: MotionBeatRef[] } | { noBeats: string } | null = null;
 	if (music.length) {
@@ -378,7 +439,7 @@ export function resolveMotionProject(
 	project: MotionProject,
 	words: MotionWord[] | null,
 	music: MusicBeats[] = [],
-	look: ProjectLook & ProgramEnd = {}
+	look: ProjectLook & ProgramEnd & ProjectFiles = {}
 ): ResolvedProject {
 	const diagnostics: MotionDiagnostic[] = [];
 	const format = resolveFormat(project.size, project.safeZone);

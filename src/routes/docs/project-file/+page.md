@@ -71,7 +71,7 @@ Ship fonts with the project. A render must never depend on what happens to be in
 | `tail`          | Seconds added after `until` (negative trims).                                                      |
 | `cues`          | Named moments inside the clip. Names are identifiers; `start` and `end` are built in and reserved. |
 | `words`         | Transcript words handed to the block.                                                              |
-| `props`         | Any data for the block, read as `clip.props`.                                                      |
+| `props`         | Any data for the block, read as `clip.props`. `{ "file": "a.png" }` in it becomes a URL.           |
 | `alpha`         | Render with a transparent background as ProRes 4444 `.mov`; `background` is then ignored.          |
 | `background`    | Per-clip background color for opaque clips.                                                        |
 | `music`         | Id of the music whose beats the clip uses, when several music items have beats.                    |

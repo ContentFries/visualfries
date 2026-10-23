@@ -104,6 +104,11 @@ Program tools for common needs:
   → "Subject layers".
 - Images in blocks: keep every picture mounted and switch with `opacity`; never swap `src` per
   frame (it decodes late and fails `check --determinism`).
+- A picture per clip (a screenshot, a photo) goes in `props` as a project file, not as an import:
+  `"props": { "shot": { "file": "assets/web/home.png" } }`, and the block reads a URL:
+  `<img src={clip.props.shot} alt="" />`. The path is relative to the project and must stay
+  inside its folder; a missing file is an error of the clip that names the path. No generated
+  image modules.
 - A phrase said twice: write shots, clips and `sfx` in the order they play. A repeated phrase in
   their `from` (sfx `at`) resolves to the first occurrence at or after the previous item of the
   same kind, in `until` to the first after the item's start. `program` and `check` print every

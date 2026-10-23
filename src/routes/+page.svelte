@@ -9,7 +9,7 @@
 
 	const title = 'VisualFries: your AI video editor, motion designer and graphic designer';
 	const description =
-		'VisualFries is an MIT-licensed engine for social visuals. Your coding agent writes Svelte blocks and a JSON project; VisualFries renders reels, posts, carousels, explainers and animations frame-exact, timed to the words of a transcript.';
+		'VisualFries is an MIT-licensed engine for social video. Your coding agent turns a raw take into one project (cut list, shots, transitions, captions, sound) and VisualFries renders the finished reel frame-exact, timed to the words of a transcript. Posts, carousels and explainers too.';
 	const jsonLd = {
 		'@context': 'https://schema.org',
 		'@graph': [
@@ -17,7 +17,7 @@
 				'@type': 'SoftwareSourceCode',
 				name: 'VisualFries',
 				description:
-					'Open-source Svelte 5 engine for social visuals: talking-head reels, static posts, carousels, explainers and kinetic type. A JSON project describes clips, timed by transcript words; blocks are Svelte components; a matte cuts the speaker out so layers can sit behind them. Built-in blocks include word-timed captions and a speaker-depth reel. The CLI checks determinism, writes stills and renders MP4 or ProRes 4444 alpha.',
+					'Open-source Svelte 5 engine for social visuals: talking-head reels, static posts, carousels, explainers and kinetic type. A JSON project describes clips, timed by transcript words; blocks are Svelte components; a matte cuts the speaker out so layers can sit behind them. A program describes a whole edit in one project: a cut list over raw takes, shots (full, punch, strip, window, behind, whip), transitions, keys, sound effects, music snapped to bars and a mix normalised to -14 LUFS. Built-in blocks include word-timed captions and a speaker-depth reel. The CLI resolves and checks programs, verifies determinism, writes stills and renders MP4 or ProRes 4444 alpha inserts.',
 				codeRepository: 'https://github.com/ContentFries/visualfries',
 				programmingLanguage: ['TypeScript', 'Svelte'],
 				license: 'https://opensource.org/licenses/MIT',
@@ -33,6 +33,14 @@
 						acceptedAnswer: {
 							'@type': 'Answer',
 							text: 'VisualFries is an MIT-licensed Svelte 5 library for programmatically creating video and image content for social media. A JSON document is the source of truth; visuals are Svelte components; text is HTML/CSS; animation is GSAP. Motion frames are designed to be deterministic, and check --determinism compares sampled frames rendered in different orders. It is the engine behind ContentFries.'
+						}
+					},
+					{
+						'@type': 'Question',
+						name: 'Can VisualFries edit a raw talking-head take into a finished reel?',
+						acceptedAnswer: {
+							'@type': 'Answer',
+							text: 'Yes. A program is one project with a cut list over the raw take, shots that frame the speaker, clips, transitions, captions, sound effects and music. Every timing is a phrase of the transcript, so a retake or another try re-renders without editing the project, and only the segments that changed are drawn again.'
 						}
 					},
 					{
@@ -56,7 +64,7 @@
 						name: 'What does the CLI do?',
 						acceptedAnswer: {
 							'@type': 'Answer',
-							text: 'visualfries clips resolves transcript phrases to times, check runs every block in seconds and can verify determinism, still writes a contact sheet, and render writes MP4 or ProRes 4444 alpha plus manifest.json. Scene commands include validate, inspect, qa, catalog, explain and doctor.'
+							text: 'visualfries program resolves a whole edit (cuts, shots, clips, transitions, sound) and measures every edit point; clips resolves transcript phrases to times; check runs every block or segment in seconds, verifies determinism and prints the mix; still writes a contact sheet; render writes the program as one MP4 in any format, or each clip as a ProRes 4444 alpha insert with manifest.json; matte cuts the speaker out; beats analyses music. Scene commands include validate, inspect, qa, catalog, explain and doctor.'
 						}
 					}
 				]

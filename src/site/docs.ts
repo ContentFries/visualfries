@@ -9,6 +9,7 @@ export type SectionKey =
 	| 'time'
 	| 'surfaces'
 	| 'render'
+	| 'programs'
 	| 'scenes'
 	| 'agents';
 
@@ -19,6 +20,7 @@ export const sections: { key: SectionKey; label: string; number?: string }[] = [
 	{ key: 'time', label: 'Time', number: '03' },
 	{ key: 'surfaces', label: 'Surfaces', number: '04' },
 	{ key: 'render', label: 'Render', number: '05' },
+	{ key: 'programs', label: 'Programs', number: '06' },
 	{ key: 'scenes', label: 'Scenes' },
 	{ key: 'agents', label: 'Agents' }
 ];
@@ -54,8 +56,12 @@ export const pages: DocPage[] = [
 		planned: true
 	},
 
-	{ slug: 'cli', title: 'CLI: clips, check, still, render', section: 'render' },
+	{ slug: 'cli', title: 'CLI: program, check, still, render', section: 'render' },
 	{ slug: 'rendering', title: 'How rendering works', section: 'render' },
+
+	{ slug: 'programs', title: 'Programs: from a raw take to a finished reel', section: 'programs' },
+	{ slug: 'shots-and-transitions', title: 'Shots, transitions and keys', section: 'programs' },
+	{ slug: 'program-sound', title: 'Program sound', section: 'programs' },
 
 	{ slug: 'scenes', title: 'Scenes in an app', section: 'scenes' },
 	{ slug: 'composer', title: 'Composer API', section: 'scenes' },

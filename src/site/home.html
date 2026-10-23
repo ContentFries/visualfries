@@ -4,9 +4,9 @@
 		<div>
 			<h1 id="h1">Your AI video editor, motion designer and graphic designer. <em>One engine.</em></h1>
 			<p class="lead">
-				Describe the reel, the post, the carousel. Your coding agent writes a few Svelte blocks and a JSON project;
-				VisualFries renders it frame-exact, timed to the words you actually said. Captions, a cut-out speaker, type
-				that slams in behind your head: all layers, all yours.
+				Hand your coding agent a raw take. It writes one project: the cut list, the shots, what lands behind your head,
+				the transitions, the captions and the sound, all timed to the words you said. VisualFries renders the finished
+				reel, frame-exact, in every format you ask for.
 			</p>
 			<div class="cta">
 				<a class="btn" href="/docs/quickstart"
@@ -33,28 +33,25 @@
 				><span>New</span>We benchmarked two models on one Zuck clip. The result is 921 to 1.</a
 			>
 			<div class="facts">
-				<span>Reels, posts, carousels, explainers</span><span>Timed by transcript words</span><span
-					>Deterministic frames</span
-				><span>Best with Claude Opus 5.5</span><span>Open source, MIT</span><span
-					>The engine behind ContentFries</span
-				>
+				<span>Raw take to finished reel</span><span>Timed by transcript words</span><span>Deterministic frames</span
+				><span>Best with Claude Opus 5.5</span><span>Open source, MIT</span><span>The engine behind ContentFries</span>
 			</div>
 		</div>
 		<div class="phone">
-			<span class="chip c1">layer 02 · <b>type behind the head</b></span>
-			<span class="chip c2">layer 03 · <b>cut-out speaker</b></span>
-			<span class="chip c3">layer 04 · <b>captions, word-timed</b></span>
-			<div class="media" data-name="hero.mp4">
+			<span class="chip c1">cut list · <b>17 cuts, one take</b></span>
+			<span class="chip c2">gags · <b>timed to the words</b></span>
+			<span class="chip c3">sound · <b>sfx, music, −14 LUFS</b></span>
+			<div class="media" data-name="hero-jcvd.mp4">
 				<video
-					src="/media/v2/hero.mp4"
-					poster="/media/v2/hero.jpg"
+					src="/media/v3/hero-jcvd.mp4"
+					poster="/media/v3/hero-jcvd.jpg"
 					muted
 					loop
 					playsinline
 					preload="metadata"
-					aria-label="A talking-head reel: the room falls away, huge words slam in behind the speaker, a grey clone appears, captions follow the edited transcript, and an end card says everything in the video was edited by an AI agent."
+					aria-label="A meme short: the speaker explains that Jean-Claude Van Damme now edits his videos. A sticker of Van Damme pops in, a fighter with the Claude logo for a head kicks into frame, an edit-time chart collapses to 5 percent, a rewind effect shows the old days, and the speaker's head pops open like a lid. English captions follow every word."
 				></video>
-				<span class="lab">rendered by visualfries · 21 s</span>
+				<span class="lab">one program · rendered by visualfries · 26 s</span>
 			</div>
 		</div>
 	</div>
@@ -62,9 +59,11 @@
 
 <div class="ticker" aria-hidden="true">
 	<div class="row" id="ticker">
-		<span>Talking-head reels</span><span>Word-timed captions</span><span>Static posts</span><span>Carousels</span><span
-			>Explainers</span
-		><span>Kinetic type</span><span>Alpha inserts for your NLE</span><span>9:16 · 4:5 · 1:1 · 16:9</span>
+		<span>Raw takes to finished reels</span><span>Cut lists</span><span>Punch · strip · window · behind · whip</span><span
+			>Transitions with sound</span
+		><span>Music that ends on the bar</span><span>−14 LUFS mix</span><span>Word-timed captions</span><span
+			>Posts and carousels</span
+		><span>Alpha inserts for your editor</span><span>9:16 · 4:5 · 1:1 · 16:9</span>
 	</div>
 </div>
 
@@ -137,6 +136,166 @@
 		</div>
 		<p class="fine rv">
 			Footage by @zuck on Instagram, used for a joke. Not affiliated with Meta, sausages or watermelons.
+		</p>
+	</div>
+</section>
+
+<!-- ================= PROGRAM ================= -->
+<section class="program" id="program" aria-labelledby="h-prog">
+	<div class="wrap">
+		<div class="sec-head rv">
+			<div>
+				<h2 id="h-prog">One raw take. One project. <em>A finished reel.</em></h2>
+			</div>
+			<p class="lead">
+				A program is a whole edit in one <code>.vf.json</code>: the cut list over the raw take, how each section is
+				framed, what sits beside or behind the speaker, the transitions, the captions and the sound. Every timing is
+				a phrase you said, so a retake renders again without touching the edit.
+			</p>
+		</div>
+		<div class="prog rv">
+			<figure class="prog-reel">
+				<div class="media" data-name="reel-9x16.mp4">
+					<video
+						id="reel"
+						src="/media/v3/reel-9x16.mp4"
+						poster="/media/v3/reel-9x16.jpg"
+						muted
+						loop
+						playsinline
+						controls
+						preload="none"
+						aria-label="A talking-head reel cut from one 45-second phone take: a word slams in behind the speaker, a strip opens with a checklist, a second word behind the head, a punch-in, a whip to a full-screen card and back, and a window with an end card."
+					></video>
+				</div>
+				<figcaption>9:16, 716 frames, mixed to −14 LUFS. Turn the sound on.</figcaption>
+			</figure>
+			<div class="prog-side">
+				<figure class="prog-wide">
+					<div class="media" data-name="reel-16x9.mp4" style="--ar:16/9">
+						<video
+							src="/media/v3/reel-16x9.mp4"
+							poster="/media/v3/reel-16x9.jpg"
+							muted
+							loop
+							playsinline
+							controls
+							preload="none"
+							aria-label="The same reel rendered at 16:9 from the same project: the strip becomes camera left and checklist right, the window sits in a corner."
+						></video>
+					</div>
+					<figcaption>The same project at 16:9: <code>render --format 1920x1080</code>. The shots lay out per format.</figcaption>
+				</figure>
+				<div class="tl" id="tl" role="img" aria-label="The program of the reel: 5 cuts, 10 shots, 5 clips plus captions, 2 transitions, 14 sounds and a music bed, over 716 frames">
+					<div class="tl-in">
+						<i class="ph" id="ph" aria-hidden="true"></i>
+						<div class="tl-row"><b>cuts</b><div class="tl-track"><span class="it cut" style="left:0.00%;width:15.22%">hook</span><span class="it cut" style="left:15.22%;width:6.15%" title="take: the third try">take 3</span><span class="it cut" style="left:21.37%;width:39.25%">list</span><span class="it cut" style="left:60.61%;width:18.02%">tools</span><span class="it cut" style="left:78.63%;width:21.37%">cta</span><span class="tr" style="left:13.55%;width:3.35%" title="wipe, frames 97–120"></span><span class="tr" style="left:59.50%;width:2.37%" title="push, frames 426–442"></span></div></div>
+						<div class="tl-row"><b>shots</b><div class="tl-track"><span class="it s-full" style="left:0.00%;width:4.61%" title="full">full</span><span class="it s-behind" style="left:4.61%;width:10.61%" title="behind">behind</span><span class="it s-strip" style="left:15.22%;width:22.77%" title="strip">strip</span><span class="it s-behind" style="left:37.99%;width:8.66%" title="behind">behind</span><span class="it s-full" style="left:46.65%;width:3.35%" title="full">full</span><span class="it s-punch" style="left:50.00%;width:6.98%" title="punch">punch</span><span class="it s-full" style="left:56.98%;width:7.54%" title="full">full</span><span class="it s-whip" style="left:64.53%;width:13.97%" title="whip">whip</span><span class="it s-full" style="left:78.49%;width:6.98%" title="full">full</span><span class="it s-window" style="left:85.47%;width:14.53%" title="window">window</span></div></div>
+						<div class="tl-row"><b>behind</b><div class="tl-track"><span class="it w" style="left:4.61%;width:10.47%">“AI”</span><span class="it w" style="left:37.99%;width:8.66%">“all”</span></div></div>
+						<div class="tl-row"><b>slots</b><div class="tl-track"><span class="it p" style="left:15.22%;width:24.58%">checklist · panel</span><span class="it p" style="left:64.53%;width:15.78%">prompt card</span><span class="it p" style="left:85.47%;width:14.53%">end card</span></div></div>
+						<div class="tl-row"><b>captions</b><div class="tl-track"><span class="it c" style="left:0.00%;width:15.22%">captions</span><span class="it c" style="left:37.99%;width:47.49%">captions</span></div></div>
+						<div class="tl-row"><b>sfx</b><div class="tl-track"><i class="hit" style="left:5.82%"></i><i class="hit" style="left:12.12%"></i><i class="hit" style="left:14.05%"></i><i class="hit" style="left:18.54%"></i><i class="hit" style="left:25.38%"></i><i class="hit" style="left:33.21%"></i><i class="hit" style="left:39.59%"></i><i class="hit" style="left:49.81%"></i><i class="hit" style="left:60.31%"></i><i class="hit" style="left:65.02%"></i><i class="hit" style="left:69.94%"></i><i class="hit" style="left:74.69%"></i><i class="hit" style="left:79.26%"></i><i class="hit" style="left:86.60%"></i></div></div>
+						<div class="tl-row"><b>music</b><div class="tl-track"><span class="it m" style="left:0.00%;width:100.00%">music · ends on bar 11</span></div></div>
+						<div class="tl-row tl-axis"><b></b><div class="tl-track"><span style="left:0.00%">0s</span><span style="left:20.95%">5s</span><span style="left:41.90%">10s</span><span style="left:62.85%">15s</span><span style="left:83.80%">20s</span></div></div>
+					</div>
+				</div>
+				<p class="tl-cap">
+					The real program behind the reel, from <code>visualfries program</code>: 5 cuts over one take, 10 shots, 5
+					blocks plus captions, 2 transitions, 14 sounds and a music bed. The yellow line follows the 9:16 video.
+				</p>
+			</div>
+		</div>
+		<div class="feats">
+			<div class="feat rv">
+				<b>Cut list</b>
+				<p>Keep the third try, drop the pauses. Each cut starts and ends on a phrase of the raw take, and every edit point is measured on the sound: <code>program</code> says how far to move one that clips a word.</p>
+			</div>
+			<div class="feat rv">
+				<b>Shots</b>
+				<p><code>full</code>, <code>punch</code>, <code>strip</code>, <code>window</code>, <code>behind</code>, <code>whip</code>. The head is framed from the matte, and each shot opens a slot for your blocks: a panel, a card, a word behind the head.</p>
+			</div>
+			<div class="feat rv">
+				<b>Transitions</b>
+				<p><code>push</code>, <code>wipe</code>, <code>zoom-through</code>, <code>shape-mask</code>, <code>blinds</code>, <code>card</code>. Give one a sound and it lands on the cut. None of them shifts the program's time or its speech.</p>
+			</div>
+			<div class="feat rv">
+				<b>Keys</b>
+				<p>Camera and clip moves between keys, and block props that animate. Brand colours mix in OKLCH, so a gradient from one to the other stays saturated halfway.</p>
+			</div>
+			<div class="feat rv">
+				<b>Sound</b>
+				<p>Effects on words, beats or a block's own events. Music that ends on a bar. One mix at −14 LUFS and −1 dBTP, with speech, effects and music as stems on request.</p>
+			</div>
+			<div class="feat rv">
+				<b>Retakes</b>
+				<p>Pick another try or a new take and render again. Cuts, shots, captions, sounds and transitions follow their words, and the music snaps to the nearest bar again.</p>
+			</div>
+			<div class="feat rv">
+				<b>Segment cache</b>
+				<p>The program renders in segments between hard cuts. Change one clip and only the segments it is on screen in are drawn again. Same project, same frames, same samples.</p>
+			</div>
+			<div class="feat rv">
+				<b>Hand-off</b>
+				<p>Finishing in an editor? <code>--export inserts</code> writes every clip as a transparent file with 10-frame handles and a manifest that lines up with the rough cut.</p>
+			</div>
+		</div>
+		<div class="retake rv">
+			<div>
+				<h3>A retake, re-rendered</h3>
+				<p class="muted">
+					The call to action started a little late, so the cut moves 0.15 s earlier. One number changes. The first segment
+					is untouched and comes from the cache; the captions that span the other two put both in play.
+				</p>
+			</div>
+			<pre><code><span class="c">// reel.vf.json, the last cut</span>
+{ <span class="k">"id"</span>: <span class="s">"cta"</span>, <span class="k">"source"</span>: <span class="s">"talk"</span>,
+  <span class="k">"in"</span>: { <span class="k">"say"</span>: <span class="s">"Let me know"</span>, <span class="k">"offset"</span>: <span class="n">-0.25</span> }, <span class="c">// was -0.1</span>
+  … }
+
+<span class="y">$</span> visualfries render reel.vf.json --output out/
+mix in 2.1 s: speech -20.39 LUFS, delivered -14.05 LUFS and -1.08 dBTP after 7.02 dB (limiter -5.38 dB)
+<span class="g">seg1: frames 0–152 cached (fd4539815ca5)</span>
+seg2: frames 153–562 rendered in 35.9 s (11.4 fps)
+seg3: frames 563–720 rendered in 13.1 s (12.1 fps)
+final encode: 721 frames in 33.6 s</code></pre>
+		</div>
+		<div class="demos">
+			<figure class="rv">
+				<div class="media" data-name="transitions.mp4" style="--ar:16/9">
+					<video
+						src="/media/v3/transitions.mp4"
+						poster="/media/v3/transitions.jpg"
+						muted
+						loop
+						playsinline
+						preload="none"
+						aria-label="Four transitions on one take: zoom-through into the eyes, a circle growing from the face, blinds in the brand colour, and a card that slides in and flips out."
+					></video>
+					<span class="lab">transitions · 16:9</span>
+				</div>
+				<figcaption>Zoom-through, shape mask, blinds, card<small>brand colours, a sound on each</small></figcaption>
+			</figure>
+			<div class="demo-note rv">
+				<h3>Six built-in transitions, one line each</h3>
+				<pre><code>{ <span class="k">"type"</span>: <span class="s">"zoom-through"</span>, <span class="k">"sound"</span>: <span class="s">"sfx/whoosh.wav"</span> }</code></pre>
+				<p class="muted">
+					<code>push</code>, <code>wipe</code>, <code>zoom-through</code>, <code>shape-mask</code>, <code>blinds</code> and
+					<code>card</code> take the brand's colours, aim at the speaker's eyes from the matte, and land their sound
+					on the cut. They work the same in 9:16 and 16:9.
+				</p>
+				<a class="btn ghost" href="/docs/shots-and-transitions">Shots and transitions →</a>
+			</div>
+		</div>
+		<p class="fine rv">
+			The same edit, with an English sample transcript, blocks and a README, is in the repository as
+			<a href="https://github.com/ContentFries/visualfries/tree/main/static/demo/reel"><code>static/demo/reel</code></a>.
+			The guide is <a href="/docs/programs">Programs</a>. The speech in the reel is Slovak, the captions and every word
+			on screen are English. New in 0.7: subject layers, so part of the speaker can fly off and leave a hole with the background behind it
+			(<a href="https://github.com/ContentFries/visualfries/blob/main/docs/MOTION.md#subject-layers">guide</a>).
+		</p>
+		<p class="fine rv">
+			Hero photo of Jean-Claude Van Damme: U.S. Air Force photo / Robbin Cresswell (public domain), Wikimedia Commons.
+			The Claude logo is a trademark of Anthropic, used here as parody.
 		</p>
 	</div>
 </section>
@@ -266,7 +425,8 @@
 			<p class="lead" style="margin-top:22px">
 				A matte cuts the speaker out of the footage. That puts a stage <b>behind</b> your head: type can slam in there,
 				a light can glow around your outline, a delayed grey clone can stand next to you. Captions ride on top, timed to
-				the word. Each layer is a Svelte block you can read, edit and re-render.
+				the word. Each layer is a Svelte block you can read, edit and re-render. In a program, the
+				<code>behind</code> shot sets this stage for one word at a time, in the middle of a whole edit.
 			</p>
 			<div class="ctrl">
 				<button class="btn ghost" type="button" id="explode">Explode</button><button
@@ -398,62 +558,68 @@
 	<div class="wrap">
 		<div class="sec-head rv">
 			<div>
-				<h2 id="h-agents">Your agent writes it. VisualFries <em>renders</em> it.</h2>
+				<h2 id="h-agents">Your agent edits it. VisualFries <em>renders</em> it.</h2>
 			</div>
 			<p class="lead">
-				No timeline to learn. You talk to Claude Code, Codex or Cursor; the agent writes a project file and blocks, then
-				runs a CLI that fails loudly and shows stills before it renders. Every output is a diff you can review.
+				No editor to learn. You talk to Claude Code, Codex or Cursor; the agent writes the project and any blocks it
+				needs, then runs a CLI that fails loudly, measures what it can and shows stills before it renders. Every edit
+				is a diff you can review.
 			</p>
 		</div>
 		<div class="flow">
 			<div class="step rv">
 				<span class="num">01 · YOU SAY</span>
-				<h3>A sentence, not a storyboard</h3>
+				<h3>A raw take and a sentence</h3>
 				<div class="prompt">
-					Make a 9:16 reel from <b>talk.mp4</b>. Cut me out of the room and slam the words I stress in behind my head.
-					Bold captions with the spoken word highlighted. Show me stills before you render.
+					Edit <b>take.mp4</b> into a 9:16 reel. Cut the pauses and the failed tries, put the key word behind my head,
+					a checklist where I list things, captions low, a sound on every move and music that ends on a bar. Show me
+					stills before you render.
 				</div>
 				<p>
-					The agent reads <code>/llms.txt</code>, runs <code>visualfries matte</code> and plans cues on the words in
-					your transcript.
+					The agent reads the VisualFries skill and the Programs guide that ship in the package, makes the matte with
+					<code>visualfries matte</code> and plans one move per spoken beat of your transcript.
 				</p>
 			</div>
 			<div class="step rv">
 				<span class="num">02 · THE AGENT WRITES</span>
-				<h3>A JSON project, and blocks when it needs them</h3>
+				<h3>One program, timed by your words</h3>
 				<pre><code>{
-  <span class="k">"size"</span>: [<span class="n">1080</span>, <span class="n">1920</span>], <span class="k">"fps"</span>: <span class="n">30</span>,
-  <span class="k">"transcript"</span>: <span class="s">"talk.transcript.json"</span>,
-  <span class="k">"footage"</span>: { <span class="k">"talk"</span>: {
-    <span class="k">"src"</span>: <span class="s">"talk.mp4"</span>, <span class="k">"matte"</span>: <span class="s">"talk.matte.mp4"</span> } },
-  <span class="k">"clips"</span>: [{
-    <span class="k">"id"</span>: <span class="s">"depth"</span>,
-    <span class="k">"block"</span>: <span class="s">"@visualfries/speaker-depth"</span>,
-    <span class="k">"from"</span>: <span class="n">0</span>, <span class="k">"until"</span>: <span class="n">17</span>, <span class="k">"audio"</span>: <span class="s">"talk"</span>,
-    <span class="k">"words"</span>: { <span class="k">"captions"</span>: <span class="s">"clip"</span> },
-    <span class="k">"cues"</span>: { <span class="k">"huge"</span>: <span class="s">"huge"</span> },
-    <span class="k">"props"</span>: {
-      <span class="k">"words"</span>: [{ <span class="k">"text"</span>: <span class="s">"HUGE"</span>,
-        <span class="k">"at"</span>: <span class="s">"huge"</span>, <span class="k">"hit"</span>: <span class="n">true</span> }],
-      <span class="k">"captions"</span>: { <span class="k">"preset"</span>: <span class="s">"bold"</span> }
-    }
-  }]
+  <span class="k">"size"</span>: [<span class="n">1080</span>, <span class="n">1920</span>], <span class="k">"fps"</span>: <span class="n">30</span>, <span class="k">"brand"</span>: <span class="s">"brand.json"</span>,
+  <span class="k">"footage"</span>: { <span class="k">"talk"</span>: { <span class="k">"src"</span>: <span class="s">"talk.mp4"</span>,
+    <span class="k">"matte"</span>: <span class="s">"talk.matte.mp4"</span>,
+    <span class="k">"transcript"</span>: <span class="s">"take.transcript.json"</span> } },
+  <span class="k">"cuts"</span>: [{ <span class="k">"id"</span>: <span class="s">"take"</span>, <span class="k">"source"</span>: <span class="s">"talk"</span>,
+    <span class="k">"in"</span>: { <span class="k">"say"</span>: <span class="s">"AI cut the silences"</span>, <span class="k">"occurrence"</span>: <span class="n">3</span> },
+    <span class="k">"out"</span>: { <span class="k">"say"</span>: <span class="s">"the silences"</span>, <span class="k">"occurrence"</span>: <span class="n">1</span> } }, <span class="c">…</span>],
+  <span class="k">"shots"</span>: [{ <span class="k">"shot"</span>: <span class="s">"whip"</span>, <span class="k">"from"</span>: <span class="s">"is the open-source"</span>,
+    <span class="k">"until"</span>: <span class="s">"Opus 5.5"</span> }, <span class="c">…</span>],
+  <span class="k">"clips"</span>: [{ <span class="k">"id"</span>: <span class="s">"tools-card"</span>, <span class="k">"slot"</span>: <span class="s">"card"</span>,
+    <span class="k">"block"</span>: <span class="s">"blocks/PromptCard.svelte"</span>, <span class="c">…</span> }, <span class="c">…</span>],
+  <span class="k">"sfx"</span>: [{ <span class="k">"at"</span>: <span class="s">"VisualFries"</span>, <span class="k">"sound"</span>: <span class="s">"sfx/pop.wav"</span> }],
+  <span class="k">"music"</span>: [{ <span class="k">"src"</span>: <span class="s">"music/bed.mp3"</span>,
+    <span class="k">"beats"</span>: <span class="s">"music/bed.beats.json"</span> }]
 }</code></pre>
-				<p>Cues are phrases, not seconds. Re-record a sentence and every cue moves with the words.</p>
+				<p>Cuts, shots and sounds are phrases, not seconds. Pick another try and every one of them moves with the words.</p>
 			</div>
 			<div class="step rv">
-				<span class="num">03 · VISUALFRIES RENDERS</span>
-				<h3>Checked, previewed, frame-exact</h3>
-				<pre><code><span class="y">$</span> visualfries clips reel.vf.json
-depth  0.000–17.000s  frame 0  510 frames
-  cue huge     9.04s <span class="s">"huge"</span>
+				<span class="num">03 · VISUALFRIES CHECKS</span>
+				<h3>Resolved, measured, then rendered</h3>
+				<pre><code><span class="y">$</span> visualfries program reel.vf.json
+program mode  1080x1920 (portrait)  716 frames  23.87s  30 fps
+cut take       3.63s  44 frames  talk 17.87s–19.33s
+shot tools-whip 15.40s  100 frames  whip  morph 13 frames power3.inOut
+transition push into tools  frames 426–442 (cut 434)
+<span class="s">WARNING list cuts[2].out: cut 3: the voice is still sounding where the cut's sound stops (28.90 s of "talk"); move "out" 0.13 s later.</span>
 <span class="y">$</span> visualfries check reel.vf.json --determinism
-<span class="g">ok   depth  (html-in-canvas)</span>
-<span class="g">All 1 clips pass.</span>
-<span class="y">$</span> visualfries still reel.vf.json --clip depth --output sheet.png
+mix: speech -20.37 LUFS, -14 LUFS and -1.05 dBTP before encoding (6.8 dB, limiter -4.66 dB)
+<span class="g">ok   seg1  frames 0–152  (html-in-canvas)</span>
+<span class="g">ok   seg2  frames 153–562  (html-in-canvas)</span>
+<span class="g">ok   seg3  frames 563–715  (html-in-canvas)</span>
+<span class="g">All 3 segments pass.</span>
+<span class="y">$</span> visualfries still reel.vf.json --at f95 --at f107 --output sheet.png
 <span class="y">$</span> visualfries render reel.vf.json --output out/
-<span class="g">depth: 510 frames in 97.2 s</span></code></pre>
-				<p>Same input, same frames, every time. ProRes 4444 alpha inserts drop onto your NLE timeline with a manifest.</p>
+<span class="g">final encode: 716 frames in 28.5 s</span></code></pre>
+				<p>Same input, same frames, every time. <code>--format</code> renders other sizes; <code>--export inserts</code> hands each clip to your editor.</p>
 			</div>
 		</div>
 	</div>
@@ -632,8 +798,9 @@ depth  0.000–17.000s  frame 0  510 frames
 				</div>
 				<h3>Blocks are Svelte</h3>
 				<p>
-					Any visual is a component with props. Text is real DOM: it wraps, kerns and reflows per size. Change
-					<code>size</code> and the same block becomes a 9:16, 4:5 or 16:9.
+					Any visual is a component with props. Text is real DOM: it wraps, kerns and reflows per size. Your brand's
+					colours and fonts and each platform's safe zones arrive as CSS variables, and one line of
+					<code>use:motion</code> gives an element its entrance.
 				</p>
 			</div>
 			<div class="card rv">
@@ -644,8 +811,9 @@ depth  0.000–17.000s  frame 0  510 frames
 				</div>
 				<h3>Time comes from words</h3>
 				<p>
-					A cue lands on <code>"huge"</code>, a clip ends on <code>"replace it"</code>. A new transcript re-times
-					everything; a phrase that vanished fails with "Did you mean".
+					A cut ends on <code>"the silences"</code>, a whip lands on <code>"open-source"</code>, a cue on
+					<code>"bar 5"</code> of the music. A new take re-times everything; a phrase that vanished fails with "Did you
+					mean".
 				</p>
 			</div>
 			<div class="card rv">
@@ -654,8 +822,8 @@ depth  0.000–17.000s  frame 0  510 frames
 				</div>
 				<h3>Deterministic frames</h3>
 				<p>
-					No timers, no CSS transitions, randomness from seeded noise. <code>check --determinism</code> renders sampled
-					frames in different orders and compares them before you spend a minute on a render.
+					No timers, no CSS transitions, randomness from seeded noise. <code>check --determinism</code> renders every
+					segment forward, backward and scrambled and compares the frames before you spend a minute on a render.
 				</p>
 			</div>
 			<div class="card rv">
@@ -666,31 +834,36 @@ depth  0.000–17.000s  frame 0  510 frames
 				</div>
 				<h3>One CLI, loud failures</h3>
 				<p>
-					Built to be driven by agents: every error says what to fix. MP4, PNG stills, ProRes 4444 alpha and a
-					<code>manifest.json</code> for your NLE.
+					Built to be driven by agents: every error says what to fix. A whole program as one MP4 with its mix, PNG
+					stills, or ProRes 4444 alpha inserts with a <code>manifest.json</code> for your editor.
 				</p>
 			</div>
 		</div>
 		<div class="cli">
 			<div class="list rv">
 				<div><code>doctor</code><span>Checks ffmpeg, Playwright, Chromium and the toolchain.</span></div>
-				<div><code>clips</code><span>Resolves transcript phrases to times and frames.</span></div>
-				<div><code>check</code><span>Runs every block in seconds; verifies determinism.</span></div>
-				<div><code>still</code><span>A contact sheet of every cue. Look before you render.</span></div>
-				<div><code>render</code><span>MP4 or ProRes 4444 alpha, plus a manifest.</span></div>
-				<div><code>matte</code><span>Cuts the speaker out of the footage, frame by frame.</span></div>
+				<div><code>program</code><span>Resolves cuts, shots, clips, transitions and sound; measures every edit point.</span></div>
+				<div><code>check</code><span>Runs every block or segment in seconds; verifies determinism; prints the mix.</span></div>
+				<div><code>still</code><span>A contact sheet of any moments. Look before you render.</span></div>
+				<div><code>render</code><span>The program as one MP4 in any format, or each clip as an alpha insert.</span></div>
+				<div><code>matte</code><span>Cuts the speaker out of the footage, on fal.ai or locally.</span></div>
+				<div><code>beats</code><span>Bars and beats of a music file, analysed once.</span></div>
 			</div>
-			<pre class="rv"><code><span class="c">&lt;!-- blocks/Huge.svelte: a function of clip time --&gt;</span>
+			<pre class="rv"><code><span class="c">&lt;!-- blocks/Checklist.svelte: a panel that ticks on cues --&gt;</span>
 &lt;script&gt;
-  import { useClip, Footage, Captions } from <span class="s">'visualfries/motion'</span>;
+  import { useClip, motion } from <span class="s">'visualfries/motion'</span>;
   const clip = useClip();
-  const hit = $derived(clip.p(<span class="s">'huge'</span>, 0.35, <span class="s">'back.out'</span>));
 &lt;/script&gt;
 
-&lt;Footage name=<span class="s">"talk"</span> layer=<span class="s">"plate"</span> /&gt;
-&lt;h1 style:scale={0.6 + hit * 0.4} style:opacity={hit}&gt;HUGE&lt;/h1&gt;
-&lt;Footage name=<span class="s">"talk"</span> layer=<span class="s">"subject"</span> /&gt;
-&lt;Captions words={clip.words.captions} preset=<span class="s">"bold"</span> /&gt;</code></pre>
+&lt;h2 use:motion={{ enter: <span class="s">'rise'</span>, split: <span class="s">'words'</span> }}&gt;{clip.props.title}&lt;/h2&gt;
+{#each clip.props.items as item}
+  &lt;p use:motion={{ enter: <span class="s">'pop'</span>, at: item.at, emphasis: <span class="s">'highlight'</span> }}&gt;{item.text}&lt;/p&gt;
+{/each}
+
+&lt;style&gt;
+  h2 { font-family: var(<span class="n">--brand-font-heading</span>); color: var(<span class="n">--brand-accent</span>); }
+  p  { background: var(<span class="n">--brand-surface</span>); border-radius: var(<span class="n">--brand-radius</span>); }
+&lt;/style&gt;</code></pre>
 		</div>
 	</div>
 </section>
@@ -700,7 +873,8 @@ depth  0.000–17.000s  frame 0  510 frames
 	<div class="wrap">
 		<h2 id="h-install" class="rv">Ship the <em>unskippable</em> post today.</h2>
 		<p class="lead rv">
-			Node 20+, ffmpeg, Chromium. One package. Point your agent at <code>/llms.txt</code> and ask for the first reel.
+			Node 20+, ffmpeg, Chromium. One package, with the agent skill and the guides inside. Hand your agent a raw take
+			and ask for the first reel.
 		</p>
 		<div class="cmd rv">
 			<span id="install-cmd">npm install visualfries svelte playwright &amp;&amp; npx playwright install chromium</span

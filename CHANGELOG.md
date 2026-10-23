@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.8.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.7.0...visualfries-v0.8.0) (2026-10-23)
+
+
+### Features
+
+* **check:** warn when a clip's text covers the speaker's face ([#116](https://github.com/ContentFries/visualfries/issues/116)) ([10422b4](https://github.com/ContentFries/visualfries/commit/10422b4a5ad506f5d48af73ed5cb03f23af3d06b))
+* **motion:** repeated phrases resolve by program order; project files in block props ([#115](https://github.com/ContentFries/visualfries/issues/115)) ([a445297](https://github.com/ContentFries/visualfries/commit/a445297cf7c4c82e987e1325de95961dbf82432f))
+* **site:** homepage, docs and skill for programs ([#109](https://github.com/ContentFries/visualfries/issues/109)) ([4bd210e](https://github.com/ContentFries/visualfries/commit/4bd210ebacb72d65c5bdebb0c4cd25b46369848c))
+* **site:** redirect the bare domain to www and make www canonical ([#113](https://github.com/ContentFries/visualfries/issues/113)) ([1d03334](https://github.com/ContentFries/visualfries/commit/1d0333470e185092f2018592784eeeca990e548d))
+
 ## [0.7.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.6.1...visualfries-v0.7.0) (2026-10-22)
 
 

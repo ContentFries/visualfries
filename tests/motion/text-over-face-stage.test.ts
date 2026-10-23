@@ -17,7 +17,28 @@ const STICKER = `<script>
 	import { useClip } from 'visualfries/motion';
 	const p = useClip().props;
 </script>
-<div style="position:absolute;left:{p.x}px;top:{p.y}px;font:700 30px sans-serif;color:#fff;white-space:nowrap;opacity:{p.opacity ?? 1}">{p.text}</div>
+<div style="position:absolute;left:{p.x}px;top:{p.y}px;font:700 30px sans-serif;color:{p.color ?? '#fff'};white-space:nowrap;opacity:{p.opacity ?? 1}">{p.text}</div>
+`;
+
+/** A white card over the whole head, its short title in a corner away from the face. */
+const WHITE_CARD = `<div style="position:absolute;left:30px;top:120px;width:300px;height:260px;background:#fff">
+	<span style="position:absolute;left:8px;top:8px;font:700 20px sans-serif;color:#000">HI</span>
+</div>
+`;
+
+/** A full-frame canvas that draws nothing, and a full-frame scrim darkening the bottom. */
+const EMPTY_CANVAS = `<canvas width="360" height="640" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+`;
+const SCRIM = `<div style="position:absolute;inset:0;background:linear-gradient(transparent 70%, rgba(0,0,0,.4))"></div>
+`;
+
+/** Text on the face, and a clean-plate layer of the body far below it. */
+const CLEAN_BELOW = `<script>
+	import { Subject, useClip } from 'visualfries/motion';
+	const p = useClip().props;
+</script>
+<div style="position:absolute;left:{p.x}px;top:{p.y}px;font:700 30px sans-serif;color:#fff;white-space:nowrap">{p.text}</div>
+<Subject layer="clean" region={{ below: { head: 3 } }} />
 `;
 
 /** The same text with the whole speaker drawn over it by a subject layer. */
@@ -43,6 +64,12 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('text over the face in check', () =>
 		await fs.writeFile(path.join(dir, 'Sticker.svelte'), STICKER);
 		await fs.writeFile(path.join(dir, 'Occluded.svelte'), OCCLUDED);
 		await fs.writeFile(path.join(dir, 'Card.svelte'), CARD);
+		await fs.writeFile(path.join(dir, 'WhiteCard.svelte'), WHITE_CARD);
+		await fs.writeFile(path.join(dir, 'EmptyCanvas.svelte'), EMPTY_CANVAS);
+		await fs.writeFile(path.join(dir, 'Scrim.svelte'), SCRIM);
+		await fs.writeFile(path.join(dir, 'CleanBelow.svelte'), CLEAN_BELOW);
+		await fs.mkdir(path.join(dir, 'long'));
+		writeFootage(path.join(dir, 'long'), 8);
 	});
 	afterAll(async () => {
 		await fs.rm(dir, { recursive: true, force: true });
@@ -68,13 +95,14 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('text over the face in check', () =>
 				footage: { talk: { src: 'talk.mp4', matte: 'talk.matte.mp4' } },
 				cuts: [{ source: 'talk', in: 0, out: 4 }],
 				clips: [
+					// The speaker drawn over its own text (first: it is under the clips after it).
+					{ id: 'occluded', block: 'Occluded.svelte', from: 0.2, until: 3, props: face },
 					sticker('face', 0.5, 2.5, face),
 					// Above the head, beside it on the body, invisible, behind the speaker, passing.
 					sticker('above', 0.2, 3, { x: 40, y: 40, text: 'ABOVE THE HEAD' }),
 					sticker('ghost', 0.2, 3, { ...face, opacity: 0 }),
 					sticker('behind', 0.2, 3, face, { layer: 'behind' }),
 					sticker('flyby', 2.6, 2.9, face),
-					{ id: 'occluded', block: 'Occluded.svelte', from: 0.2, until: 3, props: face },
 					{ id: 'card', block: 'Card.svelte', from: 3.1, until: 4 }
 				]
 			})
@@ -89,5 +117,55 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('text over the face in check', () =>
 			/^Clip "face" \(Sticker\.svelte\): its text covers the speaker's face from 0\.50 s \(program time\) on, up to \d+ % of the face/
 		);
 		expect(warnings[0]).toMatch(/The (left|right) side of the frame \(x \d+–\d+ of 360 px\)/);
+	}, 300_000);
+
+	it('counts opaque cards, sees through canvases and scrims, and knows which subject layers occlude', async () => {
+		const face = { x: 110, y: 220, text: 'ON THE FACE' };
+		const clip = (id: string, block: string, from: number, until: number, props = {}) => ({
+			id,
+			block,
+			from,
+			until,
+			props
+		});
+		const file = path.join(dir, 'probes.vf.json');
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [SW, SH],
+				fps: 30,
+				footage: {
+					talk: { src: 'long/talk.mp4', matte: 'long/talk.matte.mp4', clean: true }
+				},
+				cuts: [{ source: 'talk', in: 0, out: 8 }],
+				clips: [
+					// A white card over the whole head: its title is in a corner, the card hides the face.
+					clip('card-sticker', 'WhiteCard.svelte', 0.2, 1.2),
+					// Text on the face with a full-frame canvas that draws nothing, or a scrim, over it.
+					clip('under-canvas', 'Sticker.svelte', 1.5, 2.5, face),
+					clip('canvas', 'EmptyCanvas.svelte', 1.5, 2.5),
+					clip('under-scrim', 'Sticker.svelte', 2.8, 3.8, face),
+					clip('scrim', 'Scrim.svelte', 2.8, 3.8),
+					// Letters a typewriter has not typed yet: transparent.
+					clip('typewriter', 'Sticker.svelte', 4.1, 5.1, { ...face, color: 'transparent' }),
+					// A clean-plate layer of the body does not hide the text on the face.
+					clip('clean-below', 'CleanBelow.svelte', 5.4, 6.4, face),
+					// The live speaker drawn by a later clip covers the text.
+					clip('under-speaker', 'Sticker.svelte', 6.7, 7.7, face),
+					clip('speaker', '@visualfries/subject', 6.7, 7.7, {
+						region: 'all',
+						freeze: false,
+						hole: false
+					})
+				]
+			})
+		);
+		const results = await checkProgram(await loadMotionProject(file));
+		expect(results.flatMap((r) => r.errors)).toEqual([]);
+		const warned = results
+			.flatMap((r) => r.warnings.map((w) => w.message))
+			.filter((m) => m.includes("covers the speaker's face"))
+			.map((m) => /^Clip "(.*?)"/.exec(m)![1]);
+		expect(warned).toEqual(['card-sticker', 'under-canvas', 'under-scrim', 'clean-below']);
 	}, 300_000);
 });

@@ -12,7 +12,7 @@ import { facePoint } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
 import { keyTracks, placementTransform } from './keys.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
-import { FACE_TEXT_SECONDS, FACE_TEXT_SHARE, TEXT_OPACITY, faceCovered, headOnStage, intersect, textOverFaceMessage } from './text-over-face.js';
+import { FACE_TEXT_SECONDS, FACE_TEXT_SHARE, TEXT_OPACITY, faceCovered, facePoints, headOnStage, intersect, textOverFaceMessage } from './text-over-face.js';
 /**
  * The fill around a framed shot: the brand's surface; without a brand, the project background
  * (the brand's neutral surface when there is none either).
@@ -790,39 +790,45 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     }
     /**
      * Text over the speaker's face at the frame last drawn: the boxes of every visible text of a
-     * front clip, measured in the page, against the head's box where the shot puts it. A clip
-     * warns once, after its text has covered at least `FACE_TEXT_SHARE` of the face in the frames
-     * checked for `FACE_TEXT_SECONDS`. Clips behind the subject, clips with a subject layer of
-     * their own (they work with the speaker on purpose) and frames where a clip paints over the
-     * whole head are left out; cut and shot transition windows leave the runs as they are.
+     * front clip (or of the opaque card it sits on), measured in the page, against the head's box
+     * where the shot puts it. A clip warns once, after its text has covered at least
+     * `FACE_TEXT_SHARE` of the face in the frames checked for `FACE_TEXT_SECONDS`. Left out: clips
+     * behind the subject, text under a subject layer that draws the speaker over most of the face,
+     * and frames where a clip paints over the whole frame. Cut and shot transition windows end a
+     * run.
      */
     function faceText(f) {
         const now = last?.f === f ? last : null;
-        if (!now || now.b || seg.insert)
-            return [];
-        const view = now.a.view;
+        const view = now && !now.b && !seg.insert ? now.a.view : null;
         const frames = framesOf(view);
         const box = frames && view ? sourceSubjectBox(frames, view.frame) : null;
         // Footage faded out by a shot key shows no face.
-        const faded = (now.a.layout.opacity ?? 1) < TEXT_OPACITY;
-        const head = box && !faded ? headOnStage(box, now.a.layout) : null;
-        if (!head) {
+        const faded = (now?.a.layout.opacity ?? 1) < TEXT_OPACITY;
+        const head = now && box && !faded ? headOnStage(box, now.a.layout) : null;
+        if (!now || !head) {
             overFace.clear();
             return [];
         }
+        const window = now.a.layout.clip;
+        const page = textReader(stage, seg.size);
+        /** Subject layers drawing the speaker over most of the face: text before them is under it. */
+        let over = null;
+        const under = (node) => over.some((o) => node.compareDocumentPosition(o) & Node.DOCUMENT_POSITION_FOLLOWING);
         const out = [];
         let hidden = null;
         for (const m of mounted) {
             const id = m.data.id;
             const root = m.controller.root;
-            if (m.shown === null ||
-                toldFace.has(id) ||
-                m.data.layer === 'behind' ||
-                root.querySelector('.vf-subject-layer')) {
+            if (m.shown === null || toldFace.has(id) || m.data.layer === 'behind') {
                 overFace.delete(id);
                 continue;
             }
-            const share = faceCovered(head, textBoxes(root, stage, seg.size));
+            let share = faceCovered(head, page.boxes(root), window);
+            if (share >= FACE_TEXT_SHARE) {
+                over ??= speakerOver(head, page);
+                if (over.length)
+                    share = faceCovered(head, page.boxes(root, under), window);
+            }
             if (share < FACE_TEXT_SHARE) {
                 overFace.delete(id);
                 continue;
@@ -832,11 +838,9 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             overFace.set(id, run);
             if (f - run.from < FACE_TEXT_SECONDS * seg.fps)
                 continue;
-            // A clip that paints over the whole head (a full-frame card) hides the face: the text
+            // A clip that paints over the whole frame (a full-frame card) hides the face: the text
             // is on the card. Looked for only once a warning is due.
-            hidden ??= mounted.some((x) => x.shown !== null &&
-                x.data.layer !== 'behind' &&
-                coversArea(x.controller.root, stage, seg.size, head));
+            hidden ??= mounted.some((x) => x.shown !== null && x.data.layer !== 'behind' && page.paintsStage(x.controller.root));
             overFace.delete(id);
             if (hidden)
                 continue;
@@ -844,6 +848,23 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             out.push(textOverFaceMessage({ clip: id, block: m.data.block, frame: run.from, share: run.share, head }, seg.size, seg.fps));
         }
         return out;
+    }
+    /**
+     * The subject layers of front clips that draw the speaker (not the clean plate or the plate)
+     * over at least half of the face, read from their canvases' pixels.
+     */
+    function speakerOver(head, page) {
+        const points = facePoints(head);
+        const found = [];
+        for (const m of mounted) {
+            if (m.shown === null || m.data.layer === 'behind')
+                continue;
+            const layers = m.controller.root.querySelectorAll('.vf-subject-layer[data-layer="subject"]');
+            for (const el of layers)
+                if (page.opacityOf(el) >= 0.5 && drawnShare(el, points, stage, seg.size) >= 0.5)
+                    found.push(el);
+        }
+        return found;
     }
     function inSegment(f) {
         if (f < seg.startFrame || f >= seg.startFrame + seg.frames)
@@ -1001,63 +1022,169 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         }
     };
 }
+/** A background or fill this opaque or more is a card behind the text, or text itself. */
+const CARD_ALPHA = 0.5;
+/** An element this opaque or more over the whole stage hides the footage. */
+const HIDES = 0.9;
+/** The alpha of a computed CSS colour (`rgb(…)`, `rgba(…)`, `transparent`). */
+function alphaOf(color) {
+    if (!color || color === 'transparent')
+        return 0;
+    const parts = /\(([^)]+)\)/
+        .exec(color)?.[1]
+        .split(/[\s,/]+/)
+        .filter(Boolean);
+    return parts && parts.length >= 4 ? Number(parts[3]) : 1;
+}
 /**
- * The boxes of the text inside `root` that can be read, in stage pixels: each line box of each
- * text node, cut to the ancestors that clip their overflow. Hidden text and text under
- * `TEXT_OPACITY` (its own opacity times its ancestors') are left out.
+ * Reads the text of clips in the page at the frame last drawn, in stage pixels, sharing what it
+ * learns about elements between clips.
  */
-function textBoxes(root, stage, size) {
+function textReader(stage, size) {
     const frame = stage.getBoundingClientRect();
-    if (!frame.width || !frame.height)
-        return [];
-    const sx = size[0] / frame.width;
-    const sy = size[1] / frame.height;
+    const sx = frame.width ? size[0] / frame.width : 1;
+    const sy = frame.height ? size[1] / frame.height : 1;
     const rect = (r) => ({ x: r.x, y: r.y, width: r.width, height: r.height });
-    /** Per element: the opacity down to it and what its ancestors clip it to; null: unread. */
+    const whole = (r) => r.x <= frame.left + 1 &&
+        r.y <= frame.top + 1 &&
+        r.x + r.width >= frame.right - 1 &&
+        r.y + r.height >= frame.bottom - 1;
     const looks = new Map();
     const lookOf = (el) => {
         if (!el || el === stage)
-            return { opacity: 1, clip: null };
-        if (looks.has(el))
-            return looks.get(el);
+            return { opacity: 1, clip: null, card: null, clipsText: false };
+        const known = looks.get(el);
+        if (known)
+            return known;
         const up = lookOf(el.parentElement);
-        let look = null;
-        if (up) {
-            const style = getComputedStyle(el);
-            const opacity = up.opacity * Number(style.opacity || 1);
-            let clip = up.clip;
-            if (style.overflowX !== 'visible' || style.overflowY !== 'visible') {
-                const own = rect(el.getBoundingClientRect());
-                clip = clip ? (intersect(clip, own) ?? { ...own, width: 0, height: 0 }) : own;
-            }
-            look = opacity < TEXT_OPACITY ? null : { opacity, clip };
+        const style = getComputedStyle(el);
+        const opacity = up.opacity * Number(style.opacity || 1);
+        let clip = up.clip;
+        let own = null;
+        if (style.overflowX !== 'visible' || style.overflowY !== 'visible') {
+            own = rect(el.getBoundingClientRect());
+            clip = clip ? (intersect(clip, own) ?? { ...own, width: 0, height: 0 }) : own;
         }
+        let card = up.card;
+        if (alphaOf(style.backgroundColor) >= CARD_ALPHA && style.visibility === 'visible') {
+            own ??= rect(el.getBoundingClientRect());
+            if (!whole(own))
+                card = clip ? intersect(own, clip) : own;
+        }
+        const clipsText = up.clipsText ||
+            style.backgroundClip === 'text' ||
+            style.getPropertyValue('-webkit-background-clip') === 'text';
+        const look = { opacity, clip, card, clipsText };
         looks.set(el, look);
         return look;
     };
-    const out = [];
-    const range = document.createRange();
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-        const parent = node.parentElement;
-        if (!node.nodeValue?.trim() || !parent || /^(STYLE|SCRIPT)$/.test(parent.tagName))
-            continue;
-        const look = lookOf(parent);
-        if (!look || getComputedStyle(parent).visibility !== 'visible')
-            continue;
-        range.selectNodeContents(node);
-        for (const r of range.getClientRects()) {
-            const box = look.clip ? intersect(rect(r), look.clip) : rect(r);
-            if (box)
-                out.push({
-                    x: (box.x - frame.x) * sx,
-                    y: (box.y - frame.y) * sy,
-                    width: box.width * sx,
-                    height: box.height * sy
-                });
+    const toStage = (r) => ({
+        x: (r.x - frame.x) * sx,
+        y: (r.y - frame.y) * sy,
+        width: r.width * sx,
+        height: r.height * sy
+    });
+    return {
+        /** The effective opacity of `el`: its own times its ancestors'. */
+        opacityOf: (el) => lookOf(el).opacity,
+        /**
+         * The boxes of the text inside `root` that can be read: each line box of each text node,
+         * or the opaque card it sits on, cut to the ancestors that clip their overflow. Hidden text,
+         * text under `TEXT_OPACITY` (its own opacity times its ancestors') and text with a
+         * transparent fill and no stroke (a typewriter's letters still to come) are left out, as is
+         * text `skip` returns true for.
+         */
+        boxes(root, skip) {
+            if (!frame.width || !frame.height)
+                return [];
+            const out = [];
+            const range = document.createRange();
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                const parent = node.parentElement;
+                if (!node.nodeValue?.trim() || !parent || /^(STYLE|SCRIPT)$/.test(parent.tagName))
+                    continue;
+                const look = lookOf(parent);
+                if (look.opacity < TEXT_OPACITY || skip?.(node))
+                    continue;
+                const style = getComputedStyle(parent);
+                if (style.visibility !== 'visible')
+                    continue;
+                if (look.card) {
+                    out.push(toStage(look.card));
+                    continue;
+                }
+                const fill = style.getPropertyValue('-webkit-text-fill-color') || style.color;
+                const stroke = parseFloat(style.getPropertyValue('-webkit-text-stroke-width')) || 0;
+                if (alphaOf(fill) === 0 && stroke === 0 && !look.clipsText)
+                    continue;
+                range.selectNodeContents(node);
+                for (const r of range.getClientRects()) {
+                    const box = look.clip ? intersect(rect(r), look.clip) : rect(r);
+                    if (box)
+                        out.push(toStage(box));
+                }
+            }
+            return out;
+        },
+        /**
+         * Whether something visible inside `root` paints over the whole stage and hides the footage:
+         * an element covering the stage's box, at least `HIDES` in effective opacity, with an opaque
+         * background colour, or a JPEG image (which has no transparency). Canvases, videos, other
+         * images and gradients do not count: they may let the face show through.
+         */
+        paintsStage(root) {
+            for (const el of root.querySelectorAll('*')) {
+                if (!whole(rect(el.getBoundingClientRect())))
+                    continue;
+                const style = getComputedStyle(el);
+                if (style.visibility !== 'visible' || lookOf(el).opacity < HIDES)
+                    continue;
+                if (alphaOf(style.backgroundColor) >= HIDES)
+                    return true;
+                if (el instanceof HTMLImageElement && /\.jpe?g(\?|#|$)/i.test(el.currentSrc || el.src))
+                    return true;
+            }
+            return false;
         }
+    };
+}
+/**
+ * The share of `points` (stage pixels) where a subject layer's canvas has drawn the speaker,
+ * read from its pixels where the canvas sits on the page (its box, turns not followed). A canvas
+ * whose pixels cannot be read counts as drawn everywhere.
+ */
+function drawnShare(layer, points, stage, size) {
+    const canvas = layer.querySelector('canvas');
+    const frame = stage.getBoundingClientRect();
+    const box = canvas?.getBoundingClientRect();
+    if (!canvas || !box?.width || !box.height || !canvas.width || !points.length)
+        return 0;
+    const at = (p) => ({
+        x: Math.floor(((frame.x + (p.x * frame.width) / size[0] - box.x) / box.width) * canvas.width),
+        y: Math.floor(((frame.y + (p.y * frame.height) / size[1] - box.y) / box.height) * canvas.height)
+    });
+    const pixels = points
+        .map(at)
+        .filter((p) => p.x >= 0 && p.y >= 0 && p.x < canvas.width && p.y < canvas.height);
+    if (!pixels.length)
+        return 0;
+    const x0 = Math.min(...pixels.map((p) => p.x));
+    const y0 = Math.min(...pixels.map((p) => p.y));
+    const w = Math.max(...pixels.map((p) => p.x)) - x0 + 1;
+    const h = Math.max(...pixels.map((p) => p.y)) - y0 + 1;
+    let data;
+    try {
+        const ctx = canvas.getContext('2d');
+        if (!ctx)
+            return 0;
+        data = ctx.getImageData(x0, y0, w, h).data;
     }
-    return out;
+    catch {
+        return 1;
+    }
+    const drawn = pixels.filter((p) => data[((p.y - y0) * w + (p.x - x0)) * 4 + 3] >= 128).length;
+    return drawn / points.length;
 }
 /**
  * Whether something inside `root` paints over the whole stage: an element covering the stage's
@@ -1065,30 +1192,12 @@ function textBoxes(root, stage, size) {
  */
 function coversStage(root, stage) {
     const frame = stage.getBoundingClientRect();
-    return coversBox(root, frame);
-}
-/**
- * Whether something inside `root` paints over `area` of the stage (stage pixels), as
- * `coversStage` asks of the whole stage. A subject layer's canvas does not count: it holds the
- * speaker, not a background.
- */
-function coversArea(root, stage, size, area) {
-    const frame = stage.getBoundingClientRect();
-    const sx = frame.width / size[0];
-    const sy = frame.height / size[1];
-    const left = frame.left + area.x * sx;
-    const top = frame.top + area.y * sy;
-    return coversBox(root, { left, top, right: left + area.width * sx, bottom: top + area.height * sy }, '.vf-subject-layer');
-}
-function coversBox(root, frame, skip) {
     const covers = (r) => r.left <= frame.left + 1 &&
         r.top <= frame.top + 1 &&
         r.right >= frame.right - 1 &&
         r.bottom >= frame.bottom - 1;
     for (const el of root.querySelectorAll('*')) {
         if (!covers(el.getBoundingClientRect()))
-            continue;
-        if (skip && el.closest(skip))
             continue;
         if (/^(IMG|CANVAS|VIDEO)$/.test(el.tagName))
             return true;

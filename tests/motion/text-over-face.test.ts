@@ -31,12 +31,12 @@ describe('headOnStage', () => {
 		expect(head.x + head.width / 2).toBeCloseTo(0.45 * 1920);
 	});
 
-	it('follows a punched-in camera and is cut to the camera window', () => {
+	it('follows a punched-in camera, whole, and is null outside the camera window', () => {
 		// The footage scaled 1.5× about the frame centre: the head grows and moves up and left.
 		const camera = { x: -480, y: -270, width: 2880, height: 1620 };
 		const head = headOnStage(SPEAKER, { camera, clip: STAGE })!;
-		expect(head.height).toBeCloseTo(0.42 * 1620 - (270 - 0.1 * 1620), 0);
-		expect(head.y).toBe(0);
+		expect(head.height).toBeCloseTo(0.42 * 1620);
+		expect(head.y).toBeCloseTo(-270 + 0.1 * 1620);
 		// A window on the right half shows none of it.
 		const right = { x: 1200, y: 0, width: 720, height: 1080 };
 		expect(headOnStage(SPEAKER, { camera, clip: right })).toBeNull();
@@ -80,6 +80,14 @@ describe('faceCovered', () => {
 		expect(faceCovered(head, [line])).toBeGreaterThan(0.35);
 	});
 
+	it('covers only the face inside the camera window', () => {
+		const all = [{ x: 0, y: 0, width: 600, height: 600 }];
+		// A window that keeps the left tenth of the head: text over that sliver covers little.
+		const sliver = { x: 0, y: 0, width: 120, height: 600 };
+		expect(faceCovered(head, all, sliver)).toBeLessThan(FACE_TEXT_SHARE);
+		expect(faceCovered(head, all, { x: 0, y: 0, width: 200, height: 600 })).toBeCloseTo(0.5, 1);
+	});
+
 	it('leaves a box over a corner of the head (hair, the room beside the chin) under the threshold', () => {
 		const corner = { x: 0, y: 0, width: 140, height: 160 };
 		const share = faceCovered(head, [corner]);
@@ -105,7 +113,7 @@ describe('freeSide', () => {
 
 describe('textOverFaceMessage', () => {
 	const found = {
-		clip: 'k-sam',
+		clip: 'k-habit',
 		block: 'blocks/Callout.svelte',
 		frame: 9306,
 		share: 0.384,
@@ -115,9 +123,9 @@ describe('textOverFaceMessage', () => {
 	it('names the clip, the time, the share and the free side, and leaves the decision to the agent', () => {
 		const message = textOverFaceMessage(found, [1920, 1080], 30);
 		expect(message).toBe(
-			`Clip "k-sam" (blocks/Callout.svelte): its text covers the speaker's face from 310.20 s (program time) on, up to 38 % of the face in the frames checked. The right side of the frame (x 1020–1920 of 1920 px) is clear of the head. If the text is not meant to sit on the face, try: move it to the right side (a smaller size if it must fit there); "layer": "behind" to put it behind the speaker; a shot that frees a slot beside the speaker ("strip" or "window") for it. Look at a still at 310.20 s before deciding.`
+			`Clip "k-habit" (blocks/Callout.svelte): its text covers the speaker's face from 310.20 s (program time) on, up to 38 % of the face in the frames checked. The right side of the frame (x 1020–1920 of 1920 px) is clear of the head. If the text is not meant to sit on the face, try: move it to the right side (a smaller size if it must fit there); "layer": "behind" to put it behind the speaker; a shot that frees a slot beside the speaker ("strip" or "window") for it. Look at a still at 310.20 s before deciding.`
 		);
-		expect(textOverFaceClip(message)).toBe('k-sam');
+		expect(textOverFaceClip(message)).toBe('k-habit');
 	});
 
 	it('suggests above or below when the head spans the frame', () => {

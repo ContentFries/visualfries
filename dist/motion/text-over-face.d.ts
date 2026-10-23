@@ -13,17 +13,23 @@ export declare const TEXT_OPACITY = 0.1;
 /**
  * The head's box on the stage, in stage pixels: the matte's head (top, chin, a head's width
  * around its column) where the shot's camera puts the footage, turned with a shot key's rotation
- * (about its middle, keeping its size) and cut to the camera window. Null when no part of it is
- * on screen.
+ * (about its middle, keeping its size). Null when none of it is inside the camera window; the
+ * box itself is not cut to the window (see `faceCovered`).
  */
 export declare function headOnStage(box: SubjectBox, layout: Pick<ShotLayout, 'camera' | 'clip' | 'turn'>): Rect | null;
 /** The overlap of two boxes; null when they do not overlap. */
 export declare function intersect(a: Rect, b: Rect): Rect | null;
+/** Points spread evenly over the face, the ellipse inside `head`. */
+export declare function facePoints(head: Rect): {
+    x: number;
+    y: number;
+}[];
 /**
  * The share (0–1) of the face, the ellipse inside `head`, that `boxes` cover together: sampled on
- * a grid, so overlapping boxes count once.
+ * a grid, so overlapping boxes count once. With `within` (the camera window), only the face
+ * inside it can be covered: text over a sliver of a head the window cuts off covers little.
  */
-export declare function faceCovered(head: Rect, boxes: Rect[]): number;
+export declare function faceCovered(head: Rect, boxes: Rect[], within?: Rect): number;
 /** The wider side of the frame beside the head, and its span in stage pixels. */
 export declare function freeSide(head: Rect, size: [number, number]): {
     side: 'left' | 'right';

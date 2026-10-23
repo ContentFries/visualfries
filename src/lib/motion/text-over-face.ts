@@ -30,8 +30,8 @@ const GRID = 24;
 /**
  * The head's box on the stage, in stage pixels: the matte's head (top, chin, a head's width
  * around its column) where the shot's camera puts the footage, turned with a shot key's rotation
- * (about its middle, keeping its size) and cut to the camera window. Null when no part of it is
- * on screen.
+ * (about its middle, keeping its size). Null when none of it is inside the camera window; the
+ * box itself is not cut to the window (see `faceCovered`).
  */
 export function headOnStage(
 	box: SubjectBox,
@@ -49,7 +49,8 @@ export function headOnStage(
 		cx = turn.pivot.x + dx * Math.cos(a) - dy * Math.sin(a);
 		cy = turn.pivot.y + dx * Math.sin(a) + dy * Math.cos(a);
 	}
-	return intersect({ x: cx - width / 2, y: cy - height / 2, width, height }, clip);
+	const head = { x: cx - width / 2, y: cy - height / 2, width, height };
+	return intersect(head, clip) ? head : null;
 }
 
 /** The overlap of two boxes; null when they do not overlap. */
@@ -61,27 +62,35 @@ export function intersect(a: Rect, b: Rect): Rect | null {
 	return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : null;
 }
 
-/**
- * The share (0–1) of the face, the ellipse inside `head`, that `boxes` cover together: sampled on
- * a grid, so overlapping boxes count once.
- */
-export function faceCovered(head: Rect, boxes: Rect[]): number {
-	const near = boxes.filter((b) => intersect(b, head));
-	if (!near.length || head.width <= 0 || head.height <= 0) return 0;
-	let inside = 0;
-	let covered = 0;
+/** Points spread evenly over the face, the ellipse inside `head`. */
+export function facePoints(head: Rect): { x: number; y: number }[] {
+	const out: { x: number; y: number }[] = [];
+	if (head.width <= 0 || head.height <= 0) return out;
 	for (let i = 0; i < GRID; i++)
 		for (let j = 0; j < GRID; j++) {
 			const u = (i + 0.5) / GRID - 0.5;
 			const v = (j + 0.5) / GRID - 0.5;
-			if (u * u + v * v > 0.25) continue;
-			inside++;
-			const x = head.x + (u + 0.5) * head.width;
-			const y = head.y + (v + 0.5) * head.height;
-			if (near.some((b) => x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height))
-				covered++;
+			if (u * u + v * v <= 0.25)
+				out.push({ x: head.x + (u + 0.5) * head.width, y: head.y + (v + 0.5) * head.height });
 		}
-	return inside ? covered / inside : 0;
+	return out;
+}
+
+/**
+ * The share (0–1) of the face, the ellipse inside `head`, that `boxes` cover together: sampled on
+ * a grid, so overlapping boxes count once. With `within` (the camera window), only the face
+ * inside it can be covered: text over a sliver of a head the window cuts off covers little.
+ */
+export function faceCovered(head: Rect, boxes: Rect[], within?: Rect): number {
+	const near = boxes.filter((b) => intersect(b, head));
+	const points = facePoints(head);
+	if (!near.length || !points.length) return 0;
+	const inBox = (p: { x: number; y: number }, b: Rect) =>
+		p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+	const covered = points.filter(
+		(p) => (!within || inBox(p, within)) && near.some((b) => inBox(p, b))
+	).length;
+	return covered / points.length;
 }
 
 /** The wider side of the frame beside the head, and its span in stage pixels. */

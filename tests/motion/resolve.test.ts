@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { MotionProjectShape } from '$lib/motion/project.js';
 import { parseTranscriptWords, findPhrase } from '$lib/motion/transcript.js';
 import { resolveMotionProject } from '$lib/motion/resolve.js';
+import { resolveProgram, type ResolvedProgram } from '$lib/motion/program.js';
+import type { ProgramInputs } from '$lib/motion/cutlist.js';
+import { parseMotionProject } from '$lib/motion/timeline.js';
 import { Clip } from '$lib/motion/runtime.svelte.js';
 
 const words = parseTranscriptWords({
@@ -125,6 +128,193 @@ describe('motion resolve', () => {
 			words
 		);
 		expect(r.clips[0].cues.f.start).toBeCloseTo(0.5);
+	});
+});
+
+describe('repeated phrases in program order', () => {
+	// "hello world" is said at 1.0 s and again at 5.0 s.
+	const talk = parseTranscriptWords({
+		words: [
+			{ text: 'Hello', startMs: 1000, endMs: 1200 },
+			{ text: 'world.', startMs: 1300, endMs: 1600 },
+			{ text: 'Then', startMs: 3000, endMs: 3300 },
+			{ text: 'hello', startMs: 5000, endMs: 5200 },
+			{ text: 'world.', startMs: 5300, endMs: 5600 },
+			{ text: 'Bye', startMs: 7000, endMs: 7400 }
+		]
+	});
+	const program = (json: Record<string, unknown>, extra: Partial<ProgramInputs> = {}) =>
+		resolveProgram(
+			parseMotionProject({
+				size: [1920, 1080],
+				fps: 30,
+				footage: { talk: { src: 'talk.mp4' } },
+				cuts: [{ source: 'talk', in: 0, out: 8 }],
+				clips: [],
+				...json
+			}),
+			{
+				words: null,
+				transcripts: { talk },
+				sources: {
+					talk: { frames: 240, duration: 8, width: 1920, height: 1080, fps: 30, audio: true }
+				},
+				...extra
+			}
+		);
+	const errors = (p: ResolvedProgram) => p.diagnostics.filter((d) => d.level === 'error');
+	const hints = (p: ResolvedProgram) =>
+		p.diagnostics.filter((d) => d.level === 'info' && d.message.startsWith('Phrase'));
+
+	it('picks the first occurrence at or after the previous item of the same kind', () => {
+		const p = program({
+			shots: [
+				{ id: 'a', shot: 'punch', from: 'then', until: 4 },
+				{ id: 'b', shot: 'full', from: 'hello world', until: 'end' }
+			],
+			clips: [
+				{ id: 'c1', block: 'b.svelte', from: 'then', until: 'bye' },
+				{ id: 'c2', block: 'b.svelte', from: 'hello world', until: 'end' }
+			],
+			sfx: [
+				{ at: 'then', sound: 'a.wav' },
+				{ at: 'hello world', sound: 'b.wav' }
+			]
+		});
+		expect(errors(p)).toEqual([]);
+		expect(p.shots.find((s) => s.id === 'b')!.startFrame).toBe(150);
+		expect(p.clips.find((c) => c.id === 'c2')!.startFrame).toBe(150);
+		expect(p.audio.sfx.find((s) => s.owner === 'sfx2')!.at).toBe(5);
+		expect(hints(p).map((d) => [d.item ?? d.clip, d.field])).toEqual([
+			['c2', 'from'],
+			['b', 'shots[1].from'],
+			['sfx2', 'sfx[1].at']
+		]);
+		expect(hints(p)[1].message).toBe(
+			'Phrase "hello world" occurs 2 times; program order picked #2 at 5.00s, the first that starts or lands at or after the previous shot (3.00s). Other occurrences: #1 at 1.00s (Hello@1.00 world@1.30). If that is the wrong one, pin it with { "say": "hello world", "occurrence": n }.'
+		);
+	});
+
+	it('ends on the first occurrence after the start in "until"', () => {
+		const p = program({
+			shots: [{ id: 'a', shot: 'punch', from: 0.5, until: 'hello world' }],
+			clips: [{ id: 'c', block: 'b.svelte', from: 0.5, until: 'hello world' }]
+		});
+		expect(errors(p)).toEqual([]);
+		expect(p.shots.find((s) => s.id === 'a')!.frames).toBe(48 - 15);
+		expect(p.clips[0].frames).toBe(48 - 15);
+		expect(hints(p).map((d) => d.message)).toEqual([
+			expect.stringContaining(
+				"#1 at 1.00s, the first that starts or lands at or after the clip's start (0.50s)"
+			),
+			expect.stringContaining(
+				"#1 at 1.00s, the first that starts or lands at or after the shot's start (0.50s)"
+			)
+		]);
+	});
+
+	it('lets an explicit occurrence win, without a hint', () => {
+		const p = program({
+			sfx: [
+				{ at: 'then', sound: 'a.wav' },
+				{ at: { say: 'hello world', occurrence: 1 }, sound: 'b.wav' }
+			]
+		});
+		expect(errors(p)).toEqual([]);
+		expect(hints(p)).toEqual([]);
+		expect(p.audio.sfx.find((s) => s.owner === 'sfx2')!.at).toBe(1);
+	});
+
+	it('counts from where the previous phrase is said, not from its offset', () => {
+		const p = program({
+			sfx: [
+				{ at: 'then', sound: 'a.wav' },
+				{ at: { say: 'hello world', occurrence: 2, offset: 0.5 }, sound: 'b.wav' },
+				{ at: 'hello world', sound: 'c.wav' }
+			]
+		});
+		expect(errors(p)).toEqual([]);
+		expect(p.audio.sfx.find((s) => s.owner === 'sfx3')!.at).toBe(5);
+	});
+
+	it('counts an occurrence that lands after the previous item, though it starts before it', () => {
+		// The previous sfx sits inside the phrase; this one is on the phrase's end.
+		const p = program({
+			sfx: [
+				{ at: 0.5, sound: 'a.wav' },
+				{ at: 'hello world', sound: 'b.wav' },
+				{ at: 1.2, sound: 'c.wav' },
+				{ at: { say: 'hello world', edge: 'end' }, sound: 'd.wav' }
+			]
+		});
+		expect(errors(p)).toEqual([]);
+		expect(p.audio.sfx.find((s) => s.owner === 'sfx4')!.at).toBe(1.6);
+	});
+
+	it('counts from the phrase a nearest-beat anchor stands on', () => {
+		// Beats every 0.5 s, four to the bar: the downbeat after "hello world" (1.0 s) is at 2.0 s.
+		const grid = Array.from({ length: 16 }, (_, i) => ({
+			index: i + 1,
+			time: i * 0.5,
+			bar: Math.floor(i / 4) + 1,
+			beat: (i % 4) + 1,
+			energy: null
+		}));
+		const p = program(
+			{
+				sfx: [
+					{ at: 0.5, sound: 'a.wav' },
+					{ at: { downbeat: 'after', at: 'hello world' }, sound: 'b.wav' },
+					{ at: 'hello world', sound: 'c.wav' },
+					{ at: { say: 'hello world', edge: 'end', offset: 1.5 }, sound: 'd.wav' }
+				]
+			},
+			{ music: [{ id: null, name: 'bed', grid }] }
+		);
+		expect(errors(p)).toEqual([]);
+		const at = (owner: string) => p.audio.sfx.find((s) => s.owner === owner)!.at;
+		expect([at('sfx2'), at('sfx3'), at('sfx4')]).toEqual([2, 1, 3.1]);
+	});
+
+	it('stays ambiguous without a previous item, or when every occurrence is before it', () => {
+		const p = program({
+			shots: [{ id: 'a', shot: 'punch', from: 'hello world', until: 'bye' }],
+			sfx: [
+				{ at: 6, sound: 'a.wav' },
+				{ at: 'hello world', sound: 'b.wav' }
+			]
+		});
+		expect(errors(p).map((d) => d.message)).toEqual([
+			expect.stringMatching(
+				/^Phrase "hello world" is ambiguous: #1 at 1\.00s .*#2 at 5\.00s .*\. Repeated phrases here resolve to the first occurrence at or after the previous shot, but there is none\. Use a longer phrase/
+			),
+			expect.stringContaining(
+				'resolve to the first occurrence at or after the previous sfx, but every occurrence lands before it (6.00s).'
+			)
+		]);
+	});
+
+	it('keeps phrases inside a clip (cues) ambiguous', () => {
+		const p = program({
+			clips: [{ id: 'c', block: 'b.svelte', from: 0, until: 'bye', cues: { x: 'hello world' } }]
+		});
+		expect(errors(p)[0].message).toMatch(/is ambiguous: .*\. Use a longer phrase/);
+	});
+
+	it('applies to clips in inserts mode too', () => {
+		const r = resolveMotionProject(
+			MotionProjectShape.parse({
+				size: [1920, 1080],
+				fps: 30,
+				clips: [
+					{ id: 'a', block: 'b.svelte', from: 'then', until: 'bye' },
+					{ id: 'b', block: 'b.svelte', from: 'hello world', until: 'bye' }
+				]
+			}),
+			talk
+		);
+		expect(r.diagnostics.filter((d) => d.level === 'error')).toEqual([]);
+		expect(r.clips[1].startFrame).toBe(150);
 	});
 });
 

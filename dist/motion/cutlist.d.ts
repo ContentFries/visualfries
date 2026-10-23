@@ -3,7 +3,7 @@ import { type Transition } from './timeline.js';
 import type { MotionWord } from './transcript.js';
 import type { MusicBeats } from './beat-grid.js';
 import { type MusicTrack } from './music.js';
-import type { ProjectLook } from './resolve.js';
+import type { ProjectFiles, ProjectLook } from './resolve.js';
 import type { AnimatableKind } from './interpolate.js';
 /** A word of the program transcript and where it came from. */
 export type ProgramWord = MotionWord & {
@@ -71,6 +71,8 @@ export type ProgramInputs = {
      * or null when the file does not exist. Absent: not looked up.
      */
     sounds?: Record<string, SoundInfo | null>;
+    /** Project files clip props name as `{ "file": … }` (see `ProjectFiles`). Absent: not checked. */
+    files?: ProjectFiles['files'];
     /**
      * What each block named by a clip marks animatable (`export const animatable` in its
      * `<script module>`), by the name as written; `error` when the declaration cannot be read.

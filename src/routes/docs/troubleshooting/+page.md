@@ -21,6 +21,7 @@ Every VisualFries error names what went wrong and, where possible, what to chang
 | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `Phrase "extra" not found inside the clip. Did you mean "spare" …?` | The words changed. Use the suggested phrase, or check you passed the right transcript. |
 | `Phrase "small" is ambiguous: #1 at 79.09s …; #2 at 83.61s …`       | Use a longer phrase, or `{ "say": "small", "occurrence": 2 }`.                         |
+| `… program order picked #2 at 903.59s …` (info)                     | A hint. Check the pick against the other occurrences; pin it with `occurrence`.        |
 | `One-word anchor "things" … easily becomes ambiguous`               | A warning. Anchor `from`/`until` with two or three words.                              |
 | `Cue at 65.10s is never shown`                                      | The cue lands after the last frame. Move it, or extend the clip with `tail`.           |
 | `Unknown clip "B". Clips: …`                                        | A typo in `--clip`. The message lists the ids that exist.                              |

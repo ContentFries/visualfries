@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -28,7 +28,13 @@ import {
 	type SourceInfo
 } from './cutlist.js';
 import { propFiles, resolveProgram, type ProgramHashes, type ResolvedProgram } from './program.js';
-import { resolveMotionProject, type ResolvedClip, type ResolvedProject } from './resolve.js';
+import {
+	propFileRefs,
+	resolveMotionProject,
+	withFileUrls,
+	type ResolvedClip,
+	type ResolvedProject
+} from './resolve.js';
 import { resolveMoment } from './moment.js';
 import { footageFrameRange } from './footage.js';
 import { buildCleanRange, cleanFolder, type CleanSpec } from './clean-node.js';
@@ -48,6 +54,7 @@ import { footageMap, footageRanges, type FootageMap, type FrameRange } from './f
 import type { FootageFrames, FootageRange, SubjectBox } from './resolve.js';
 import { holdoutFootage } from './inserts.js';
 import { removeOrphans, trackPartial } from './partials.js';
+import type { StageSegment } from './segments.js';
 
 /** `.<clip>.partial-<pid>.mp4|mov`: a clip's encode before it replaces the file. */
 export const PARTIAL_CLIP = /^\..+\.partial-(\d+)\.(?:mp4|mov)$/;
@@ -499,6 +506,8 @@ export async function loadMotionProject(
 	}
 	const look = { brand: brand.resolved, style: style.resolved };
 	const inputs: ProgramInputs = { words, transcripts, sources, tracks, look };
+	const checked = propFilesOf(project, dir);
+	if (checked) inputs.files = checked;
 	if (isProgramProject(project)) {
 		inputs.sounds = await loadSounds(project, dir);
 		// Keyed props are checked against what each block marks animatable.
@@ -533,7 +542,7 @@ export async function loadMotionProject(
 		.filter((d) => d.level !== 'info')
 		.map((d) => ({ level: d.level as 'error' | 'warning', field: d.field, message: d.message }));
 	if (cutList.mode === 'inserts') {
-		const resolved = resolveMotionProject(project, words, musicBeats, look);
+		const resolved = resolveMotionProject(project, words, musicBeats, { ...look, files: checked });
 		resolved.diagnostics.unshift(...musicDiagnostics);
 		// A clip behind the subject renders as a holdout of the one footage with a matte.
 		for (const clip of project.clips) {
@@ -552,7 +561,8 @@ export async function loadMotionProject(
 	// error of the project (program time is undefined without it).
 	const resolved = resolveMotionProject(project, cutList.words, musicBeats, {
 		...look,
-		end: programEnd(project, cutList)
+		end: programEnd(project, cutList),
+		files: checked
 	});
 	resolved.diagnostics.unshift(
 		...cutList.diagnostics
@@ -567,6 +577,47 @@ export async function loadMotionProject(
 		resolved,
 		cutList
 	};
+}
+
+/**
+ * Where a file that clip props name (`{ "file": … }`) is on disk, or why it cannot be served.
+ * Only files inside the project folder are: props never open other paths.
+ */
+function projectFile(dir: string, file: string): { abs: string } | { error: string } {
+	if (/^[a-z][a-z0-9+.-]+:/i.test(file))
+		return {
+			error: `"${file}" is a URL, not a project file; put it in props as a plain string.`
+		};
+	const abs = path.resolve(dir, file);
+	const rel = path.relative(dir, abs);
+	if (!rel || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel))
+		return {
+			error: `"${file}" is not inside the project folder (${dir}); props can name only files inside it.`
+		};
+	let st: ReturnType<typeof statSync>;
+	try {
+		st = statSync(abs, { throwIfNoEntry: false });
+	} catch (error) {
+		return { error: `Cannot read "${file}": ${(error as Error).message}` };
+	}
+	if (!st) return { error: `File not found: ${abs} ("${file}", relative to the project folder).` };
+	if (!st.isFile()) return { error: `"${file}" is not a file (${abs}).` };
+	return { abs };
+}
+
+/** Every file clip props name, checked (see `ProjectFiles`); undefined when props name none. */
+function propFilesOf(
+	project: MotionProject,
+	dir: string
+): Record<string, string | null> | undefined {
+	const out: Record<string, string | null> = {};
+	for (const clip of project.clips)
+		for (const { file } of propFileRefs(clip.props)) {
+			if (file in out) continue;
+			const found = projectFile(dir, file);
+			out[file] = 'error' in found ? found.error : null;
+		}
+	return Object.keys(out).length ? out : undefined;
 }
 
 /**
@@ -835,6 +886,11 @@ export type BundleResult = {
 	footage: { frames: Record<string, FootageFrames>; map: FootageMap | null; warnings?: string[] };
 	/** The project's brand; the program stage sets its tokens on the whole stage. */
 	brand: ResolvedBrand;
+	/**
+	 * Props of the clips that name project files, by clip id, with each `{ file }` replaced by its
+	 * served URL. The pages get these; the resolved clips keep the paths.
+	 */
+	props: Record<string, Record<string, unknown>>;
 };
 
 const BUILTIN_PREFIX = '@visualfries/';
@@ -972,6 +1028,17 @@ export async function bundleMotionProject(
 		return { family: f.family, url: originUrl(f.src), weight: f.weight, style: f.style };
 	});
 	files.push(...loaded.brand.assets);
+	// Files clip props name: each one is served alone, and the page's copy of the props has its URL.
+	const props: BundleResult['props'] = {};
+	for (const clip of clips) {
+		const served = withFileUrls(clip.props, (file) => {
+			const found = projectFile(loaded.dir, file);
+			if ('error' in found) throw new Error(`Clip "${clip.id}": props: ${found.error}`);
+			files.push(found.abs);
+			return originUrl(found.abs);
+		});
+		if (served !== clip.props) props[clip.id] = served;
+	}
 	let css = '';
 	for (const file of loaded.project.css ?? []) {
 		const abs = path.resolve(loaded.dir, file);
@@ -994,7 +1061,8 @@ export async function bundleMotionProject(
 		roots,
 		files,
 		footage: { frames: footage.frames, map: footage.map, warnings: footage.warnings },
-		brand: loaded.brand.resolved
+		brand: loaded.brand.resolved,
+		props
 	};
 }
 
@@ -1101,10 +1169,20 @@ function pageMessage(error: unknown): string {
 	return (error as Error).message.replace(/^page\.evaluate: (Error: )?/, '').split('\n    at ')[0];
 }
 
+/** What the page loads: the clip, or the segment's clips, with the bundle's served props. */
+function servedProps(target: StageTarget, props: BundleResult['props'] | undefined): unknown {
+	if (!props || !Object.keys(props).length) return target.data;
+	const swap = <T extends { id: string; props: Record<string, unknown> }>(clip: T): T =>
+		props[clip.id] ? { ...clip, props: props[clip.id] } : clip;
+	if (target.load === 'load') return swap(target.data as ResolvedClip);
+	const segment = target.data as StageSegment;
+	return { ...segment, clips: segment.clips.map(swap) };
+}
+
 /** One page with one clip loaded (see `openStagePage`). Exported for tests. */
 export async function openClip(
 	browser: BrowserLike,
-	bundle: Pick<BundleResult, 'html' | 'roots' | 'files'>,
+	bundle: Pick<BundleResult, 'html' | 'roots' | 'files'> & Partial<Pick<BundleResult, 'props'>>,
 	clip: ResolvedClip,
 	opts: { invalidate?: string; timeout?: number } = {}
 ): Promise<MotionPage> {
@@ -1133,7 +1211,7 @@ export type StageTarget = {
  */
 export async function openStagePage(
 	browser: BrowserLike,
-	bundle: Pick<BundleResult, 'html' | 'roots' | 'files'>,
+	bundle: Pick<BundleResult, 'html' | 'roots' | 'files'> & Partial<Pick<BundleResult, 'props'>>,
 	target: StageTarget,
 	opts: { invalidate?: string; timeout?: number } = {}
 ): Promise<MotionPage> {
@@ -1198,7 +1276,7 @@ export async function openStagePage(
 			'loading',
 			page.evaluate(({ load, data }) => (window as any).__vfMotionStage[load](data), {
 				load: target.load,
-				data: target.data
+				data: servedProps(target, bundle.props)
 			})
 		);
 	} catch (error) {

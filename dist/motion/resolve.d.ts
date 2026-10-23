@@ -133,8 +133,39 @@ export type ProjectLook = {
 export type ProgramEnd = {
     end?: number | null;
 };
-export declare function resolveMotionClip(clip: MotionClip, project: Pick<MotionProject, 'fps' | 'size' | 'background' | 'safeZone'>, words: MotionWord[] | null, diagnostics: MotionDiagnostic[], music?: MusicBeats[], look?: ProjectLook & ProgramEnd & {
+/**
+ * Project files that clip props name as `{ "file": … }`, checked by the node tooling: by the path
+ * as written, why it cannot be served (outside the project folder, not found), or null when it
+ * can. Absent: not checked (in the browser).
+ */
+export type ProjectFiles = {
+    files?: Record<string, string | null>;
+};
+/** A project file in block props: `{ "file": "assets/home.png" }`, relative to the project. */
+export type PropFile = {
+    file: string;
+};
+/** Whether a props value names a project file: an object with a string `file` and nothing else. */
+export declare function isPropFile(value: unknown): value is PropFile;
+/** Every `{ file }` in props, with where it sits (`shot`, `items[2].icon`). */
+export declare function propFileRefs(props: Record<string, unknown> | undefined): {
+    at: string;
+    file: string;
+}[];
+/**
+ * Props with every `{ file }` replaced by `url(file)`: the node tooling serves those files to the
+ * page, so a block reads a URL string. Props without files come back as they are.
+ */
+export declare function withFileUrls(props: Record<string, unknown>, url: (file: string) => string): Record<string, unknown>;
+/**
+ * Where the previous clip stands in program order (see `orderPoint`); null before the first.
+ * `resolveMotionClip` reads it for a repeated phrase in `from` and moves it to its own start.
+ */
+export type ClipOrder = {
+    at: number | null;
+};
+export declare function resolveMotionClip(clip: MotionClip, project: Pick<MotionProject, 'fps' | 'size' | 'background' | 'safeZone'>, words: MotionWord[] | null, diagnostics: MotionDiagnostic[], music?: MusicBeats[], look?: ProjectLook & ProgramEnd & ProjectFiles & {
     format?: ResolvedFormat;
-}): ResolvedClip | null;
+}, previous?: ClipOrder): ResolvedClip | null;
 /** `music`: beats of the project's music items, placed in the program (see `programBeats`). */
-export declare function resolveMotionProject(project: MotionProject, words: MotionWord[] | null, music?: MusicBeats[], look?: ProjectLook & ProgramEnd): ResolvedProject;
+export declare function resolveMotionProject(project: MotionProject, words: MotionWord[] | null, music?: MusicBeats[], look?: ProjectLook & ProgramEnd & ProjectFiles): ResolvedProject;

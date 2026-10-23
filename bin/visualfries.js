@@ -1682,9 +1682,10 @@ async function motionCheckCommand(args) {
 	const programMode = program.mode === 'program';
 	const key = (d) => JSON.stringify([d.clip, d.field, d.message]);
 	// Printed above (project-wide) or, in inserts mode, with each clip; program mode checks segments.
+	// The clip checks list errors and warnings only, so a clip's notes (info) come here.
 	const shown = new Set(
 		loaded.resolved.diagnostics
-			.filter((d) => (d.clip ? !programMode : d.level === 'warning'))
+			.filter((d) => (d.clip ? !programMode && d.level !== 'info' : d.level === 'warning'))
 			.map(key)
 	);
 	const diagnostics = program.diagnostics.filter((d) => !shown.has(key(d)));

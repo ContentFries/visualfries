@@ -11,9 +11,12 @@ import {
 import {
 	AnchorError,
 	NO_BEATS,
+	orderPoint,
 	resolveAnchor,
 	type AnchorContext,
-	type BeatContext
+	type AnchorHit,
+	type BeatContext,
+	type PhraseOrder
 } from './anchors.js';
 import { NO_MUSIC_BEATS, pickMusic, type GridBeat } from './beat-grid.js';
 import {
@@ -26,7 +29,7 @@ import {
 } from './music.js';
 import { resolveFormat, type FormatClass, type ResolvedFormat } from './format.js';
 import { resolveMoment } from './moment.js';
-import { resolveMotionProject, type ResolvedClip } from './resolve.js';
+import { propFileRefs, resolveMotionProject, type ResolvedClip } from './resolve.js';
 import {
 	micro,
 	programEnd,
@@ -307,6 +310,27 @@ function localGrid(beats: BeatContext, start: number): GridBeat[] | undefined {
 export const compareText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 type Span = { startFrame: number; frames: number };
+
+/**
+ * Resolves a program anchor: `from` makes it an end searched from there on, `order` resolves a
+ * repeated phrase by program order (see `PhraseOrder`).
+ */
+type AnchorAt = (anchor: MotionAnchor, from?: number, order?: PhraseOrder) => AnchorHit;
+
+/** Program order for one item's anchor: hints of picked phrases are info diagnostics of the item. */
+function itemOrder(
+	diagnostics: ProgramDiagnostic[],
+	item: string,
+	field: string,
+	after: number | null,
+	what: string
+): PhraseOrder {
+	return {
+		after,
+		what,
+		picked: (message) => diagnostics.push({ level: 'info', item, field, message })
+	};
+}
 const endOf = (s: Span) => s.startFrame + s.frames;
 const overlaps = (a: Span, b: Span) => a.startFrame < endOf(b) && b.startFrame < endOf(a);
 
@@ -373,7 +397,7 @@ export function resolveProgram(
 		opts.format ? { ...project, size: format.size } : project,
 		words,
 		inputs.music ?? [],
-		{ ...inputs.look, end }
+		{ ...inputs.look, end, files: inputs.files }
 	);
 	diagnostics.push(...resolved.diagnostics);
 	const anchorCtx: AnchorContext = {
@@ -386,12 +410,13 @@ export function resolveProgram(
 		event: (name, clip) => clipEvent(resolved.clips, project, inputs, name, clip)
 	};
 	checkEvents(resolved.clips, inputs, end, diagnostics);
-	const at = (anchor: MotionAnchor, from?: number) =>
+	const hitAt: AnchorAt = (anchor, from, order) =>
 		resolveAnchor(
 			anchor,
-			from === undefined ? anchorCtx : { ...anchorCtx, window: { from, to: Infinity } },
+			{ ...anchorCtx, ...(from === undefined ? {} : { window: { from, to: Infinity } }), order },
 			from === undefined ? 'start' : 'end'
-		).time;
+		);
+	const at = (anchor: MotionAnchor) => hitAt(anchor).time;
 
 	// Program length: the cut list, else `duration`, else the latest end of clips or music.
 	const musicStops = placement.placed.flatMap((m) =>
@@ -424,7 +449,7 @@ export function resolveProgram(
 
 	const brand = inputs.look?.brand ?? NEUTRAL_BRAND;
 	const shots = program
-		? resolveShots(project, inputs, words, cuts, frames, at, diagnostics, format.size, end)
+		? resolveShots(project, inputs, words, cuts, frames, hitAt, diagnostics, format.size, end)
 		: [];
 	const clips: ProgramClip[] = resolved.clips.map((clip) => {
 		const spec = project.clips.find((c) => c.id === clip.id)!;
@@ -477,7 +502,7 @@ export function resolveProgram(
 	const mix = project.mix ?? {};
 	const audio = {
 		speech: program ? speechPieces(project, cutList.cuts, sources, inputs, frames / fps) : [],
-		sfx: resolveSfx(project, transitions, inputs, at, diagnostics),
+		sfx: resolveSfx(project, transitions, inputs, hitAt, diagnostics),
 		music: resolveMusic(
 			project,
 			placement.placed,
@@ -850,13 +875,15 @@ function resolveShots(
 	words: MotionWord[] | null,
 	cuts: ProgramCut[],
 	frames: number,
-	at: (anchor: MotionAnchor, from?: number) => number,
+	at: AnchorAt,
 	diagnostics: ProgramDiagnostic[],
 	size: [number, number],
 	programEndAt: number | null | undefined
 ): ProgramShot[] {
 	const fps = project.fps;
 	const written: ProgramShot[] = [];
+	/** Where the previous shot (as written) starts, for repeated phrases (see `PhraseOrder`). */
+	let previous: number | null = null;
 	/** What each written shot says about its morph: seconds, and whether a transition replaces it. */
 	const asked = new Map<ProgramShot, { morph?: number; transition: boolean }>();
 	(project.shots ?? []).forEach((shot, i) => {
@@ -883,14 +910,18 @@ function resolveShots(
 			});
 		let start: number;
 		let end: number;
+		const order = (field: string, after: number | null, what: string) =>
+			itemOrder(diagnostics, id, `shots[${i}].${field}`, after, what);
 		try {
-			start = at(shot.from);
+			const hit = at(shot.from, undefined, order('from', previous, 'the previous shot'));
+			start = hit.time;
+			previous = orderPoint(hit);
 		} catch (error) {
 			fail('from', (error as Error).message);
 			return;
 		}
 		try {
-			end = at(shot.until, start);
+			end = at(shot.until, start, order('until', start, "the shot's start")).time;
 		} catch (error) {
 			fail('until', (error as Error).message);
 			return;
@@ -1577,11 +1608,13 @@ function resolveSfx(
 	project: MotionProject,
 	transitions: ProgramTransition[],
 	inputs: ProgramInputs,
-	at: (anchor: MotionAnchor) => number,
+	at: AnchorAt,
 	diagnostics: ProgramDiagnostic[]
 ): AudioPiece[] {
 	const fps = project.fps;
 	const out: AudioPiece[] = [];
+	/** Where the previous sfx (as written) plays, for repeated phrases (see `PhraseOrder`). */
+	let previous: number | null = null;
 	const place = (owner: string, field: string, sound: string, moment: number, gain: number) => {
 		const info = inputs.sounds?.[sound];
 		if (info === null) {
@@ -1615,7 +1648,14 @@ function resolveSfx(
 		const id = sfx.id ?? `sfx${i + 1}`;
 		let moment: number;
 		try {
-			moment = Math.round(at(sfx.at) * fps) / fps;
+			const field = `sfx[${i}].at`;
+			const hit = at(
+				sfx.at,
+				undefined,
+				itemOrder(diagnostics, id, field, previous, 'the previous sfx')
+			);
+			moment = Math.round(hit.time * fps) / fps;
+			previous = orderPoint(hit);
 		} catch (error) {
 			diagnostics.push({
 				level: 'error',
@@ -1760,9 +1800,13 @@ function checkIds(
 	}
 }
 
-/** Strings in clip props that may name a project file (no URLs, data or colours). */
+/**
+ * Strings in clip props that may name a project file (no URLs, data or colours), and every
+ * `{ "file" }` path, with or without an extension.
+ */
 export function propFiles(props: (Record<string, unknown> | undefined)[]): string[] {
 	const found = new Set<string>();
+	for (const p of props) for (const ref of propFileRefs(p)) found.add(ref.file);
 	const walk = (value: unknown) => {
 		if (typeof value === 'string') {
 			if (

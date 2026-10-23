@@ -5,6 +5,14 @@ export class AnchorError extends Error {
 }
 /** No music: beat anchors and beat offsets fail with "add music". */
 export const NO_BEATS = { music: [], clip: undefined };
+/**
+ * Where an item stands in program order, for the next item's `PhraseOrder.after`: where its
+ * phrase is said, or its time when that is earlier (a phrase anchor with `"offset": 0.5`, or a
+ * downbeat after a phrase, still counts from the phrase, so the next item may use it too).
+ */
+export function orderPoint(hit) {
+    return Math.min(hit.time, hit.said ?? hit.time);
+}
 /** Says why the program end cannot be read: it is not fixed before the program is resolved. */
 export const OPEN_END = 'The program end is not fixed yet: it needs "cuts" (or footage) or "duration".';
 /** Where event anchors work, for anchors used anywhere else. */
@@ -15,7 +23,8 @@ export function isProgramEnd(anchor, ctx) {
         return anchor === 'end' && ctx.end !== undefined;
     return typeof anchor === 'object' && 'program' in anchor;
 }
-export function resolvePhrase(say, ctx, occurrence) {
+/** `lands`: where an occurrence puts the item (edge and offset applied), for `ctx.order`. */
+export function resolvePhrase(say, ctx, occurrence, lands) {
     const { words, window } = ctx;
     const scope = ctx.scope ?? 'clip';
     if (!words)
@@ -42,10 +51,26 @@ export function resolvePhrase(say, ctx, occurrence) {
         return hit;
     }
     if (hits.length > 1) {
-        const list = hits
-            .map((h, i) => `#${i + 1} at ${h.start.toFixed(2)}s (${describeWords(words, h.start, 2)})`)
-            .join('; ');
-        throw new AnchorError(`Phrase "${say}" is ambiguous: ${list}. Use a longer phrase or { "say": "${say}", "occurrence": n }.`);
+        const describe = (h) => `#${hits.indexOf(h) + 1} at ${h.start.toFixed(2)}s (${describeWords(words, h.start, 2)})`;
+        const pin = `{ "say": "${say}", "occurrence": n }`;
+        const order = ctx.order;
+        const after = order?.after ?? null;
+        // An occurrence counts when it starts there or later, or puts the item there or later (an
+        // end edge, a positive offset): the previous item may sit inside the phrase.
+        const hit = after === null
+            ? undefined
+            : hits.find((h) => Math.max(h.start, lands?.(h) ?? h.start) >= after - 1e-6);
+        if (order && hit) {
+            order.picked?.(`Phrase "${say}" occurs ${hits.length} times; program order picked #${hits.indexOf(hit) + 1} at ${hit.start.toFixed(2)}s, the first that starts or lands at or after ${order.what} (${after.toFixed(2)}s). Other occurrences: ${hits
+                .filter((h) => h !== hit)
+                .map(describe)
+                .join('; ')}. If that is the wrong one, pin it with ${pin}.`);
+            return hit;
+        }
+        const rule = !order
+            ? ''
+            : ` Repeated phrases here resolve to the first occurrence at or after ${order.what}, ${after === null ? 'but there is none' : `but every occurrence lands before it (${after.toFixed(2)}s)`}.`;
+        throw new AnchorError(`Phrase "${say}" is ambiguous: ${hits.map(describe).join('; ')}.${rule} Use a longer phrase or ${pin}.`);
     }
     return hits[0];
 }
@@ -103,27 +128,36 @@ export function resolveAnchor(anchor, ctx, defaultEdge) {
         // Beats are absolute: bar 5 is bar 5 wherever the item is.
         const music = musicFor(beats, anchor.music);
         let base;
+        let said;
         if ('bar' in anchor)
             base = findBarBeat(music.grid, anchor.bar, anchor.beat ?? 1, music.name).time;
         else if ('downbeat' in anchor || typeof anchor.beat === 'string') {
             const direction = 'downbeat' in anchor ? anchor.downbeat : anchor.beat;
             // `at` keeps the caller's edge: in `until` a phrase means its end, so the downbeat after
             // it never cuts the phrase short. `{ say, edge }` still picks another edge.
-            const at = resolveAnchor(anchor.at, ctx, defaultEdge).time;
-            base = nearBeat(music.grid, at, 'downbeat' in anchor ? 'downbeat' : 'beat', direction, music.name).time;
+            const inner = resolveAnchor(anchor.at, ctx, defaultEdge);
+            said = inner.said;
+            base = nearBeat(music.grid, inner.time, 'downbeat' in anchor ? 'downbeat' : 'beat', direction, music.name).time;
         }
         else
             base = findBeat(music.grid, anchor.beat, music.name).time;
         const time = applyOffset(base, anchor.offset, beats, anchor.music);
-        return { time, end: time, words: [] };
+        return said === undefined
+            ? { time, end: time, words: [] }
+            : { time, end: time, words: [], said };
     }
-    const hit = resolvePhrase(anchor.say, ctx, anchor.occurrence);
     const edge = anchor.edge ?? defaultEdge;
-    const base = edge === 'start'
-        ? hit.start
-        : edge === 'last'
-            ? hit.words[hit.words.length - 1].start
-            : hit.end;
-    const time = applyOffset(base, anchor.offset, beats);
-    return { time, end: hit.end, words: hit.words };
+    const base = (h) => edge === 'start' ? h.start : edge === 'last' ? h.words[h.words.length - 1].start : h.end;
+    const { offset } = anchor;
+    const lands = (h) => {
+        try {
+            return applyOffset(base(h), offset, beats);
+        }
+        catch {
+            return h.start;
+        }
+    };
+    const hit = resolvePhrase(anchor.say, ctx, anchor.occurrence, lands);
+    const time = applyOffset(base(hit), offset, beats);
+    return { time, end: hit.end, words: hit.words, said: hit.start };
 }

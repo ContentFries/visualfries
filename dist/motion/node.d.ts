@@ -133,6 +133,11 @@ export type BundleResult = {
     };
     /** The project's brand; the program stage sets its tokens on the whole stage. */
     brand: ResolvedBrand;
+    /**
+     * Props of the clips that name project files, by clip id, with each `{ file }` replaced by its
+     * served URL. The pages get these; the resolved clips keep the paths.
+     */
+    props: Record<string, Record<string, unknown>>;
 };
 /** Compile the project's blocks together with the stage runtime into one page. */
 export declare function bundleMotionProject(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<BundleResult>;
@@ -186,7 +191,7 @@ export type MotionPage = {
     close(): Promise<void>;
 };
 /** One page with one clip loaded (see `openStagePage`). Exported for tests. */
-export declare function openClip(browser: BrowserLike, bundle: Pick<BundleResult, 'html' | 'roots' | 'files'>, clip: ResolvedClip, opts?: {
+export declare function openClip(browser: BrowserLike, bundle: Pick<BundleResult, 'html' | 'roots' | 'files'> & Partial<Pick<BundleResult, 'props'>>, clip: ResolvedClip, opts?: {
     invalidate?: string;
     timeout?: number;
 }): Promise<MotionPage>;
@@ -204,7 +209,7 @@ export type StageTarget = {
  * stops answering: Playwright leaves a call to a crashed page pending forever, so without this a
  * renderer crash would hang `render` instead of failing it.
  */
-export declare function openStagePage(browser: BrowserLike, bundle: Pick<BundleResult, 'html' | 'roots' | 'files'>, target: StageTarget, opts?: {
+export declare function openStagePage(browser: BrowserLike, bundle: Pick<BundleResult, 'html' | 'roots' | 'files'> & Partial<Pick<BundleResult, 'props'>>, target: StageTarget, opts?: {
     invalidate?: string;
     timeout?: number;
 }): Promise<MotionPage>;

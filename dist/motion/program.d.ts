@@ -250,5 +250,8 @@ export declare function resolveProgram(project: MotionProject, given: ProgramInp
 }, opts?: {
     format?: string;
 }): ResolvedProgram;
-/** Strings in clip props that may name a project file (no URLs, data or colours). */
+/**
+ * Strings in clip props that may name a project file (no URLs, data or colours), and every
+ * `{ "file" }` path, with or without an extension.
+ */
 export declare function propFiles(props: (Record<string, unknown> | undefined)[]): string[];

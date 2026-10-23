@@ -48,10 +48,10 @@ export type AnchorContext = {
 /**
  * Program order for a repeated phrase: items written one after another (shots, clips, sfx) are
  * read in program order, so a phrase said more than once resolves to its first occurrence that
- * starts at or after `after` (the previous item of the same kind, or the item's own start for
- * `until`) instead of being ambiguous. `what` names that point in messages; null `after`: there
- * is none (the first item), so the phrase stays ambiguous. `picked` gets a hint naming the other
- * occurrences, for `check`. An explicit `occurrence` always wins.
+ * starts, or puts the item, at or after `after` (the previous item of the same kind, or the
+ * item's own start for `until`) instead of being ambiguous. `what` names that point in messages;
+ * null `after`: there is none (the first item), so the phrase stays ambiguous. `picked` gets a
+ * hint naming the other occurrences, for `check`. An explicit `occurrence` always wins.
  */
 export type PhraseOrder = {
     after: number | null;
@@ -62,11 +62,13 @@ export type AnchorHit = {
     time: number;
     end: number;
     words: MotionWord[];
+    /** Where the phrase the anchor stands on starts (also around a nearest beat), for `orderPoint`. */
+    said?: number;
 };
 /**
  * Where an item stands in program order, for the next item's `PhraseOrder.after`: where its
- * phrase is said, or its time when an offset puts it earlier (a phrase anchor with `"offset":
- * 0.5` still counts from the phrase, so the next item may use the same phrase).
+ * phrase is said, or its time when that is earlier (a phrase anchor with `"offset": 0.5`, or a
+ * downbeat after a phrase, still counts from the phrase, so the next item may use it too).
  */
 export declare function orderPoint(hit: AnchorHit): number;
 /** Says why the program end cannot be read: it is not fixed before the program is resolved. */
@@ -75,7 +77,12 @@ export declare const OPEN_END = "The program end is not fixed yet: it needs \"cu
 export declare const EVENT_ELSEWHERE = "An event anchor ({ \"event\", \"clip\" }) works in sfx \"at\", shots and music keys, not here: the clip it names is placed first.";
 /** Whether an anchor is the program end: `"end"` in a program context, or `{ program: "end" }`. */
 export declare function isProgramEnd(anchor: MotionAnchor, ctx: Pick<AnchorContext, 'end'>): boolean;
-export declare function resolvePhrase(say: string, ctx: AnchorContext, occurrence: number | undefined): {
+/** `lands`: where an occurrence puts the item (edge and offset applied), for `ctx.order`. */
+export declare function resolvePhrase(say: string, ctx: AnchorContext, occurrence: number | undefined, lands?: (hit: {
+    start: number;
+    end: number;
+    words: MotionWord[];
+}) => number): {
     start: number;
     end: number;
     words: MotionWord[];

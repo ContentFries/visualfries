@@ -4,7 +4,7 @@ import { NO_MUSIC_BEATS, pickMusic } from './beat-grid.js';
 import { missingBeats, musicEnd, musicEnds, placeMusic } from './music.js';
 import { resolveFormat } from './format.js';
 import { resolveMoment } from './moment.js';
-import { resolveMotionProject } from './resolve.js';
+import { propFileRefs, resolveMotionProject } from './resolve.js';
 import { micro, programEnd, resolveCutList, soundEnd, soundLength } from './cutlist.js';
 import { sha1 } from './sha1.js';
 import { defaultMorph, SHOT_MODULES, shotAt, shotEvents, shotLayout, shotModule, shotsDuring } from './shots/index.js';
@@ -1244,9 +1244,15 @@ function checkIds(project, cuts, shots, clips, diagnostics) {
             seen.set(id, kind);
     }
 }
-/** Strings in clip props that may name a project file (no URLs, data or colours). */
+/**
+ * Strings in clip props that may name a project file (no URLs, data or colours), and every
+ * `{ "file" }` path, with or without an extension.
+ */
 export function propFiles(props) {
     const found = new Set();
+    for (const p of props)
+        for (const ref of propFileRefs(p))
+            found.add(ref.file);
     const walk = (value) => {
         if (typeof value === 'string') {
             if (value.length < 512 &&

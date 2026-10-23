@@ -62,7 +62,12 @@ Work like an editor, in this order; each step ends on its criterion:
    hint and decide from the still, since a tight crop can be the creator's choice. Done when every
    shot frames the speaker the way you would defend.
 6. **Frames.** Stills of every cut, the first, middle and last frame of every transition window,
-   every event and every shot move, about ten moments per `still` call. Done when you have looked
+   every event and every shot move, about ten moments per `still` call. `check` warns where a
+   clip's text covers the speaker's face for half a second or more (clip, block, first time, share
+   of the face, the side of the frame clear of the head); add a still at each time it names and
+   decide there: move the text to the free side, put it `"layer": "behind"`, or give it a slot
+   beside a `strip` or `window`. It only sees text the page lays out, so look at every frame
+   anyway. Done when you have looked
    at each one and can answer for each: no text over a face, no text cut by the frame, accents and
    descenders whole, no empty slot, no flash of a bright colour longer than a few frames, no frame
    standing still.

@@ -300,7 +300,8 @@
 	});
 </script>
 
-<div class="vf-subject-layer {className}" style="{boxStyle};{style}">
+<!-- `data-layer`: `check` asks whether the layer draws the speaker over text (see `faceText`). -->
+<div class="vf-subject-layer {className}" data-layer={layer} style="{boxStyle};{style}">
 	<div style={moveStyle}>
 		<canvas bind:this={canvas} width={size.width} height={size.height} style={canvasStyle}></canvas>
 	</div>

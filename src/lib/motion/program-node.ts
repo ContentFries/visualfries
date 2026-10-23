@@ -14,6 +14,7 @@ import {
 import { resolveProgram, type ProgramSegment, type ResolvedProgram } from './program.js';
 import { resolveMoment } from './moment.js';
 import { headCropMessage, headCrops } from './framing.js';
+import { textOverFaceClip } from './text-over-face.js';
 import {
 	edgeFrames,
 	scrambled,
@@ -263,6 +264,16 @@ export async function checkProgram(
 		await browser.close();
 		await fs.rm(bundle.dir, { recursive: true, force: true });
 	}
+	// Text over the face is told once per clip, in the first segment it is found in.
+	const toldFace = new Set<string>();
+	for (const r of results)
+		r.warnings = r.warnings.filter((w) => {
+			const clip = textOverFaceClip(w.message);
+			if (clip === null) return true;
+			if (toldFace.has(clip)) return false;
+			toldFace.add(clip);
+			return true;
+		});
 	for (const r of results) r.ok = r.errors.length === 0;
 	return results;
 }

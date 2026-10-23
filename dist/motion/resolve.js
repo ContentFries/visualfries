@@ -1,5 +1,5 @@
 import { pickMusic } from './beat-grid.js';
-import { AnchorError, isProgramEnd, resolveAnchor, resolvePhrase } from './anchors.js';
+import { AnchorError, isProgramEnd, orderPoint, resolveAnchor, resolvePhrase } from './anchors.js';
 import { NEUTRAL_BRAND } from './brand.js';
 import { NEUTRAL_STYLE } from './style.js';
 import { resolveFormat } from './format.js';
@@ -18,17 +18,72 @@ function resolveWords(spec, words, fps, window, clipStart, beats) {
     const b = resolveAnchor(spec.until, ctx, 'end');
     return words.filter((w) => w.start >= a.time - 1e-6 && w.start < b.time);
 }
-export function resolveMotionClip(clip, project, words, diagnostics, music = [], look = {}) {
+/** Whether a props value names a project file: an object with a string `file` and nothing else. */
+export function isPropFile(value) {
+    return (!!value &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        Object.keys(value).length === 1 &&
+        typeof value.file === 'string');
+}
+/** Every `{ file }` in props, with where it sits (`shot`, `items[2].icon`). */
+export function propFileRefs(props) {
+    const out = [];
+    const walk = (value, at) => {
+        if (isPropFile(value))
+            out.push({ at, file: value.file });
+        else if (Array.isArray(value))
+            value.forEach((v, i) => walk(v, `${at}[${i}]`));
+        else if (value && typeof value === 'object')
+            for (const [k, v] of Object.entries(value))
+                walk(v, `${at}.${k}`);
+    };
+    for (const [k, v] of Object.entries(props ?? {}))
+        walk(v, k);
+    return out;
+}
+/**
+ * Props with every `{ file }` replaced by `url(file)`: the node tooling serves those files to the
+ * page, so a block reads a URL string. Props without files come back as they are.
+ */
+export function withFileUrls(props, url) {
+    if (!propFileRefs(props).length)
+        return props;
+    const swap = (value) => isPropFile(value)
+        ? url(value.file)
+        : Array.isArray(value)
+            ? value.map(swap)
+            : value && typeof value === 'object'
+                ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, swap(v)]))
+                : value;
+    return Object.fromEntries(Object.entries(props).map(([k, v]) => [k, swap(v)]));
+}
+export function resolveMotionClip(clip, project, words, diagnostics, music = [], look = {}, previous = { at: null }) {
     const fps = project.fps;
     const beats = { music, clip: clip.music };
     const programEnd = look.end;
     const fail = (field, error) => {
         diagnostics.push({ level: 'error', clip: clip.id, field, message: error.message });
     };
+    const order = (field, after, what) => ({
+        after,
+        what,
+        picked: (message) => diagnostics.push({ level: 'info', clip: clip.id, field, message })
+    });
     let startSec;
     let endSec;
     try {
-        startSec = resolveAnchor(clip.from, { words, fps, window: null, localBase: null, beats, end: programEnd }, 'start').time;
+        const hit = resolveAnchor(clip.from, {
+            words,
+            fps,
+            window: null,
+            localBase: null,
+            beats,
+            end: programEnd,
+            order: order('from', previous.at, 'the previous clip')
+        }, 'start');
+        startSec = hit.time;
+        previous.at = orderPoint(hit);
     }
     catch (error) {
         fail('from', error);
@@ -41,7 +96,8 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
             window: { from: startSec, to: Infinity },
             localBase: null,
             beats,
-            end: programEnd
+            end: programEnd,
+            order: order('until', startSec, "the clip's start")
         }, 'end').time;
     }
     catch (error) {
@@ -135,6 +191,11 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
             fail(`words.${name}`, error);
         }
     }
+    for (const ref of propFileRefs(clip.props)) {
+        const problem = look.files?.[ref.file];
+        if (problem)
+            fail(`props.${ref.at}`, new Error(problem));
+    }
     // Without music the clip gets no beat fields at all, so it resolves exactly as before.
     let musicFields = null;
     if (music.length) {
@@ -184,6 +245,7 @@ export function resolveMotionProject(project, words, music = [], look = {}) {
         diagnostics.push({ level: 'warning', field: 'safeZone', message: format.fallback });
     const ids = new Set();
     const clips = [];
+    const previous = { at: null };
     for (const clip of project.clips) {
         if (ids.has(clip.id)) {
             diagnostics.push({
@@ -211,10 +273,7 @@ export function resolveMotionProject(project, words, music = [], look = {}) {
                 message: `Unknown music "${clip.music}". Music with beats: ${music.map((m) => m.id ?? m.name).join(', ') || 'none'}`
             });
         }
-        const resolved = resolveMotionClip(clip, project, words, diagnostics, music, {
-            ...look,
-            format
-        });
+        const resolved = resolveMotionClip(clip, project, words, diagnostics, music, { ...look, format }, previous);
         if (resolved)
             clips.push(resolved);
     }

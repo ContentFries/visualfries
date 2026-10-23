@@ -5,6 +5,14 @@ export class AnchorError extends Error {
 }
 /** No music: beat anchors and beat offsets fail with "add music". */
 export const NO_BEATS = { music: [], clip: undefined };
+/**
+ * Where an item stands in program order, for the next item's `PhraseOrder.after`: where its
+ * phrase is said, or its time when an offset puts it earlier (a phrase anchor with `"offset":
+ * 0.5` still counts from the phrase, so the next item may use the same phrase).
+ */
+export function orderPoint(hit) {
+    return hit.words.length ? Math.min(hit.time, hit.words[0].start) : hit.time;
+}
 /** Says why the program end cannot be read: it is not fixed before the program is resolved. */
 export const OPEN_END = 'The program end is not fixed yet: it needs "cuts" (or footage) or "duration".';
 /** Where event anchors work, for anchors used anywhere else. */
@@ -42,10 +50,22 @@ export function resolvePhrase(say, ctx, occurrence) {
         return hit;
     }
     if (hits.length > 1) {
-        const list = hits
-            .map((h, i) => `#${i + 1} at ${h.start.toFixed(2)}s (${describeWords(words, h.start, 2)})`)
-            .join('; ');
-        throw new AnchorError(`Phrase "${say}" is ambiguous: ${list}. Use a longer phrase or { "say": "${say}", "occurrence": n }.`);
+        const describe = (h) => `#${hits.indexOf(h) + 1} at ${h.start.toFixed(2)}s (${describeWords(words, h.start, 2)})`;
+        const pin = `{ "say": "${say}", "occurrence": n }`;
+        const order = ctx.order;
+        const after = order?.after ?? null;
+        const hit = after === null ? undefined : hits.find((h) => h.start >= after - 1e-6);
+        if (order && hit) {
+            order.picked?.(`Phrase "${say}" occurs ${hits.length} times; program order picked #${hits.indexOf(hit) + 1} at ${hit.start.toFixed(2)}s, the first at or after ${order.what} (${after.toFixed(2)}s). Other occurrences: ${hits
+                .filter((h) => h !== hit)
+                .map(describe)
+                .join('; ')}. If that is the wrong one, pin it with ${pin}.`);
+            return hit;
+        }
+        const rule = !order
+            ? ''
+            : ` Repeated phrases here resolve to the first occurrence at or after ${order.what}, ${after === null ? 'but there is none' : `but every occurrence is before it (${after.toFixed(2)}s)`}.`;
+        throw new AnchorError(`Phrase "${say}" is ambiguous: ${hits.map(describe).join('; ')}.${rule} Use a longer phrase or ${pin}.`);
     }
     return hits[0];
 }

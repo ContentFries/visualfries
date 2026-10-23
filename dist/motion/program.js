@@ -1,5 +1,5 @@
 import { SHOTS, TRANSITIONS } from './timeline.js';
-import { AnchorError, NO_BEATS, resolveAnchor } from './anchors.js';
+import { AnchorError, NO_BEATS, orderPoint, resolveAnchor } from './anchors.js';
 import { NO_MUSIC_BEATS, pickMusic } from './beat-grid.js';
 import { missingBeats, musicEnd, musicEnds, placeMusic } from './music.js';
 import { resolveFormat } from './format.js';
@@ -55,6 +55,14 @@ function localGrid(beats, start) {
  * locale, which would make the order, and the mix, depend on where it runs).
  */
 export const compareText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+/** Program order for one item's anchor: hints of picked phrases are info diagnostics of the item. */
+function itemOrder(diagnostics, item, field, after, what) {
+    return {
+        after,
+        what,
+        picked: (message) => diagnostics.push({ level: 'info', item, field, message })
+    };
+}
 const endOf = (s) => s.startFrame + s.frames;
 const overlaps = (a, b) => a.startFrame < endOf(b) && b.startFrame < endOf(a);
 /**
@@ -104,7 +112,7 @@ export function resolveProgram(project, given, opts = {}) {
     const warn = (level, item, field, message) => diagnostics.push({ level, item, field, message });
     // Clips resolve exactly as in `ResolvedProject`, against the program transcript.
     const beats = beatsOf(inputs);
-    const resolved = resolveMotionProject(opts.format ? { ...project, size: format.size } : project, words, inputs.music ?? [], { ...inputs.look, end });
+    const resolved = resolveMotionProject(opts.format ? { ...project, size: format.size } : project, words, inputs.music ?? [], { ...inputs.look, end, files: inputs.files });
     diagnostics.push(...resolved.diagnostics);
     const anchorCtx = {
         words,
@@ -116,7 +124,8 @@ export function resolveProgram(project, given, opts = {}) {
         event: (name, clip) => clipEvent(resolved.clips, project, inputs, name, clip)
     };
     checkEvents(resolved.clips, inputs, end, diagnostics);
-    const at = (anchor, from) => resolveAnchor(anchor, from === undefined ? anchorCtx : { ...anchorCtx, window: { from, to: Infinity } }, from === undefined ? 'start' : 'end').time;
+    const hitAt = (anchor, from, order) => resolveAnchor(anchor, { ...anchorCtx, ...(from === undefined ? {} : { window: { from, to: Infinity } }), order }, from === undefined ? 'start' : 'end');
+    const at = (anchor) => hitAt(anchor).time;
     // Program length: the cut list, else `duration`, else the latest end of clips or music.
     const musicStops = placement.placed.flatMap((m) => m?.until == null ? [] : [Math.round(m.until * fps)]);
     const frames = cutList.frames ??
@@ -143,7 +152,7 @@ export function resolveProgram(project, given, opts = {}) {
     }));
     const brand = inputs.look?.brand ?? NEUTRAL_BRAND;
     const shots = program
-        ? resolveShots(project, inputs, words, cuts, frames, at, diagnostics, format.size, end)
+        ? resolveShots(project, inputs, words, cuts, frames, hitAt, diagnostics, format.size, end)
         : [];
     const clips = resolved.clips.map((clip) => {
         const spec = project.clips.find((c) => c.id === clip.id);
@@ -200,7 +209,7 @@ export function resolveProgram(project, given, opts = {}) {
     const mix = project.mix ?? {};
     const audio = {
         speech: program ? speechPieces(project, cutList.cuts, sources, inputs, frames / fps) : [],
-        sfx: resolveSfx(project, transitions, inputs, at, diagnostics),
+        sfx: resolveSfx(project, transitions, inputs, hitAt, diagnostics),
         music: resolveMusic(project, placement.placed, ends, frames / fps, program, inputs, at, diagnostics),
         levels: { sfx: mix.sfx ?? MIX_DEFAULTS.sfx, music: mix.music ?? MIX_DEFAULTS.music },
         master: {
@@ -476,6 +485,8 @@ function blockAnimatable(inputs, block, clip, diagnostics) {
 function resolveShots(project, inputs, words, cuts, frames, at, diagnostics, size, programEndAt) {
     const fps = project.fps;
     const written = [];
+    /** Where the previous shot (as written) starts, for repeated phrases (see `PhraseOrder`). */
+    let previous = null;
     /** What each written shot says about its morph: seconds, and whether a transition replaces it. */
     const asked = new Map();
     (project.shots ?? []).forEach((shot, i) => {
@@ -499,15 +510,18 @@ function resolveShots(project, inputs, words, cuts, frames, at, diagnostics, siz
             });
         let start;
         let end;
+        const order = (field, after, what) => itemOrder(diagnostics, id, `shots[${i}].${field}`, after, what);
         try {
-            start = at(shot.from);
+            const hit = at(shot.from, undefined, order('from', previous, 'the previous shot'));
+            start = hit.time;
+            previous = orderPoint(hit);
         }
         catch (error) {
             fail('from', error.message);
             return;
         }
         try {
-            end = at(shot.until, start);
+            end = at(shot.until, start, order('until', start, "the shot's start")).time;
         }
         catch (error) {
             fail('until', error.message);
@@ -1062,6 +1076,8 @@ function speechPieces(project, cuts, sources, inputs, end) {
 function resolveSfx(project, transitions, inputs, at, diagnostics) {
     const fps = project.fps;
     const out = [];
+    /** Where the previous sfx (as written) plays, for repeated phrases (see `PhraseOrder`). */
+    let previous = null;
     const place = (owner, field, sound, moment, gain) => {
         const info = inputs.sounds?.[sound];
         if (info === null) {
@@ -1095,7 +1111,10 @@ function resolveSfx(project, transitions, inputs, at, diagnostics) {
         const id = sfx.id ?? `sfx${i + 1}`;
         let moment;
         try {
-            moment = Math.round(at(sfx.at) * fps) / fps;
+            const field = `sfx[${i}].at`;
+            const hit = at(sfx.at, undefined, itemOrder(diagnostics, id, field, previous, 'the previous sfx'));
+            moment = Math.round(hit.time * fps) / fps;
+            previous = orderPoint(hit);
         }
         catch (error) {
             diagnostics.push({

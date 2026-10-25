@@ -17,12 +17,16 @@ export const SAFE_TEXT_SHARE = 0.5;
 /** Seconds the content must stay so: a card sliding in or out passes the edge for less. */
 export const FIT_SECONDS = 1;
 /**
- * A clip that covers the frame looks laid out for another size when its content starts within
- * `EMPTY_START` of the top (left) edge and ends before `EMPTY_REACH` of the frame's height
- * (width): a 1920 × 1080 layout in a 1080 × 1920 frame fills the top half and stops.
+ * A clip that covers the frame looks laid out for another size when, along the frame's long
+ * axis, its content starts within `EMPTY_START` of the edge and ends before `EMPTY_REACH` of the
+ * frame and before the length of its short side (where a frame of the other orientation would
+ * end), while it spans at least `EMPTY_FILL` of the short side across and reaches at least
+ * `EMPTY_FILL` of its length along: a 1920 × 1080 layout in a 1080 × 1920 frame fills the width
+ * of the top half and stops. A short list or a headline in a corner is not a layout.
  */
 export const EMPTY_START = 0.12;
 export const EMPTY_REACH = 0.6;
+export const EMPTY_FILL = 0.5;
 
 const area = (r: Rect) => r.width * r.height;
 const endX = (r: Rect) => r.x + r.width;
@@ -173,9 +177,9 @@ export function reachBox(reach: Reach, frame: Rect): Rect | null {
 }
 
 /**
- * Whether content reaching `reach` (see `reachBox`) leaves most of a frame of `size` empty
- * the way a layout for another size does (see `EMPTY_START`): the axis and the share left empty
- * past the content, or null.
+ * Whether content reaching `reach` (see `reachBox`) leaves most of a frame of `size` empty the
+ * way a layout for another size does (see `EMPTY_START`): the long axis, the content's span on
+ * it and the share left empty past it, or null. A square frame has no other orientation.
  */
 export function emptyPart(
 	reach: Rect | null,
@@ -183,16 +187,17 @@ export function emptyPart(
 ): { axis: 'x' | 'y'; from: number; to: number; empty: number } | null {
 	if (!reach) return null;
 	const [w, h] = size;
-	const tall = h >= w;
-	// The long axis first: a landscape layout in a portrait frame leaves the bottom empty.
-	for (const axis of tall ? (['y', 'x'] as const) : (['x', 'y'] as const)) {
-		const length = axis === 'y' ? h : w;
-		const from = axis === 'y' ? reach.y : reach.x;
-		const to = axis === 'y' ? endY(reach) : endX(reach);
-		if (from <= EMPTY_START * length && to <= EMPTY_REACH * length)
-			return { axis, from: Math.round(from), to: Math.round(to), empty: 1 - to / length };
-	}
-	return null;
+	if (Math.max(w, h) / Math.min(w, h) < 1.1) return null;
+	const axis = h > w ? 'y' : 'x';
+	const long = Math.max(w, h);
+	const short = Math.min(w, h);
+	const from = axis === 'y' ? reach.y : reach.x;
+	const to = axis === 'y' ? endY(reach) : endX(reach);
+	const across = axis === 'y' ? reach.width : reach.height;
+	const laidOut = across >= EMPTY_FILL * short && to >= EMPTY_FILL * short;
+	if (!laidOut || from > EMPTY_START * long || to > Math.min(EMPTY_REACH * long, short))
+		return null;
+	return { axis, from: Math.round(from), to: Math.round(to), empty: 1 - to / long };
 }
 
 export type FitFinding =

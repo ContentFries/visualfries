@@ -14,12 +14,16 @@ export declare const SAFE_TEXT_SHARE = 0.5;
 /** Seconds the content must stay so: a card sliding in or out passes the edge for less. */
 export declare const FIT_SECONDS = 1;
 /**
- * A clip that covers the frame looks laid out for another size when its content starts within
- * `EMPTY_START` of the top (left) edge and ends before `EMPTY_REACH` of the frame's height
- * (width): a 1920 × 1080 layout in a 1080 × 1920 frame fills the top half and stops.
+ * A clip that covers the frame looks laid out for another size when, along the frame's long
+ * axis, its content starts within `EMPTY_START` of the edge and ends before `EMPTY_REACH` of the
+ * frame and before the length of its short side (where a frame of the other orientation would
+ * end), while it spans at least `EMPTY_FILL` of the short side across and reaches at least
+ * `EMPTY_FILL` of its length along: a 1920 × 1080 layout in a 1080 × 1920 frame fills the width
+ * of the top half and stops. A short list or a headline in a corner is not a layout.
  */
 export declare const EMPTY_START = 0.12;
 export declare const EMPTY_REACH = 0.6;
+export declare const EMPTY_FILL = 0.5;
 export type Edge = 'left' | 'right' | 'top' | 'bottom';
 /**
  * The share (0–1) of the area of `boxes` that lies outside `frame`, counting only boxes that
@@ -62,9 +66,9 @@ export declare function addReach(reach: Reach, boxes: Rect[], frame: Rect): void
  */
 export declare function reachBox(reach: Reach, frame: Rect): Rect | null;
 /**
- * Whether content reaching `reach` (see `reachBox`) leaves most of a frame of `size` empty
- * the way a layout for another size does (see `EMPTY_START`): the axis and the share left empty
- * past the content, or null.
+ * Whether content reaching `reach` (see `reachBox`) leaves most of a frame of `size` empty the
+ * way a layout for another size does (see `EMPTY_START`): the long axis, the content's span on
+ * it and the share left empty past it, or null. A square frame has no other orientation.
  */
 export declare function emptyPart(reach: Rect | null, size: [number, number]): {
     axis: 'x' | 'y';

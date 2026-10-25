@@ -14,11 +14,28 @@ export const FAST_KEY_SECONDS = 1;
 export const PANEL_TEXT_SHARE = 0.2;
 /** Captions starting this many frames before a move still start on its anchor. */
 const LEAD_FRAMES = 2;
-/** A key's camera values: what moves the footage (a fade of its opacity does not). */
-function camera(key) {
-    const values = { ...key.values };
-    delete values.opacity;
-    return JSON.stringify(values);
+/** Camera values a shot key may leave out, as the camera has them without keys. */
+const CAMERA_DEFAULTS = { scale: 1, x: 0, y: 0, rotation: 0 };
+/**
+ * The camera at each of a shot's keys: every value but `opacity` (a fade moves nothing), as
+ * that key or an earlier one sets it, else the camera's default. Keys that only name a value
+ * the camera already has (`{ "scale": 1 }` then `{ "scale": 1, "x": 0 }`) do not move it.
+ */
+function cameras(keys) {
+    const names = new Set(Object.keys(CAMERA_DEFAULTS));
+    for (const k of keys)
+        for (const name of Object.keys(k.values))
+            names.add(name);
+    names.delete('opacity');
+    const now = {};
+    for (const name of names)
+        now[name] = CAMERA_DEFAULTS[name] ?? 0;
+    return keys.map((k) => {
+        for (const [name, value] of Object.entries(k.values))
+            if (names.has(name))
+                now[name] = value;
+        return JSON.stringify([...names].sort().map((name) => String(now[name])));
+    });
 }
 /**
  * The moves of a program (or a segment of it), in program order: every shot morph, every pair
@@ -35,12 +52,13 @@ export function shotMoves(data) {
                 to: s.startFrame + s.morphFrames
             });
         const keys = s.keys ?? [];
+        const camera = cameras(keys);
         for (let i = 1; i < keys.length; i++) {
             const a = keys[i - 1];
             const b = keys[i];
             if (b.frame <= a.frame || b.frame - a.frame > FAST_KEY_SECONDS * data.fps)
                 continue;
-            if (camera(a) === camera(b))
+            if (camera[i - 1] === camera[i])
                 continue;
             out.push({ what: `the keys of shot "${s.id}"`, from: a.frame, to: b.frame });
         }
@@ -58,10 +76,26 @@ export function shotMoves(data) {
 }
 /**
  * The move a clip starting at `startFrame` starts on: the first move whose window holds the
- * clip's first frame (or that starts up to `LEAD_FRAMES` after it). Null when it starts on none.
+ * clip's first frame (or that starts up to `LEAD_FRAMES` after it), joined with every move that
+ * overlaps or touches it, so the frame it ends on is clear of all of them. Null when the clip
+ * starts on none.
  */
 export function moveAtStart(moves, startFrame) {
-    return moves.find((m) => startFrame >= m.from - LEAD_FRAMES && startFrame < m.to) ?? null;
+    const first = moves.find((m) => startFrame >= m.from - LEAD_FRAMES && startFrame < m.to);
+    if (!first)
+        return null;
+    const joined = { ...first };
+    const whats = [first.what];
+    for (let grown = true; grown;) {
+        grown = false;
+        for (const m of moves)
+            if (m.from <= joined.to && m.to > joined.to) {
+                joined.to = m.to;
+                whats.push(m.what);
+                grown = true;
+            }
+    }
+    return { ...joined, what: whats.join(' and ') };
 }
 const DRAWN = 'they are drawn over';
 /**
@@ -79,7 +113,8 @@ export function captionsInMoveMessage(found, fps) {
         .filter(Boolean)
         .join(' and ');
     const later = (found.move.to - found.start) / fps;
-    return `Captions "${found.clip}": they start at ${s(found.start)} (program time), inside ${found.move.what} (${secs(found.move.from)}–${s(found.move.to)}), and ${DRAWN} ${what} until it lands; once it has landed they are clear. Start them when the move ends, at ${s(found.move.to)} (${later.toFixed(2)} s later), or keep them out of the moving area. Look at stills from ${secs(found.move.from)} to ${s(found.move.to)} before deciding.`;
+    const where = found.start < found.move.from ? 'just before' : 'inside';
+    return `Captions "${found.clip}": they start at ${s(found.start)} (program time), ${where} ${found.move.what} (${secs(found.move.from)}–${s(found.move.to)}), and ${DRAWN} ${what} until it lands; once it has landed they are clear. Start them when the move ends, at ${s(found.move.to)} (${later.toFixed(2)} s later), or keep them out of the moving area. Look at stills from ${secs(found.move.from)} to ${s(found.move.to)} before deciding.`;
 }
 /** The clip a captions-in-a-move warning names; null for any other message. */
 export function captionsInMoveClip(message) {

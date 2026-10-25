@@ -33,7 +33,9 @@ export declare function shotMoves(data: {
 }): ShotMove[];
 /**
  * The move a clip starting at `startFrame` starts on: the first move whose window holds the
- * clip's first frame (or that starts up to `LEAD_FRAMES` after it). Null when it starts on none.
+ * clip's first frame (or that starts up to `LEAD_FRAMES` after it), joined with every move that
+ * overlaps or touches it, so the frame it ends on is clear of all of them. Null when the clip
+ * starts on none.
  */
 export declare function moveAtStart(moves: readonly ShotMove[], startFrame: number): ShotMove | null;
 export type CaptionsInMove = {

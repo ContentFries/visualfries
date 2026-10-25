@@ -118,6 +118,19 @@ describe('emptyPart', () => {
 			to: 1080
 		});
 	});
+
+	it('judges only the long axis, and only content laid out like a frame of the other orientation', () => {
+		// A short left-aligned list on a portrait card: the right part is not the long axis.
+		expect(emptyPart({ x: 60, y: 300, width: 330, height: 1300 }, [1080, 1920])).toBeNull();
+		// A 16:9 card leaving the bottom for captions: the bottom is not the long axis.
+		expect(emptyPart({ x: 0, y: 0, width: 1920, height: 600 }, [1920, 1080])).toBeNull();
+		// "Watch next" in the top left corner of a 640 × 360 end card: a headline, not a layout.
+		expect(emptyPart({ x: 30, y: 30, width: 160, height: 40 }, [640, 360])).toBeNull();
+		// Content past the short side's length is no layout for the other orientation.
+		expect(emptyPart({ x: 0, y: 40, width: 1080, height: 1100 }, [1080, 1920])).toBeNull();
+		// A square frame has no other orientation.
+		expect(emptyPart({ x: 0, y: 0, width: 1080, height: 300 }, [1080, 1080])).toBeNull();
+	});
 });
 
 describe('frameFitMessage', () => {

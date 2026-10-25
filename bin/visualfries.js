@@ -1661,6 +1661,15 @@ async function motionClipsCommand(args) {
 	if (diagnostics.some((d) => d.level === 'error')) process.exitCode = 1;
 }
 
+/** `--format WxH` of a program command; an error when the flag has no value. */
+function formatFlag(args) {
+	if (!args.includes('--format')) return undefined;
+	const value = readFlag(args, '--format');
+	if (value === undefined || value.startsWith('--'))
+		throw new Error('--format needs a frame size, e.g. --format 1080x1920.');
+	return value;
+}
+
 async function motionCheckCommand(args) {
 	const file = args[0];
 	if (!file)
@@ -1682,7 +1691,7 @@ async function motionCheckCommand(args) {
 	// Program diagnostics: cuts, shots, transitions, audio, and clip fields only the program
 	// reads (keys, layer, transition); the clip checks below report the rest.
 	// --format checks the program in another frame size, as render --format draws it.
-	const format = readFlag(args, '--format');
+	const format = formatFlag(args);
 	if (format !== undefined && loaded.cutList.mode !== 'program')
 		throw new Error(
 			'--format checks a program (a project with "cuts" or "shots") in another frame size; this project renders its clips at the project size.'
@@ -1744,8 +1753,24 @@ async function motionCheckCommand(args) {
 	const kind = programMode ? 'segments' : 'clips';
 	const segment = (id) => program.segments.find((s) => s.id === id);
 	if (json) {
+		// With --format, the frame size and safe zone checked; without it the output is unchanged.
+		const checked =
+			format === undefined
+				? {}
+				: {
+						format: {
+							name: program.format.name,
+							class: program.format.class,
+							zone: program.format.zone,
+							safe: program.format.safe
+						}
+					};
 		console.log(
-			JSON.stringify(programMode ? { program: diagnostics, mix, clips: results } : results, null, 2)
+			JSON.stringify(
+				programMode ? { ...checked, program: diagnostics, mix, clips: results } : results,
+				null,
+				2
+			)
 		);
 	} else {
 		for (const r of results) {
@@ -1860,10 +1885,10 @@ async function motionStillCommand(args) {
 		stills = await program.renderProgramStills(
 			loaded,
 			moments.map((at) => ({ clip: clip ?? undefined, at })),
-			{ invalidate: readFlag(args, '--invalidate'), format: readFlag(args, '--format') }
+			{ invalidate: readFlag(args, '--invalidate'), format: formatFlag(args) }
 		);
 	} else {
-		if (readFlag(args, '--format') !== undefined)
+		if (formatFlag(args) !== undefined)
 			throw new Error(
 				'--format draws the program (a project with "cuts" or "shots") in another frame size; clip stills take the project size.'
 			);

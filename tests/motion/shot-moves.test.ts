@@ -72,11 +72,50 @@ describe('shotMoves', () => {
 
 	it('finds the move a clip starts inside, or up to two frames before', () => {
 		const moves = [{ what: 'm', from: 300, to: 318 }];
-		expect(moveAtStart(moves, 300)).toBe(moves[0]);
-		expect(moveAtStart(moves, 298)).toBe(moves[0]);
-		expect(moveAtStart(moves, 317)).toBe(moves[0]);
+		expect(moveAtStart(moves, 300)).toEqual(moves[0]);
+		expect(moveAtStart(moves, 298)).toEqual(moves[0]);
+		expect(moveAtStart(moves, 317)).toEqual(moves[0]);
 		expect(moveAtStart(moves, 318)).toBeNull();
 		expect(moveAtStart(moves, 290)).toBeNull();
+	});
+
+	it('joins the moves that overlap or follow on, so the end is clear of all of them', () => {
+		const moves = [
+			{ what: 'the strip shot "a" morphing in', from: 300, to: 318 },
+			{ what: 'the keys of shot "a"', from: 310, to: 330 },
+			{ what: 'the zoom-through transition into "b"', from: 330, to: 340 },
+			{ what: 'later', from: 400, to: 410 }
+		];
+		expect(moveAtStart(moves, 300)).toEqual({
+			what: 'the strip shot "a" morphing in and the keys of shot "a" and the zoom-through transition into "b"',
+			from: 300,
+			to: 340
+		});
+	});
+
+	it('counts only keys that change the camera, as it stands at each key', () => {
+		const moves = shotMoves({
+			fps: 25,
+			transitions: [],
+			shots: [
+				shot({
+					id: 's',
+					shot: 'full',
+					startFrame: 0,
+					frames: 200,
+					keys: [
+						// Same camera, written out; then a fade; then a real punch-in.
+						key(0, { scale: 1 }),
+						key(10, { scale: 1, x: 0 }),
+						key(20, { opacity: 0 }),
+						key(30, { scale: 1.15 }),
+						// The scale holds while only the opacity changes.
+						key(40, { opacity: 1 })
+					]
+				})
+			]
+		});
+		expect(moves).toEqual([{ what: 'the keys of shot "s"', from: 20, to: 30 }]);
 	});
 });
 
@@ -97,5 +136,17 @@ describe('captionsInMoveMessage', () => {
 		);
 		expect(captionsInMoveClip(message)).toBe('cap-auto');
 		expect(captionsInMoveClip('Captions "x": something else')).toBeNull();
+		const early = captionsInMoveMessage(
+			{
+				clip: 'cap',
+				start: 305,
+				move: { what: 'the strip shot "auto" morphing in', from: 307, to: 325 },
+				over: { panel: true, face: false },
+				frame: 310
+			},
+			25
+		);
+		expect(early).toContain('they start at 12.20 s (program time), just before the strip shot');
+		expect(captionsInMoveClip(early)).toBe('cap');
 	});
 });

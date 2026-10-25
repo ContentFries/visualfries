@@ -1111,7 +1111,7 @@ export function createProgramScene(
 	}
 
 	/** The whole stage, in stage pixels. */
-	const frameRect: Rect = { x: 0, y: 0, width: seg.size[0], height: seg.size[1] };
+	const stageRect: Rect = { x: 0, y: 0, width: seg.size[0], height: seg.size[1] };
 	/** The format's safe zone, when `check` warns about text outside it (`check --format`). */
 	const safeRects = seg.checkSafe ? safeBoxes(seg.size, seg.format.safe) : null;
 	const lastFrame = seg.startFrame + seg.frames - 1;
@@ -1152,12 +1152,12 @@ export function createProgramScene(
 
 	function fitOf(m: Mounted, f: number, page: TextReader): string[] {
 		const id = m.data.id;
-		const { boxes, text, covers } = page.content(m.controller.root);
+		const { boxes, text, covers, filled } = page.content(m.controller.root);
 		const found: FitFinding[] = [];
-		const cut = cutShare(boxes, frameRect);
+		const cut = cutShare(boxes, stageRect);
 		if (cut.share >= CUT_SHARE) found.push({ kind: 'cut', ...cut });
 		if (safeRects) {
-			const share = outsideSafe(text, frameRect, safeRects);
+			const share = outsideSafe(text, stageRect, safeRects);
 			if (share >= SAFE_TEXT_SHARE) found.push({ kind: 'safe', share });
 		}
 		const out: string[] = [];
@@ -1187,9 +1187,9 @@ export function createProgramScene(
 				)
 			);
 		}
-		if (covers) {
+		if (covers && !filled) {
 			const r = reached.get(id) ?? { from: f, last: f, reach: newReach() };
-			addReach(r.reach, boxes, frameRect);
+			addReach(r.reach, boxes, stageRect);
 			r.last = f;
 			reached.set(id, r);
 		}
@@ -1204,7 +1204,7 @@ export function createProgramScene(
 		reached.delete(id);
 		const key = `${id}\u0000empty`;
 		if (toldFit.has(key) || r.last - r.from < FIT_SECONDS * seg.fps) return [];
-		const empty = emptyPart(reachBox(r.reach, frameRect), seg.size);
+		const empty = emptyPart(reachBox(r.reach, stageRect), seg.size);
 		if (!empty) return [];
 		toldFit.add(key);
 		return [
@@ -1218,10 +1218,11 @@ export function createProgramScene(
 
 	/**
 	 * Captions drawn over a shot move they start inside (see `moveAtStart`): at the frames checked
-	 * inside the move, whether their text lies over a panel (a slotted clip's slot, `PANEL_TEXT_SHARE`
-	 * of the text) or covers the face (`FACE_TEXT_SHARE`) on either side; at the first frame checked
-	 * after it, whether they are clear. Drawn over something during the move and clear after it
-	 * warns, once. Captions riding a side of a transition move with it and are left out.
+	 * inside the move, whether their text lies over a panel (a slotted clip's slot,
+	 * `PANEL_TEXT_SHARE` of the text) or covers the face (`FACE_TEXT_SHARE`) on either side; at
+	 * the first frame checked after it that shows some of their text, whether they are clear.
+	 * Drawn over something during the move and clear after it warns, once. Captions riding a side
+	 * of a transition move with it and are left out.
 	 */
 	function movingCaptions(f: number, read: () => TextReader): string[] {
 		const out: string[] = [];
@@ -1250,6 +1251,8 @@ export function createProgramScene(
 				state.face ||= over.face;
 				return;
 			}
+			// After the move, the first frame checked that shows some of their text decides.
+			if (!over.text) return;
 			state.done = true;
 			if (over.panel || over.face) return;
 			out.push(
@@ -1272,7 +1275,7 @@ export function createProgramScene(
 	function drawnOver(now: Plan, i: number, page: TextReader) {
 		const boxes = page.boxes(mounted[i].controller.root);
 		const total = boxes.reduce((sum, b) => sum + b.width * b.height, 0);
-		if (!total) return { panel: false, face: false };
+		if (!total) return { panel: false, face: false, text: false };
 		let onPanel = 0;
 		now.clips.forEach((c, k) => {
 			if (!c.slot || c.local === null || k === i) return;
@@ -1289,7 +1292,7 @@ export function createProgramScene(
 			const head = box && shown ? headOnStage(box, side.layout) : null;
 			if (head && faceCovered(head, boxes, side.layout.clip) >= FACE_TEXT_SHARE) face = true;
 		}
-		return { panel: onPanel / total >= PANEL_TEXT_SHARE, face };
+		return { panel: onPanel / total >= PANEL_TEXT_SHARE, face, text: true };
 	}
 
 	/**
@@ -1359,7 +1362,7 @@ export function createProgramScene(
 			toldBehind.add(id);
 			const clear = clearOfSpeaker(
 				speakerMask(sample!),
-				contentReach(boxes, frameRect) ?? boxes[0],
+				contentReach(boxes, stageRect) ?? boxes[0],
 				seg.size
 			);
 			out.push(
@@ -1673,6 +1676,31 @@ function alphaOf(color: string): number {
 	return parts && parts.length >= 4 ? Number(parts[3]) : 1;
 }
 
+/**
+ * The alpha of a computed CSS colour in any notation (`rgb(…)`, `rgba(…)`, `color(srgb … / a)`,
+ * `oklab(… / a)`, `transparent`); 1 when it gives none.
+ */
+function colourAlpha(colour: string): number {
+	const c = colour.trim();
+	if (!c || c === 'transparent') return 0;
+	const inner = /\(([^()]*)\)\s*$/.exec(c)?.[1];
+	if (!inner) return 1;
+	if (inner.includes('/')) return Number(inner.split('/').pop()!.trim()) || 0;
+	const parts = inner.split(',');
+	return /^rgba|^hsla/.test(c) || parts.length === 4 ? Number(parts[3] ?? 1) : 1;
+}
+
+/**
+ * Whether a computed `background-image` is a gradient of opaque colours only: it paints its whole
+ * box. A picture (`url(…)`) or a gradient with a transparent stop (a scrim) does not count.
+ */
+function opaqueGradient(image: string): boolean {
+	if (!image || image === 'none' || /url\(/.test(image) || !/gradient\(/.test(image)) return false;
+	const colours =
+		image.match(/(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]*\)|\btransparent\b/g) ?? [];
+	return colours.length > 0 && colours.every((c) => colourAlpha(c) >= HIDES);
+}
+
 /** Whether an element with `style` paints its box: a background, or a border on any side. */
 function paintsBox(style: CSSStyleDeclaration): boolean {
 	if (alphaOf(style.backgroundColor) > 0 || style.backgroundImage !== 'none') return true;
@@ -1795,14 +1823,16 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 		 * cards, panels and SVGs (elements with a background or border) that hold text, each cut
 		 * only to the ancestors smaller than the stage that clip their overflow. Left out: what is
 		 * hidden or under `TEXT_OPACITY`, decoration without text (glows, patterns, canvases), and
-		 * planes over `MOST` of the stage; `covers` tells whether such a plane paints the frame
-		 * opaque (a card or picture, at least `HIDES` opaque).
+		 * planes over `MOST` of the stage. `covers` tells whether such a plane is an opaque card (a
+		 * background colour, or a gradient of opaque colours, at least `HIDES` opaque in effect),
+		 * `filled` whether an image, video, canvas or SVG lies over that much of the stage.
 		 */
-		content(root: HTMLElement): { boxes: Rect[]; text: Rect[]; covers: boolean } {
+		content(root: HTMLElement): { boxes: Rect[]; text: Rect[]; covers: boolean; filled: boolean } {
 			const boxes: Rect[] = [];
 			const text: Rect[] = [];
 			let covers = false;
-			if (!frame.width || !frame.height) return { boxes, text, covers };
+			let filled = false;
+			if (!frame.width || !frame.height) return { boxes, text, covers, filled };
 			const visit = (el: Element) => {
 				for (const child of el.childNodes) {
 					if (child.nodeType === Node.TEXT_NODE) {
@@ -1823,11 +1853,11 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 						const box = look.inner ? intersect(own, look.inner) : own;
 						const media = /^(IMG|VIDEO)$/.test(child.tagName);
 						if (box && most(box)) {
-							if (
-								look.opacity >= HIDES &&
-								(alphaOf(style.backgroundColor) >= HIDES ||
-									style.backgroundImage !== 'none' ||
-									child.tagName === 'IMG')
+							// A picture over the frame fills it: what is on it is content.
+							if (picture) filled = true;
+							else if (
+								look.opacity * colourAlpha(style.backgroundColor) >= HIDES ||
+								(look.opacity >= HIDES && opaqueGradient(style.backgroundImage))
 							)
 								covers = true;
 						} else if (
@@ -1842,7 +1872,7 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 				}
 			};
 			visit(root);
-			return { boxes, text, covers };
+			return { boxes, text, covers, filled };
 		},
 		/**
 		 * Whether something visible inside `root` is a full-frame card over the head and hides the

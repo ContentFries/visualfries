@@ -507,17 +507,19 @@ frames with `<Subject hole>` are left out.
 Captions that start inside a shot move get a hint too. A move is a shot's morph (a strip's panel
 rising, a whip, the way back to `full`), two shot keys at most a second apart that move the
 camera, or a cut or shot transition window. For each `@visualfries/captions` clip that starts
-inside one (or up to two frames before it), `check` measures at the frames inside the move
-whether its text lies over a slotted clip's panel (a fifth of the text or more) or covers the
-face on either side (a tenth, as above), and at the first frame checked after the move whether
-it is clear. Drawn over something during the move and clear once it has landed warns once,
-with the time the move ends: `Captions "cap-auto": they start at 4.76 s (program time), inside
-the strip shot "auto" morphing in (4.76–5.48 s), and they are drawn over the moving panel and
-the speaker's face until it lands … Start them when the move ends, at 5.48 s (0.72 s later)`.
-Captions that are over the panel or the face after the move as well are a layout question, not a
-timing one, and get no hint; captions that start on a cut and ride its incoming side move with
-it and are left out. Nothing waits on its own: shift the captions' `from` or keep them out of
-the moving area, after a look at stills of the move.
+inside one, or up to two frames before it (`just before` in the warning), `check` measures at
+the frames inside the move whether its text lies over a slotted clip's panel (a fifth of the
+text or more) or covers the face on either side (a tenth, as above), and at the first frame
+checked after the move that shows some of its text whether it is clear. Moves that overlap or
+follow on count as one, so the suggested start is clear of all of them. Drawn over something
+during the move and clear once it has landed warns once, with the time the move ends: `Captions
+"cap-auto": they start at 4.76 s (program time), inside the strip shot "auto" morphing in
+(4.76–5.48 s), and they are drawn over the moving panel and the speaker's face until it lands …
+Start them when the move ends, at 5.48 s (0.72 s later)`. Captions that are over the panel or
+the face after the move as well are a layout question, not a timing one, and get no hint;
+captions that start on a cut and ride its incoming side move with it and are left out. Nothing
+waits on its own: shift the captions' `from` or keep them out of the moving area, after a look
+at stills of the move.
 
 `check` also warns where a clip's content does not fit the frame, the sign of a block written
 in fixed pixels for another size (a 1920 × 1080 layout in a 9:16 program). Every fifth frame it
@@ -533,11 +535,17 @@ to slide in): only boxes that reach into the frame count. A clip warns once for 
 - **Cut by the frame.** A quarter or more of that content lies past the frame edge for a second
   of checked frames. A card sliding in or a push passes the edge for less. Example:
   `Clip "hook-cards" (blocks/HookCards.svelte): 32 % of its content lies outside the frame (past the right edge of the 1080×1920 frame) from 10.80 s …`.
-- **A mostly empty card.** The clip covers the whole frame with a card or picture (at least 0.9
-  opaque) but its content, summed over every frame it does so (a second or more, the outer 5 %
-  of its area at each end left out, so a small label in a corner does not count), starts within
-  the top (left) 12 % and ends before 60 % of the frame's height (width), as a layout for
-  another size does. Told when the clip leaves. Example:
+- **A mostly empty card.** The clip covers the whole frame with an opaque card (a background
+  colour, or a gradient of opaque colours, at least 0.9 opaque; a scrim that fades to
+  transparent is not a card, and a picture over the frame fills it) but its content, summed over
+  every frame it does so (a second or more, the outer 5 % of its area at each end left out, so a
+  small label in a corner does not count), is laid out like a frame of the other orientation.
+  Only the long axis is judged (the bottom of a portrait frame, the right of a landscape one):
+  the content starts within its first 12 % and ends before 60 % of it and before the length of
+  the short side, and it spans at least half the short side across and reaches at least half of
+  its length along. A short list down the left of a portrait card, a 16:9 card that leaves the
+  bottom for the captions, or a headline in a corner is not judged. Told when the clip leaves, or
+  at the end of the segment it is checked in. Example:
   `it covers the whole frame but leaves the bottom 61 % of it empty: its content only reaches y 146–751 of 1920 px`.
 - **Outside the safe zone,** with `check --format` only: half or more of its text inside the
   frame lies outside the format's safe zone (the `--safe-*` insets, notch included) for a
@@ -547,7 +555,8 @@ to slide in): only boxes that reach into the frame count. A clip warns once for 
 
 Cut and shot transition windows end a run. Read the share as a measure: boxes are the page's
 boxes around turned or 3D-transformed elements, nested boxes count each, and text drawn on a
-canvas is not seen. Lay the block out from the clip's size (percentages, container units,
+canvas is not seen. Content that crosses the edge on purpose warns too when it stays there for a
+second: a ticker or marquee, a card with text that bleeds off the frame by design. Lay the block out from the clip's size (percentages, container units,
 `--safe-*`, its own layout for `clip.format.class`), after a look at a still.
 
 The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full`,

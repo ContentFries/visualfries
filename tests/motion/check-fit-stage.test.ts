@@ -7,7 +7,7 @@ import path from 'node:path';
 import { findChromium, loadMotionProject } from '../../src/lib/motion/node.js';
 import { checkProgram } from '../../src/lib/motion/program-node.js';
 // @ts-expect-error: a plain .mjs helper shared with the subject layer tests
-import { SW, SH, writeFootage } from './fixtures/subject/footage.mjs';
+import { SW, SH, ffmpeg, writeFootage } from './fixtures/subject/footage.mjs';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -58,6 +58,31 @@ const UNDER_SUBJECT = `<script>
 <Subject />
 `;
 
+/** A headline at the top over a scrim that darkens the top of the footage. */
+const SCRIM = `<div style="position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,.6), transparent 40%)"></div>
+<div style="position:absolute;left:20px;top:20px;width:320px;font:700 30px sans-serif;color:#fff">HEADLINE OVER THE SPEAKER</div>
+`;
+
+/** A full-bleed photo with a headline at the top. */
+const PHOTO = `<script>
+	import { useReady } from 'visualfries/motion';
+	import photo from './photo.jpg';
+	const img = new Image();
+	img.src = photo;
+	useReady(img.decode().catch(() => {}));
+</script>
+<img src={photo} alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" />
+<div style="position:absolute;left:20px;top:20px;font:700 30px sans-serif;color:#fff">HEADLINE</div>
+`;
+
+/** A portrait card with a short list on its left. */
+const LIST = `<div style="position:absolute;inset:0;background:#123">
+	{#each ['One', 'Two', 'Three', 'Four', 'Five', 'Six'] as item, i}
+		<div style="position:absolute;left:20px;top:{40 + i * 90}px;padding:8px;background:#456;font:700 26px sans-serif;color:#fff">{item}</div>
+	{/each}
+</div>
+`;
+
 const clip = (id: string, block: string, from: number, until: number, extra = {}) => ({
 	id,
 	block,
@@ -83,13 +108,32 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 				end: 0.3 + i * 0.3
 			}));
 			await fs.writeFile(path.join(dir, 'talk.transcript.json'), JSON.stringify({ words }));
+			// One word right after 1.5 s, then nothing until 2.6 s.
+			const gap = [
+				['one', 1.55, 1.75],
+				['two', 2.6, 2.9],
+				['three', 3.0, 3.3]
+			].map(([text, start, end]) => ({ text, start, end }));
+			await fs.writeFile(path.join(dir, 'gap.transcript.json'), JSON.stringify({ words: gap }));
+			ffmpeg([
+				'-f',
+				'lavfi',
+				'-i',
+				`color=0x887766:s=${SW}x${SH}`,
+				'-frames:v',
+				'1',
+				path.join(dir, 'photo.jpg')
+			]);
 			for (const [name, source] of Object.entries({
 				Sticker: STICKER,
 				Fixed: FIXED,
 				Pan: PAN,
 				Fits: FITS,
 				Panel: PANEL,
-				UnderSubject: UNDER_SUBJECT
+				UnderSubject: UNDER_SUBJECT,
+				Scrim: SCRIM,
+				Photo: PHOTO,
+				List: LIST
 			}))
 				await fs.writeFile(path.join(dir, `${name}.svelte`), source);
 		}, 120_000);
@@ -173,6 +217,43 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 				/^Captions "cap-move": they start at 1\.50 s \(program time\), inside the full shot "back" morphing in \(1\.50–2\.\d\d s\), and they are drawn over the moving panel/
 			);
 			expect(warned[0]).toMatch(/Start them when the move ends, at 2\.\d\d s \(0\.\d\d s later\)/);
+		}, 300_000);
+
+		it('leaves scrims, full-bleed photos and short lists on a card alone', async () => {
+			const loaded = await project('not-empty', {
+				clips: [
+					clip('scrim', 'Scrim.svelte', 0.2, 1.4),
+					clip('photo', 'Photo.svelte', 1.5, 2.7),
+					clip('list', 'List.svelte', 2.8, 3.9)
+				]
+			});
+			const fit = messages(await checkProgram(loaded)).filter((m) =>
+				/ lies outside |leaves the /.test(m)
+			);
+			expect(fit).toEqual([]);
+		}, 300_000);
+
+		it('judges captions after a move only where they show text', async () => {
+			// The first word ends before the move into the strip lands; the next ones, over the
+			// panel as well, come after a gap.
+			const loaded = await project('gap', {
+				footage: {
+					talk: { src: 'talk.mp4', matte: 'talk.matte.mp4', transcript: 'gap.transcript.json' }
+				},
+				shots: [
+					{ id: 'front', shot: 'full', from: 0, until: 1.5 },
+					{ id: 'side', shot: 'strip', from: 1.5, until: 4, params: { size: 0.5 } }
+				],
+				clips: [
+					clip('panel', 'Panel.svelte', 1.5, 4, { slot: 'panel' }),
+					clip('cap', '@visualfries/captions', 1.5, 3.8, {
+						words: { captions: 'clip' },
+						props: { y: 0.75, maxWords: 1, size: 28, hold: 0 }
+					})
+				]
+			});
+			const warned = messages(await checkProgram(loaded)).filter((m) => m.startsWith('Captions '));
+			expect(warned).toEqual([]);
 		}, 300_000);
 
 		it('warns about text behind the speaker that the head or body covers', async () => {

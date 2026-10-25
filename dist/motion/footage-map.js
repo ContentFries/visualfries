@@ -1,3 +1,26 @@
+/** The picture program frames `[from, to)` show, as runs (frames without footage left out). */
+export function pictureRuns(map, from, to) {
+    const runs = [];
+    for (let f = Math.max(0, from); f < Math.min(map.frames, to); f++) {
+        const view = programFootageAt(map, f);
+        if (!view)
+            continue;
+        const last = runs[runs.length - 1];
+        if (last && last.source === view.source) {
+            if (!last.held && view.frame === last.frame + last.frames) {
+                last.frames++;
+                continue;
+            }
+            if ((last.held || last.frames === 1) && view.frame === last.frame) {
+                last.held = true;
+                last.frames++;
+                continue;
+            }
+        }
+        runs.push({ source: view.source, frame: view.frame, frames: 1, held: false });
+    }
+    return runs;
+}
 const contains = (s, f) => f >= s.startFrame && f < s.startFrame + s.frames;
 /** The map of a resolved program; `totals` overrides the probed source lengths. */
 export function footageMap(program, totals) {

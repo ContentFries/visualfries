@@ -1,5 +1,7 @@
 import { micro } from './cutlist.js';
 import { clipShowRange, stagedShots } from './segments.js';
+import { footageMap, pictureRuns, shownRanges } from './footage-map.js';
+import { headroomParam, SUBJECT_SMOOTH } from './shots/layout.js';
 /**
  * Excerpts: a range of the program as a video of its own (a teaser), sliced from the whole
  * program after it resolved, so every phrase, `until` and repeated phrase lands exactly where it
@@ -114,6 +116,15 @@ export function sliceProgram(full, excerpt, end, sounds = {}, field = 'excerpt')
             shifted.gainKeys = keysWithin(p.gainKeys, a, b);
         return [shifted];
     });
+    // What framing reads of the whole program beyond the range.
+    const map = footageMap(full);
+    const gap = Math.round(fps);
+    const margin = Math.round(2 * SUBJECT_SMOOTH * fps) + gap;
+    const heads = {};
+    for (const s of stagedShots(full.shots, full.transitions, range))
+        if (headroomParam(s.params) !== false && (s.startFrame < first || endOf(s) > endOf(range)))
+            heads[s.id] = pictureRuns(map, s.startFrame, endOf(s));
+    const around = shownRanges(map, first - margin, endOf(range) + margin, gap);
     return {
         ...full,
         frames: excerpt.frames + cardFrames,
@@ -125,7 +136,7 @@ export function sliceProgram(full, excerpt, end, sounds = {}, field = 'excerpt')
         events,
         audio: { ...full.audio, speech, sfx, music },
         diagnostics: [...full.diagnostics, ...excerptNotes(full, excerpt, field)],
-        excerpt
+        excerpt: { ...excerpt, footage: { around, heads } }
     };
 }
 /** A cut trimmed to `range`, in excerpt frames; a start inside its hold shows the held frame. */

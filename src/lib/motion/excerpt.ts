@@ -1,5 +1,13 @@
 import { micro, type SoundInfo } from './cutlist.js';
 import { clipShowRange, stagedShots } from './segments.js';
+import {
+	footageMap,
+	pictureRuns,
+	shownRanges,
+	type FootageRun,
+	type FrameRange
+} from './footage-map.js';
+import { headroomParam, SUBJECT_SMOOTH } from './shots/layout.js';
 import type {
 	AudioPiece,
 	ProgramClip,
@@ -41,6 +49,26 @@ export type ProgramExcerpt = {
 	format: string;
 	/** The end card after the slice: its clip and length in frames; null without one. */
 	end: { clip: string; frames: number } | null;
+	/** In the excerpt's own program: the whole program's footage its framing reads. */
+	footage?: ExcerptFootage;
+};
+
+/**
+ * What of the whole program's footage an excerpt's framing reads, so it frames as the full video
+ * does; part of its segments' hashes, so a re-cut outside the range that changes it draws them
+ * again.
+ */
+export type ExcerptFootage = {
+	/**
+	 * Source frames the whole program shows around the excerpt's edges (two subject smoothing
+	 * windows and a second): the smoothed subject and how high the head gets read them.
+	 */
+	around: Record<string, FrameRange[]>;
+	/**
+	 * The picture over the whole shot, in the whole program, of each shot with `headroom` that
+	 * runs across an edge: its one head size is measured over it (`headOfRuns`).
+	 */
+	heads: Record<string, FootageRun[]>;
 };
 
 type Span = { startFrame: number; frames: number };
@@ -143,6 +171,16 @@ export function sliceProgram(
 		return [shifted];
 	});
 
+	// What framing reads of the whole program beyond the range.
+	const map = footageMap(full);
+	const gap = Math.round(fps);
+	const margin = Math.round(2 * SUBJECT_SMOOTH * fps) + gap;
+	const heads: ExcerptFootage['heads'] = {};
+	for (const s of stagedShots(full.shots, full.transitions, range))
+		if (headroomParam(s.params) !== false && (s.startFrame < first || endOf(s) > endOf(range)))
+			heads[s.id] = pictureRuns(map, s.startFrame, endOf(s));
+	const around = shownRanges(map, first - margin, endOf(range) + margin, gap);
+
 	return {
 		...full,
 		frames: excerpt.frames + cardFrames,
@@ -154,7 +192,7 @@ export function sliceProgram(
 		events,
 		audio: { ...full.audio, speech, sfx, music },
 		diagnostics: [...full.diagnostics, ...excerptNotes(full, excerpt, field)],
-		excerpt
+		excerpt: { ...excerpt, footage: { around, heads } }
 	};
 }
 

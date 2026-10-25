@@ -1,4 +1,9 @@
-import { programFootageAt, type FootageMap, type FootageView } from './footage-map.js';
+import {
+	programFootageAt,
+	type FootageMap,
+	type FootageRun,
+	type FootageView
+} from './footage-map.js';
 import { sourceSubjectBox } from './footage.js';
 import type { FootageFrames, SubjectBox } from './resolve.js';
 import type { ProgramTransition } from './program.js';
@@ -54,6 +59,31 @@ export function shotHead(
 		const box = frames ? sourceSubjectBox(frames, view.frame) : null;
 		if (box?.headHeight !== undefined) heights.push(box.headHeight);
 	}
+	return headPercentile(heights);
+}
+
+/**
+ * `shotHead` over the picture `runs` give (see `FootageRun`) instead of a footage map: an
+ * excerpt's shot measured over the whole shot of the whole program.
+ */
+export function headOfRuns(
+	runs: readonly FootageRun[],
+	footage: Record<string, FootageFrames>,
+	source: string
+): number | null {
+	const frames = footage[source];
+	const heights: number[] = [];
+	for (const run of runs) {
+		if (run.source !== source || !frames) continue;
+		for (let k = 0; k < run.frames; k++) {
+			const box = sourceSubjectBox(frames, run.held ? run.frame : run.frame + k);
+			if (box?.headHeight !== undefined) heights.push(box.headHeight);
+		}
+	}
+	return headPercentile(heights);
+}
+
+function headPercentile(heights: number[]): number | null {
 	if (!heights.length) return null;
 	heights.sort((a, b) => a - b);
 	return heights[Math.min(heights.length - 1, Math.floor(heights.length * HEAD_PERCENTILE))];

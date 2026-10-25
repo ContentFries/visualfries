@@ -85,7 +85,7 @@ describe('excerpts', () => {
 		const p = excerpt('teaser');
 		const A = range.startFrame;
 		expect(errors(p)).toEqual([]);
-		expect(p.excerpt).toEqual(range);
+		expect(p.excerpt).toMatchObject(range);
 		expect(p.excerpts).toBeUndefined();
 		expect(p.format.name).toBe('1080x1350');
 		expect(p.frames).toBe(range.frames + 30);
@@ -338,6 +338,34 @@ describe('excerpts', () => {
 		expect(errors(asked).map((d) => d.field)).toEqual(
 			expect.arrayContaining(['excerpts[0].end.sound', 'excerpts[0].end.block'])
 		);
+	});
+
+	it('hashes the whole-program footage its framing reads: a headroom shot across an edge', () => {
+		const shots = [
+			{ id: 'held', shot: 'punch', from: 0, until: 'the slow export', params: { headroom: 0.08 } }
+		];
+		const ex = [{ id: 'x', from: 'today we fix', until: 'faster codec' }];
+		const whole = full(project({ shots, excerpts: ex }));
+		const cut1 = whole.cuts[0];
+		const p = excerpt('x', project({ shots, excerpts: ex }));
+		// The shot starts before the excerpt: its head size reads the picture over the whole shot.
+		const runs = p.excerpt!.footage!.heads.held;
+		expect(runs[0]).toEqual({
+			source: 'talk',
+			frame: cut1.srcIn,
+			frames: cut1.frames,
+			held: false
+		});
+		// The first cut keeps its length but shows other source frames: only what the head size
+		// reads changes, and the segment is drawn again.
+		const moved = base.cuts.map((c: object, i: number) =>
+			i === 0 ? { ...c, in: { frame: cut1.srcIn + 3 }, out: { frame: cut1.srcOut + 3 } } : c
+		);
+		const q = excerpt('x', project({ shots, cuts: moved, excerpts: ex }));
+		expect(q.excerpt!.startFrame).toBe(p.excerpt!.startFrame);
+		expect(q.cuts).toEqual(p.cuts);
+		expect(q.excerpt!.footage!.heads.held[0].frame).toBe(cut1.srcIn + 3);
+		expect(q.segments[0].hash).not.toBe(p.segments[0].hash);
 	});
 
 	it('rejects unknown fields', () => {

@@ -64,6 +64,35 @@ export type FootageView = {
 /** An inclusive range of source frames. */
 export type FrameRange = { first: number; last: number };
 
+/**
+ * A run of program frames whose picture is one source: frames `frame`, `frame + 1` … in turn,
+ * or with `held` frame `frame` throughout.
+ */
+export type FootageRun = { source: string; frame: number; frames: number; held: boolean };
+
+/** The picture program frames `[from, to)` show, as runs (frames without footage left out). */
+export function pictureRuns(map: FootageMap, from: number, to: number): FootageRun[] {
+	const runs: FootageRun[] = [];
+	for (let f = Math.max(0, from); f < Math.min(map.frames, to); f++) {
+		const view = programFootageAt(map, f);
+		if (!view) continue;
+		const last = runs[runs.length - 1];
+		if (last && last.source === view.source) {
+			if (!last.held && view.frame === last.frame + last.frames) {
+				last.frames++;
+				continue;
+			}
+			if ((last.held || last.frames === 1) && view.frame === last.frame) {
+				last.held = true;
+				last.frames++;
+				continue;
+			}
+		}
+		runs.push({ source: view.source, frame: view.frame, frames: 1, held: false });
+	}
+	return runs;
+}
+
 type Span = { startFrame: number; frames: number };
 const contains = (s: Span, f: number) => f >= s.startFrame && f < s.startFrame + s.frames;
 

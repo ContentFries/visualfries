@@ -282,7 +282,10 @@ export function resolveProgram(project, given, opts = {}) {
     const field = `excerpts[${project.excerpts.indexOf(spec)}]`;
     const sliced = sliceProgram(rest, range, card, inputs.sounds, field);
     const hold = range.end ? { from: range.frames, clips: [range.end.clip] } : undefined;
-    return { ...sliced, segments: resolveSegments(sliced, project, hold) };
+    return {
+        ...sliced,
+        segments: resolveSegments(sliced, project, { hold, footage: sliced.excerpt?.footage })
+    };
 }
 /** The excerpt `id` of the project; an unknown id or a project without a program throws. */
 function excerptSpec(project, id) {
@@ -1435,7 +1438,8 @@ export function propFiles(props) {
  * shots and transitions, fonts, styles), so it changes exactly when its pixels may. An
  * excerpt's `hold` (its end card over the held last frame) is hashed with the segment it is in.
  */
-function resolveSegments(program, project, hold) {
+function resolveSegments(program, project, excerpt) {
+    const hold = excerpt?.hold;
     const inWindow = (frame) => program.transitions.some((t) => t.startFrame < frame && frame < endOf(t));
     // Inside the frames, and before an end card (whose page holds the frame before it): an
     // excerpt keeps cuts that start outside its range.
@@ -1495,7 +1499,17 @@ function resolveSegments(program, project, hold) {
             shots: shown,
             clips,
             transitions: transitions.map(picture),
-            ...(hold && endOf(span) > hold.from ? { hold } : {})
+            // An excerpt: the end card's hold in the segment it is in, and what its framing reads
+            // of the whole program's footage (the head runs of the shots in this segment).
+            ...(excerpt
+                ? {
+                    excerpt: {
+                        ...(hold && endOf(span) > hold.from ? { hold } : {}),
+                        around: excerpt.footage?.around ?? {},
+                        heads: shown.flatMap((s) => excerpt.footage?.heads[s.id] ? [[s.id, excerpt.footage.heads[s.id]]] : [])
+                    }
+                }
+                : {})
         }));
         segments.push({
             id: `seg${segments.length + 1}`,

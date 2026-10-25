@@ -54,15 +54,13 @@ import {
 	footageMap,
 	footageRanges,
 	mergeRanges,
-	shownRanges,
 	type FootageMap,
 	type FrameRange
 } from './footage-map.js';
-import { shotHead } from './framing.js';
-import { headroomParam, SUBJECT_SMOOTH } from './shots/layout.js';
+import { headOfRuns } from './framing.js';
 import type { FootageFrames, FootageRange, SubjectBox } from './resolve.js';
 import { holdoutFootage } from './inserts.js';
-import { END_CARD_BLOCK } from './excerpt.js';
+import { END_CARD_BLOCK, type ExcerptFootage } from './excerpt.js';
 import { removeOrphans, trackPartial } from './partials.js';
 import type { StageSegment } from './segments.js';
 
@@ -1743,7 +1741,7 @@ async function extractFootage(
 		margins,
 		gap
 	);
-	const whole = excerpt ? excerptFootage(loaded, drawn!, sources, gap) : null;
+	const whole = excerpt?.footage ? excerptFootage(excerpt.footage) : null;
 	if (whole) wanted = mergeRanges(unite(wanted, whole.wanted), gap);
 	for (const source of sources) {
 		const ranges: FootageRange[] = [];
@@ -1766,41 +1764,26 @@ const unite = (a: Record<string, FrameRange[]>, b: Record<string, FrameRange[]>)
 };
 
 /**
- * What an excerpt needs of the whole program's footage to frame like the full video: the
- * frames the whole program shows around the excerpt's edges (subject smoothing and how high the
- * head gets read them), and every frame of a shot with `headroom` that runs across an edge,
- * whose one head size (`shotHead`) is measured over the whole shot; `heads` gives those sizes
- * once the frames are extracted.
+ * What an excerpt's framing reads of the whole program's footage (see `ExcerptFootage`): the
+ * frames to extract besides its own, and `heads`, the head size of each `headroom` shot across
+ * an edge over its whole shot, once they are extracted.
  */
-function excerptFootage(
-	loaded: LoadedMotionProject,
-	drawn: ResolvedProgram,
-	sources: FootageSource[],
-	gap: number
-) {
-	const excerpt = drawn.excerpt!;
-	const fps = loaded.project.fps;
-	const whole = resolveProgram(loaded.project, loaded.inputs, { format: drawn.format.name });
-	const map = footageMap(whole, Object.fromEntries(sources.map((s) => [s.name, s.total])));
-	// Two smoothing windows (how high the head gets reads one around each frame of another).
-	const edge = Math.round(2 * SUBJECT_SMOOTH * fps) + gap;
-	const end = excerpt.startFrame + excerpt.frames;
-	const lists = [shownRanges(map, excerpt.startFrame - edge, end + edge, gap)];
-	const crossing = drawn.shots.flatMap((s) => {
-		const full = whole.shots.find((w) => w.id === s.id);
-		const across = s.startFrame < 0 || s.startFrame + s.frames > excerpt.frames;
-		return full && across && headroomParam(s.params) !== false ? [full] : [];
-	});
-	for (const shot of crossing)
-		lists.push(shownRanges(map, shot.startFrame, shot.startFrame + shot.frames, gap));
+function excerptFootage(footage: ExcerptFootage) {
+	const runs = Object.values(footage.heads).flat();
+	const ranges: Record<string, FrameRange[]> = {};
+	for (const run of runs)
+		(ranges[run.source] ??= []).push({
+			first: run.frame,
+			last: run.held ? run.frame : run.frame + run.frames - 1
+		});
 	return {
-		wanted: lists.reduce(unite, {}),
+		wanted: unite(footage.around, ranges),
 		heads: (frames: Record<string, FootageFrames>) =>
 			Object.fromEntries(
-				crossing.map((shot) => [
-					shot.id,
+				Object.entries(footage.heads).map(([shot, list]) => [
+					shot,
 					Object.fromEntries(
-						Object.keys(frames).map((name) => [name, shotHead(shot, map, frames, name)])
+						Object.keys(frames).map((name) => [name, headOfRuns(list, frames, name)])
 					)
 				])
 			)

@@ -38,7 +38,12 @@ import {
 	type MotionDiagnostic,
 	type ResolvedClip
 } from './resolve.js';
-import { END_CARD_BLOCK, sliceProgram, type ProgramExcerpt } from './excerpt.js';
+import {
+	END_CARD_BLOCK,
+	sliceProgram,
+	type ExcerptFootage,
+	type ProgramExcerpt
+} from './excerpt.js';
 import {
 	micro,
 	programEnd,
@@ -596,7 +601,10 @@ export function resolveProgram(
 	const field = `excerpts[${project.excerpts!.indexOf(spec)}]`;
 	const sliced = sliceProgram(rest, range, card, inputs.sounds, field);
 	const hold = range.end ? { from: range.frames, clips: [range.end.clip] } : undefined;
-	return { ...sliced, segments: resolveSegments(sliced, project, hold) };
+	return {
+		...sliced,
+		segments: resolveSegments(sliced, project, { hold, footage: sliced.excerpt?.footage })
+	};
 }
 
 /** The excerpt `id` of the project; an unknown id or a project without a program throws. */
@@ -2066,8 +2074,9 @@ function resolveSegments(
 		| 'transitions'
 	>,
 	project: MotionProject,
-	hold?: { from: number; clips: string[] }
+	excerpt?: { hold?: { from: number; clips: string[] }; footage?: ExcerptFootage }
 ): ProgramSegment[] {
+	const hold = excerpt?.hold;
 	const inWindow = (frame: number) =>
 		program.transitions.some((t) => t.startFrame < frame && frame < endOf(t));
 	// Inside the frames, and before an end card (whose page holds the frame before it): an
@@ -2131,7 +2140,19 @@ function resolveSegments(
 				shots: shown,
 				clips,
 				transitions: transitions.map(picture),
-				...(hold && endOf(span) > hold.from ? { hold } : {})
+				// An excerpt: the end card's hold in the segment it is in, and what its framing reads
+				// of the whole program's footage (the head runs of the shots in this segment).
+				...(excerpt
+					? {
+							excerpt: {
+								...(hold && endOf(span) > hold.from ? { hold } : {}),
+								around: excerpt.footage?.around ?? {},
+								heads: shown.flatMap((s) =>
+									excerpt.footage?.heads[s.id] ? [[s.id, excerpt.footage.heads[s.id]]] : []
+								)
+							}
+						}
+					: {})
 			})
 		);
 		segments.push({

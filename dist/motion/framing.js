@@ -38,6 +38,27 @@ export function shotHead(shot, map, footage, source) {
         if (box?.headHeight !== undefined)
             heights.push(box.headHeight);
     }
+    return headPercentile(heights);
+}
+/**
+ * `shotHead` over the picture `runs` give (see `FootageRun`) instead of a footage map: an
+ * excerpt's shot measured over the whole shot of the whole program.
+ */
+export function headOfRuns(runs, footage, source) {
+    const frames = footage[source];
+    const heights = [];
+    for (const run of runs) {
+        if (run.source !== source || !frames)
+            continue;
+        for (let k = 0; k < run.frames; k++) {
+            const box = sourceSubjectBox(frames, run.held ? run.frame : run.frame + k);
+            if (box?.headHeight !== undefined)
+                heights.push(box.headHeight);
+        }
+    }
+    return headPercentile(heights);
+}
+function headPercentile(heights) {
     if (!heights.length)
         return null;
     heights.sort((a, b) => a - b);

@@ -1,4 +1,5 @@
 import { type SoundInfo } from './cutlist.js';
+import { type FootageRun, type FrameRange } from './footage-map.js';
 import type { AudioPiece, ProgramClip, ResolvedProgram } from './program.js';
 /**
  * Excerpts: a range of the program as a video of its own (a teaser), sliced from the whole
@@ -36,6 +37,25 @@ export type ProgramExcerpt = {
         clip: string;
         frames: number;
     } | null;
+    /** In the excerpt's own program: the whole program's footage its framing reads. */
+    footage?: ExcerptFootage;
+};
+/**
+ * What of the whole program's footage an excerpt's framing reads, so it frames as the full video
+ * does; part of its segments' hashes, so a re-cut outside the range that changes it draws them
+ * again.
+ */
+export type ExcerptFootage = {
+    /**
+     * Source frames the whole program shows around the excerpt's edges (two subject smoothing
+     * windows and a second): the smoothed subject and how high the head gets read them.
+     */
+    around: Record<string, FrameRange[]>;
+    /**
+     * The picture over the whole shot, in the whole program, of each shot with `headroom` that
+     * runs across an edge: its one head size is measured over it (`headOfRuns`).
+     */
+    heads: Record<string, FootageRun[]>;
 };
 /**
  * The excerpt `excerpt` of program `full`: every item on screen in the range, moved so that the

@@ -1,4 +1,4 @@
-import { type FootageMap, type FootageView } from './footage-map.js';
+import { type FootageMap, type FootageRun, type FootageView } from './footage-map.js';
 import type { FootageFrames, SubjectBox } from './resolve.js';
 import type { ProgramTransition } from './program.js';
 import { type ShotLayout, type ShotSpan } from './shots/index.js';
@@ -15,6 +15,11 @@ type Span = {
  * Null without a matte that measures heads.
  */
 export declare function shotHead(shot: Span, map: FootageMap | null, footage: Record<string, FootageFrames>, source: string): number | null;
+/**
+ * `shotHead` over the picture `runs` give (see `FootageRun`) instead of a footage map: an
+ * excerpt's shot measured over the whole shot of the whole program.
+ */
+export declare function headOfRuns(runs: readonly FootageRun[], footage: Record<string, FootageFrames>, source: string): number | null;
 export type FramingData = Pick<StageSegment, 'fps' | 'size' | 'cls' | 'format' | 'footage' | 'footageMap' | 'shots' | 'heads'>;
 /**
  * The framing of a program (or a segment of it): the layout of a side showing `view` at

@@ -60,6 +60,18 @@ export type FrameRange = {
     first: number;
     last: number;
 };
+/**
+ * A run of program frames whose picture is one source: frames `frame`, `frame + 1` … in turn,
+ * or with `held` frame `frame` throughout.
+ */
+export type FootageRun = {
+    source: string;
+    frame: number;
+    frames: number;
+    held: boolean;
+};
+/** The picture program frames `[from, to)` show, as runs (frames without footage left out). */
+export declare function pictureRuns(map: FootageMap, from: number, to: number): FootageRun[];
 type Span = {
     startFrame: number;
     frames: number;

@@ -1,6 +1,9 @@
 <footer>
 	<div class="wrap">
-		<span>VisualFries · MIT · built by ContentFries</span>
+		<span
+			>VisualFries · MIT · built by <a href="https://www.contentfries.com">ContentFries</a>, which
+			also does it for you</span
+		>
 		<span class="grow"></span>
 		<a href="/docs">Docs</a>
 		<a href="/docs/agents">Agents</a>

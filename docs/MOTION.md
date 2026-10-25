@@ -491,6 +491,65 @@ boxes are the page's boxes around turned text, a clip transition's moves count a
 drawn, a half-opaque chip that hugs the chin counts as its whole box, and inside one block the
 order of its elements decides what is over what (a `z-index` there is not followed).
 
+`check` warns, the other way round, where the speaker covers text placed behind them: the text
+of a `"layer": "behind"` clip (a word slot behind the head), against the speaker as the matte
+cuts them out that frame, and text under a subject layer (`<Subject>` with `layer` `"subject"`,
+after the text in the same clip or in a later one), against that layer's pixels. A clip warns
+once, when the head or body has covered more than half of its text (sampled over its line
+boxes) for half a second of checked frames: the head over part of a word is the look, over most
+of it the word cannot be read. The warning names the clip, the first time, the largest share
+covered and the parts of the frame clear of the speaker (`the top 216 px of the frame, above the
+speaker`; the clear span on the left or right at the text's height). On a portrait close-up the
+face fills the width, so the room is above the head: align the words to the top, make them
+smaller, or bring them in front. Transition windows, faded footage, footage without a matte and
+frames with `<Subject hole>` are left out.
+
+Captions that start inside a shot move get a hint too. A move is a shot's morph (a strip's panel
+rising, a whip, the way back to `full`), two shot keys at most a second apart that move the
+camera, or a cut or shot transition window. For each `@visualfries/captions` clip that starts
+inside one (or up to two frames before it), `check` measures at the frames inside the move
+whether its text lies over a slotted clip's panel (a fifth of the text or more) or covers the
+face on either side (a tenth, as above), and at the first frame checked after the move whether
+it is clear. Drawn over something during the move and clear once it has landed warns once,
+with the time the move ends: `Captions "cap-auto": they start at 4.76 s (program time), inside
+the strip shot "auto" morphing in (4.76–5.48 s), and they are drawn over the moving panel and
+the speaker's face until it lands … Start them when the move ends, at 5.48 s (0.72 s later)`.
+Captions that are over the panel or the face after the move as well are a layout question, not a
+timing one, and get no hint; captions that start on a cut and ride its incoming side move with
+it and are left out. Nothing waits on its own: shift the captions' `from` or keep them out of
+the moving area, after a look at stills of the move.
+
+`check` also warns where a clip's content does not fit the frame, the sign of a block written
+in fixed pixels for another size (a 1920 × 1080 layout in a 9:16 program). Every fifth frame it
+measures in the page what each clip shows that carries content: the line boxes of its text, its
+images and videos, and the cards, panels and SVGs (elements with a background or border) that
+hold text. Each box is cut only to ancestors smaller than the frame that clip their overflow: a
+block's frame-sized box with `overflow: hidden` hides what lies off the frame, which is what
+counts here. Decoration without text (glows, dot patterns, a field of icons, canvases) is left
+out, since it often bleeds past the edge on purpose; so are planes over most of the frame (a
+card's background) and content parked off the frame (the next panel of a pan, a card waiting
+to slide in): only boxes that reach into the frame count. A clip warns once for each of these:
+
+- **Cut by the frame.** A quarter or more of that content lies past the frame edge for a second
+  of checked frames. A card sliding in or a push passes the edge for less. Example:
+  `Clip "hook-cards" (blocks/HookCards.svelte): 32 % of its content lies outside the frame (past the right edge of the 1080×1920 frame) from 10.80 s …`.
+- **A mostly empty card.** The clip covers the whole frame with a card or picture (at least 0.9
+  opaque) but its content, summed over every frame it does so (a second or more, the outer 5 %
+  of its area at each end left out, so a small label in a corner does not count), starts within
+  the top (left) 12 % and ends before 60 % of the frame's height (width), as a layout for
+  another size does. Told when the clip leaves. Example:
+  `it covers the whole frame but leaves the bottom 61 % of it empty: its content only reaches y 146–751 of 1920 px`.
+- **Outside the safe zone,** with `check --format` only: half or more of its text inside the
+  frame lies outside the format's safe zone (the `--safe-*` insets, notch included) for a
+  second, where platform buttons and captions may cover it. A project's own check leaves this
+  out: the published zones are wide (on 9:16 everything below y 1248 is outside) and captions
+  low on the chest are a choice.
+
+Cut and shot transition windows end a run. Read the share as a measure: boxes are the page's
+boxes around turned or 3D-transformed elements, nested boxes count each, and text drawn on a
+canvas is not seen. Lay the block out from the clip's size (percentages, container units,
+`--safe-*`, its own layout for `clip.format.class`), after a look at a still.
+
 The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full`,
 `strip` and `window`, 0.3 s into `behind` from `full` (0.7 s from a framed shot), 0.16 s into
 `punch`, 0.45 s out of a punch, 0.42 s
@@ -1263,11 +1322,13 @@ sound](#program-sound)). Music plays at a steady level under the speech and ends
 transition window (`program` prints them), every event, and the first frames of every shot
 move. Ask of each frame: is any text over the face, cut by the frame or covered where it should
 be read, does a slot ever show empty, does the frame stand still for more than two seconds, do
-accents and descenders keep their room. Add a still at every time `check` names for text over
-the face; it only finds text the page lays out (not text drawn on a canvas or baked into an
-image), so look anyway. A sheet of about ten moments per `still` call stays
-quick. `still` and `check` draw the project's own size; to look at another format, copy the
-project with another `size`.
+accents and descenders keep their room. Add a still at every time `check` names (text over the
+face, text the speaker covers, captions over a move, content cut by the frame or a half-empty
+card), look, then decide: the warnings are hints, and the engine moves nothing on its own. They
+only find what the page lays out (not text drawn on a canvas or baked into an image), so look
+anyway. A sheet of about ten moments per `still` call stays quick. For every other format the
+project renders, run `check --format 1080x1920` (any `WxH`): the program is checked as
+`render --format` draws it, with the format's safe zone, and `still --format` draws its stills.
 
 **8. Render.** `visualfries render reel.vf.json --output out/`, and `--format 1920x1080` for
 16:9 from the same project. The render reports each segment as drawn or cached, the mix and the
@@ -1296,6 +1357,8 @@ visualfries render video.vf.json --clip B --output b.mp4               # one cli
 visualfries render program.vf.json --output out/ [--format 1080x1920]   # a cut list or shots: one video
 visualfries render program.vf.json --export inserts --output out/ [--handles 10]  # its clips, one file each
 visualfries check program.vf.json --export inserts               # what inserts leave to the program render
+visualfries check program.vf.json --format 1080x1920             # the program in another frame size, safe zone too
+visualfries still program.vf.json --format 1080x1920 --output s.png   # its stills
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover
 visualfries matte talk.mp4 --output talk.matte.mp4 --provider rvm   # subject matte (rvm local, fal.ai or --command)
 visualfries beats music.mp3                                      # music.beats.json (beat_this or --command)
@@ -1307,7 +1370,10 @@ back in time, `NaN`/`undefined`/`Infinity` in SVG geometry, transforms and raw `
 formula; styles set through Svelte drop invalid values silently and are not seen), CSS
 animations running on wall-clock time, and with `--determinism` frames
 that differ between seek orders. In a program it also warns where a shot cuts the speaker's
-head and where a clip's text covers the face (see [Footage and mattes](#footage-and-mattes)).
+head, where a clip's text covers the face, where the speaker covers text behind them, where
+captions start inside a shot move, and where a clip's content does not fit the frame (see
+[Footage and mattes](#footage-and-mattes)). `--format WxH` checks the program in another frame
+size, as `render --format` draws it, and adds text outside that format's safe zone.
 Run it after every edit; it takes seconds.
 
 `manifest.json` lists every clip's program start frame for placing it on an NLE timeline and

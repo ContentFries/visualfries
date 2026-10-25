@@ -6,7 +6,7 @@ import {
 	type ClipController
 } from './runtime.svelte.js';
 import { brandTokens } from './brand.js';
-import { formatTokens, slotArea, slotTokens, type SlotArea } from './format.js';
+import { NO_SLOT_TOKENS, formatTokens, slotArea, slotTokens, type SlotArea } from './format.js';
 import { seekTimeline } from './seek.js';
 import { programFootageAt, transitionSidesAt, type FootageView } from './footage-map.js';
 import { sourceFrameUrl, sourceSubjectBox } from './footage.js';
@@ -126,12 +126,16 @@ type Plan = {
 const surface = (seg: StageSegment) =>
 	seg.brand.neutral ? (seg.background ?? seg.brand.colors.surface) : 'var(--brand-surface)';
 
-/** Brand tokens, safe insets and `data-format`, as the clip stage sets them on a clip's root. */
+/**
+ * Brand tokens, safe insets and `data-format`, as the clip stage sets them on a clip's root; a
+ * slot's insets start at 0 (a slotted root sets its own, see `placeSlot`).
+ */
 function applyLook(el: HTMLElement, seg: StageSegment) {
 	el.dataset.format = seg.format.class;
 	for (const [name, value] of Object.entries({
 		...brandTokens(seg.brand),
-		...formatTokens(seg.format)
+		...formatTokens(seg.format),
+		...NO_SLOT_TOKENS
 	}))
 		el.style.setProperty(name, value);
 }

@@ -35,10 +35,13 @@ The word behind the head is a clip with `"layer": "behind"` and `"slot": "word"`
 ```css
 .safe {
 	position: absolute;
-	inset: var(--slot-safe-top) var(--slot-safe-right) var(--slot-safe-bottom) var(--slot-safe-left);
+	inset: var(--slot-safe-top, 0px) var(--slot-safe-right, 0px) var(--slot-safe-bottom, 0px)
+		var(--slot-safe-left, 0px);
 	container-type: size;
 }
 ```
+
+A clip without a slot has them at `0px`, so the same block fills the frame; keep the `0px` fallbacks, a missing property would collapse the box.
 
 ```json
 "clips": [

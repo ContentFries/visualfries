@@ -68,5 +68,10 @@ export declare function slotArea(slot: {
 }, format: Pick<ResolvedFormat, 'width' | 'height' | 'safe'>): SlotArea;
 /** CSS custom properties of a slotted clip's root: `--slot-safe-top` … in px. */
 export declare function slotTokens(area: SlotArea): Record<string, string>;
+/**
+ * `--slot-safe-*` of a clip without a slot: 0, so a block that lays out in them also works full
+ * frame (a slotted clip's root sets its own on every seek).
+ */
+export declare const NO_SLOT_TOKENS: Readonly<Record<string, string>>;
 export declare function isSafeZoneName(value: string): value is SafeZoneName;
 export type { SafeZoneName, SafeZonePlatform };

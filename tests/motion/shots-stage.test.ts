@@ -148,6 +148,8 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 			safe = path.join(dir, 'safe.vf.json');
 			const withSafe = project([360, 640]);
 			withSafe.clips[0].block = 'SafePanel.svelte';
+			// The same block without a slot, before the strip: its insets are 0, it fills the frame.
+			withSafe.clips.push({ id: 'plain', block: 'SafePanel.svelte', from: 0, until: 0.5 } as never);
 			await fs.writeFile(safe, JSON.stringify(withSafe));
 		});
 		afterAll(async () => {
@@ -209,7 +211,16 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 		it('tells a panel block the safe part of its slot as the strip opens (9:16)', async () => {
 			// 360×640: safe insets top 96, right 100, bottom 224, left 40; the panel from y = 288.
 			const loaded = await loadMotionProject(safe);
-			const pngs = await captureProgramFrames(loaded, [72, 90]);
+			const pngs = await captureProgramFrames(loaded, [5, 72, 90]);
+			const plain = rgba(pngs.get(5)!, 360);
+			for (const [x, y] of [
+				[2, 2],
+				[357, 2],
+				[180, 320],
+				[2, 637],
+				[357, 637]
+			])
+				expect(isSafe(plain.at(x, y)), `no slot: ${x},${y}`).toBe(true);
 			const open = rgba(pngs.get(90)!, 360);
 			expect(isSafe(open.at(150, 300)) && isSafe(open.at(255, 410)), 'safe part').toBe(true);
 			expect(isPanel(open.at(150, 425)), 'under the bottom inset').toBe(true);

@@ -1185,7 +1185,7 @@ They are set on every seek from the slot where the shot puts it, so they follow 
 morph: while a strip's panel slides up, the safe part runs from the panel's top edge to the
 bottom inset and grows with it, and a strip that morphs into a `window` hands over to the
 window's panel frame by frame. A slot outside the safe area leaves an empty box (its insets add
-up to its height). They are px like `--safe-*`, not container units: they are measured in the
+up to its height or width). They are px like `--safe-*`, not container units: they are measured in the
 slot and work in any container a block sets up. The right inset is the one of the whole
 rectangle (`--safe-right`, TikTok's button column). Lay out in the box and size inside it with
 container units:
@@ -1193,13 +1193,16 @@ container units:
 ```css
 .safe {
 	position: absolute;
-	inset: var(--slot-safe-top) var(--slot-safe-right) var(--slot-safe-bottom) var(--slot-safe-left);
+	inset: var(--slot-safe-top, 0px) var(--slot-safe-right, 0px) var(--slot-safe-bottom, 0px)
+		var(--slot-safe-left, 0px);
 	container-type: size; /* cqw / cqh of the safe part, not of the whole slot */
 }
 ```
 
-Placement keys move the block inside its root, not the slot: the insets stay the slot's. Outside
-program mode, and for a clip without a slot, `clip.slotArea` is null and the properties are unset.
+Placement keys move the block inside its root, not the slot: the insets stay the slot's. For a
+clip without a slot (outside program mode too) the properties are `0px`, so the same block fills
+the frame, and `clip.slotArea` is null. Keep the `0px` fallback in `var()` anyway: without it a
+missing property makes `inset` invalid, and a size-contained box collapses to nothing.
 
 ### Hashes
 

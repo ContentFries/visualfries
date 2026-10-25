@@ -136,6 +136,16 @@ export function slotTokens(area) {
         '--slot-safe-left': `${safe.left}px`
     };
 }
+/**
+ * `--slot-safe-*` of a clip without a slot: 0, so a block that lays out in them also works full
+ * frame (a slotted clip's root sets its own on every seek).
+ */
+export const NO_SLOT_TOKENS = {
+    '--slot-safe-top': '0px',
+    '--slot-safe-right': '0px',
+    '--slot-safe-bottom': '0px',
+    '--slot-safe-left': '0px'
+};
 export function isSafeZoneName(value) {
     return value === 'all' || SAFE_ZONE_PLATFORMS.includes(value);
 }

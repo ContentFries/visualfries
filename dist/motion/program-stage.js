@@ -1,7 +1,7 @@
 import { flushSync, mount, unmount } from 'svelte';
 import { Clip, MOTION_CONTEXT_KEY, registerClipRoot } from './runtime.svelte.js';
 import { brandTokens } from './brand.js';
-import { formatTokens, slotArea, slotTokens } from './format.js';
+import { NO_SLOT_TOKENS, formatTokens, slotArea, slotTokens } from './format.js';
 import { seekTimeline } from './seek.js';
 import { programFootageAt, transitionSidesAt } from './footage-map.js';
 import { sourceFrameUrl, sourceSubjectBox } from './footage.js';
@@ -18,12 +18,16 @@ import { FACE_TEXT_SECONDS, FACE_TEXT_SHARE, TEXT_OPACITY, faceCovered, facePoin
  * (the brand's neutral surface when there is none either).
  */
 const surface = (seg) => seg.brand.neutral ? (seg.background ?? seg.brand.colors.surface) : 'var(--brand-surface)';
-/** Brand tokens, safe insets and `data-format`, as the clip stage sets them on a clip's root. */
+/**
+ * Brand tokens, safe insets and `data-format`, as the clip stage sets them on a clip's root; a
+ * slot's insets start at 0 (a slotted root sets its own, see `placeSlot`).
+ */
 function applyLook(el, seg) {
     el.dataset.format = seg.format.class;
     for (const [name, value] of Object.entries({
         ...brandTokens(seg.brand),
-        ...formatTokens(seg.format)
+        ...formatTokens(seg.format),
+        ...NO_SLOT_TOKENS
     }))
         el.style.setProperty(name, value);
 }

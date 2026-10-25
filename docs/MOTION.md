@@ -479,9 +479,10 @@ is clear of the head`). Left out:
   nothing;
 - frames where a clip shows a full-frame card over the head: an element at least 0.9 opaque
   (its own opacity times its ancestors') covering the whole head and at least 80 % of the frame
-  (inset or with round corners), with an opaque background colour, or a loaded image whose
-  drawn picture does that (an `object-fit: contain` letterbox only counts where the picture
-  is). Canvases, videos and gradients do not count: the face may show through them;
+  (inset or with round corners), with an opaque background colour or a gradient of opaque
+  colours, or a loaded image whose drawn picture does that (an `object-fit: contain` letterbox
+  only counts where the picture is). Canvases, videos and gradients with a transparent stop do
+  not count: the face may show through them;
 - cut and shot transition windows (a run of frames ends there), and footage without a matte.
 
 Nothing moves by itself: look at a still at that time and decide (move the text to the free
@@ -537,7 +538,8 @@ to slide in): only boxes that reach into the frame count. A clip warns once for 
   `Clip "hook-cards" (blocks/HookCards.svelte): 32 % of its content lies outside the frame (past the right edge of the 1080×1920 frame) from 10.80 s …`.
 - **A mostly empty card.** The clip covers the whole frame with an opaque card (a background
   colour, or a gradient of opaque colours, at least 0.9 opaque; a scrim that fades to
-  transparent is not a card, and a picture over the frame fills it) but its content, summed over
+  transparent is not a card, a photo or video over the frame fills it, and a full-frame SVG or
+  canvas is decoration either way) but its content, summed over
   every frame it does so (a second or more, the outer 5 % of its area at each end left out, so a
   small label in a corner does not count), is laid out like a frame of the other orientation.
   Only the long axis is judged (the bottom of a portrait frame, the right of a landscape one):

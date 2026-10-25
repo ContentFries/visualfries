@@ -14,6 +14,17 @@ export const FAST_KEY_SECONDS = 1;
 export const PANEL_TEXT_SHARE = 0.2;
 /** Captions starting this many frames before a move still start on its anchor. */
 const LEAD_FRAMES = 2;
+/** A key value as compared: `"12"` and `12` are one, so are `0`, `"0px"` and `"0%"`. */
+function same(value) {
+    if (typeof value !== 'string')
+        return String(value);
+    const v = value.trim();
+    if (/^[-+]?(\d+\.?\d*|\.\d+)(px)?$/.test(v))
+        return String(parseFloat(v));
+    if (/^[-+]?0*\.?0+%$/.test(v))
+        return '0';
+    return v;
+}
 /** Camera values a shot key may leave out, as the camera has them without keys. */
 const CAMERA_DEFAULTS = { scale: 1, x: 0, y: 0, rotation: 0 };
 /**
@@ -34,7 +45,7 @@ function cameras(keys) {
         for (const [name, value] of Object.entries(k.values))
             if (names.has(name))
                 now[name] = value;
-        return JSON.stringify([...names].sort().map((name) => String(now[name])));
+        return JSON.stringify([...names].sort().map((name) => same(now[name])));
     });
 }
 /**

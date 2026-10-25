@@ -11,6 +11,7 @@ import { shotModule } from './shots/index.js';
 import { facePoint } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
 import { keyTracks, placementTransform } from './keys.js';
+import { cssAlpha, opaqueGradient } from './color.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import { BEHIND_TEXT_SECONDS, BEHIND_TEXT_SHARE, FACE_TEXT_SECONDS, FACE_TEXT_SHARE, TEXT_OPACITY, clearOfSpeaker, faceCovered, facePoints, headOnStage, intersect, textBehindMessage, textOverFaceMessage } from './text-over-face.js';
 import { CUT_SHARE, FIT_SECONDS, SAFE_TEXT_SHARE, addReach, contentReach, cutShare, emptyPart, frameFitMessage, newReach, outsideSafe, reachBox, safeBoxes } from './frame-fit.js';
@@ -1435,49 +1436,13 @@ const HIDES = 0.9;
  * a text sits on: a card inset from the frame edges or with round corners still fills the frame.
  */
 const MOST = 0.8;
-/** The alpha of a computed CSS colour (`rgb(…)`, `rgba(…)`, `transparent`). */
-function alphaOf(color) {
-    if (!color || color === 'transparent')
-        return 0;
-    const parts = /\(([^)]+)\)/
-        .exec(color)?.[1]
-        .split(/[\s,/]+/)
-        .filter(Boolean);
-    return parts && parts.length >= 4 ? Number(parts[3]) : 1;
-}
-/**
- * The alpha of a computed CSS colour in any notation (`rgb(…)`, `rgba(…)`, `color(srgb … / a)`,
- * `oklab(… / a)`, `transparent`); 1 when it gives none.
- */
-function colourAlpha(colour) {
-    const c = colour.trim();
-    if (!c || c === 'transparent')
-        return 0;
-    const inner = /\(([^()]*)\)\s*$/.exec(c)?.[1];
-    if (!inner)
-        return 1;
-    if (inner.includes('/'))
-        return Number(inner.split('/').pop().trim()) || 0;
-    const parts = inner.split(',');
-    return /^rgba|^hsla/.test(c) || parts.length === 4 ? Number(parts[3] ?? 1) : 1;
-}
-/**
- * Whether a computed `background-image` is a gradient of opaque colours only: it paints its whole
- * box. A picture (`url(…)`) or a gradient with a transparent stop (a scrim) does not count.
- */
-function opaqueGradient(image) {
-    if (!image || image === 'none' || /url\(/.test(image) || !/gradient\(/.test(image))
-        return false;
-    const colours = image.match(/(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]*\)|\btransparent\b/g) ?? [];
-    return colours.length > 0 && colours.every((c) => colourAlpha(c) >= HIDES);
-}
 /** Whether an element with `style` paints its box: a background, or a border on any side. */
 function paintsBox(style) {
-    if (alphaOf(style.backgroundColor) > 0 || style.backgroundImage !== 'none')
+    if (cssAlpha(style.backgroundColor) > 0 || style.backgroundImage !== 'none')
         return true;
     return ['top', 'right', 'bottom', 'left'].some((side) => parseFloat(style.getPropertyValue(`border-${side}-width`)) > 0 &&
         style.getPropertyValue(`border-${side}-style`) !== 'none' &&
-        alphaOf(style.getPropertyValue(`border-${side}-color`)) > 0);
+        cssAlpha(style.getPropertyValue(`border-${side}-color`)) > 0);
 }
 /**
  * Reads the text of clips in the page at the frame last drawn, in stage pixels, sharing what it
@@ -1520,7 +1485,7 @@ function textReader(stage, size) {
                 inner = cut(inner, own);
         }
         let card = up.card;
-        if (alphaOf(style.backgroundColor) >= CARD_ALPHA && style.visibility === 'visible') {
+        if (cssAlpha(style.backgroundColor) >= CARD_ALPHA && style.visibility === 'visible') {
             own ??= rect(el.getBoundingClientRect());
             if (!most(own))
                 card = clip ? intersect(own, clip) : own;
@@ -1558,7 +1523,7 @@ function textReader(stage, size) {
             return [toStage(look.card)];
         const fill = style.getPropertyValue('-webkit-text-fill-color') || style.color;
         const stroke = parseFloat(style.getPropertyValue('-webkit-text-stroke-width')) || 0;
-        if (alphaOf(fill) === 0 && stroke === 0 && !look.clipsText)
+        if (cssAlpha(fill) === 0 && stroke === 0 && !look.clipsText)
             return [];
         const within = cut === 'inner' ? look.inner : look.clip;
         const out = [];
@@ -1600,7 +1565,8 @@ function textReader(stage, size) {
          * hidden or under `TEXT_OPACITY`, decoration without text (glows, patterns, canvases), and
          * planes over `MOST` of the stage. `covers` tells whether such a plane is an opaque card (a
          * background colour, or a gradient of opaque colours, at least `HIDES` opaque in effect),
-         * `filled` whether an image, video, canvas or SVG lies over that much of the stage.
+         * `filled` whether an image or video lies over that much of the stage (a full-frame SVG or
+         * canvas is decoration and counts for neither).
          */
         content(root) {
             const boxes = [];
@@ -1630,11 +1596,14 @@ function textReader(stage, size) {
                         const box = look.inner ? intersect(own, look.inner) : own;
                         const media = /^(IMG|VIDEO)$/.test(child.tagName);
                         if (box && most(box)) {
-                            // A picture over the frame fills it: what is on it is content.
-                            if (picture)
+                            // A photo or video over the frame fills it: what is on it is content. A
+                            // full-frame SVG or canvas is decoration (a grid, a dot field) and says
+                            // nothing either way.
+                            if (media)
                                 filled = true;
-                            else if (look.opacity * colourAlpha(style.backgroundColor) >= HIDES ||
-                                (look.opacity >= HIDES && opaqueGradient(style.backgroundImage)))
+                            else if (!picture &&
+                                (look.opacity * cssAlpha(style.backgroundColor) >= HIDES ||
+                                    (look.opacity >= HIDES && opaqueGradient(style.backgroundImage, HIDES))))
                                 covers = true;
                         }
                         else if (box &&
@@ -1653,9 +1622,10 @@ function textReader(stage, size) {
         /**
          * Whether something visible inside `root` is a full-frame card over the head and hides the
          * footage: at least `HIDES` in effective opacity, over `MOST` of the stage's area and the
-         * whole head (stage pixels), with an opaque background colour, or a loaded image whose
-         * drawn picture does that (an `object-fit: contain` letterbox does not count). Canvases,
-         * videos and gradients do not count: the face may show through them.
+         * whole head (stage pixels), with an opaque background colour or a gradient of opaque
+         * colours, or a loaded image whose drawn picture does that (an `object-fit: contain`
+         * letterbox does not count). Canvases, videos and gradients with a transparent stop do not
+         * count: the face may show through them.
          */
         hidesHead(root, head) {
             const area = {
@@ -1676,7 +1646,9 @@ function textReader(stage, size) {
                 const style = getComputedStyle(el);
                 if (style.visibility !== 'visible' || lookOf(el).opacity < HIDES)
                     continue;
-                if (alphaOf(style.backgroundColor) >= HIDES)
+                if (cssAlpha(style.backgroundColor) >= HIDES)
+                    return true;
+                if (opaqueGradient(style.backgroundImage, HIDES))
                     return true;
                 if (el instanceof HTMLImageElement && el.complete && el.naturalWidth > 0)
                     if (over(pictureBox(el, box, style)))

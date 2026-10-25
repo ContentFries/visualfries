@@ -110,7 +110,9 @@ describe('shotMoves', () => {
 						key(20, { opacity: 0 }),
 						key(30, { scale: 1.15 }),
 						// The scale holds while only the opacity changes.
-						key(40, { opacity: 1 })
+						key(40, { opacity: 1 }),
+						// "0%" and "0px" are where the camera already is.
+						key(50, { x: '0%', y: '0px' })
 					]
 				})
 			]

@@ -83,6 +83,24 @@ const LIST = `<div style="position:absolute;inset:0;background:#123">
 </div>
 `;
 
+/** FIXED with a full-frame decorative SVG grid and an empty full-frame canvas over the card. */
+const DECOR = `<div style="position:absolute;inset:0;overflow:hidden;background:#123">
+	<svg width="360" height="640" style="position:absolute;inset:0"><path d="M0 100H360M0 200H360" stroke="#234" /></svg>
+	<canvas width="360" height="640" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+	<div style="position:absolute;left:20px;top:20px;width:600px;height:300px;background:#456;font:700 40px sans-serif;color:#fff">WIDE LAYOUT</div>
+</div>
+`;
+
+/** A full-frame card with an opaque gradient, its title where the head would be. */
+const GRADIENT_CARD = `<div style="position:absolute;inset:0;background:linear-gradient(#123, color-mix(in srgb, #123 60%, #345))">
+	<div style="position:absolute;left:110px;top:220px;font:700 30px sans-serif;color:#fff">CARD TITLE</div>
+</div>
+`;
+
+/** Orange text in a colour Chromium computes to color(srgb …), on the face. */
+const MIXED = `<div style="position:absolute;left:110px;top:220px;font:700 30px sans-serif;white-space:nowrap;color:color-mix(in srgb, orange 80%, red)">ON THE FACE</div>
+`;
+
 const clip = (id: string, block: string, from: number, until: number, extra = {}) => ({
 	id,
 	block,
@@ -132,6 +150,9 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 				Panel: PANEL,
 				UnderSubject: UNDER_SUBJECT,
 				Scrim: SCRIM,
+				Decor: DECOR,
+				GradientCard: GRADIENT_CARD,
+				Mixed: MIXED,
 				Photo: PHOTO,
 				List: LIST
 			}))
@@ -217,6 +238,27 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 				/^Captions "cap-move": they start at 1\.50 s \(program time\), inside the full shot "back" morphing in \(1\.50–2\.\d\d s\), and they are drawn over the moving panel/
 			);
 			expect(warned[0]).toMatch(/Start them when the move ends, at 2\.\d\d s \(0\.\d\d s later\)/);
+		}, 300_000);
+
+		it('reads cards under decoration, opaque gradients and colours of any notation', async () => {
+			const loaded = await project('notations', {
+				clips: [
+					// A fixed layout under a decorative SVG grid and canvas: still a mostly empty card.
+					clip('decor', 'Decor.svelte', 0.2, 1.4),
+					// A card with an opaque gradient hides the face; color-mix text on the face shows.
+					clip('gradient-card', 'GradientCard.svelte', 1.6, 2.6),
+					clip('mixed', 'Mixed.svelte', 2.8, 3.9)
+				]
+			});
+			const all = messages(await checkProgram(loaded));
+			expect(
+				all.filter((m) => m.includes('leaves the')).map((m) => /^Clip "(.*?)"/.exec(m)![1])
+			).toEqual(['decor']);
+			expect(
+				all
+					.filter((m) => m.includes("covers the speaker's face"))
+					.map((m) => /^Clip "(.*?)"/.exec(m)![1])
+			).toEqual(['mixed']);
 		}, 300_000);
 
 		it('leaves scrims, full-bleed photos and short lists on a card alone', async () => {

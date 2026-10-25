@@ -27,6 +27,15 @@ export type ShotMove = {
 	to: number;
 };
 
+/** A key value as compared: `"12"` and `12` are one, so are `0`, `"0px"` and `"0%"`. */
+function same(value: unknown): string {
+	if (typeof value !== 'string') return String(value);
+	const v = value.trim();
+	if (/^[-+]?(\d+\.?\d*|\.\d+)(px)?$/.test(v)) return String(parseFloat(v));
+	if (/^[-+]?0*\.?0+%$/.test(v)) return '0';
+	return v;
+}
+
 /** Camera values a shot key may leave out, as the camera has them without keys. */
 const CAMERA_DEFAULTS: Record<string, unknown> = { scale: 1, x: 0, y: 0, rotation: 0 };
 
@@ -43,7 +52,7 @@ function cameras(keys: readonly ResolvedKey[]): string[] {
 	for (const name of names) now[name] = CAMERA_DEFAULTS[name] ?? 0;
 	return keys.map((k) => {
 		for (const [name, value] of Object.entries(k.values)) if (names.has(name)) now[name] = value;
-		return JSON.stringify([...names].sort().map((name) => String(now[name])));
+		return JSON.stringify([...names].sort().map((name) => same(now[name])));
 	});
 }
 

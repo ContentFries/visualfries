@@ -41,5 +41,32 @@ export declare function mergeZones(zones: ZoneInsets[]): ZoneInsets;
 export declare function resolveFormat(size: [number, number], zone?: SafeZoneName): ResolvedFormat;
 /** CSS custom properties for a format: `--safe-top` … in px. */
 export declare function formatTokens(format: ResolvedFormat): Record<string, string>;
+/**
+ * Where a shot's slot is at a frame, in stage pixels, and how much of it platform UI covers:
+ * `safe` holds the slot's own insets in px (from its edges, 0 where the edge lies inside the
+ * format's safe rectangle), so the box they leave is the part of the slot inside the safe area.
+ * A slot wholly outside it leaves an empty box: its insets add up to its width or height.
+ */
+export type SlotArea = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    safe: {
+        top: number;
+        right: number;
+        bottom: number;
+        left: number;
+    };
+};
+/** The safe part of `slot` (stage pixels) in the format: see `SlotArea`. */
+export declare function slotArea(slot: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}, format: Pick<ResolvedFormat, 'width' | 'height' | 'safe'>): SlotArea;
+/** CSS custom properties of a slotted clip's root: `--slot-safe-top` … in px. */
+export declare function slotTokens(area: SlotArea): Record<string, string>;
 export declare function isSafeZoneName(value: string): value is SafeZoneName;
 export type { SafeZoneName, SafeZonePlatform };

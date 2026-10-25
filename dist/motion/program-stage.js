@@ -1,14 +1,14 @@
 import { flushSync, mount, unmount } from 'svelte';
 import { Clip, MOTION_CONTEXT_KEY, registerClipRoot } from './runtime.svelte.js';
 import { brandTokens } from './brand.js';
-import { formatTokens } from './format.js';
+import { formatTokens, slotArea, slotTokens } from './format.js';
 import { seekTimeline } from './seek.js';
 import { programFootageAt, transitionSidesAt } from './footage-map.js';
 import { sourceFrameUrl, sourceSubjectBox } from './footage.js';
 import { programFraming } from './framing.js';
 import { clipFrameAt } from './segments.js';
 import { shotModule } from './shots/index.js';
-import { facePoint } from './shots/layout.js';
+import { facePoint, frameRect } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
 import { keyTracks, placementTransform } from './keys.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
@@ -264,6 +264,21 @@ function windowShadow(layout, size) {
     }
     return parts.join(', ');
 }
+/**
+ * Where a slotted clip is: its root at the slot, and the slot's safe insets (see `SlotArea`) on
+ * the root as `--slot-safe-*` and on the clip as `clip.slotArea`, so a block lays out inside
+ * the safe part of the slot as it moves.
+ */
+function placeSlot(controller, slot, seg) {
+    place(controller.root, slot);
+    const area = slotArea(slot, seg.format);
+    if (sameArea(controller.clip.slotArea, area))
+        return;
+    for (const [name, value] of Object.entries(slotTokens(area)))
+        controller.root.style.setProperty(name, value);
+    controller.clip.slotArea = area;
+}
+const sameArea = (a, b) => !!a && JSON.stringify(a) === JSON.stringify(b);
 /** Places `el` at `rect` (absolute, stage pixels); writes only what changed. */
 function place(el, rect) {
     const box = `${rect.x} ${rect.y} ${rect.width} ${rect.height}`;
@@ -455,6 +470,9 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                 ready: []
             };
             registerClipRoot(controller);
+            // Until the first seek a slotted root covers the frame, and so do its safe insets.
+            if (data.slot)
+                placeSlot(controller, frameRect(seg.size), seg);
             let instance;
             try {
                 // The clip's reactive props: what changes `clip.props` later reaches the block.
@@ -881,7 +899,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             mounted.forEach((m, i) => {
                 const { local, slot } = now.clips[i];
                 if (slot)
-                    place(m.controller.root, slot);
+                    placeSlot(m.controller, slot, seg);
                 m.controller.root.style.display = local === null ? 'none' : '';
                 m.shown = local;
                 if (local === null)

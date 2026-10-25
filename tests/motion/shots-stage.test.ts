@@ -66,12 +66,39 @@ const PANEL = `<script>
 </style>
 `;
 
+/**
+ * A panel that lays out in the safe part of its slot: red where `--slot-safe-*` leave it, and a
+ * green bar at its left edge as tall as `clip.slotArea.safe.bottom`.
+ */
+const SAFE_PANEL = `<script>
+	import { useClip } from 'visualfries/motion';
+	const clip = useClip();
+</script>
+
+<div class="panel">
+	<div class="safe"></div>
+	<div class="bar" style="height: {clip.slotArea?.safe.bottom ?? 0}px"></div>
+</div>
+
+<style>
+	.panel { position: absolute; inset: 0; background: #2050ff; }
+	.safe {
+		position: absolute; background: #ff2020;
+		inset: var(--slot-safe-top) var(--slot-safe-right) var(--slot-safe-bottom) var(--slot-safe-left);
+	}
+	.bar { position: absolute; left: 0; bottom: 0; width: 10px; background: #20ff20; }
+</style>
+`;
+const isSafe = ([r, g, b]: number[]) => r > 200 && g < 80 && b < 80;
+const isBar = ([r, g, b]: number[]) => g > 200 && r < 80 && b < 80;
+
 describe.skipIf(!hasChromium || !hasFfmpeg)(
 	'shots on the stage (full → punch → strip → full)',
 	() => {
 		let dir: string;
 		let portrait: string;
 		let landscape: string;
+		let safe: string;
 
 		beforeAll(async () => {
 			dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-shots-stage-'));
@@ -100,6 +127,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 				path.join(dir, 'talk.matte.mp4')
 			]);
 			await fs.writeFile(path.join(dir, 'Panel.svelte'), PANEL);
+			await fs.writeFile(path.join(dir, 'SafePanel.svelte'), SAFE_PANEL);
 			const project = (size: [number, number]) => ({
 				size,
 				fps: 30,
@@ -117,6 +145,10 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 			landscape = path.join(dir, 'landscape.vf.json');
 			await fs.writeFile(portrait, JSON.stringify(project([360, 640])));
 			await fs.writeFile(landscape, JSON.stringify(project([640, 360])));
+			safe = path.join(dir, 'safe.vf.json');
+			const withSafe = project([360, 640]);
+			withSafe.clips[0].block = 'SafePanel.svelte';
+			await fs.writeFile(safe, JSON.stringify(withSafe));
 		});
 		afterAll(async () => {
 			await fs.rm(dir, { recursive: true, force: true });
@@ -172,6 +204,27 @@ describe.skipIf(!hasChromium || !hasFfmpeg)(
 			expect(isHead(strip.at(106, 200))).toBe(true);
 			expect(isPanel(strip.at(220, 300)) && isPanel(strip.at(630, 10))).toBe(true);
 			expect(isPanel(strip.at(205, 300))).toBe(false);
+		}, 120_000);
+
+		it('tells a panel block the safe part of its slot as the strip opens (9:16)', async () => {
+			// 360×640: safe insets top 96, right 100, bottom 224, left 40; the panel from y = 288.
+			const loaded = await loadMotionProject(safe);
+			const pngs = await captureProgramFrames(loaded, [72, 90]);
+			const open = rgba(pngs.get(90)!, 360);
+			expect(isSafe(open.at(150, 300)) && isSafe(open.at(255, 410)), 'safe part').toBe(true);
+			expect(isPanel(open.at(150, 425)), 'under the bottom inset').toBe(true);
+			expect(isPanel(open.at(30, 350)) && isPanel(open.at(265, 350)), 'side insets').toBe(true);
+			// clip.slotArea: the bar is 224 px tall, from the frame's bottom edge.
+			expect(isBar(open.at(5, 420)) && isBar(open.at(5, 635))).toBe(true);
+			expect(isBar(open.at(5, 410))).toBe(false);
+			// On the way up (the panel's top at y 354) the safe part runs from it to the bottom
+			// inset, and the bar is the panel's share below that inset.
+			const rising = rgba(pngs.get(72)!, 360);
+			expect(isSafe(rising.at(150, 345)), 'above the panel').toBe(false);
+			expect(isSafe(rising.at(150, 360)) && isSafe(rising.at(150, 410))).toBe(true);
+			expect(isPanel(rising.at(150, 420)), 'under the bottom inset').toBe(true);
+			expect(isBar(rising.at(5, 420)) && isBar(rising.at(5, 635))).toBe(true);
+			expect(isBar(rising.at(5, 410))).toBe(false);
 		}, 120_000);
 
 		it('gives the same pixels in any seek order, on the segment page and a whole-program page', async () => {

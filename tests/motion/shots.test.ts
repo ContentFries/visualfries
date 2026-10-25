@@ -19,6 +19,7 @@ import {
 	type ShotSpan
 } from '$lib/motion/shots/index.js';
 import type { SubjectBox } from '$lib/motion/resolve.js';
+import { resolveFormat, slotArea, slotTokens, type SlotArea } from '$lib/motion/format.js';
 import type { ResolvedKey } from '$lib/motion/program.js';
 
 const LANDSCAPE: [number, number] = [1920, 1080];
@@ -886,5 +887,120 @@ describe('shots in the program', () => {
 			field: 'shots',
 			message: 'The "behind" shot needs a matte, but footage "talk" has none (visualfries matte).'
 		});
+	});
+});
+
+describe('the safe part of a slot', () => {
+	const formats = [PORTRAIT, LANDSCAPE, SQUARE, [1080, 1350] as [number, number]];
+	/** The slot less its insets, in stage pixels: what a block lays out in. */
+	const safeBox = (a: SlotArea) => ({
+		x: a.x + a.safe.left,
+		y: a.y + a.safe.top,
+		width: a.width - a.safe.left - a.safe.right,
+		height: a.height - a.safe.top - a.safe.bottom
+	});
+	/** The slot clipped to the format's safe rectangle (empty: zero width or height). */
+	const clipped = (r: Rect, f: ReturnType<typeof resolveFormat>) => {
+		const x0 = Math.min(Math.max(r.x, f.safe.left), r.x + r.width);
+		const y0 = Math.min(Math.max(r.y, f.safe.top), r.y + r.height);
+		const x1 = Math.max(Math.min(r.x + r.width, f.width - f.safe.right), x0);
+		const y1 = Math.max(Math.min(r.y + r.height, f.height - f.safe.bottom), y0);
+		return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+	};
+
+	it('leaves 384 of the 1056 px of a 9:16 strip panel above the bottom inset', () => {
+		const f = resolveFormat(PORTRAIT);
+		const panel = layout('strip', PORTRAIT).slots.panel;
+		expect(slotArea(panel, f)).toEqual({
+			...panel,
+			safe: { top: 0, right: 300, bottom: 672, left: 120 }
+		});
+		// The camera at the bottom: the panel on top reaches into the top inset instead.
+		const above = layout('strip', PORTRAIT, { params: { side: 'right' } }).slots.panel;
+		expect(slotArea(above, f).safe).toEqual({ top: 288, right: 300, bottom: 0, left: 120 });
+		expect(slotTokens(slotArea(panel, f))).toEqual({
+			'--slot-safe-top': '0px',
+			'--slot-safe-right': '300px',
+			'--slot-safe-bottom': '672px',
+			'--slot-safe-left': '120px'
+		});
+	});
+
+	it('is the slot clipped to the safe area, for every slot of every shot and format', () => {
+		for (const size of formats) {
+			const f = resolveFormat(size);
+			for (const shot of Object.keys(SHOT_MODULES)) {
+				const l = layout(shot, size, { safe: f.safe });
+				for (const [name, rect] of [
+					...Object.entries(l.slots),
+					...Object.entries(l.closed).map(([n, r]) => [`${n} closed`, r] as const)
+				]) {
+					const box = safeBox(slotArea(rect, f));
+					const want = clipped(rect, f);
+					const where = `${shot} ${name} ${size.join('×')}`;
+					for (const k of ['width', 'height'] as const)
+						expect(box[k], where).toBeCloseTo(want[k], 2);
+					if (want.width > 0 && want.height > 0) {
+						expect(box.x, where).toBeCloseTo(want.x, 2);
+						expect(box.y, where).toBeCloseTo(want.y, 2);
+					}
+				}
+			}
+		}
+	});
+
+	it('is empty for a slot outside the safe area and whole for one inside it', () => {
+		const f = resolveFormat(PORTRAIT);
+		const gone = slotArea({ x: 0, y: 1920, width: 1080, height: 1056 }, f);
+		expect(gone.safe).toEqual({ top: 0, right: 300, bottom: 1056, left: 120 });
+		expect(slotArea({ x: 0, y: -300, width: 1080, height: 200 }, f).safe).toMatchObject({
+			top: 200,
+			bottom: 0
+		});
+		expect(slotArea({ x: 2000, y: 400, width: 500, height: 500 }, f).safe).toMatchObject({
+			left: 0,
+			right: 500
+		});
+		// The portrait window keeps its panel between the top and bottom insets, across the frame.
+		const panel = layout('window', PORTRAIT, { safe: f.safe }).slots.panel;
+		expect(slotArea(panel, f).safe).toEqual({ top: 0, right: 300, bottom: 0, left: 120 });
+	});
+
+	it('follows the slot through the strip opening, frame by frame', () => {
+		const f = resolveFormat(PORTRAIT);
+		const spans: ShotSpan[] = [
+			{
+				id: 'a',
+				shot: 'full',
+				startFrame: 0,
+				frames: 10,
+				params: {},
+				morphFrames: 0,
+				morphEase: 'none'
+			},
+			{
+				id: 'b',
+				shot: 'strip',
+				startFrame: 10,
+				frames: 30,
+				params: {},
+				morphFrames: 20,
+				morphEase: 'expo.inOut'
+			}
+		];
+		const areas = [...Array(22).keys()].map((i) =>
+			slotArea(shotLayoutAt(spans, 10 + i, input(PORTRAIT, { safe: f.safe })).slots.panel, f)
+		);
+		// Closed below the frame: nothing safe; open: the 384 px above the bottom inset.
+		expect(safeBox(areas[0]).height).toBe(0);
+		expect(areas[21].safe.bottom).toBe(672);
+		expect(safeBox(areas[21])).toEqual({ x: 120, y: 864, width: 660, height: 384 });
+		// On the way the safe part grows as the panel rises and its bottom edge stays at the inset.
+		for (let i = 1; i < areas.length; i++) {
+			const box = safeBox(areas[i]);
+			expect(box.height).toBeGreaterThanOrEqual(safeBox(areas[i - 1]).height);
+			if (box.height > 0) expect(box.y + box.height).toBeCloseTo(1920 - 672, 2);
+		}
+		expect(new Set(areas.map((a) => a.safe.bottom)).size).toBeGreaterThan(5);
 	});
 });

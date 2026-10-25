@@ -6,14 +6,6 @@ updated: 2026-09-27
 
 VisualFries is an MIT-licensed Svelte 5 engine for making visual content for social media from code and data. A JSON document is the source of truth, visuals are Svelte components and HTML/CSS, animation is GSAP. Motion blocks are functions of time, so with the same document, fonts and browser a frame is meant to look the same whenever it is rendered; `check --determinism` verifies that ([rules](/docs/determinism)). It is the engine behind [ContentFries](https://contentfries.com), which turns one long video into a week of clips, captions and posts.
 
-## Want it done for you?
-
-Use [ContentFries](https://www.contentfries.com) to find moments, apply your workspace style and
-prepare a review-ready pack from a long video. Work in the app, or follow the
-[ContentFries agent setup guide](https://www.contentfries.com/agents) to connect over MCP.
-VisualFries stays the code-first engine; the ContentFries API is an approval-gated workflow, not
-an arbitrary scene or motion-block authoring endpoint.
-
 ## Two ways to use it
 
 **Scenes** are JSON documents with layers of VIDEO, IMAGE, TEXT, SUBTITLES, SHAPE, GIF and AUDIO components. You mount a scene in a Svelte app with `createSceneBuilder`, edit it live, and render it headless. This is how the ContentFries editor works. Start with [Scenes in an app](/docs/scenes).

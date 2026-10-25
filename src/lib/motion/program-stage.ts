@@ -21,15 +21,37 @@ import { keyTracks, placementTransform, type Animatable, type KeyTracks } from '
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import type { CameraView, HoleSource } from './runtime.svelte.js';
 import {
+	BEHIND_TEXT_SECONDS,
+	BEHIND_TEXT_SHARE,
 	FACE_TEXT_SECONDS,
 	FACE_TEXT_SHARE,
 	TEXT_OPACITY,
+	clearOfSpeaker,
 	faceCovered,
 	facePoints,
 	headOnStage,
 	intersect,
-	textOverFaceMessage
+	textBehindMessage,
+	textOverFaceMessage,
+	type SpeakerMask
 } from './text-over-face.js';
+import {
+	CUT_SHARE,
+	FIT_SECONDS,
+	SAFE_TEXT_SHARE,
+	addReach,
+	contentReach,
+	cutShare,
+	emptyPart,
+	frameFitMessage,
+	newReach,
+	outsideSafe,
+	reachBox,
+	safeBoxes,
+	type FitFinding,
+	type Reach
+} from './frame-fit.js';
+import { PANEL_TEXT_SHARE, captionsInMoveMessage, moveAtStart, shotMoves } from './shot-moves.js';
 
 /**
  * The program's layer tree on one stage, for a segment of the program:
@@ -81,6 +103,9 @@ type Mounted = {
 	/** Inside the root of a slotted clip: what a whip's motion blur filters (null without). */
 	streak: HTMLDivElement | null;
 };
+
+/** Whether the speaker is drawn at each of a list of points (stage pixels); null: unknown. */
+type Sampler = (points: { x: number; y: number }[]) => boolean[] | null;
 
 type Picture = { box: HTMLDivElement; img: HTMLImageElement; back?: HTMLImageElement };
 
@@ -149,7 +174,9 @@ export type ProgramScene = {
 	/**
 	 * Measures what `check` cannot see from the plan at the frame last drawn (frames checked in
 	 * ascending order): subject region layers whose region holds none of the speaker for half a
-	 * second or more, and text that covers the speaker's face (see `faceText`).
+	 * second or more, text that covers the speaker's face (see `faceText`), content that does not
+	 * fit the frame (see `frameFit`), captions drawn over a shot move (see `movingCaptions`) and
+	 * text behind the speaker that the speaker covers (see `textBehind`).
 	 */
 	measure(f: number): Promise<string[]>;
 	/**
@@ -532,6 +559,19 @@ const px = (v: number) => Math.round(v * 100) / 100;
  */
 const EYES_DROP = 0.2;
 const FULL = { shot: 'full', params: {} };
+/** `frameFit` measures at most every this many frames: what it reads is slow to change. */
+const FIT_STRIDE = 5;
+/**
+ * `textBehind` measures a clip at most every this many frames: reading the speaker's picture
+ * back costs about 15 ms a frame.
+ */
+const BEHIND_STRIDE = 5;
+/** Text boxes are sampled about every this many stage pixels (see `textPoints`). */
+const TEXT_STEP = 16;
+/** The subject picture is read back at this fraction of its size (see `textBehind`). */
+const READ_SCALE = 0.25;
+/** The block of the built-in captions. */
+const CAPTIONS = '@visualfries/captions';
 /** A region holding less of the subject than this share counts as empty. */
 const EMPTY_SHARE = 0.002;
 
@@ -652,6 +692,32 @@ export function createProgramScene(
 	const overFace = new Map<string, { from: number; share: number }>();
 	/** Clips already warned about text over the face: once per clip. */
 	const toldFace = new Set<string>();
+	/** Per clip and kind (`cut`, `safe`), the run of checked frames its content does not fit. */
+	const misfit = new Map<string, { from: number; finding: FitFinding }>();
+	/**
+	 * Per clip covering the whole frame, the box its content reached while it showed (see
+	 * `frameFit`): told when it leaves, or at the segment's last frame.
+	 */
+	const reached = new Map<string, { from: number; last: number; reach: Reach }>();
+	/** Clips and kinds already warned about content that does not fit: once each. */
+	const toldFit = new Set<string>();
+	/** Per clip, the program frame `frameFit` last measured it at. */
+	const fitAt = new Map<string, number>();
+	/** The shot move each captions clip starts inside (see `moveAtStart`); null: none. */
+	const moves = shotMoves(seg);
+	const captionMoves = mounted.map((m) =>
+		m.data.block === CAPTIONS ? moveAtStart(moves, m.data.startFrame) : null
+	);
+	/** Per captions clip, what it was drawn over during its move (see `movingCaptions`). */
+	const inMove = new Map<string, { frame: number; panel: boolean; face: boolean; done: boolean }>();
+	/** Per clip, the run of checked frames where the speaker covered its text behind them. */
+	const behindRun = new Map<string, { from: number; share: number }>();
+	/** Clips already warned about text the speaker covers: once per clip. */
+	const toldBehind = new Set<string>();
+	/** Per clip, the program frame `textBehind` last measured it at. */
+	const behindAt = new Map<string, number>();
+	/** Where `subjectSampler` reads the subject picture back. */
+	let readBack: HTMLCanvasElement | null = null;
 
 	/** The extracted frames of the source a view shows; null without them. */
 	const framesOf = (view: FootageView | null) => (view ? (seg.footage[view.source] ?? null) : null);
@@ -965,7 +1031,7 @@ export function createProgramScene(
 	 * and frames where a clip paints over the whole frame. Cut and shot transition windows end a
 	 * run.
 	 */
-	function faceText(f: number): string[] {
+	function faceText(f: number, read: () => TextReader): string[] {
 		const now = last?.f === f ? last : null;
 		const view = now && !now.b && !seg.insert ? now.a.view : null;
 		const frames = framesOf(view);
@@ -978,7 +1044,7 @@ export function createProgramScene(
 			return [];
 		}
 		const window = now.a.layout.clip;
-		const page = textReader(stage, seg.size);
+		const page = read();
 		/** Subject layers drawing the speaker over most of the face: text before them is under it. */
 		let over: Element[] | null = null;
 		const under = (node: Node) =>
@@ -1042,6 +1108,369 @@ export function createProgramScene(
 					found.push(el);
 		}
 		return found;
+	}
+
+	/** The whole stage, in stage pixels. */
+	const frameRect: Rect = { x: 0, y: 0, width: seg.size[0], height: seg.size[1] };
+	/** The format's safe zone, when `check` warns about text outside it (`check --format`). */
+	const safeRects = seg.checkSafe ? safeBoxes(seg.size, seg.format.safe) : null;
+	const lastFrame = seg.startFrame + seg.frames - 1;
+	const fitFormat = { size: seg.size, class: seg.format.class, safe: seg.format.safe };
+
+	/**
+	 * Content that does not fit the frame, measured at most every `FIT_STRIDE` frames from the
+	 * boxes of what each clip paints (see `TextReader.content`). A clip warns once per kind: when
+	 * `CUT_SHARE` of its content that reaches into the frame lies outside it for `FIT_SECONDS`;
+	 * with `checkSafe`, when `SAFE_TEXT_SHARE` of its text inside the frame lies outside the safe
+	 * zone as long; and when it covers the whole frame with a card or picture but its content,
+	 * over every frame it does so, stays in the top (left) part as a layout for another size does
+	 * (see `emptyPart`; told when the clip leaves, or at the segment's last frame). Cut and shot
+	 * transition windows end a run.
+	 */
+	function frameFit(f: number, read: () => TextReader): string[] {
+		const out: string[] = [];
+		const now = last?.f === f ? last : null;
+		if (!now || seg.insert) return out;
+		for (const m of mounted) {
+			if (m.shown !== null) continue;
+			out.push(...emptyFrame(m));
+			fitAt.delete(m.data.id);
+			for (const kind of ['cut', 'safe']) misfit.delete(`${m.data.id}\u0000${kind}`);
+		}
+		if (now.b) misfit.clear();
+		else
+			for (const m of mounted) {
+				if (m.shown === null) continue;
+				const at = fitAt.get(m.data.id);
+				if (at !== undefined && f - at < FIT_STRIDE && f !== lastFrame) continue;
+				fitAt.set(m.data.id, f);
+				out.push(...fitOf(m, f, read()));
+			}
+		if (f === lastFrame) for (const m of mounted) out.push(...emptyFrame(m));
+		return out;
+	}
+
+	function fitOf(m: Mounted, f: number, page: TextReader): string[] {
+		const id = m.data.id;
+		const { boxes, text, covers } = page.content(m.controller.root);
+		const found: FitFinding[] = [];
+		const cut = cutShare(boxes, frameRect);
+		if (cut.share >= CUT_SHARE) found.push({ kind: 'cut', ...cut });
+		if (safeRects) {
+			const share = outsideSafe(text, frameRect, safeRects);
+			if (share >= SAFE_TEXT_SHARE) found.push({ kind: 'safe', share });
+		}
+		const out: string[] = [];
+		for (const kind of ['cut', 'safe'] as const) {
+			const key = `${id}\u0000${kind}`;
+			const finding = found.find((x) => x.kind === kind) as
+				| Extract<FitFinding, { share: number }>
+				| undefined;
+			if (toldFit.has(key) || !finding) {
+				misfit.delete(key);
+				continue;
+			}
+			const run = misfit.get(key) as { from: number; finding: typeof finding } | undefined;
+			if (!run) {
+				misfit.set(key, { from: f, finding });
+				continue;
+			}
+			if (finding.share > run.finding.share) run.finding = finding;
+			if (f - run.from < FIT_SECONDS * seg.fps) continue;
+			misfit.delete(key);
+			toldFit.add(key);
+			out.push(
+				frameFitMessage(
+					{ clip: id, block: m.data.block, frame: run.from, finding: run.finding },
+					fitFormat,
+					seg.fps
+				)
+			);
+		}
+		if (covers) {
+			const r = reached.get(id) ?? { from: f, last: f, reach: newReach() };
+			addReach(r.reach, boxes, frameRect);
+			r.last = f;
+			reached.set(id, r);
+		}
+		return out;
+	}
+
+	/** A clip that covered the frame and left most of it empty (see `frameFit`), once. */
+	function emptyFrame(m: Mounted): string[] {
+		const id = m.data.id;
+		const r = reached.get(id);
+		if (!r) return [];
+		reached.delete(id);
+		const key = `${id}\u0000empty`;
+		if (toldFit.has(key) || r.last - r.from < FIT_SECONDS * seg.fps) return [];
+		const empty = emptyPart(reachBox(r.reach, frameRect), seg.size);
+		if (!empty) return [];
+		toldFit.add(key);
+		return [
+			frameFitMessage(
+				{ clip: id, block: m.data.block, frame: r.from, finding: { kind: 'empty', ...empty } },
+				fitFormat,
+				seg.fps
+			)
+		];
+	}
+
+	/**
+	 * Captions drawn over a shot move they start inside (see `moveAtStart`): at the frames checked
+	 * inside the move, whether their text lies over a panel (a slotted clip's slot, `PANEL_TEXT_SHARE`
+	 * of the text) or covers the face (`FACE_TEXT_SHARE`) on either side; at the first frame checked
+	 * after it, whether they are clear. Drawn over something during the move and clear after it
+	 * warns, once. Captions riding a side of a transition move with it and are left out.
+	 */
+	function movingCaptions(f: number, read: () => TextReader): string[] {
+		const out: string[] = [];
+		const now = last?.f === f ? last : null;
+		if (!now || seg.insert) return out;
+		mounted.forEach((m, i) => {
+			const move = captionMoves[i];
+			if (!move || m.shown === null || f < move.from) return;
+			const id = m.data.id;
+			const state = inMove.get(id) ?? { frame: -1, panel: false, face: false, done: false };
+			inMove.set(id, state);
+			if (state.done) return;
+			if (now.clips[i].side) {
+				state.done = true;
+				return;
+			}
+			if (f >= move.to && state.frame < 0) {
+				state.done = true;
+				return;
+			}
+			const over = drawnOver(now, i, read());
+			if (f < move.to) {
+				if (!over.panel && !over.face) return;
+				if (state.frame < 0) state.frame = f;
+				state.panel ||= over.panel;
+				state.face ||= over.face;
+				return;
+			}
+			state.done = true;
+			if (over.panel || over.face) return;
+			out.push(
+				captionsInMoveMessage(
+					{
+						clip: id,
+						start: m.data.startFrame,
+						move,
+						over: { panel: state.panel, face: state.face },
+						frame: state.frame
+					},
+					seg.fps
+				)
+			);
+		});
+		return out;
+	}
+
+	/** What the text of mounted clip `i` lies over at the planned frame: a panel, the face. */
+	function drawnOver(now: Plan, i: number, page: TextReader) {
+		const boxes = page.boxes(mounted[i].controller.root);
+		const total = boxes.reduce((sum, b) => sum + b.width * b.height, 0);
+		if (!total) return { panel: false, face: false };
+		let onPanel = 0;
+		now.clips.forEach((c, k) => {
+			if (!c.slot || c.local === null || k === i) return;
+			for (const b of boxes) {
+				const o = intersect(b, c.slot);
+				if (o) onPanel += o.width * o.height;
+			}
+		});
+		let face = false;
+		for (const side of now.b ? [now.a, now.b] : [now.a]) {
+			const frames = framesOf(side.view);
+			const box = frames && side.view ? sourceSubjectBox(frames, side.view.frame) : null;
+			const shown = (side.layout.opacity ?? 1) >= TEXT_OPACITY;
+			const head = box && shown ? headOnStage(box, side.layout) : null;
+			if (head && faceCovered(head, boxes, side.layout.clip) >= FACE_TEXT_SHARE) face = true;
+		}
+		return { panel: onPanel / total >= PANEL_TEXT_SHARE, face };
+	}
+
+	/**
+	 * Text behind the speaker that the speaker covers, at the frame last drawn (each clip at most
+	 * every `BEHIND_STRIDE` frames): the text of a `"layer": "behind"` clip against the subject
+	 * picture of side a, and text under a subject layer of a front clip against the layers drawn
+	 * after it, sampled over its line boxes. A clip
+	 * warns once, after the speaker has covered more than `BEHIND_TEXT_SHARE` of its text in the
+	 * frames checked for `BEHIND_TEXT_SECONDS`, with the parts of the frame clear of the speaker.
+	 * Left out: transition windows, footage faded out or without a matte, and frames with holes.
+	 */
+	function textBehind(f: number, read: () => TextReader): string[] {
+		const now = last?.f === f ? last : null;
+		const view = now && !now.b && !seg.insert ? now.a.view : null;
+		const frames = framesOf(view);
+		const holes = !!a.cut && a.cut.box.style.display !== 'none';
+		const faded = (now?.a.layout.opacity ?? 1) < TEXT_OPACITY;
+		if (!now || !view || !frames?.subject || holes || faded) {
+			behindRun.clear();
+			behindAt.clear();
+			return [];
+		}
+		const out: string[] = [];
+		let layers: HTMLElement[] | null = null;
+		for (const m of mounted) {
+			const id = m.data.id;
+			if (m.shown === null || toldBehind.has(id)) {
+				behindRun.delete(id);
+				behindAt.delete(id);
+				continue;
+			}
+			const at = behindAt.get(id);
+			if (at !== undefined && f - at < BEHIND_STRIDE) continue;
+			behindAt.set(id, f);
+			let boxes: Rect[] = [];
+			let sample: Sampler | null = null;
+			if (m.data.layer === 'behind') {
+				boxes = read().boxes(m.controller.root, undefined, false);
+				if (boxes.length) sample = subjectSampler(now.a.layout);
+			} else {
+				layers ??= subjectLayers(read());
+				const root = m.controller.root;
+				const after = layers.filter(
+					(l) =>
+						root.contains(l) ||
+						!!(root.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING)
+				);
+				if (after.length) {
+					const under = (node: Node) =>
+						after.some((l) => node.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING);
+					boxes = read().boxes(root, (node) => !under(node), false);
+					if (boxes.length) sample = layersSampler(after);
+				}
+			}
+			const points = boxes.length ? textPoints(boxes) : [];
+			const hits = sample && points.length ? sample(points) : null;
+			const share = hits ? hits.filter(Boolean).length / points.length : 0;
+			if (share <= BEHIND_TEXT_SHARE) {
+				behindRun.delete(id);
+				continue;
+			}
+			const run = behindRun.get(id) ?? { from: f, share };
+			run.share = Math.max(run.share, share);
+			behindRun.set(id, run);
+			if (f - run.from < BEHIND_TEXT_SECONDS * seg.fps) continue;
+			behindRun.delete(id);
+			toldBehind.add(id);
+			const clear = clearOfSpeaker(
+				speakerMask(sample!),
+				contentReach(boxes, frameRect) ?? boxes[0],
+				seg.size
+			);
+			out.push(
+				textBehindMessage(
+					{ clip: id, block: m.data.block, frame: run.from, share: run.share, clear },
+					seg.size,
+					seg.fps
+				)
+			);
+		}
+		return out;
+	}
+
+	/** The subject layers of front clips on screen that draw the speaker, at least half opaque. */
+	function subjectLayers(page: TextReader): HTMLElement[] {
+		const found: HTMLElement[] = [];
+		for (const m of mounted) {
+			if (m.shown === null || m.data.layer === 'behind') continue;
+			for (const el of m.controller.root.querySelectorAll<HTMLElement>(
+				'.vf-subject-layer[data-layer="subject"]'
+			))
+				if (page.opacityOf(el) >= 0.5) found.push(el);
+		}
+		return found;
+	}
+
+	/** Whether any of `layers` draws the speaker at each point (see `canvasHits`). */
+	function layersSampler(layers: HTMLElement[]): Sampler {
+		return (points) => {
+			const hits = points.map(() => false);
+			for (const l of layers) {
+				// A layer whose pixels cannot be read counts as drawn everywhere (see `drawnShare`).
+				const own = canvasHits(l, points, stage, seg.size) ?? points.map(() => true);
+				own.forEach((h, k) => (hits[k] ||= h));
+			}
+			return hits;
+		};
+	}
+
+	/**
+	 * Whether the subject picture of side a (the speaker cut out by the matte, as drawn over the
+	 * behind clips) is at least half opaque at each point: the part of the picture under the
+	 * points is read back at `READ_SCALE` of its size. Null when it is not drawn or cannot be read.
+	 */
+	function subjectSampler(layout: ShotLayout): Sampler | null {
+		const img = a.subject.img;
+		if (img.style.display === 'none' || !img.complete || !img.naturalWidth) return null;
+		const { camera, clip, turn } = layout;
+		const turnBack = turn ? (-turn.rotation * Math.PI) / 180 : 0;
+		const w = img.naturalWidth;
+		const h = img.naturalHeight;
+		/** A stage point in picture pixels; null outside the camera window or the picture. */
+		const onPicture = (p: { x: number; y: number }) => {
+			if (p.x < clip.x || p.y < clip.y || p.x >= clip.x + clip.width || p.y >= clip.y + clip.height)
+				return null;
+			let { x, y } = p;
+			if (turn) {
+				const dx = x - turn.pivot.x;
+				const dy = y - turn.pivot.y;
+				x = turn.pivot.x + dx * Math.cos(turnBack) - dy * Math.sin(turnBack);
+				y = turn.pivot.y + dx * Math.sin(turnBack) + dy * Math.cos(turnBack);
+			}
+			const u = (x - camera.x) / camera.width;
+			const v = (y - camera.y) / camera.height;
+			return u >= 0 && v >= 0 && u < 1 && v < 1 ? { x: u * w, y: v * h } : null;
+		};
+		return (points) => {
+			const at = points.map(onPicture);
+			const kept = at.filter((q): q is { x: number; y: number } => !!q);
+			if (!kept.length) return points.map(() => false);
+			const x0 = Math.floor(Math.min(...kept.map((q) => q.x)));
+			const y0 = Math.floor(Math.min(...kept.map((q) => q.y)));
+			const sw = Math.floor(Math.max(...kept.map((q) => q.x))) - x0 + 1;
+			const sh = Math.floor(Math.max(...kept.map((q) => q.y))) - y0 + 1;
+			const dw = Math.max(1, Math.ceil(sw * READ_SCALE));
+			const dh = Math.max(1, Math.ceil(sh * READ_SCALE));
+			readBack ??= document.createElement('canvas');
+			if (readBack.width < dw || readBack.height < dh) {
+				readBack.width = Math.max(readBack.width, dw);
+				readBack.height = Math.max(readBack.height, dh);
+			}
+			// A GPU canvas: the picture is drawn from the GPU and only the small part under the points
+			// comes back (a canvas read often would pull the whole picture to the CPU first).
+			const ctx = readBack.getContext('2d');
+			if (!ctx) return null;
+			let data: Uint8ClampedArray;
+			try {
+				ctx.clearRect(0, 0, dw, dh);
+				ctx.drawImage(img, x0, y0, sw, sh, 0, 0, dw, dh);
+				data = ctx.getImageData(0, 0, dw, dh).data;
+			} catch {
+				return null;
+			}
+			return at.map((q) => {
+				if (!q) return false;
+				const px = Math.min(dw - 1, Math.floor(((q.x - x0) / sw) * dw));
+				const py = Math.min(dh - 1, Math.floor(((q.y - y0) / sh) * dh));
+				return data[(py * dw + px) * 4 + 3] >= 128;
+			});
+		};
+	}
+
+	/** Where `sample` finds the speaker on a grid over the whole stage (see `SpeakerMask`). */
+	function speakerMask(sample: Sampler): SpeakerMask {
+		const step = Math.max(8, Math.round(Math.min(...seg.size) / 60));
+		const cols = Math.ceil(seg.size[0] / step);
+		const rows = Math.ceil(seg.size[1] / step);
+		const points: { x: number; y: number }[] = [];
+		for (let r = 0; r < rows; r++)
+			for (let c = 0; c < cols; c++) points.push({ x: (c + 0.5) * step, y: (r + 0.5) * step });
+		return { step, cols, rows, hit: sample(points) ?? points.map(() => false) };
 	}
 
 	function inSegment(f: number) {
@@ -1178,7 +1607,11 @@ export function createProgramScene(
 					);
 				}
 			}
-			out.push(...faceText(f));
+			// One reader for every measure of this frame: what it learns about elements is shared.
+			let page: TextReader | null = null;
+			const read = () => (page ??= textReader(stage, seg.size));
+			out.push(...faceText(f, read), ...textBehind(f, read));
+			out.push(...frameFit(f, read), ...movingCaptions(f, read));
 			return out;
 		},
 		holdout(on) {
@@ -1209,6 +1642,13 @@ type TextLook = {
 	card: Rect | null;
 	/** Whether it or an ancestor paints its background through the text (`background-clip: text`). */
 	clipsText: boolean;
+	/**
+	 * Like `clip`, from the ancestors smaller than the stage only: a block's frame-sized box with
+	 * `overflow: hidden` hides what lies off the frame, which `frameFit` still counts.
+	 */
+	inner: Rect | null;
+	/** Its computed style; null for the stage. */
+	style: CSSStyleDeclaration | null;
 };
 
 type TextReader = ReturnType<typeof textReader>;
@@ -1233,6 +1673,17 @@ function alphaOf(color: string): number {
 	return parts && parts.length >= 4 ? Number(parts[3]) : 1;
 }
 
+/** Whether an element with `style` paints its box: a background, or a border on any side. */
+function paintsBox(style: CSSStyleDeclaration): boolean {
+	if (alphaOf(style.backgroundColor) > 0 || style.backgroundImage !== 'none') return true;
+	return ['top', 'right', 'bottom', 'left'].some(
+		(side) =>
+			parseFloat(style.getPropertyValue(`border-${side}-width`)) > 0 &&
+			style.getPropertyValue(`border-${side}-style`) !== 'none' &&
+			alphaOf(style.getPropertyValue(`border-${side}-color`)) > 0
+	);
+}
+
 /**
  * Reads the text of clips in the page at the frame last drawn, in stage pixels, sharing what it
  * learns about elements between clips.
@@ -1248,19 +1699,30 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 		const on = intersect(r, page);
 		return !!on && on.width * on.height >= MOST * page.width * page.height;
 	};
+	/** Whether `r` (page pixels) covers the whole stage. */
+	const whole = (r: Rect) =>
+		r.x <= page.x + 1 &&
+		r.y <= page.y + 1 &&
+		r.x + r.width >= page.x + page.width - 1 &&
+		r.y + r.height >= page.y + page.height - 1;
 	const looks = new Map<Element, TextLook>();
 	const lookOf = (el: Element | null): TextLook => {
-		if (!el || el === stage) return { opacity: 1, clip: null, card: null, clipsText: false };
+		if (!el || el === stage)
+			return { opacity: 1, clip: null, card: null, clipsText: false, inner: null, style: null };
 		const known = looks.get(el);
 		if (known) return known;
 		const up = lookOf(el.parentElement);
 		const style = getComputedStyle(el);
 		const opacity = up.opacity * Number(style.opacity || 1);
 		let clip = up.clip;
+		let inner = up.inner;
 		let own: Rect | null = null;
+		const cut = (to: Rect | null, by: Rect) =>
+			to ? (intersect(to, by) ?? { ...by, width: 0, height: 0 }) : by;
 		if (style.overflowX !== 'visible' || style.overflowY !== 'visible') {
 			own = rect(el.getBoundingClientRect());
-			clip = clip ? (intersect(clip, own) ?? { ...own, width: 0, height: 0 }) : own;
+			clip = cut(clip, own);
+			if (!whole(own)) inner = cut(inner, own);
 		}
 		let card = up.card;
 		if (alphaOf(style.backgroundColor) >= CARD_ALPHA && style.visibility === 'visible') {
@@ -1271,7 +1733,7 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 			up.clipsText ||
 			style.backgroundClip === 'text' ||
 			style.getPropertyValue('-webkit-background-clip') === 'text';
-		const look = { opacity, clip, card, clipsText };
+		const look = { opacity, clip, card, clipsText, inner, style };
 		looks.set(el, look);
 		return look;
 	};
@@ -1281,42 +1743,106 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 		width: r.width * sx,
 		height: r.height * sy
 	});
+	const range = document.createRange();
+	/**
+	 * The line boxes of a text node that can be read (see `boxes`), cut to `cut`: the ancestors
+	 * that clip their overflow (`clip`), only those smaller than the stage (`inner`), or replaced
+	 * by the opaque card the text sits on (`card`).
+	 */
+	const textBoxes = (node: Text, cut: 'card' | 'clip' | 'inner'): Rect[] => {
+		const parent = node.parentElement;
+		if (!node.nodeValue?.trim() || !parent || /^(STYLE|SCRIPT)$/.test(parent.tagName)) return [];
+		const look = lookOf(parent);
+		if (look.opacity < TEXT_OPACITY) return [];
+		const style = look.style ?? getComputedStyle(parent);
+		if (style.visibility !== 'visible') return [];
+		if (cut === 'card' && look.card) return [toStage(look.card)];
+		const fill = style.getPropertyValue('-webkit-text-fill-color') || style.color;
+		const stroke = parseFloat(style.getPropertyValue('-webkit-text-stroke-width')) || 0;
+		if (alphaOf(fill) === 0 && stroke === 0 && !look.clipsText) return [];
+		const within = cut === 'inner' ? look.inner : look.clip;
+		const out: Rect[] = [];
+		range.selectNodeContents(node);
+		for (const r of range.getClientRects()) {
+			const box = within ? intersect(rect(r), within) : rect(r);
+			if (box) out.push(toStage(box));
+		}
+		return out;
+	};
 	return {
 		/** The effective opacity of `el`: its own times its ancestors'. */
 		opacityOf: (el: Element) => lookOf(el).opacity,
 		/**
 		 * The boxes of the text inside `root` that can be read: each line box of each text node,
-		 * or the opaque card it sits on, cut to the ancestors that clip their overflow. Hidden text,
-		 * text under `TEXT_OPACITY` (its own opacity times its ancestors') and text with a
-		 * transparent fill and no stroke (a typewriter's letters still to come) are left out, as is
-		 * text `skip` returns true for.
+		 * or the opaque card it sits on (unless `cards` is false), cut to the ancestors that clip
+		 * their overflow. Hidden text, text under `TEXT_OPACITY` (its own opacity times its
+		 * ancestors') and text with a transparent fill and no stroke (a typewriter's letters still
+		 * to come) are left out, as is text `skip` returns true for.
 		 */
-		boxes(root: HTMLElement, skip?: (node: Node) => boolean): Rect[] {
+		boxes(root: HTMLElement, skip?: (node: Node) => boolean, cards = true): Rect[] {
 			if (!frame.width || !frame.height) return [];
 			const out: Rect[] = [];
-			const range = document.createRange();
 			const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
 			for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-				const parent = node.parentElement;
-				if (!node.nodeValue?.trim() || !parent || /^(STYLE|SCRIPT)$/.test(parent.tagName)) continue;
-				const look = lookOf(parent);
-				if (look.opacity < TEXT_OPACITY || skip?.(node)) continue;
-				const style = getComputedStyle(parent);
-				if (style.visibility !== 'visible') continue;
-				if (look.card) {
-					out.push(toStage(look.card));
-					continue;
-				}
-				const fill = style.getPropertyValue('-webkit-text-fill-color') || style.color;
-				const stroke = parseFloat(style.getPropertyValue('-webkit-text-stroke-width')) || 0;
-				if (alphaOf(fill) === 0 && stroke === 0 && !look.clipsText) continue;
-				range.selectNodeContents(node);
-				for (const r of range.getClientRects()) {
-					const box = look.clip ? intersect(rect(r), look.clip) : rect(r);
-					if (box) out.push(toStage(box));
-				}
+				if (skip?.(node)) continue;
+				out.push(...textBoxes(node as Text, cards ? 'card' : 'clip'));
 			}
 			return out;
+		},
+		/**
+		 * What `root` shows that carries content, for `frameFit`, in stage pixels: the line boxes
+		 * of its text (also in `text`), the boxes of its images and videos, and the boxes of the
+		 * cards, panels and SVGs (elements with a background or border) that hold text, each cut
+		 * only to the ancestors smaller than the stage that clip their overflow. Left out: what is
+		 * hidden or under `TEXT_OPACITY`, decoration without text (glows, patterns, canvases), and
+		 * planes over `MOST` of the stage; `covers` tells whether such a plane paints the frame
+		 * opaque (a card or picture, at least `HIDES` opaque).
+		 */
+		content(root: HTMLElement): { boxes: Rect[]; text: Rect[]; covers: boolean } {
+			const boxes: Rect[] = [];
+			const text: Rect[] = [];
+			let covers = false;
+			if (!frame.width || !frame.height) return { boxes, text, covers };
+			const visit = (el: Element) => {
+				for (const child of el.childNodes) {
+					if (child.nodeType === Node.TEXT_NODE) {
+						const lines = textBoxes(child as Text, 'inner');
+						boxes.push(...lines);
+						text.push(...lines);
+						continue;
+					}
+					if (!(child instanceof Element) || /^(STYLE|SCRIPT)$/.test(child.tagName)) continue;
+					const look = lookOf(child);
+					const style = look.style!;
+					if (look.opacity < TEXT_OPACITY || style.display === 'none') continue;
+					// What draws its own picture: its box, not its children.
+					const picture =
+						/^(IMG|CANVAS|VIDEO)$/.test(child.tagName) || child instanceof SVGSVGElement;
+					if (style.visibility === 'visible' && (picture || paintsBox(style))) {
+						const own = rect(child.getBoundingClientRect());
+						const box = look.inner ? intersect(own, look.inner) : own;
+						const media = /^(IMG|VIDEO)$/.test(child.tagName);
+						if (box && most(box)) {
+							if (
+								look.opacity >= HIDES &&
+								(alphaOf(style.backgroundColor) >= HIDES ||
+									style.backgroundImage !== 'none' ||
+									child.tagName === 'IMG')
+							)
+								covers = true;
+						} else if (
+							box &&
+							box.width > 0 &&
+							box.height > 0 &&
+							(media || (child.tagName !== 'CANVAS' && !!child.textContent?.trim()))
+						)
+							boxes.push(toStage(box));
+					}
+					if (!picture) visit(child);
+				}
+			};
+			visit(root);
+			return { boxes, text, covers };
 		},
 		/**
 		 * Whether something visible inside `root` is a full-frame card over the head and hides the
@@ -1389,32 +1915,61 @@ function drawnShare(
 	stage: HTMLElement,
 	size: [number, number]
 ): number {
+	if (!points.length) return 0;
+	const hits = canvasHits(layer, points, stage, size);
+	return hits ? hits.filter(Boolean).length / points.length : 1;
+}
+
+/**
+ * Whether a subject layer's canvas has drawn the speaker at each of `points` (stage pixels; see
+ * `drawnShare`); null when its pixels cannot be read.
+ */
+function canvasHits(
+	layer: HTMLElement,
+	points: { x: number; y: number }[],
+	stage: HTMLElement,
+	size: [number, number]
+): boolean[] | null {
+	const none = points.map(() => false);
 	const canvas = layer.querySelector('canvas');
 	const frame = stage.getBoundingClientRect();
 	const box = canvas?.getBoundingClientRect();
-	if (!canvas || !box?.width || !box.height || !canvas.width || !points.length) return 0;
+	if (!canvas || !box?.width || !box.height || !canvas.width || !points.length) return none;
 	const at = (p: { x: number; y: number }) => ({
 		x: Math.floor(((frame.x + (p.x * frame.width) / size[0] - box.x) / box.width) * canvas.width),
 		y: Math.floor(((frame.y + (p.y * frame.height) / size[1] - box.y) / box.height) * canvas.height)
 	});
-	const pixels = points
-		.map(at)
-		.filter((p) => p.x >= 0 && p.y >= 0 && p.x < canvas.width && p.y < canvas.height);
-	if (!pixels.length) return 0;
-	const x0 = Math.min(...pixels.map((p) => p.x));
-	const y0 = Math.min(...pixels.map((p) => p.y));
-	const w = Math.max(...pixels.map((p) => p.x)) - x0 + 1;
-	const h = Math.max(...pixels.map((p) => p.y)) - y0 + 1;
+	const pixels = points.map(at);
+	const inside = (p: { x: number; y: number }) =>
+		p.x >= 0 && p.y >= 0 && p.x < canvas.width && p.y < canvas.height;
+	const kept = pixels.filter(inside);
+	if (!kept.length) return none;
+	const x0 = Math.min(...kept.map((p) => p.x));
+	const y0 = Math.min(...kept.map((p) => p.y));
+	const w = Math.max(...kept.map((p) => p.x)) - x0 + 1;
+	const h = Math.max(...kept.map((p) => p.y)) - y0 + 1;
 	let data: Uint8ClampedArray;
 	try {
 		const ctx = canvas.getContext('2d');
-		if (!ctx) return 0;
+		if (!ctx) return none;
 		data = ctx.getImageData(x0, y0, w, h).data;
 	} catch {
-		return 1;
+		return null;
 	}
-	const drawn = pixels.filter((p) => data[((p.y - y0) * w + (p.x - x0)) * 4 + 3] >= 128).length;
-	return drawn / points.length;
+	return pixels.map((p) => inside(p) && data[((p.y - y0) * w + (p.x - x0)) * 4 + 3] >= 128);
+}
+
+/** Points spread over text boxes, about one per `TEXT_STEP` pixels each way. */
+function textPoints(boxes: Rect[]): { x: number; y: number }[] {
+	const out: { x: number; y: number }[] = [];
+	for (const b of boxes) {
+		const nx = Math.max(1, Math.min(32, Math.ceil(b.width / TEXT_STEP)));
+		const ny = Math.max(1, Math.min(8, Math.ceil(b.height / TEXT_STEP)));
+		for (let i = 0; i < nx; i++)
+			for (let j = 0; j < ny; j++)
+				out.push({ x: b.x + ((i + 0.5) * b.width) / nx, y: b.y + ((j + 0.5) * b.height) / ny });
+	}
+	return out;
 }
 
 /**

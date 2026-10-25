@@ -994,9 +994,10 @@ Snap warnings are left out while the cut list itself has errors.
 
 ## Built-in blocks and captions
 
-`"block": "@visualfries/captions"`, `"block": "@visualfries/speaker-depth"` and
-`"block": "@visualfries/subject"` (see [Subject layers](#subject-layers)) ship with
-VisualFries; their `props` replace a hand-written block. In your own blocks, `<Captions>`
+`"block": "@visualfries/captions"`, `"block": "@visualfries/speaker-depth"`,
+`"block": "@visualfries/subject"` (see [Subject layers](#subject-layers)) and
+`"block": "@visualfries/end-card"` (see [Excerpts](#excerpts)) ship with VisualFries; their
+`props` replace a hand-written block. In your own blocks, `<Captions>`
 (`import { Captions } from 'visualfries/motion'`) draws word-timed captions with the presets
 `bold`, `karaoke`, `pill`, `punch` and `neon`, and `clip.subject('talk')` returns where the
 speaker is (box and top of the head, from the matte). See the Captions and Footage docs pages.
@@ -1284,6 +1285,99 @@ and transitions move with their words, and the music re-snaps to a bar. A phrase
 longer says fails with the closest spoken ones; numbers in source seconds do not follow, so keep
 cut points as phrases.
 
+### Excerpts
+
+A teaser cut from the same program as the long video: name a range, and VisualFries resolves the
+whole program first and then slices it. Every phrase, `until`, repeated phrase and beat lands
+exactly where it does in the full video, so nothing in the slice is missing and nothing needs
+re-anchoring.
+
+```json
+"excerpts": [
+	{
+		"id": "teaser1",
+		"from": 0,
+		"until": { "say": "while my computer is off", "edge": "end", "offset": 0.15 },
+		"format": "1080x1920",
+		"end": {
+			"duration": 3,
+			"props": { "lines": ["Full video", "on YouTube"], "handle": "@channel" },
+			"sound": "sfx/slam.wav",
+			"gain": -4
+		}
+	}
+]
+```
+
+```bash
+visualfries program video.vf.json --excerpt teaser1    # its range, edges and end card
+visualfries check video.vf.json --excerpt teaser1
+visualfries still video.vf.json --excerpt teaser1 --at 2s --at end --output teaser1.png
+visualfries render video.vf.json --excerpt teaser1 --output out/   # out/video.teaser1.mp4
+```
+
+- **Range.** `from` and `until` take program anchors: phrases, seconds, `{ "frame" }`, beats,
+  `"end"`, `{ "program": "end", "offset": -5 }`. A phrase in `until` is the end of its last word,
+  searched from `from` on; a repeated one is its first occurrence after `from`. Frame 0 of the
+  excerpt is the program frame `from` lands on, and `until` past the program end stops at it.
+- **Format.** `format` (`"WxH"`) is the frame the excerpt renders in, and the whole program is
+  resolved in it before the slice: clips get its `clip.format` and safe insets, shots lay out for
+  its class. Default: the project size; `--format` overrides it. Blocks that read
+  `clip.format.class` and `--safe-*` carry over; a block laid out in fixed 16:9 pixels does not, so
+  look at `still --excerpt` stills of every block.
+- **Edges.** Items keep their own time. A clip running across `from` shows from where it is there
+  (its cues, words and animation as in the full video), and one running across `until` stops
+  there. A shot keeps its start: a move (a morph, a whip) cut by `from` plays on from its middle,
+  and keys keep their frames. A cut or shot transition window across an edge plays as in the full
+  video. Cuts are trimmed to the range. In the excerpt's program JSON, an item cut by `from` has
+  a negative `startFrame`. `program` and `check` warn when an edge falls inside a word, a shot's
+  move or a transition window (the excerpt then starts or ends mid-word or mid-move), and name
+  the clips running across an edge as `info`.
+- **Sound.** Speech is cut at both edges with a 10 ms anti-click fade. An effect stays when its
+  hit lands inside the range: its run-up before `from` is cut, and one ringing on past `until`
+  rings on under the end card. An effect whose hit is before `from` is left out, because only
+  its tail would play and the mixer levels each effect by its loudest part. Music playing at
+  `from` starts inside its file with a 0.25 s fade-in. Music playing at `until` goes on under the
+  end card at the level its keys give it at `until`, and fades out over its `fade.out` (at least
+  0.25 s) to the excerpt's last frame; music that ends sooner ends as in the full video. The
+  excerpt is mixed as a program of its own: the speech loudness, and with it the effect and music
+  levels and the master gain, is measured on the excerpt's sound.
+- **End card.** `end` adds `duration` seconds after the range. From its first frame the picture
+  holds: the footage, shots, transitions and every clip stay as they are on the excerpt's last
+  frame, and only the card plays over them. The card is `@visualfries/end-card` with `props`, or
+  any block (`"block": "blocks/TeaserEnd.svelte"`); its clip id is `<excerpt>.end`. `sound` is
+  an effect on its first frame (a `sounds.json` hit lands there) and `gain` its dB, as in `sfx`.
+- **Errors.** An excerpt that does not resolve is an error when it is asked for (`--excerpt`)
+  and a warning in the whole program, so a typo in one teaser never stops the full video. The
+  whole program has to resolve without errors, since the excerpt is its slice.
+- **Cache.** An excerpt is drawn as a program of its own: its segments are cached in
+  `.visualfries/segments/` under their own hashes, and each excerpt and format records its own
+  files, so rendering one never prunes another's or the full video's. Rendering it again draws
+  only what changed in it. It does not take segments from the full video's render: a teaser is
+  usually another format, its edges rarely fall on the hard cuts between segments, and its
+  hashes cover excerpt frames, so an edit that moves the range inside the program (a cut before
+  it gets longer) draws the excerpt again.
+- **Files.** `render --excerpt <id>` writes `<project>.<id>.mp4` (with `--format`,
+  `<project>.<id>.<format>.mp4`) and `<project>.<id>.program.json`; `program --excerpt` saves
+  `.visualfries/program/<id>.<format>.json`. The whole program lists `excerpts` (each `id`,
+  `startFrame` and `frames` in program frames, `format`, `end`), and an excerpt's program carries
+  its own as `excerpt`. Excerpts render as video only (no `--export inserts`).
+
+One excerpt is one range: a teaser that drops a stretch from the middle of the range is still a
+program of its own.
+
+`@visualfries/end-card` dims the picture under it, lands its lines one by one and raises the
+handle below them, all inside the safe zone, in the brand's colours and fonts, at any frame size:
+
+| prop     |                                                                                    |
+| -------- | ---------------------------------------------------------------------------------- |
+| `lines`  | one string per line (default `["Full video", "on YouTube"]`)                       |
+| `accent` | the line in the brand's primary colour (default the last; `-1`: none)              |
+| `handle` | the channel under the lines (optional)                                             |
+| `image`  | a round picture beside the handle: `{ "file" }` or a URL; default the brand's mark |
+|          | logo when it has one, `false` for none                                             |
+| `dim`    | how dark the picture under it gets, 0–1 (default 0.8)                              |
+
 ## CLI
 
 ```bash
@@ -1294,6 +1388,7 @@ visualfries still video.vf.json --clip B --at extra --at extra.end+0.5 --output 
 visualfries render video.vf.json --output out/ [--clip B] [--jobs 6]   # MP4 / MOV + manifest.json
 visualfries render video.vf.json --clip B --output b.mp4               # one clip straight to a file
 visualfries render program.vf.json --output out/ [--format 1080x1920]   # a cut list or shots: one video
+visualfries render program.vf.json --excerpt teaser1 --output out/      # one of its excerpts (teaser)
 visualfries render program.vf.json --export inserts --output out/ [--handles 10]  # its clips, one file each
 visualfries check program.vf.json --export inserts               # what inserts leave to the program render
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover

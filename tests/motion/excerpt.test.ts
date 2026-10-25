@@ -238,6 +238,108 @@ describe('excerpts', () => {
 		).toThrow(/no "cuts" or "shots"/);
 	});
 
+	it('hashes what a transition window across an edge shows: its other side and held clips', () => {
+		const at = (from: number, until: number, extra: object = {}) =>
+			excerpt(
+				'x',
+				project({
+					excerpts: [{ id: 'x', from: { frame: from }, until: { frame: until } }],
+					...extra
+				})
+			);
+		const whole = full();
+		const push = whole.transitions.find((t) => t.owner === 'cut3')!;
+		const wipe = whole.transitions.find((t) => t.owner === 'codec')!;
+		// Ends inside the push window, before its cut: cut3 and the codec clip (its wipe starts
+		// before the edge) are drawn, so they are in the segment and its hash.
+		const end = push.cutFrame - 2;
+		expect(wipe.startFrame).toBeLessThan(end);
+		const p = at(39, end);
+		const seg = p.segments.at(-1)!;
+		expect(seg.items).toEqual(expect.arrayContaining(['cut3', 'codec']));
+		const props = base.clips.map((c: { id: string }) =>
+			c.id === 'codec' ? { ...c, props: { title: 'other' } } : c
+		);
+		expect(at(39, end, { clips: props }).segments.at(-1)!.hash).not.toBe(seg.hash);
+		// Starts inside the window after its cut: the outgoing cut2 is drawn and hashed.
+		const q = at(push.cutFrame + 2, push.cutFrame + 40);
+		expect(q.segments[0].items).toContain('cut2');
+		const later = base.cuts.map((c: object, i: number) =>
+			i === 1 ? { ...c, in: { say: 'today we fix', offset: -0.2 } } : c
+		);
+		expect(at(push.cutFrame + 2, push.cutFrame + 40, { cuts: later }).segments[0].hash).not.toBe(
+			q.segments[0].hash
+		);
+	});
+
+	it('keeps both shots of a shot transition across an edge', () => {
+		const shots = [
+			{ id: 'open', shot: 'full', from: 0, until: 1.5 },
+			{ id: 'in', shot: 'punch', from: 1.5, until: 3, transition: { type: 'push', duration: 0.6 } }
+		];
+		const p = excerpt('x', project({ shots, excerpts: [{ id: 'x', from: 0.8, until: 1.4 }] }));
+		expect(p.transitions.map((t) => t.owner)).toEqual(['in']);
+		expect(p.shots.map((s) => s.id)).toEqual(['open', 'in']);
+		const stage = segmentStage(p, p.segments[0], { frames: {}, map: null });
+		expect(stage.shots.map((s) => s.id)).toEqual(['open', 'in']);
+	});
+
+	it('leaves out music that starts after until, and fades effects out at the end', () => {
+		const p = excerpt(
+			'x',
+			project({
+				music: [
+					{ id: 'bed', src: 'bed.mp3', from: 0, until: 2 },
+					{ id: 'late', src: 'bed.mp3', from: 3.8 }
+				],
+				excerpts: [
+					{ id: 'x', from: 'today we fix', until: 'the slow export', end: { duration: 1 } }
+				]
+			})
+		);
+		expect(p.audio.music.map((m) => m.owner)).toEqual(['bed']);
+		const card = p.frames / 30;
+		const short = excerpt(
+			'y',
+			project({ excerpts: [{ id: 'y', from: 'then pick', until: 'faster codec' }] })
+		);
+		const pop = short.audio.sfx.find((s) => s.owner === 'sfx1')!;
+		expect(pop.at + pop.dur!).toBeCloseTo(short.frames / 30, 6);
+		expect(pop.fadeOut).toBe(EDGE_FADE.speech);
+		expect(card).toBeGreaterThan(0);
+	});
+
+	it('tells about a broken end card in the whole program, as a warning', () => {
+		const p = project({
+			excerpts: [
+				{
+					id: 'x',
+					from: 0,
+					until: 2,
+					end: { duration: 1, sound: 'missing.wav', props: { image: { file: 'nope.png' } } }
+				}
+			]
+		});
+		const sounds = { ...inputs.sounds, 'missing.wav': null };
+		const whole = resolveProgram(p, {
+			...inputs,
+			sounds,
+			files: { 'nope.png': 'File not found: nope.png' },
+			endBlocks: { [END_CARD_BLOCK]: null }
+		});
+		const told = whole.diagnostics.filter((d) => d.item?.startsWith('x.') || d.clip === 'x.end');
+		expect(told.map((d) => d.level)).toEqual(['warning', 'warning']);
+		expect(errors(whole)).toEqual([]);
+		const asked = resolveProgram(
+			p,
+			{ ...inputs, sounds, endBlocks: { [END_CARD_BLOCK]: 'Unknown built-in block' } },
+			{ excerpt: 'x' }
+		);
+		expect(errors(asked).map((d) => d.field)).toEqual(
+			expect.arrayContaining(['excerpts[0].end.sound', 'excerpts[0].end.block'])
+		);
+	});
+
 	it('rejects unknown fields', () => {
 		expect(() => project({ excerpts: [{ id: 'x', from: 0, untill: 2 }] })).toThrow(/untill/);
 	});

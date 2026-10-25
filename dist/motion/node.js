@@ -23,7 +23,9 @@ import { measureSpeechEdges } from './edit-audio.js';
 import { BeatsFileShape, barRows, formatBarGrid } from './beat-grid.js';
 import { musicEnds, musicTrack, placeMusic } from './music.js';
 import { fileSha256 } from './beats.js';
-import { footageMap, footageRanges } from './footage-map.js';
+import { footageMap, footageRanges, mergeRanges, shownRanges } from './footage-map.js';
+import { shotHead } from './framing.js';
+import { headroomParam, SUBJECT_SMOOTH } from './shots/layout.js';
 import { holdoutFootage } from './inserts.js';
 import { END_CARD_BLOCK } from './excerpt.js';
 import { removeOrphans, trackPartial } from './partials.js';
@@ -393,6 +395,19 @@ export async function loadMotionProject(file, opts = {}) {
         inputs.animatable = {};
         for (const block of new Set(project.clips.map((c) => c.block)))
             inputs.animatable[block] = await readBlockAnimatable(blockFile(dir, block));
+    }
+    const cards = endCards(project);
+    if (isProgramProject(project) && cards.length) {
+        // Excerpt end cards are clips the project does not list: their blocks are checked here.
+        inputs.endBlocks = {};
+        for (const { block } of cards)
+            inputs.endBlocks[block] = existsSync(blockFile(dir, block))
+                ? null
+                : block.startsWith(BUILTIN_PREFIX)
+                    ? `Unknown built-in block "${block}". Built-in blocks: ${Object.keys(BUILTIN_BLOCKS)
+                        .map((b) => BUILTIN_PREFIX + b)
+                        .join(', ')}.`
+                    : `Block file not found: ${block}`;
     }
     if (isProgramProject(project) || project.sfx?.length) {
         // Events the blocks declare, for `{ event, clip }` anchors.
@@ -845,7 +860,12 @@ export async function bundleMotionProject(loaded, clips, program) {
         html,
         roots,
         files,
-        footage: { frames: footage.frames, map: footage.map, warnings: footage.warnings },
+        footage: {
+            frames: footage.frames,
+            map: footage.map,
+            warnings: footage.warnings,
+            ...(footage.heads ? { heads: footage.heads } : {})
+        },
         brand: loaded.brand.resolved,
         props
     };
@@ -1307,7 +1327,13 @@ async function extractFootage(loaded, clips, drawn) {
         ];
     }));
     // Ranges less than a second apart are extracted as one: fewer decoder runs, few extra frames.
-    const wanted = footageRanges(map, clips, margins, Math.round(fps));
+    const gap = Math.round(fps);
+    const excerpt = drawn?.excerpt;
+    // An excerpt draws nothing new under its end card (it holds the last frame).
+    let wanted = footageRanges(excerpt ? { ...map, frames: excerpt.frames } : map, clips, margins, gap);
+    const whole = excerpt ? excerptFootage(loaded, drawn, sources, gap) : null;
+    if (whole)
+        wanted = mergeRanges(unite(wanted, whole.wanted), gap);
     for (const source of sources) {
         const ranges = [];
         for (const range of wanted[source.name] ?? [])
@@ -1318,7 +1344,46 @@ async function extractFootage(loaded, clips, drawn) {
         clip.footage = frames;
         clip.footageMap = map;
     }
-    return { roots, frames, map, warnings };
+    return { roots, frames, map, warnings, ...(whole ? { heads: whole.heads(frames) } : {}) };
+}
+/** Ranges of both lists per source (not merged). */
+const unite = (a, b) => {
+    const out = {};
+    for (const list of [a, b])
+        for (const [name, ranges] of Object.entries(list))
+            (out[name] ??= []).push(...ranges);
+    return out;
+};
+/**
+ * What an excerpt needs of the whole program's footage to frame like the full video: the
+ * frames the whole program shows around the excerpt's edges (subject smoothing and how high the
+ * head gets read them), and every frame of a shot with `headroom` that runs across an edge,
+ * whose one head size (`shotHead`) is measured over the whole shot; `heads` gives those sizes
+ * once the frames are extracted.
+ */
+function excerptFootage(loaded, drawn, sources, gap) {
+    const excerpt = drawn.excerpt;
+    const fps = loaded.project.fps;
+    const whole = resolveProgram(loaded.project, loaded.inputs, { format: drawn.format.name });
+    const map = footageMap(whole, Object.fromEntries(sources.map((s) => [s.name, s.total])));
+    // Two smoothing windows (how high the head gets reads one around each frame of another).
+    const edge = Math.round(2 * SUBJECT_SMOOTH * fps) + gap;
+    const end = excerpt.startFrame + excerpt.frames;
+    const lists = [shownRanges(map, excerpt.startFrame - edge, end + edge, gap)];
+    const crossing = drawn.shots.flatMap((s) => {
+        const full = whole.shots.find((w) => w.id === s.id);
+        const across = s.startFrame < 0 || s.startFrame + s.frames > excerpt.frames;
+        return full && across && headroomParam(s.params) !== false ? [full] : [];
+    });
+    for (const shot of crossing)
+        lists.push(shownRanges(map, shot.startFrame, shot.startFrame + shot.frames, gap));
+    return {
+        wanted: lists.reduce(unite, {}),
+        heads: (frames) => Object.fromEntries(crossing.map((shot) => [
+            shot.id,
+            Object.fromEntries(Object.keys(frames).map((name) => [name, shotHead(shot, map, frames, name)]))
+        ]))
+    };
 }
 /**
  * The warning about frames of a footage whose matte covers the whole picture, which keep the

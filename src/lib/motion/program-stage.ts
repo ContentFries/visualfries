@@ -108,6 +108,8 @@ type SideView = { view: FootageView | null; layout: ShotLayout };
 /** Everything a program frame decides before anything is drawn. */
 type Plan = {
 	f: number;
+	/** The frame the picture shows: `f`, or under an end card the frame it holds. */
+	g: number;
 	/** The cut or shot transition on screen; null outside every drawn window. */
 	staged: ProgramTransition | null;
 	a: SideView;
@@ -729,6 +731,7 @@ export function createProgramScene(
 		// Motion blur comes from the shot track alone, so only outside transition windows.
 		return {
 			f,
+			g,
 			staged,
 			...sides,
 			clips,
@@ -779,7 +782,7 @@ export function createProgramScene(
 	/** The eyes on each side of transition `t` at the planned frame (under a clip: on both). */
 	function focusOf(now: Plan, t: ProgramTransition): { out: Point | null; in: Point | null } {
 		if (t.kind !== 'clip') return { out: faceOf(now.a), in: now.b ? faceOf(now.b) : null };
-		const under = faceOf(now.b && now.f >= t.cutFrame ? now.b : now.a);
+		const under = faceOf(now.b && now.g >= t.cutFrame ? now.b : now.a);
 		return { out: under, in: under };
 	}
 
@@ -813,7 +816,7 @@ export function createProgramScene(
 	function sideOf(now: Plan, i: number): 'a' | 'b' {
 		const rider = now.clips[i].side;
 		if (rider) return rider;
-		return now.b && now.staged && now.f >= now.staged.cutFrame ? 'b' : 'a';
+		return now.b && now.staged && now.g >= now.staged.cutFrame ? 'b' : 'a';
 	}
 
 	/** Holes the clips on side `s` cut, placed at the frame the side shows. */

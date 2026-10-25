@@ -1329,17 +1329,22 @@ visualfries render video.vf.json --excerpt teaser1 --output out/   # out/video.t
   (its cues, words and animation as in the full video), and one running across `until` stops
   there. A shot keeps its start: a move (a morph, a whip) cut by `from` plays on from its middle,
   and keys keep their frames. A cut or shot transition window across an edge plays as in the full
-  video. Cuts are trimmed to the range. In the excerpt's program JSON, an item cut by `from` has
-  a negative `startFrame`. `program` and `check` warn when an edge falls inside a word, a shot's
+  video, with both its sides (also a side that lies outside the range). Cuts are trimmed to the
+  range. Framing reads the footage around the edges, and a shot with `headroom` across an edge
+  keeps the head size of the whole shot, so every frame of the excerpt is the full video's frame
+  (in its format). In the excerpt's program JSON, an item cut by `from` has a negative
+  `startFrame`. `program` and `check` warn when an edge falls inside a word, a shot's
   move or a transition window (the excerpt then starts or ends mid-word or mid-move), and name
   the clips running across an edge as `info`.
 - **Sound.** Speech is cut at both edges with a 10 ms anti-click fade. An effect stays when its
-  hit lands inside the range: its run-up before `from` is cut, and one ringing on past `until`
-  rings on under the end card. An effect whose hit is before `from` is left out, because only
-  its tail would play and the mixer levels each effect by its loudest part. Music playing at
+  hit lands inside the range: its run-up before `from` is cut, one ringing on past `until` rings
+  on under the end card, and one still ringing at the excerpt's last frame fades out over 10 ms.
+  An effect whose hit is before `from` is left out, because only its tail would play and the
+  mixer levels each effect by its loudest part. Music playing at
   `from` starts inside its file with a 0.25 s fade-in. Music playing at `until` goes on under the
   end card at the level its keys give it at `until`, and fades out over its `fade.out` (at least
-  0.25 s) to the excerpt's last frame; music that ends sooner ends as in the full video. The
+  0.25 s) to the excerpt's last frame; music that ends sooner ends as in the full video, and music
+  that starts at or after `until` is left out. The
   excerpt is mixed as a program of its own: the speech loudness, and with it the effect and music
   levels and the master gain, is measured on the excerpt's sound.
 - **End card.** `end` adds `duration` seconds after the range. From its first frame the picture
@@ -1347,8 +1352,9 @@ visualfries render video.vf.json --excerpt teaser1 --output out/   # out/video.t
   frame, and only the card plays over them. The card is `@visualfries/end-card` with `props`, or
   any block (`"block": "blocks/TeaserEnd.svelte"`); its clip id is `<excerpt>.end`. `sound` is
   an effect on its first frame (a `sounds.json` hit lands there) and `gain` its dB, as in `sfx`.
-- **Errors.** An excerpt that does not resolve is an error when it is asked for (`--excerpt`)
-  and a warning in the whole program, so a typo in one teaser never stops the full video. The
+- **Errors.** An excerpt that does not resolve, or whose end card does not (a missing block or
+  sound, a `{ "file" }` that is not there), is an error when it is asked for (`--excerpt`) and a
+  warning in the whole program, so a typo in one teaser never stops the full video. The
   whole program has to resolve without errors, since the excerpt is its slice.
 - **Cache.** An excerpt is drawn as a program of its own: its segments are cached in
   `.visualfries/segments/` under their own hashes, and each excerpt and format records its own

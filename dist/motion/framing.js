@@ -56,6 +56,9 @@ export function programFraming(data) {
         if (!span || source === null)
             return null;
         const key = `${span.id}\u0000${source}`;
+        const given = data.heads?.[span.id];
+        if (given && source in given)
+            return given[source];
         if (!heads.has(key))
             heads.set(key, shotHead(span, data.footageMap, data.footage, source));
         return heads.get(key);

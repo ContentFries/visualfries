@@ -15,7 +15,7 @@ type Span = {
  * Null without a matte that measures heads.
  */
 export declare function shotHead(shot: Span, map: FootageMap | null, footage: Record<string, FootageFrames>, source: string): number | null;
-export type FramingData = Pick<StageSegment, 'fps' | 'size' | 'cls' | 'format' | 'footage' | 'footageMap' | 'shots'>;
+export type FramingData = Pick<StageSegment, 'fps' | 'size' | 'cls' | 'format' | 'footage' | 'footageMap' | 'shots' | 'heads'>;
 /**
  * The framing of a program (or a segment of it): the layout of a side showing `view` at
  * program frame `f`, from the shot track or from `shot` alone, and the smoothed subject of a

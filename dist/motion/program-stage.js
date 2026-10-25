@@ -564,6 +564,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         // Motion blur comes from the shot track alone, so only outside transition windows.
         return {
             f,
+            g,
             staged,
             ...sides,
             clips,
@@ -614,7 +615,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     function focusOf(now, t) {
         if (t.kind !== 'clip')
             return { out: faceOf(now.a), in: now.b ? faceOf(now.b) : null };
-        const under = faceOf(now.b && now.f >= t.cutFrame ? now.b : now.a);
+        const under = faceOf(now.b && now.g >= t.cutFrame ? now.b : now.a);
         return { out: under, in: under };
     }
     /** The elements leaving and arriving in transition `t` at the planned frame. */
@@ -647,7 +648,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         const rider = now.clips[i].side;
         if (rider)
             return rider;
-        return now.b && now.staged && now.f >= now.staged.cutFrame ? 'b' : 'a';
+        return now.b && now.staged && now.g >= now.staged.cutFrame ? 'b' : 'a';
     }
     /** Holes the clips on side `s` cut, placed at the frame the side shows. */
     function holesOn(now, s, view) {

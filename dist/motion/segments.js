@@ -23,6 +23,28 @@ export function clipShowRange(clip, transitions) {
     }
     return { from, until };
 }
+/**
+ * The shots that decide what a range shows: those `shotsDuring` gives, and both shots of every
+ * shot transition whose window touches the range (in an excerpt, a window across an edge has a
+ * side outside the range). In program order.
+ */
+export function stagedShots(shots, transitions, span) {
+    const during = new Set(shotsDuring(shots, span));
+    const named = new Set(transitions
+        .filter((t) => t.kind === 'shot' && t.startFrame < endOf(span) && endOf(t) > span.startFrame)
+        .flatMap((t) => [t.owner, t.outgoing]));
+    return shots.filter((s) => during.has(s) || named.has(s.id));
+}
+/**
+ * The cuts a range shows: those overlapping it, and both sides of every cut transition whose
+ * window touches it (in an excerpt, a side may lie outside the range). In program order.
+ */
+export function stagedCuts(cuts, transitions, span) {
+    const named = new Set(transitions
+        .filter((t) => t.kind === 'cut' && t.startFrame < endOf(span) && endOf(t) > span.startFrame)
+        .flatMap((t) => [t.owner, t.outgoing]));
+    return cuts.filter((c) => (c.startFrame < endOf(span) && span.startFrame < endOf(c)) || named.has(c.id));
+}
 /** The clip frame shown at program frame `f`: held at its edges, null when not on screen. */
 export function clipFrameAt(clip, f) {
     if (f < clip.show.from || f >= clip.show.until)
@@ -67,7 +89,7 @@ export function segmentStage(program, segment, footage, brand = NEUTRAL_BRAND) {
         background: program.background,
         footage: footage.frames,
         footageMap: footage.map,
-        shots: shotsDuring(program.shots, segment).map((s) => ({
+        shots: stagedShots(program.shots, program.transitions, segment).map((s) => ({
             id: s.id,
             shot: s.shot,
             startFrame: s.startFrame,
@@ -81,7 +103,8 @@ export function segmentStage(program, segment, footage, brand = NEUTRAL_BRAND) {
         transitions: program.transitions.filter((t) => t.startFrame < to && endOf(t) > from),
         ...(program.excerpt?.end
             ? { hold: { from: program.excerpt.frames, clips: [program.excerpt.end.clip] } }
-            : {})
+            : {}),
+        ...(footage.heads ? { heads: footage.heads } : {})
     };
 }
 /**

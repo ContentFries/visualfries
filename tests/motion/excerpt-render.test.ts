@@ -8,6 +8,8 @@ import path from 'node:path';
 import { findChromium, loadMotionProject, motionProgram } from '../../src/lib/motion/node.js';
 import { captureProgramFrames, checkProgram } from '../../src/lib/motion/program-node.js';
 import { renderProgramVideo, type RenderedProgram } from '../../src/lib/motion/program-render.js';
+// @ts-expect-error: a plain .mjs helper shared with the subject layer tests
+import { SW, SH, writeFootage } from './fixtures/subject/footage.mjs';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -66,6 +68,17 @@ const BAR = `<script>
 </style>
 `;
 
+/** A box where the stage shows the footage for this clip (`clip.camera`), in the upper half. */
+const CAM = `<script>
+	import { useClip } from 'visualfries/motion';
+	const clip = useClip();
+</script>
+<div class="cam" style="left: {Math.round((clip.camera?.x ?? 0) / 4) + 150}px"></div>
+<style>
+	.cam { position: absolute; top: 40px; width: 12px; height: 12px; background: #ff00ff; }
+</style>
+`;
+
 /**
  * Program frames 0–29, 30–59 and 60–89 show source frames 15–44, 90–119 and 150–179, hard cuts.
  * A punch-in moves in from 0.6 s (0.3 s), the label runs from 0.5 s to 2.2 s. The excerpt is
@@ -81,10 +94,18 @@ const PROJECT = {
 		{ id: 'b', source: 'num', in: 3, out: 4 },
 		{ id: 'c', source: 'num', in: 5, out: 6 }
 	],
-	shots: [{ id: 'in', shot: 'punch', from: 0.6, until: 1.4, morph: 0.3 }],
-	clips: [{ id: 'label', block: 'Label.svelte', from: 0.5, until: 2.2, props: { text: 'LABEL' } }],
+	shots: [
+		{ id: 'in', shot: 'punch', from: 0.6, until: 1.4, morph: 0.3 },
+		{ id: 'in2', shot: 'punch', from: 2, until: 2.6, transition: { type: 'push', duration: 0.6 } }
+	],
+	clips: [
+		{ id: 'label', block: 'Label.svelte', from: 0.5, until: 2.2, props: { text: 'LABEL' } },
+		{ id: 'cam', block: 'Cam.svelte', from: 0, until: 'end' }
+	],
 	excerpts: [
 		{ id: 'tease', from: 0.8, until: 2.5, end: { duration: 0.5, block: 'Bar.svelte' } },
+		// Ends inside the push into "in2" (frames 51–68, its cut at 60), before its cut.
+		{ id: 'across', from: 1.6, until: 1.9, end: { duration: 0.5, block: 'Bar.svelte' } },
 		{
 			id: 'card',
 			from: 0.8,
@@ -131,6 +152,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('excerpt render', () => {
 		]);
 		await fs.writeFile(path.join(dir, 'Label.svelte'), LABEL);
 		await fs.writeFile(path.join(dir, 'Bar.svelte'), BAR);
+		await fs.writeFile(path.join(dir, 'Cam.svelte'), CAM);
 		await fs.writeFile(file, JSON.stringify(PROJECT));
 		rendered = await renderProgramVideo(await loadMotionProject(file), {
 			output: path.join(dir, 'out'),
@@ -188,6 +210,22 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('excerpt render', () => {
 		expect(frameOf(frames, N).equals(frameOf(frames, N + E - 1))).toBe(false);
 	});
 
+	it('draws a shot transition across `until` with both its shots, held under the card', async () => {
+		const loaded = await loadMotionProject(file);
+		const from = 48;
+		const n = 9;
+		const ex = await captureProgramFrames(loaded, [0, 3, 5, n - 1, n, n + 7, n + 14], {
+			excerpt: 'across'
+		});
+		const whole = await captureProgramFrames(loaded, [from, from + 3, from + 5, from + n - 1]);
+		for (const i of [0, 3, 5, n - 1])
+			expect(rgb(ex.get(i)!).equals(rgb(whole.get(from + i)!)), `excerpt frame ${i}`).toBe(true);
+		// The push is mid-way at the last frame; under the card it holds there (the camera too).
+		const last = upper(rgb(ex.get(n - 1)!));
+		for (const i of [n, n + 7, n + 14])
+			expect(upper(rgb(ex.get(i)!)).equals(last), `end card frame ${i}`).toBe(true);
+	}, 150_000);
+
 	it('takes the excerpt from the cache when nothing in it changed', async () => {
 		const again = await renderProgramVideo(await loadMotionProject(file), {
 			output: path.join(dir, 'out'),
@@ -213,5 +251,48 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('excerpt render', () => {
 		const results = await checkProgram(loaded, { excerpt: 'card' });
 		expect(results.flatMap((r) => r.errors)).toEqual([]);
 		expect(results.every((r) => r.ok)).toBe(true);
+	}, 150_000);
+});
+
+/**
+ * A swaying speaker with a matte: a punch-in with `headroom` runs across the excerpt's start, so
+ * its framing reads the subject (smoothed over neighbouring frames) and its one head size.
+ */
+describe.skipIf(!hasChromium || !hasFfmpeg)('excerpt framing on a matte', () => {
+	let dir: string;
+	beforeAll(async () => {
+		dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-excerpt-matte-'));
+		writeFootage(dir);
+	});
+	afterAll(async () => {
+		await fs.rm(dir, { recursive: true, force: true });
+	});
+
+	it('frames a headroom shot cut by `from` exactly as the whole program does', async () => {
+		const file = path.join(dir, 'matte.vf.json');
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [SW, SH],
+				fps: 30,
+				background: '#101010',
+				footage: { talk: { src: 'talk.mp4', matte: 'talk.matte.mp4' } },
+				cuts: [{ source: 'talk', in: 0, out: 2.9 }],
+				shots: [
+					{ id: 'open', shot: 'full', from: 0, until: 0.5 },
+					{ id: 'close', shot: 'punch', from: 0.5, until: 2.9, params: { headroom: 0.08 } }
+				],
+				excerpts: [{ id: 'mid', from: 1.2, until: 2.2 }]
+			})
+		);
+		const loaded = await loadMotionProject(file);
+		const sample = [0, 1, 5, 15, 29];
+		const ex = await captureProgramFrames(loaded, sample, { excerpt: 'mid' });
+		const whole = await captureProgramFrames(
+			loaded,
+			sample.map((i) => 36 + i)
+		);
+		for (const i of sample)
+			expect(ex.get(i)!.equals(whole.get(36 + i)!), `excerpt frame ${i}`).toBe(true);
 	}, 150_000);
 });

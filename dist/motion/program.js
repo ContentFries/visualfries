@@ -8,7 +8,8 @@ import { propFileRefs, resolveMotionClip, resolveMotionProject } from './resolve
 import { END_CARD_BLOCK, sliceProgram } from './excerpt.js';
 import { micro, programEnd, resolveCutList, soundEnd, soundLength } from './cutlist.js';
 import { sha1 } from './sha1.js';
-import { defaultMorph, SHOT_MODULES, shotAt, shotEvents, shotLayout, shotModule, shotsDuring } from './shots/index.js';
+import { defaultMorph, SHOT_MODULES, shotAt, shotEvents, shotLayout, shotModule } from './shots/index.js';
+import { clipShowRange, stagedCuts, stagedShots } from './segments.js';
 import { parseEase } from './ease.js';
 import { NEUTRAL_BRAND } from './brand.js';
 import { clipEnergy } from './energy.js';
@@ -261,6 +262,17 @@ export function resolveProgram(project, given, opts = {}) {
         diagnostics,
         ...(excerpts ? { excerpts } : {})
     };
+    // The end cards of the excerpts not asked for are checked too: their problems are warnings.
+    for (const e of excerpts ?? []) {
+        const other = project.excerpts.find((x) => x.id === e.id);
+        if (e.id === spec?.id || !other.end)
+            continue;
+        const found = [];
+        endCard(project, inputs, other, e, format, found);
+        for (const d of found)
+            if (d.level !== 'info')
+                diagnostics.push({ ...d, level: 'warning', item: d.item ?? e.id });
+    }
     const range = spec && excerpts?.find((e) => e.id === spec.id);
     // An excerpt that does not resolve leaves the whole program, with the error saying why.
     if (!spec || !range)
@@ -369,6 +381,15 @@ function endCard(project, inputs, spec, range, format, diagnostics) {
     });
     diagnostics.push(...found);
     const i = project.excerpts.indexOf(spec);
+    const block = spec.end.block ?? END_CARD_BLOCK;
+    const missing = inputs.endBlocks?.[block];
+    if (missing)
+        diagnostics.push({
+            level: 'error',
+            item: spec.id,
+            field: `excerpts[${i}].end.block`,
+            message: missing
+        });
     const sound = spec.end.sound
         ? effectPiece(`${range.end.clip}.sound`, `excerpts[${i}].end.sound`, spec.end.sound, from, spec.end.gain ?? 0, inputs, diagnostics)
         : null;
@@ -1412,7 +1433,7 @@ export function propFiles(props) {
  * Segments split the program at cuts without a transition, never inside a transition window.
  * A segment's hash covers what is on screen in it (resolved data, source files, blocks, custom
  * shots and transitions, fonts, styles), so it changes exactly when its pixels may. An
- * excerpt's `hold` (its end card over the held last frame) is hashed with every segment.
+ * excerpt's `hold` (its end card over the held last frame) is hashed with the segment it is in.
  */
 function resolveSegments(program, project, hold) {
     const inWindow = (frame) => program.transitions.some((t) => t.startFrame < frame && frame < endOf(t));
@@ -1429,10 +1450,17 @@ function resolveSegments(program, project, hold) {
         if (span.frames <= 0)
             continue;
         const on = (list) => list.filter((x) => overlaps(x, span));
-        const cuts = on(program.cuts);
-        const shots = on(program.shots);
-        const clips = on(program.clips);
         const transitions = on(program.transitions);
+        // What the range shows: the sides of its transition windows and every clip it holds
+        // (in an excerpt, a window or a held clip may reach past the range's items).
+        const cuts = stagedCuts(program.cuts, transitions, span);
+        const shown = stagedShots(program.shots, transitions, span);
+        const shots = shown.filter((s) => overlaps(s, span) ||
+            transitions.some((t) => t.kind === 'shot' && (t.owner === s.id || t.outgoing === s.id)));
+        const clips = program.clips.filter((c) => {
+            const show = clipShowRange(c, program.transitions);
+            return show.from < endOf(span) && show.until > span.startFrame;
+        });
         const sourceNames = [
             ...new Set([
                 ...cuts.map((c) => c.source),
@@ -1464,10 +1492,10 @@ function resolveSegments(program, project, hold) {
             look: [program.hashes.brand, program.hashes.style],
             cuts: cuts.map(picture),
             // The shot a morph starts from shapes the first frames too.
-            shots: shotsDuring(program.shots, span),
+            shots: shown,
             clips,
             transitions: transitions.map(picture),
-            ...(hold ? { hold } : {})
+            ...(hold && endOf(span) > hold.from ? { hold } : {})
         }));
         segments.push({
             id: `seg${segments.length + 1}`,

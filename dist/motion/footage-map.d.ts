@@ -97,4 +97,11 @@ export declare function sourceFrameAt(map: FootageMap, name: string, programFram
  * `offset`). Ranges closer than `gap` frames are merged.
  */
 export declare function footageRanges(map: FootageMap, clips: Span[], margins?: Record<string, number>, gap?: number): Record<string, FrameRange[]>;
+/**
+ * Source frames program frames `[from, to)` show, per source, as sorted inclusive ranges
+ * (frames outside the program are skipped). Ranges closer than `gap` frames are merged.
+ */
+export declare function shownRanges(map: FootageMap, from: number, to: number, gap?: number): Record<string, FrameRange[]>;
+/** Ranges per source, sorted, with those closer than `gap` frames (or overlapping) merged. */
+export declare function mergeRanges(found: Record<string, FrameRange[]>, gap?: number): Record<string, FrameRange[]>;
 export {};

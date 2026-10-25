@@ -1,6 +1,5 @@
 import { micro } from './cutlist.js';
-import { clipShowRange } from './segments.js';
-import { shotsDuring } from './shots/index.js';
+import { clipShowRange, stagedShots } from './segments.js';
 /**
  * Excerpts: a range of the program as a video of its own (a teaser), sliced from the whole
  * program after it resolved, so every phrase, `until` and repeated phrase lands exactly where it
@@ -60,8 +59,8 @@ export function sliceProgram(full, excerpt, end, sounds = {}, field = 'excerpt')
         return [{ ...c, startFrame: frame(c.startFrame), ...moved }];
     });
     // Shots keep their start, so a move cut by `from` goes on from where it is (with the shot it
-    // morphs from), and their keys.
-    const shots = shotsDuring(full.shots, range).map((s) => ({
+    // morphs from), and their keys; both shots of a shot transition across an edge stay.
+    const shots = stagedShots(full.shots, full.transitions, range).map((s) => ({
         ...s,
         startFrame: frame(s.startFrame),
         transition: transitionOf(s.transition),
@@ -88,13 +87,14 @@ export function sliceProgram(full, excerpt, end, sounds = {}, field = 'excerpt')
         return piece ? [shiftPiece(piece, a)] : [];
     });
     // An effect plays when its hit lands in the slice; one that rings on past `until` rings on
-    // under the end card. Its part before `from` (the run-up to the hit) is cut.
+    // under the end card. Its part before `from` (the run-up to the hit) is cut, and it fades
+    // out where the excerpt ends.
     const sfx = full.audio.sfx.flatMap((p) => {
         const hit = sounds[p.file]?.hit ?? 0;
         const moment = p.at + hit - p.srcIn;
         if (moment < a - 1e-6 || moment >= b - 1e-6)
             return [];
-        const piece = trimPiece(p, a, Infinity, EDGE_FADE.speech, 0);
+        const piece = trimPiece(p, a, stop, EDGE_FADE.speech, EDGE_FADE.speech);
         return [shiftPiece(piece, a)];
     });
     if (end.sound)
@@ -103,6 +103,9 @@ export function sliceProgram(full, excerpt, end, sounds = {}, field = 'excerpt')
     // Music goes on under the end card, at the level it has at `until`, and fades out where the
     // excerpt ends.
     const music = full.audio.music.flatMap((p) => {
+        // Music that starts at or after `until` belongs to what the excerpt leaves out.
+        if (p.at >= b - 1e-6)
+            return [];
         const piece = trimPiece(p, a, stop, EDGE_FADE.music, Math.max(EDGE_FADE.music, p.fadeOut));
         if (!piece)
             return [];
@@ -188,13 +191,19 @@ function trimPiece(p, from, to, fadeIn, fadeOut) {
     }
     if (stop > to) {
         out.dur = micro(to - out.at);
-        out.fadeOut = micro(Math.min(out.dur, fadeOut));
+        // A fade-out already under way at `to` goes on as it started, not shorter.
+        const fading = p.dur === null ? 0 : to - (stop - p.fadeOut);
+        out.fadeOut = micro(Math.min(out.dur, Math.max(fadeOut, fading)));
         // It no longer ends on the bar it snapped to.
         delete out.snap;
     }
     return out;
 }
-const shiftPiece = (p, a) => ({ ...p, at: micro(p.at - a) });
+const shiftPiece = (p, a) => ({
+    ...p,
+    at: micro(p.at - a),
+    ...(p.snap ? { snap: { ...p.snap, target: micro(p.snap.target - a) } } : {})
+});
 /**
  * Gain keys inside `[from, until]` in excerpt seconds, with the level at each edge where keys
  * lie beyond it: the level holds before `from` and after `until` (under the end card).

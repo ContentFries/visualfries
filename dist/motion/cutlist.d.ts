@@ -71,6 +71,11 @@ export type ProgramInputs = {
      * or null when the file does not exist. Absent: not looked up.
      */
     sounds?: Record<string, SoundInfo | null>;
+    /**
+     * Why each block an excerpt's end card names cannot be bundled (null: it can), by the name as
+     * written. Absent: not checked.
+     */
+    endBlocks?: Record<string, string | null>;
     /** Project files clip props name as `{ "file": … }` (see `ProjectFiles`). Absent: not checked. */
     files?: ProjectFiles['files'];
     /**

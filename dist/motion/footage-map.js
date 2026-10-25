@@ -145,9 +145,26 @@ export function footageRanges(map, clips, margins = {}, gap = 0) {
                 add(v.source, v.frame - margin, v.frame + margin);
             }
     }
+    return mergeRanges(found, gap);
+}
+/**
+ * Source frames program frames `[from, to)` show, per source, as sorted inclusive ranges
+ * (frames outside the program are skipped). Ranges closer than `gap` frames are merged.
+ */
+export function shownRanges(map, from, to, gap = 0) {
+    const found = {};
+    for (let f = Math.max(0, from); f < Math.min(map.frames, to); f++)
+        for (const v of footageAt(map, f))
+            (found[v.source] ??= []).push({ first: v.frame, last: v.frame });
+    return mergeRanges(found, gap);
+}
+/** Ranges per source, sorted, with those closer than `gap` frames (or overlapping) merged. */
+export function mergeRanges(found, gap = 0) {
     const out = {};
     for (const name of Object.keys(found).sort()) {
-        const sorted = found[name].sort((a, b) => a.first - b.first);
+        if (!found[name].length)
+            continue;
+        const sorted = [...found[name]].sort((a, b) => a.first - b.first);
         const merged = [{ ...sorted[0] }];
         for (const r of sorted.slice(1)) {
             const last = merged[merged.length - 1];

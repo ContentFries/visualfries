@@ -9,6 +9,7 @@ import { type BarRow, type BeatsFile, type MusicBeats } from './beat-grid.js';
 import { type MusicTrack, type PlacedMusic } from './music.js';
 import { type FootageMap, type FrameRange } from './footage-map.js';
 import type { FootageFrames, SubjectBox } from './resolve.js';
+import type { StageSegment } from './segments.js';
 /** `.<clip>.partial-<pid>.mp4|mov`: a clip's encode before it replaces the file. */
 export declare const PARTIAL_CLIP: RegExp;
 export type LoadedMotionProject = {
@@ -126,12 +127,14 @@ export type BundleResult = {
     files: string[];
     /**
      * Extracted footage and, in program mode, the map from program to source frames; `warnings`
-     * about frames that could not be made (a clean plate without background).
+     * about frames that could not be made (a clean plate without background); for an excerpt,
+     * `heads` (see `StageSegment.heads`).
      */
     footage: {
         frames: Record<string, FootageFrames>;
         map: FootageMap | null;
         warnings?: string[];
+        heads?: StageSegment['heads'];
     };
     /** The project's brand; the program stage sets its tokens on the whole stage. */
     brand: ResolvedBrand;

@@ -50,7 +50,16 @@ import {
 } from './beat-grid.js';
 import { musicEnds, musicTrack, placeMusic, type MusicTrack, type PlacedMusic } from './music.js';
 import { fileSha256 } from './beats.js';
-import { footageMap, footageRanges, type FootageMap, type FrameRange } from './footage-map.js';
+import {
+	footageMap,
+	footageRanges,
+	mergeRanges,
+	shownRanges,
+	type FootageMap,
+	type FrameRange
+} from './footage-map.js';
+import { shotHead } from './framing.js';
+import { headroomParam, SUBJECT_SMOOTH } from './shots/layout.js';
 import type { FootageFrames, FootageRange, SubjectBox } from './resolve.js';
 import { holdoutFootage } from './inserts.js';
 import { END_CARD_BLOCK } from './excerpt.js';
@@ -520,6 +529,19 @@ export async function loadMotionProject(
 		for (const block of new Set(project.clips.map((c) => c.block)))
 			inputs.animatable[block] = await readBlockAnimatable(blockFile(dir, block));
 	}
+	const cards = endCards(project);
+	if (isProgramProject(project) && cards.length) {
+		// Excerpt end cards are clips the project does not list: their blocks are checked here.
+		inputs.endBlocks = {};
+		for (const { block } of cards)
+			inputs.endBlocks[block] = existsSync(blockFile(dir, block))
+				? null
+				: block.startsWith(BUILTIN_PREFIX)
+					? `Unknown built-in block "${block}". Built-in blocks: ${Object.keys(BUILTIN_BLOCKS)
+							.map((b) => BUILTIN_PREFIX + b)
+							.join(', ')}.`
+					: `Block file not found: ${block}`;
+	}
 	if (isProgramProject(project) || project.sfx?.length) {
 		// Events the blocks declare, for `{ event, clip }` anchors.
 		inputs.blockEvents = {};
@@ -895,9 +917,15 @@ export type BundleResult = {
 	files: string[];
 	/**
 	 * Extracted footage and, in program mode, the map from program to source frames; `warnings`
-	 * about frames that could not be made (a clean plate without background).
+	 * about frames that could not be made (a clean plate without background); for an excerpt,
+	 * `heads` (see `StageSegment.heads`).
 	 */
-	footage: { frames: Record<string, FootageFrames>; map: FootageMap | null; warnings?: string[] };
+	footage: {
+		frames: Record<string, FootageFrames>;
+		map: FootageMap | null;
+		warnings?: string[];
+		heads?: StageSegment['heads'];
+	};
 	/** The project's brand; the program stage sets its tokens on the whole stage. */
 	brand: ResolvedBrand;
 	/**
@@ -1080,7 +1108,12 @@ export async function bundleMotionProject(
 		html,
 		roots,
 		files,
-		footage: { frames: footage.frames, map: footage.map, warnings: footage.warnings },
+		footage: {
+			frames: footage.frames,
+			map: footage.map,
+			warnings: footage.warnings,
+			...(footage.heads ? { heads: footage.heads } : {})
+		},
 		brand: loaded.brand.resolved,
 		props
 	};
@@ -1601,6 +1634,7 @@ async function extractFootage(
 	frames: Record<string, FootageFrames>;
 	map: FootageMap | null;
 	warnings: string[];
+	heads?: StageSegment['heads'];
 }> {
 	const footage = loaded.project.footage ?? {};
 	const fps = loaded.project.fps;
@@ -1700,7 +1734,17 @@ async function extractFootage(
 		})
 	);
 	// Ranges less than a second apart are extracted as one: fewer decoder runs, few extra frames.
-	const wanted = footageRanges(map, clips, margins, Math.round(fps));
+	const gap = Math.round(fps);
+	const excerpt = drawn?.excerpt;
+	// An excerpt draws nothing new under its end card (it holds the last frame).
+	let wanted = footageRanges(
+		excerpt ? { ...map, frames: excerpt.frames } : map,
+		clips,
+		margins,
+		gap
+	);
+	const whole = excerpt ? excerptFootage(loaded, drawn!, sources, gap) : null;
+	if (whole) wanted = mergeRanges(unite(wanted, whole.wanted), gap);
 	for (const source of sources) {
 		const ranges: FootageRange[] = [];
 		for (const range of wanted[source.name] ?? []) ranges.push(await extract(source, range));
@@ -1710,7 +1754,57 @@ async function extractFootage(
 		clip.footage = frames;
 		clip.footageMap = map;
 	}
-	return { roots, frames, map, warnings };
+	return { roots, frames, map, warnings, ...(whole ? { heads: whole.heads(frames) } : {}) };
+}
+
+/** Ranges of both lists per source (not merged). */
+const unite = (a: Record<string, FrameRange[]>, b: Record<string, FrameRange[]>) => {
+	const out: Record<string, FrameRange[]> = {};
+	for (const list of [a, b])
+		for (const [name, ranges] of Object.entries(list)) (out[name] ??= []).push(...ranges);
+	return out;
+};
+
+/**
+ * What an excerpt needs of the whole program's footage to frame like the full video: the
+ * frames the whole program shows around the excerpt's edges (subject smoothing and how high the
+ * head gets read them), and every frame of a shot with `headroom` that runs across an edge,
+ * whose one head size (`shotHead`) is measured over the whole shot; `heads` gives those sizes
+ * once the frames are extracted.
+ */
+function excerptFootage(
+	loaded: LoadedMotionProject,
+	drawn: ResolvedProgram,
+	sources: FootageSource[],
+	gap: number
+) {
+	const excerpt = drawn.excerpt!;
+	const fps = loaded.project.fps;
+	const whole = resolveProgram(loaded.project, loaded.inputs, { format: drawn.format.name });
+	const map = footageMap(whole, Object.fromEntries(sources.map((s) => [s.name, s.total])));
+	// Two smoothing windows (how high the head gets reads one around each frame of another).
+	const edge = Math.round(2 * SUBJECT_SMOOTH * fps) + gap;
+	const end = excerpt.startFrame + excerpt.frames;
+	const lists = [shownRanges(map, excerpt.startFrame - edge, end + edge, gap)];
+	const crossing = drawn.shots.flatMap((s) => {
+		const full = whole.shots.find((w) => w.id === s.id);
+		const across = s.startFrame < 0 || s.startFrame + s.frames > excerpt.frames;
+		return full && across && headroomParam(s.params) !== false ? [full] : [];
+	});
+	for (const shot of crossing)
+		lists.push(shownRanges(map, shot.startFrame, shot.startFrame + shot.frames, gap));
+	return {
+		wanted: lists.reduce(unite, {}),
+		heads: (frames: Record<string, FootageFrames>) =>
+			Object.fromEntries(
+				crossing.map((shot) => [
+					shot.id,
+					Object.fromEntries(
+						Object.keys(frames).map((name) => [name, shotHead(shot, map, frames, name)])
+					)
+				])
+			)
+	};
 }
 
 /**

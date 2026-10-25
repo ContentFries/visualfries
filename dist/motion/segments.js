@@ -78,7 +78,10 @@ export function segmentStage(program, segment, footage, brand = NEUTRAL_BRAND) {
             keys: s.keys
         })),
         clips,
-        transitions: program.transitions.filter((t) => t.startFrame < to && endOf(t) > from)
+        transitions: program.transitions.filter((t) => t.startFrame < to && endOf(t) > from),
+        ...(program.excerpt?.end
+            ? { hold: { from: program.excerpt.frames, clips: [program.excerpt.end.clip] } }
+            : {})
     };
 }
 /**

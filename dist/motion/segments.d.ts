@@ -48,6 +48,14 @@ export type StageSegment = {
     insert?: {
         holdout: boolean;
     };
+    /**
+     * An excerpt's end card: from program frame `from` on, the footage, shots, transitions and
+     * every clip but `clips` show frame `from − 1`, held; `clips` (the card) play on.
+     */
+    hold?: {
+        from: number;
+        clips: string[];
+    };
 };
 type Span = {
     startFrame: number;
@@ -72,7 +80,7 @@ export declare function wholeProgram(program: Pick<ResolvedProgram, 'frames'>): 
 /** The segment holding program frame `f`. */
 export declare function segmentAt(program: Pick<ResolvedProgram, 'segments'>, f: number): ProgramSegment | null;
 /** The page data of one segment (or of `wholeProgram`): clips and transitions on screen in it. */
-export declare function segmentStage(program: Pick<ResolvedProgram, 'fps' | 'format' | 'background' | 'shots' | 'clips' | 'transitions'>, segment: Span & {
+export declare function segmentStage(program: Pick<ResolvedProgram, 'fps' | 'format' | 'background' | 'shots' | 'clips' | 'transitions' | 'excerpt'>, segment: Span & {
     id: string;
 }, footage: {
     frames: Record<string, FootageFrames>;

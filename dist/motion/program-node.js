@@ -27,11 +27,14 @@ export function assertProgramRenders(program) {
         throw new Error('Project has errors:\n' +
             errors.map((e) => `  ${e.item ?? e.clip ?? '-'} ${e.field}: ${e.message}`).join('\n'));
 }
-/** The program, bundled with the blocks of all its clips and the footage it shows. */
-async function prepareProgram(loaded) {
-    const program = resolveProgram(loaded.project, loaded.inputs);
+/**
+ * The program (with `excerpt`, that excerpt's program), bundled with the blocks of all its
+ * clips and the footage it shows.
+ */
+async function prepareProgram(loaded, excerpt) {
+    const program = resolveProgram(loaded.project, loaded.inputs, { excerpt });
     assertProgramRenders(program);
-    const bundle = await bundleMotionProject(loaded, program.clips);
+    const bundle = await bundleMotionProject(loaded, program.clips, excerpt === undefined ? undefined : program);
     return { program, bundle };
 }
 /**
@@ -66,12 +69,17 @@ export function defaultProgramMoments(program) {
     return [...frames].sort((a, b) => a - b).map((f) => `f${f}`);
 }
 /**
- * Stills of the program: each request is drawn on the page of the segment holding its frame,
- * one page per segment.
+ * Stills of the program (of an excerpt with `excerpt`, its moments in excerpt time): each
+ * request is drawn on the page of the segment holding its frame, one page per segment.
  */
 export async function renderProgramStills(loaded, requests, opts = {}) {
-    const { program, bundle } = await prepareProgram(loaded);
+    const { program, bundle } = await prepareProgram(loaded, opts.excerpt);
     const wanted = requests.map((r) => ({ ...r, frame: programFrameForAt(program, r.at, r.clip) }));
+    for (const r of wanted)
+        if (r.frame < 0 || r.frame >= program.frames) {
+            await fs.rm(bundle.dir, { recursive: true, force: true });
+            throw new Error(`Moment "${r.at}"${r.clip ? ` of clip "${r.clip}"` : ''} is frame ${r.frame}, outside the ${program.excerpt ? `excerpt "${program.excerpt.id}"` : 'program'} (frames 0–${program.frames - 1}).`);
+        }
     const browser = await launch();
     const out = new Map();
     try {
@@ -102,7 +110,7 @@ export async function renderProgramStills(loaded, requests, opts = {}) {
  * holding the whole program. Returns PNGs by program frame. Mainly for tests and checks.
  */
 export async function captureProgramFrames(loaded, frames, opts = {}) {
-    const { program, bundle } = await prepareProgram(loaded);
+    const { program, bundle } = await prepareProgram(loaded, opts.excerpt);
     const browser = await launch();
     const out = new Map();
     try {
@@ -133,10 +141,11 @@ const sha1 = (b) => createHash('sha1').update(b).digest('hex');
  * edges, cues and transitions, and with `determinism` captures a sample of frames forward,
  * backward and scrambled on the segment's page and once more on a page holding the whole
  * program; all four must give identical pixels. One result per segment; `clips` limits the
- * check to the segments those clips are on screen in.
+ * check to the segments those clips are on screen in. With `excerpt`, the excerpt's program is
+ * checked (its format, its end card).
  */
 export async function checkProgram(loaded, opts = {}) {
-    const program = resolveProgram(loaded.project, loaded.inputs);
+    const program = resolveProgram(loaded.project, loaded.inputs, { excerpt: opts.excerpt });
     const known = new Set(loaded.project.clips.map((c) => c.id));
     const unknown = (opts.clips ?? []).filter((id) => !known.has(id));
     if (unknown.length)
@@ -155,7 +164,7 @@ export async function checkProgram(loaded, opts = {}) {
             r.errors.push({ message: 'The program has errors (listed above), so it was not drawn.' });
         return results;
     }
-    const bundle = await bundleMotionProject(loaded, program.clips);
+    const bundle = await bundleMotionProject(loaded, program.clips, opts.excerpt === undefined ? undefined : program);
     // Frames the clean plate could not be built for belong to the footage, not to a segment:
     // they are told once, with the first segment checked.
     for (const message of bundle.footage.warnings ?? [])

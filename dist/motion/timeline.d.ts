@@ -382,6 +382,25 @@ export declare const SfxShape: z.ZodObject<{
 }, z.core.$strip>;
 export type Sfx = z.infer<typeof SfxShape>;
 /**
+ * A range of the program rendered as a video of its own (a teaser), in its own format, with an
+ * optional end card after it. `from` and `until` are program anchors, resolved in the whole
+ * program; the excerpt is that program sliced (see `excerpt.ts`).
+ */
+export declare const ExcerptShape: z.ZodObject<{
+    id: z.ZodString;
+    from: z.ZodLazy<z.ZodType<import("./project.js").MotionAnchor, unknown, z.core.$ZodTypeInternals<import("./project.js").MotionAnchor, unknown>>>;
+    until: z.ZodLazy<z.ZodType<import("./project.js").MotionAnchor, unknown, z.core.$ZodTypeInternals<import("./project.js").MotionAnchor, unknown>>>;
+    format: z.ZodOptional<z.ZodString>;
+    end: z.ZodOptional<z.ZodObject<{
+        duration: z.ZodNumber;
+        block: z.ZodOptional<z.ZodString>;
+        props: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+        sound: z.ZodOptional<z.ZodString>;
+        gain: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strict>>;
+}, z.core.$strict>;
+export type Excerpt = z.infer<typeof ExcerptShape>;
+/**
  * Levels of the program mix. Effects and music sit at a steady level relative to the speech
  * (its integrated loudness as cut); the finished video is then brought to `loudness` with its
  * true peak at or under `truePeak`.

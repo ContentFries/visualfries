@@ -2,6 +2,7 @@ import type { MotionProject } from './project.js';
 import { type Key, type Provenance } from './timeline.js';
 import { type FormatClass, type ResolvedFormat } from './format.js';
 import { type ResolvedClip } from './resolve.js';
+import { type ProgramExcerpt } from './excerpt.js';
 import { type ProgramDiagnostic, type ProgramInputs, type ProgramWord } from './cutlist.js';
 export type { BlockAnimatable, ProgramDiagnostic, ProgramInputs, ProgramWord, SourceInfo } from './cutlist.js';
 /** Hashes the node tooling computes from files; they go into the program and its segments. */
@@ -20,6 +21,7 @@ export type ProgramHashes = {
     style?: string | null;
 };
 export type { FormatClass };
+export type { ProgramExcerpt };
 /**
  * The frame the program is resolved for ("1080x1920"): its class and the safe insets of the
  * project's `safeZone`, as blocks see them in `clip.format`.
@@ -214,6 +216,13 @@ export type ResolvedProgram = {
     };
     segments: ProgramSegment[];
     diagnostics: ProgramDiagnostic[];
+    /** The project's excerpts as ranges of this program; absent when it has none. */
+    excerpts?: ProgramExcerpt[];
+    /**
+     * In the program of an excerpt (`resolveProgram` with `excerpt`): which range of the whole
+     * program it is. Frame 0 is that range's first frame; an end card follows its last.
+     */
+    excerpt?: ProgramExcerpt;
 };
 /** Seconds a transition not drawn yet lasts when the project does not say. */
 export declare const DEFAULT_TRANSITION_SECONDS = 0.5;
@@ -249,6 +258,7 @@ export declare function resolveProgram(project: MotionProject, given: ProgramInp
     hashes?: ProgramHashes;
 }, opts?: {
     format?: string;
+    excerpt?: string;
 }): ResolvedProgram;
 /**
  * Strings in clip props that may name a project file (no URLs, data or colours), and every

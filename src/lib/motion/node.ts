@@ -53,6 +53,7 @@ import { fileSha256 } from './beats.js';
 import { footageMap, footageRanges, type FootageMap, type FrameRange } from './footage-map.js';
 import type { FootageFrames, FootageRange, SubjectBox } from './resolve.js';
 import { holdoutFootage } from './inserts.js';
+import { END_CARD_BLOCK } from './excerpt.js';
 import { removeOrphans, trackPartial } from './partials.js';
 import type { StageSegment } from './segments.js';
 
@@ -124,7 +125,10 @@ export type LoadedMusic = {
 	bars: BarRow[];
 };
 
-/** Sound files the program mixes besides footage: sfx, transition sounds and music. */
+/**
+ * Sound files the program mixes besides footage: sfx, transition sounds, music and the sounds
+ * of excerpt end cards.
+ */
 function soundNames(project: MotionProject): string[] {
 	const transitions = [
 		...(project.cuts ?? []).map((c) => c.transition),
@@ -135,7 +139,8 @@ function soundNames(project: MotionProject): string[] {
 		...new Set([
 			...(project.sfx ?? []).map((s) => s.sound),
 			...transitions.flatMap((t) => (t && typeof t === 'object' && t.sound ? [t.sound] : [])),
-			...(project.music ?? []).map((m) => m.src)
+			...(project.music ?? []).map((m) => m.src),
+			...(project.excerpts ?? []).flatMap((e) => (e.end?.sound ? [e.end.sound] : []))
 		])
 	].sort();
 }
@@ -605,13 +610,19 @@ function projectFile(dir: string, file: string): { abs: string } | { error: stri
 	return { abs };
 }
 
+/** The block and props of every excerpt's end card. */
+const endCards = (project: MotionProject) =>
+	(project.excerpts ?? []).flatMap((e) =>
+		e.end ? [{ block: e.end.block ?? END_CARD_BLOCK, props: e.end.props }] : []
+	);
+
 /** Every file clip props name, checked (see `ProjectFiles`); undefined when props name none. */
 function propFilesOf(
 	project: MotionProject,
 	dir: string
 ): Record<string, string | null> | undefined {
 	const out: Record<string, string | null> = {};
-	for (const clip of project.clips)
+	for (const clip of [...project.clips, ...endCards(project)])
 		for (const { file } of propFileRefs(clip.props)) {
 			if (file in out) continue;
 			const found = projectFile(dir, file);
@@ -711,6 +722,7 @@ async function assetHashes(loaded: LoadedMotionProject): Promise<Record<string, 
 	const custom = (name: string, ext: RegExp) => (ext.test(name) ? [name] : []);
 	const code = new Set([
 		...project.clips.map((c) => c.block),
+		...endCards(project).map((c) => c.block),
 		...(project.shots ?? []).flatMap((s) => custom(s.shot, /\.(ts|js)$/)),
 		...[...(project.cuts ?? []), ...(project.shots ?? []), ...project.clips].flatMap((item) =>
 			item.transition
@@ -763,7 +775,7 @@ async function assetHashes(loaded: LoadedMotionProject): Promise<Record<string, 
 		const hash = await contentOf(path.resolve(dir, name));
 		if (hash) out[name] = hash;
 	}
-	for (const name of propFiles(project.clips.map((c) => c.props))) {
+	for (const name of propFiles([...project.clips, ...endCards(project)].map((c) => c.props))) {
 		if (name in out) continue;
 		const file = path.resolve(dir, name);
 		const st = await fs.stat(file).catch(() => null);
@@ -813,11 +825,12 @@ async function bundleInputs(
 
 /**
  * The resolved program for one format (see `resolveProgram`), with the hashes of the files
- * behind it. `write` also saves it as `.visualfries/program/<format>.json` next to the project.
+ * behind it; with `excerpt`, that excerpt's program. `write` also saves it as
+ * `.visualfries/program/<format>.json` (`<excerpt>.<format>.json`) next to the project.
  */
 export async function motionProgram(
 	loaded: LoadedMotionProject,
-	opts: { format?: string; write?: boolean } = {}
+	opts: { format?: string; excerpt?: string; write?: boolean } = {}
 ): Promise<{ program: ResolvedProgram; file: string | null }> {
 	const hashes: ProgramHashes = {
 		...loaded.hashes,
@@ -828,7 +841,8 @@ export async function motionProgram(
 	};
 	const program = resolveProgram(loaded.project, { ...loaded.inputs, hashes }, opts);
 	if (!opts.write) return { program, file: null };
-	const file = path.join(loaded.dir, '.visualfries', 'program', `${program.format.name}.json`);
+	const name = `${opts.excerpt ? `${opts.excerpt}.` : ''}${program.format.name}.json`;
+	const file = path.join(loaded.dir, '.visualfries', 'program', name);
 	await fs.mkdir(path.dirname(file), { recursive: true });
 	await fs.writeFile(file, JSON.stringify(program, null, 2) + '\n');
 	return { program, file };
@@ -897,6 +911,7 @@ const BUILTIN_PREFIX = '@visualfries/';
 /** Blocks that ship with VisualFries; a clip names them as `"block": "@visualfries/captions"`. */
 const BUILTIN_BLOCKS: Record<string, string> = {
 	captions: 'Captions.svelte',
+	'end-card': 'EndCard.svelte',
 	'speaker-depth': 'SpeakerDepth.svelte',
 	subject: 'SubjectLayer.svelte'
 };
@@ -969,10 +984,15 @@ async function bundleOptions() {
 	};
 }
 
-/** Compile the project's blocks together with the stage runtime into one page. */
+/**
+ * Compile the project's blocks together with the stage runtime into one page. `program` is the
+ * program the pages draw when it is not the project's own (an excerpt): its footage map then
+ * decides which footage frames are extracted.
+ */
 export async function bundleMotionProject(
 	loaded: LoadedMotionProject,
-	clips: ResolvedClip[]
+	clips: ResolvedClip[],
+	program?: ResolvedProgram
 ): Promise<BundleResult> {
 	const { esbuild, options } = await bundleOptions();
 	const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-motion-'));
@@ -1044,7 +1064,7 @@ export async function bundleMotionProject(
 		const abs = path.resolve(loaded.dir, file);
 		css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs), files) + '\n';
 	}
-	const footage = await extractFootage(loaded, clips);
+	const footage = await extractFootage(loaded, clips, program);
 	roots.push(...footage.roots);
 	const cssBundle = path.join(outDir, 'bundle.css');
 	const cssLink = existsSync(cssBundle) ? '<link rel="stylesheet" href="bundle.css">' : '';
@@ -1574,7 +1594,8 @@ export async function prepareFootage(
 /** `prepareFootage`, also returning the extracted frames and the footage map. */
 async function extractFootage(
 	loaded: LoadedMotionProject,
-	clips: ResolvedClip[]
+	clips: ResolvedClip[],
+	drawn?: ResolvedProgram
 ): Promise<{
 	roots: string[];
 	frames: Record<string, FootageFrames>;
@@ -1667,7 +1688,7 @@ async function extractFootage(
 	}
 
 	// Items that fail to resolve are left out; `check` and `program` report them.
-	const program = resolveProgram(loaded.project, loaded.inputs);
+	const program = drawn ?? resolveProgram(loaded.project, loaded.inputs);
 	const map = footageMap(program, Object.fromEntries(sources.map((s) => [s.name, s.total])));
 	const margins = Object.fromEntries(
 		sources.map((s) => {

@@ -672,42 +672,49 @@ export function createProgramScene(
 		return null;
 	}
 
+	/** Clips that play on under an excerpt's end card while the rest holds (see `held`). */
+	const live = new Set(seg.hold?.clips ?? []);
+	/** The frame the picture shows at `f`: under an end card, the excerpt's last frame. */
+	const held = (f: number) => (seg.hold && f >= seg.hold.from ? seg.hold.from - 1 : f);
+
 	function plan(f: number): Plan {
-		let staged = player.at(f).find((t) => t.kind !== 'clip') ?? null;
+		// Everything but an end card is planned at the frame it holds.
+		const g = held(f);
+		let staged = player.at(g).find((t) => t.kind !== 'clip') ?? null;
 		const both = staged
 			? seg.footageMap
-				? transitionSidesAt(seg.footageMap, staged, f)
+				? transitionSidesAt(seg.footageMap, staged, g)
 				: { out: null, in: null }
 			: null;
 		if (!both) staged = null;
 		let sides: Pick<Plan, 'a' | 'b'>;
 		if (!staged || !both) {
-			const view = seg.footageMap ? programFootageAt(seg.footageMap, f) : null;
-			sides = { a: { view, layout: layoutFor(f, view) }, b: null };
+			const view = seg.footageMap ? programFootageAt(seg.footageMap, g) : null;
+			sides = { a: { view, layout: layoutFor(g, view) }, b: null };
 		} else if (staged.kind === 'cut') {
 			sides = {
-				a: { view: both.out, layout: layoutFor(f, both.out) },
-				b: { view: both.in, layout: layoutFor(f, both.in) }
+				a: { view: both.out, layout: layoutFor(g, both.out) },
+				b: { view: both.in, layout: layoutFor(g, both.in) }
 			};
 		} else {
 			// Same footage under the previous and the new layout: each side holds its own shot's
 			// layout on the other side of the cut.
 			const shot = (id: string | null) => seg.shots.find((s) => s.id === id) ?? FULL;
-			const before = f < staged.cutFrame;
+			const before = g < staged.cutFrame;
 			sides = {
 				a: {
 					view: both.out,
-					layout: before ? layoutFor(f, both.out) : layoutFor(f, both.out, shot(staged.outgoing))
+					layout: before ? layoutFor(g, both.out) : layoutFor(g, both.out, shot(staged.outgoing))
 				},
 				b: {
 					view: both.in,
-					layout: before ? layoutFor(f, both.in, shot(staged.owner)) : layoutFor(f, both.in)
+					layout: before ? layoutFor(g, both.in, shot(staged.owner)) : layoutFor(g, both.in)
 				}
 			};
 		}
-		const current = staged && f >= staged.cutFrame && sides.b ? sides.b : sides.a;
+		const current = staged && g >= staged.cutFrame && sides.b ? sides.b : sides.a;
 		const clips = mounted.map((m) => {
-			let local = clipFrameAt(m.data, f);
+			let local = clipFrameAt(m.data, live.has(m.data.id) ? f : g);
 			const side = sides.b ? rides(m.data, staged) : null;
 			let slot: Rect | null = null;
 			if (m.data.slot) {
@@ -1107,7 +1114,7 @@ export function createProgramScene(
 					throw clipError(m.data.id, error);
 				}
 			}
-			player.seek(f, (t) => ({ ...sidesOf(now, t), focus: focusOf(now, t) }));
+			player.seek(held(f), (t) => ({ ...sidesOf(now, t), focus: focusOf(now, t) }));
 		},
 		async draw(f) {
 			const pending: Promise<unknown>[] = [];

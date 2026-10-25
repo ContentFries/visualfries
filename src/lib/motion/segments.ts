@@ -53,6 +53,11 @@ export type StageSegment = {
 	 * window look); with `holdout`, each frame then cuts the subject out of the alpha.
 	 */
 	insert?: { holdout: boolean };
+	/**
+	 * An excerpt's end card: from program frame `from` on, the footage, shots, transitions and
+	 * every clip but `clips` show frame `from − 1`, held; `clips` (the card) play on.
+	 */
+	hold?: { from: number; clips: string[] };
 };
 
 type Span = { startFrame: number; frames: number };
@@ -103,7 +108,7 @@ export function segmentAt(
 export function segmentStage(
 	program: Pick<
 		ResolvedProgram,
-		'fps' | 'format' | 'background' | 'shots' | 'clips' | 'transitions'
+		'fps' | 'format' | 'background' | 'shots' | 'clips' | 'transitions' | 'excerpt'
 	>,
 	segment: Span & { id: string },
 	footage: { frames: Record<string, FootageFrames>; map: FootageMap | null },
@@ -147,7 +152,10 @@ export function segmentStage(
 			keys: s.keys
 		})),
 		clips,
-		transitions: program.transitions.filter((t) => t.startFrame < to && endOf(t) > from)
+		transitions: program.transitions.filter((t) => t.startFrame < to && endOf(t) > from),
+		...(program.excerpt?.end
+			? { hold: { from: program.excerpt.frames, clips: [program.excerpt.end.clip] } }
+			: {})
 	};
 }
 

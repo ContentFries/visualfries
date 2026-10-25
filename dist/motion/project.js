@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ENERGIES } from './energy.js';
-import { CutShape, KeyShape, MixShape, ProvenanceShape, SfxShape, ShotShape, TransitionShape } from './timeline.js';
+import { CutShape, ExcerptShape, KeyShape, MixShape, ProvenanceShape, SfxShape, ShotShape, TransitionShape } from './timeline.js';
 // timeline.ts reads this file's anchor shape, so its shapes are read through z.lazy here.
 const timeline = (shape) => z.lazy(shape);
 /** Seconds (`-0.1`) or beats of the music (`"-1b"`, `"0.5b"`) added to an anchor. */
@@ -324,6 +324,8 @@ const MotionProjectFields = z.object({
     sfx: timeline(() => z.array(SfxShape)).optional(),
     /** Levels of the program mix and the loudness of the finished video. */
     mix: timeline(() => MixShape).optional(),
+    /** Ranges of the program rendered as videos of their own (`render --excerpt <id>`). */
+    excerpts: timeline(() => z.array(ExcerptShape)).optional(),
     /** Program seconds when there is no cut list. Default: the latest end of clips or music. */
     duration: z.number().positive().optional()
 });

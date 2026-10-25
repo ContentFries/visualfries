@@ -28,7 +28,11 @@ export async function renderProgramVideo(loaded, opts) {
     if (opts.jobs !== undefined && !(Number.isInteger(opts.jobs) && opts.jobs > 0))
         throw new Error(`--jobs must be a positive integer, got ${opts.jobs}.`);
     const t0 = Date.now();
-    const { program } = await motionProgram(loaded, { format: opts.format, write: true });
+    const { program } = await motionProgram(loaded, {
+        format: opts.format,
+        excerpt: opts.excerpt,
+        write: true
+    });
     assertProgramRenders(program);
     // Saved as resolved: bundling attaches extracted footage to the clips.
     const resolved = JSON.stringify(program, null, 2) + '\n';
@@ -96,7 +100,7 @@ export async function renderProgramVideo(loaded, opts) {
             log(`${s.id}: frames ${span(s)} cached (${s.hash.slice(0, 12)})`);
         let mode = 'cached';
         if (todo.length) {
-            const bundle = await bundleMotionProject(loaded, program.clips);
+            const bundle = await bundleMotionProject(loaded, program.clips, opts.excerpt === undefined ? undefined : program);
             for (const message of bundle.footage.warnings ?? [])
                 log(`warning: ${message}`);
             const browser = await launch();
@@ -131,7 +135,7 @@ export async function renderProgramVideo(loaded, opts) {
                 await fs.rm(target, { force: true });
         }
         await fs.writeFile(sidecar, resolved);
-        await pruneSegments(cacheDir, loaded, program.format.name, segments, t0);
+        await pruneSegments(cacheDir, recordName(loaded, opts.excerpt), program.format.name, segments, t0);
         log(`final encode: ${program.frames} frames in ${encodeSeconds.toFixed(1)} s${mix ? '' : ' (silent)'}`);
         return {
             file,
@@ -155,9 +159,10 @@ function outputFile(loaded, opts) {
         return path.resolve(opts.output);
     if (path.extname(opts.output))
         throw new Error(`--output ${opts.output}: a program renders an .mp4; name one, or a directory.`);
-    const name = path.basename(loaded.file).replace(/(\.vf)?\.json$/i, '');
-    return path.resolve(opts.output, `${name}${opts.format ? `.${opts.format}` : ''}.mp4`);
+    return path.resolve(opts.output, `${recordName(loaded, opts.excerpt)}${opts.format ? `.${opts.format}` : ''}.mp4`);
 }
+/** The project's name, and the excerpt's id after it: `<project>[.<excerpt>]`. */
+const recordName = (loaded, excerpt) => `${path.basename(loaded.file).replace(/(\.vf)?\.json$/i, '')}${excerpt ? `.${excerpt}` : ''}`;
 /**
  * What the pixels of a segment depend on besides its own hash: the VisualFries runtime that
  * draws it (stage, shots, transitions, built-in blocks), the Svelte and GSAP it is bundled with,
@@ -315,15 +320,15 @@ async function joinAndEncode(program, segments, file, audio) {
 /** Milliseconds a file time may lag the clock it is compared with (see `pruneSegments`). */
 const MTIME_SLACK = 100;
 /**
- * Keeps the intermediates some render of a project in this folder still uses. Each project and
- * format records the files of its latest render (`<project>.<format>.json`); an intermediate no
+ * Keeps the intermediates some render of a project in this folder still uses. Each project (and
+ * each of its excerpts) and format records the files of its latest render
+ * (`<project>[.<excerpt>].<format>.json`); an intermediate no
  * record names (an edited segment, an older engine) is removed, unless it is newer than this
  * render's start (another render in the folder may still be writing its record). File times
  * come from a coarse kernel clock, up to a few milliseconds behind `Date.now()`: a file written
  * right after the start can look older than it, so "newer" allows `MTIME_SLACK` of that.
  */
-async function pruneSegments(cacheDir, loaded, format, segments, since) {
-    const name = path.basename(loaded.file).replace(/(\.vf)?\.json$/i, '');
+async function pruneSegments(cacheDir, name, format, segments, since) {
     await fs.writeFile(path.join(cacheDir, `${name}.${format}.json`), JSON.stringify({ files: segments.map((s) => path.basename(s.file)) }, null, 2) + '\n');
     const names = await fs.readdir(cacheDir);
     const used = new Set();

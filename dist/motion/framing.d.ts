@@ -9,7 +9,7 @@ type Span = {
 };
 /**
  * The head's height a shot frames `source` for (see `ShotInput.head`): a high percentile of the
- * matte's per-frame measure over every frame of the shot that shows that source, so one tall
+ * matte's per-frame measure over every program frame of the shot that shows that source, so one tall
  * frame (a lean, a hand) does not shrink the whole shot and the shot does not breathe with every
  * lean, while a shot across a cut from a close take to a wide one frames each for its own head.
  * Null without a matte that measures heads.

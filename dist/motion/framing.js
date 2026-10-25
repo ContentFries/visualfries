@@ -17,7 +17,7 @@ const HEAD_PERCENTILE = 0.85;
 const PEAK_TOP = 0.1;
 /**
  * The head's height a shot frames `source` for (see `ShotInput.head`): a high percentile of the
- * matte's per-frame measure over every frame of the shot that shows that source, so one tall
+ * matte's per-frame measure over every program frame of the shot that shows that source, so one tall
  * frame (a lean, a hand) does not shrink the whole shot and the shot does not breathe with every
  * lean, while a shot across a cut from a close take to a wide one frames each for its own head.
  * Null without a matte that measures heads.
@@ -26,7 +26,10 @@ export function shotHead(shot, map, footage, source) {
     if (!map)
         return null;
     const heights = [];
-    for (let f = shot.startFrame; f < shot.startFrame + shot.frames; f++) {
+    // Only the program's frames: in an excerpt a shot may start before its first frame.
+    const from = Math.max(0, shot.startFrame);
+    const to = Math.min(map.frames, shot.startFrame + shot.frames);
+    for (let f = from; f < to; f++) {
         const view = programFootageAt(map, f);
         if (view?.source !== source)
             continue;

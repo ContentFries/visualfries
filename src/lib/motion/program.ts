@@ -2,6 +2,8 @@ import type { MotionAnchor, MotionProject } from './project.js';
 import {
 	SHOTS,
 	TRANSITIONS,
+	isProgramProject,
+	type Excerpt,
 	type ItemAnchor,
 	type Key,
 	type Provenance,
@@ -29,7 +31,14 @@ import {
 } from './music.js';
 import { resolveFormat, type FormatClass, type ResolvedFormat } from './format.js';
 import { resolveMoment } from './moment.js';
-import { propFileRefs, resolveMotionProject, type ResolvedClip } from './resolve.js';
+import {
+	propFileRefs,
+	resolveMotionClip,
+	resolveMotionProject,
+	type MotionDiagnostic,
+	type ResolvedClip
+} from './resolve.js';
+import { END_CARD_BLOCK, sliceProgram, type ProgramExcerpt } from './excerpt.js';
 import {
 	micro,
 	programEnd,
@@ -88,6 +97,7 @@ export type ProgramHashes = {
 };
 
 export type { FormatClass };
+export type { ProgramExcerpt };
 
 /**
  * The frame the program is resolved for ("1080x1920"): its class and the safe insets of the
@@ -258,6 +268,13 @@ export type ResolvedProgram = {
 	};
 	segments: ProgramSegment[];
 	diagnostics: ProgramDiagnostic[];
+	/** The project's excerpts as ranges of this program; absent when it has none. */
+	excerpts?: ProgramExcerpt[];
+	/**
+	 * In the program of an excerpt (`resolveProgram` with `excerpt`): which range of the whole
+	 * program it is. Frame 0 is that range's first frame; an end card follows its last.
+	 */
+	excerpt?: ProgramExcerpt;
 };
 
 /** Seconds a transition not drawn yet lasts when the project does not say. */
@@ -342,10 +359,13 @@ const overlaps = (a: Span, b: Span) => a.startFrame < endOf(b) && b.startFrame <
 export function resolveProgram(
 	project: MotionProject,
 	given: ProgramInputs & { hashes?: ProgramHashes },
-	opts: { format?: string } = {}
+	opts: { format?: string; excerpt?: string } = {}
 ): ResolvedProgram {
 	const fps = project.fps;
-	const format = programFormat(project, opts.format);
+	// An excerpt resolves the whole program in its own format, then slices it.
+	const spec = opts.excerpt === undefined ? null : excerptSpec(project, opts.excerpt);
+	const formatName = opts.format ?? spec?.format;
+	const format = programFormat(project, formatName);
 	const cutList = resolveCutList(project, given);
 	const program = cutList.mode === 'program';
 	const diagnostics: ProgramDiagnostic[] = [...cutList.diagnostics];
@@ -394,7 +414,7 @@ export function resolveProgram(
 	// Clips resolve exactly as in `ResolvedProject`, against the program transcript.
 	const beats = beatsOf(inputs);
 	const resolved = resolveMotionProject(
-		opts.format ? { ...project, size: format.size } : project,
+		formatName ? { ...project, size: format.size } : project,
 		words,
 		inputs.music ?? [],
 		{ ...inputs.look, end, files: inputs.files }
@@ -547,13 +567,181 @@ export function resolveProgram(
 		clips,
 		transitions
 	};
-	return {
+	const excerpts = project.excerpts?.length
+		? resolveExcerpts(project, program, frames, format, hitAt, diagnostics, spec?.id)
+		: null;
+	const whole: ResolvedProgram = {
 		...base,
 		words: cutList.words ?? [],
 		events,
 		audio,
 		segments: resolveSegments(base, project),
-		diagnostics
+		diagnostics,
+		...(excerpts ? { excerpts } : {})
+	};
+	const range = spec && excerpts?.find((e) => e.id === spec.id);
+	// An excerpt that does not resolve leaves the whole program, with the error saying why.
+	if (!spec || !range) return whole;
+	const card = endCard(project, inputs, spec, range, format, diagnostics);
+	const { excerpts: _all, ...rest } = whole;
+	const field = `excerpts[${project.excerpts!.indexOf(spec)}]`;
+	const sliced = sliceProgram(rest, range, card, inputs.sounds, field);
+	const hold = range.end ? { from: range.frames, clips: [range.end.clip] } : undefined;
+	return { ...sliced, segments: resolveSegments(sliced, project, hold) };
+}
+
+/** The excerpt `id` of the project; an unknown id or a project without a program throws. */
+function excerptSpec(project: MotionProject, id: string): Excerpt {
+	if (!isProgramProject(project))
+		throw new Error(
+			`--excerpt ${id}: excerpts are ranges of a program; this project has no "cuts" or "shots".`
+		);
+	const found = project.excerpts?.find((e) => e.id === id);
+	if (!found)
+		throw new Error(
+			`Unknown excerpt "${id}". Excerpts: ${(project.excerpts ?? []).map((e) => e.id).join(', ') || 'none (add "excerpts" to the project)'}`
+		);
+	return found;
+}
+
+/**
+ * Where each excerpt lies in the whole program: `from` and `until` resolve as a shot's do (a
+ * phrase in `until` searched from `from` on, a repeated one its first occurrence there). A
+ * problem is an error of the excerpt asked for and a warning otherwise, so a typo in one teaser
+ * does not stop the full video.
+ */
+function resolveExcerpts(
+	project: MotionProject,
+	program: boolean,
+	frames: number,
+	format: ProgramFormat,
+	at: AnchorAt,
+	diagnostics: ProgramDiagnostic[],
+	wanted: string | undefined
+): ProgramExcerpt[] {
+	const fps = project.fps;
+	const out: ProgramExcerpt[] = [];
+	const ids = new Set<string>();
+	(project.excerpts ?? []).forEach((e, i) => {
+		const fail = (field: string, message: string) =>
+			diagnostics.push({
+				level: e.id === wanted ? 'error' : 'warning',
+				item: e.id,
+				field: `excerpts[${i}]${field ? `.${field}` : ''}`,
+				message
+			});
+		if (!program) {
+			fail('', 'Excerpts are ranges of a program; this project has no "cuts" or "shots".');
+			return;
+		}
+		if (ids.has(e.id)) return fail('id', `Duplicate excerpt id "${e.id}".`);
+		ids.add(e.id);
+		let start: number;
+		let end: number;
+		try {
+			start = at(e.from).time;
+		} catch (error) {
+			return fail('from', (error as Error).message);
+		}
+		try {
+			// A phrase said again later is its first occurrence after `from`, as in a shot.
+			const order = itemOrder(
+				diagnostics,
+				e.id,
+				`excerpts[${i}].until`,
+				start,
+				"the excerpt's start"
+			);
+			end = at(e.until, start, order).time;
+		} catch (error) {
+			return fail('until', (error as Error).message);
+		}
+		const startFrame = Math.max(0, Math.round(start * fps));
+		const endFrame = Math.min(frames, Math.round(end * fps));
+		if (endFrame <= startFrame)
+			return fail(
+				'until',
+				`The excerpt ends (${end.toFixed(2)} s) before it starts (${start.toFixed(2)} s).`
+			);
+		if (e.format) {
+			try {
+				programFormat(project, e.format);
+			} catch (error) {
+				return fail('format', (error as Error).message);
+			}
+		}
+		const id = `${e.id}.end`;
+		if (e.end && project.clips.some((c) => c.id === id))
+			return fail('end', `The end card's clip id "${id}" is already a clip of the project.`);
+		out.push({
+			id: e.id,
+			startFrame,
+			frames: endFrame - startFrame,
+			// `--format` overrides the excerpt's own for the excerpt asked for.
+			format: e.id === wanted ? format.name : (e.format ?? programFormat(project).name),
+			end: e.end ? { clip: id, frames: Math.max(1, Math.round(e.end.duration * fps)) } : null
+		});
+	});
+	return out;
+}
+
+/** The end card of excerpt `spec`: its clip after the slice and the sound on its first frame. */
+function endCard(
+	project: MotionProject,
+	inputs: ProgramInputs,
+	spec: Excerpt,
+	range: ProgramExcerpt,
+	format: ProgramFormat,
+	diagnostics: ProgramDiagnostic[]
+): { clip: ProgramClip | null; sound: AudioPiece | null } {
+	if (!spec.end || !range.end) return { clip: null, sound: null };
+	const fps = project.fps;
+	const from = range.frames / fps;
+	const until = (range.frames + range.end.frames) / fps;
+	const found: MotionDiagnostic[] = [];
+	const clip = resolveMotionClip(
+		{
+			id: range.end.clip,
+			block: spec.end.block ?? END_CARD_BLOCK,
+			from,
+			until,
+			...(spec.end.props ? { props: spec.end.props } : {})
+		},
+		{ ...project, size: format.size },
+		[],
+		found,
+		[],
+		{
+			...inputs.look,
+			end: until,
+			files: inputs.files,
+			format: resolveFormat(format.size, project.safeZone)
+		}
+	);
+	diagnostics.push(...found);
+	const i = project.excerpts!.indexOf(spec);
+	const sound = spec.end.sound
+		? effectPiece(
+				`${range.end.clip}.sound`,
+				`excerpts[${i}].end.sound`,
+				spec.end.sound,
+				from,
+				spec.end.gain ?? 0,
+				inputs,
+				diagnostics
+			)
+		: null;
+	return {
+		clip: clip && {
+			...clip,
+			slot: null,
+			layer: 'front',
+			transition: null,
+			keys: [],
+			z: project.clips.length,
+			native: null
+		},
+		sound
 	};
 }
 
@@ -1616,33 +1804,8 @@ function resolveSfx(
 	/** Where the previous sfx (as written) plays, for repeated phrases (see `PhraseOrder`). */
 	let previous: number | null = null;
 	const place = (owner: string, field: string, sound: string, moment: number, gain: number) => {
-		const info = inputs.sounds?.[sound];
-		if (info === null) {
-			diagnostics.push({
-				level: 'error',
-				item: owner,
-				field,
-				message: `Sound file "${sound}" not found (paths are relative to the project).`
-			});
-			return;
-		}
-		if (info?.error) {
-			diagnostics.push({ level: 'error', item: owner, field, message: info.error });
-			return;
-		}
-		if (info?.warning)
-			diagnostics.push({ level: 'warning', item: owner, field, message: info.warning });
-		const hit = info?.hit ?? 0;
-		out.push({
-			owner,
-			file: sound,
-			srcIn: micro(Math.max(0, hit - moment)),
-			dur: null,
-			at: micro(Math.max(0, moment - hit)),
-			fadeIn: 0,
-			fadeOut: 0,
-			gain
-		});
+		const piece = effectPiece(owner, field, sound, moment, gain, inputs, diagnostics);
+		if (piece) out.push(piece);
 	};
 	(project.sfx ?? []).forEach((sfx, i) => {
 		const id = sfx.id ?? `sfx${i + 1}`;
@@ -1673,6 +1836,48 @@ function resolveSfx(
 		place(`${t.id}.sound`, 'transition.sound', t.sound, frame / fps, 0);
 	}
 	return out.sort((a, b) => a.at - b.at || compareText(a.owner, b.owner));
+}
+
+/**
+ * A sound effect with its hit (see `SoundInfo`) on program second `moment`, cut off at the
+ * program start; null, with an error, when the file is missing or has no sound.
+ */
+function effectPiece(
+	owner: string,
+	field: string,
+	sound: string,
+	moment: number,
+	gain: number,
+	inputs: ProgramInputs,
+	diagnostics: ProgramDiagnostic[]
+): AudioPiece | null {
+	const info = inputs.sounds?.[sound];
+	if (info === null) {
+		diagnostics.push({
+			level: 'error',
+			item: owner,
+			field,
+			message: `Sound file "${sound}" not found (paths are relative to the project).`
+		});
+		return null;
+	}
+	if (info?.error) {
+		diagnostics.push({ level: 'error', item: owner, field, message: info.error });
+		return null;
+	}
+	if (info?.warning)
+		diagnostics.push({ level: 'warning', item: owner, field, message: info.warning });
+	const hit = info?.hit ?? 0;
+	return {
+		owner,
+		file: sound,
+		srcIn: micro(Math.max(0, hit - moment)),
+		dur: null,
+		at: micro(Math.max(0, moment - hit)),
+		fadeIn: 0,
+		fadeOut: 0,
+		gain
+	};
 }
 
 /**
@@ -1825,7 +2030,8 @@ export function propFiles(props: (Record<string, unknown> | undefined)[]): strin
 /**
  * Segments split the program at cuts without a transition, never inside a transition window.
  * A segment's hash covers what is on screen in it (resolved data, source files, blocks, custom
- * shots and transitions, fonts, styles), so it changes exactly when its pixels may.
+ * shots and transitions, fonts, styles), so it changes exactly when its pixels may. An
+ * excerpt's `hold` (its end card over the held last frame) is hashed with every segment.
  */
 function resolveSegments(
 	program: Pick<
@@ -1841,13 +2047,17 @@ function resolveSegments(
 		| 'clips'
 		| 'transitions'
 	>,
-	project: MotionProject
+	project: MotionProject,
+	hold?: { from: number; clips: string[] }
 ): ProgramSegment[] {
 	const inWindow = (frame: number) =>
 		program.transitions.some((t) => t.startFrame < frame && frame < endOf(t));
+	// Inside the frames, and before an end card (whose page holds the frame before it): an
+	// excerpt keeps cuts that start outside its range.
 	const bounds = program.cuts
 		.filter((c) => c.index > 0 && !c.transition && !inWindow(c.startFrame))
-		.map((c) => c.startFrame);
+		.map((c) => c.startFrame)
+		.filter((f) => f > 0 && f < (hold?.from ?? program.frames));
 	const edges = [0, ...bounds, program.frames];
 	const segments: ProgramSegment[] = [];
 	for (let i = 0; i + 1 < edges.length; i++) {
@@ -1892,7 +2102,8 @@ function resolveSegments(
 				// The shot a morph starts from shapes the first frames too.
 				shots: shotsDuring(program.shots, span),
 				clips,
-				transitions: transitions.map(picture)
+				transitions: transitions.map(picture),
+				...(hold ? { hold } : {})
 			})
 		);
 		segments.push({

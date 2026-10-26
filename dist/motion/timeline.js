@@ -191,6 +191,39 @@ export const SfxShape = z.object({
     gain: z.number().optional()
 });
 /**
+ * A range of the program rendered as a video of its own (a teaser), in its own format, with an
+ * optional end card after it. `from` and `until` are program anchors, resolved in the whole
+ * program; the excerpt is that program sliced (see `excerpt.ts`).
+ */
+export const ExcerptShape = z
+    .object({
+    id: itemId,
+    from: anchor,
+    until: anchor,
+    /** Frame size, "1080x1920"; default the project size. `--format` overrides it. */
+    format: z
+        .string()
+        .regex(/^\d+x\d+$/, 'format: WIDTHxHEIGHT, e.g. "1080x1920"')
+        .optional(),
+    /** A card after the slice, over its held last frame. */
+    end: z
+        .object({
+        /** Seconds. */
+        duration: z.number().positive().max(30, 'end.duration: at most 30 seconds'),
+        /** Default "@visualfries/end-card". */
+        block: z.string().min(1).optional(),
+        props: z.record(z.string(), z.unknown()).optional(),
+        /** A sound effect on the card's first frame (relative to the project). */
+        sound: z.string().min(1).optional(),
+        /** dB on top of the global SFX level. */
+        gain: z.number().optional()
+    })
+        .strict()
+        .optional()
+})
+    // Unknown fields are errors: a typo ("untill") must not pass silently.
+    .strict();
+/**
  * Levels of the program mix. Effects and music sit at a steady level relative to the speech
  * (its integrated loudness as cut); the finished video is then brought to `loudness` with its
  * true peak at or under `truePeak`.

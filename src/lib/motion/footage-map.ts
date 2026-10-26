@@ -64,6 +64,35 @@ export type FootageView = {
 /** An inclusive range of source frames. */
 export type FrameRange = { first: number; last: number };
 
+/**
+ * A run of program frames whose picture is one source: frames `frame`, `frame + 1` … in turn,
+ * or with `held` frame `frame` throughout.
+ */
+export type FootageRun = { source: string; frame: number; frames: number; held: boolean };
+
+/** The picture program frames `[from, to)` show, as runs (frames without footage left out). */
+export function pictureRuns(map: FootageMap, from: number, to: number): FootageRun[] {
+	const runs: FootageRun[] = [];
+	for (let f = Math.max(0, from); f < Math.min(map.frames, to); f++) {
+		const view = programFootageAt(map, f);
+		if (!view) continue;
+		const last = runs[runs.length - 1];
+		if (last && last.source === view.source) {
+			if (!last.held && view.frame === last.frame + last.frames) {
+				last.frames++;
+				continue;
+			}
+			if ((last.held || last.frames === 1) && view.frame === last.frame) {
+				last.held = true;
+				last.frames++;
+				continue;
+			}
+		}
+		runs.push({ source: view.source, frame: view.frame, frames: 1, held: false });
+	}
+	return runs;
+}
+
 type Span = { startFrame: number; frames: number };
 const contains = (s: Span, f: number) => f >= s.startFrame && f < s.startFrame + s.frames;
 
@@ -231,9 +260,35 @@ export function footageRanges(
 				add(v.source, v.frame - margin, v.frame + margin);
 			}
 	}
+	return mergeRanges(found, gap);
+}
+
+/**
+ * Source frames program frames `[from, to)` show, per source, as sorted inclusive ranges
+ * (frames outside the program are skipped). Ranges closer than `gap` frames are merged.
+ */
+export function shownRanges(
+	map: FootageMap,
+	from: number,
+	to: number,
+	gap = 0
+): Record<string, FrameRange[]> {
+	const found: Record<string, FrameRange[]> = {};
+	for (let f = Math.max(0, from); f < Math.min(map.frames, to); f++)
+		for (const v of footageAt(map, f))
+			(found[v.source] ??= []).push({ first: v.frame, last: v.frame });
+	return mergeRanges(found, gap);
+}
+
+/** Ranges per source, sorted, with those closer than `gap` frames (or overlapping) merged. */
+export function mergeRanges(
+	found: Record<string, FrameRange[]>,
+	gap = 0
+): Record<string, FrameRange[]> {
 	const out: Record<string, FrameRange[]> = {};
 	for (const name of Object.keys(found).sort()) {
-		const sorted = found[name].sort((a, b) => a.first - b.first);
+		if (!found[name].length) continue;
+		const sorted = [...found[name]].sort((a, b) => a.first - b.first);
 		const merged: FrameRange[] = [{ ...sorted[0] }];
 		for (const r of sorted.slice(1)) {
 			const last = merged[merged.length - 1];

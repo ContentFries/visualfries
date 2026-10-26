@@ -134,6 +134,8 @@ type SideView = { view: FootageView | null; layout: ShotLayout };
 /** Everything a program frame decides before anything is drawn. */
 type Plan = {
 	f: number;
+	/** The frame the picture shows: `f`, or under an end card the frame it holds. */
+	g: number;
 	/** The cut or shot transition on screen; null outside every drawn window. */
 	staged: ProgramTransition | null;
 	a: SideView;
@@ -762,42 +764,49 @@ export function createProgramScene(
 		return null;
 	}
 
+	/** Clips that play on under an excerpt's end card while the rest holds (see `held`). */
+	const live = new Set(seg.hold?.clips ?? []);
+	/** The frame the picture shows at `f`: under an end card, the excerpt's last frame. */
+	const held = (f: number) => (seg.hold && f >= seg.hold.from ? seg.hold.from - 1 : f);
+
 	function plan(f: number): Plan {
-		let staged = player.at(f).find((t) => t.kind !== 'clip') ?? null;
+		// Everything but an end card is planned at the frame it holds.
+		const g = held(f);
+		let staged = player.at(g).find((t) => t.kind !== 'clip') ?? null;
 		const both = staged
 			? seg.footageMap
-				? transitionSidesAt(seg.footageMap, staged, f)
+				? transitionSidesAt(seg.footageMap, staged, g)
 				: { out: null, in: null }
 			: null;
 		if (!both) staged = null;
 		let sides: Pick<Plan, 'a' | 'b'>;
 		if (!staged || !both) {
-			const view = seg.footageMap ? programFootageAt(seg.footageMap, f) : null;
-			sides = { a: { view, layout: layoutFor(f, view) }, b: null };
+			const view = seg.footageMap ? programFootageAt(seg.footageMap, g) : null;
+			sides = { a: { view, layout: layoutFor(g, view) }, b: null };
 		} else if (staged.kind === 'cut') {
 			sides = {
-				a: { view: both.out, layout: layoutFor(f, both.out) },
-				b: { view: both.in, layout: layoutFor(f, both.in) }
+				a: { view: both.out, layout: layoutFor(g, both.out) },
+				b: { view: both.in, layout: layoutFor(g, both.in) }
 			};
 		} else {
 			// Same footage under the previous and the new layout: each side holds its own shot's
 			// layout on the other side of the cut.
 			const shot = (id: string | null) => seg.shots.find((s) => s.id === id) ?? FULL;
-			const before = f < staged.cutFrame;
+			const before = g < staged.cutFrame;
 			sides = {
 				a: {
 					view: both.out,
-					layout: before ? layoutFor(f, both.out) : layoutFor(f, both.out, shot(staged.outgoing))
+					layout: before ? layoutFor(g, both.out) : layoutFor(g, both.out, shot(staged.outgoing))
 				},
 				b: {
 					view: both.in,
-					layout: before ? layoutFor(f, both.in, shot(staged.owner)) : layoutFor(f, both.in)
+					layout: before ? layoutFor(g, both.in, shot(staged.owner)) : layoutFor(g, both.in)
 				}
 			};
 		}
-		const current = staged && f >= staged.cutFrame && sides.b ? sides.b : sides.a;
+		const current = staged && g >= staged.cutFrame && sides.b ? sides.b : sides.a;
 		const clips = mounted.map((m) => {
-			let local = clipFrameAt(m.data, f);
+			let local = clipFrameAt(m.data, live.has(m.data.id) ? f : g);
 			const side = sides.b ? rides(m.data, staged) : null;
 			let slot: Rect | null = null;
 			if (m.data.slot) {
@@ -812,6 +821,7 @@ export function createProgramScene(
 		// Motion blur comes from the shot track alone, so only outside transition windows.
 		return {
 			f,
+			g,
 			staged,
 			...sides,
 			clips,
@@ -862,7 +872,7 @@ export function createProgramScene(
 	/** The eyes on each side of transition `t` at the planned frame (under a clip: on both). */
 	function focusOf(now: Plan, t: ProgramTransition): { out: Point | null; in: Point | null } {
 		if (t.kind !== 'clip') return { out: faceOf(now.a), in: now.b ? faceOf(now.b) : null };
-		const under = faceOf(now.b && now.f >= t.cutFrame ? now.b : now.a);
+		const under = faceOf(now.b && now.g >= t.cutFrame ? now.b : now.a);
 		return { out: under, in: under };
 	}
 
@@ -896,7 +906,7 @@ export function createProgramScene(
 	function sideOf(now: Plan, i: number): 'a' | 'b' {
 		const rider = now.clips[i].side;
 		if (rider) return rider;
-		return now.b && now.staged && now.f >= now.staged.cutFrame ? 'b' : 'a';
+		return now.b && now.staged && now.g >= now.staged.cutFrame ? 'b' : 'a';
 	}
 
 	/** Holes the clips on side `s` cut, placed at the frame the side shows. */
@@ -1563,7 +1573,7 @@ export function createProgramScene(
 					throw clipError(m.data.id, error);
 				}
 			}
-			player.seek(f, (t) => ({ ...sidesOf(now, t), focus: focusOf(now, t) }));
+			player.seek(held(f), (t) => ({ ...sidesOf(now, t), focus: focusOf(now, t) }));
 		},
 		async draw(f) {
 			const pending: Promise<unknown>[] = [];
@@ -1634,6 +1644,8 @@ export function createProgramScene(
 					);
 				}
 			}
+			// Under an excerpt's end card the picture is one held frame: its text was judged there.
+			if (seg.hold && f >= seg.hold.from) return out;
 			// One reader for every measure of this frame: what it learns about elements is shared.
 			let page: TextReader | null = null;
 			const read = () => (page ??= textReader(stage, seg.size));

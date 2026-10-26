@@ -50,17 +50,20 @@ Usage:
 
 Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries clips <project.vf.json> [--clip <id>] [--json]
-  visualfries check <project.vf.json> [--clip <id>]... [--format <WxH>] [--determinism] [--export inserts] [--json]
+  visualfries check <project.vf.json> [--clip <id>]... [--format <WxH>] [--determinism] [--export inserts] [--excerpt <id>] [--json]
                     with "cuts" or "shots", --format checks the program in another frame size
                     (as render --format draws it) and warns about text outside its safe zone too
-  visualfries program <project.vf.json> [--format <WxH>] [--json]
+  visualfries program <project.vf.json> [--format <WxH>] [--excerpt <id>] [--json]
                     resolve the whole program (cuts, shots, clips, transitions, audio,
-                    segments) and save it as .visualfries/program/<format>.json
+                    segments) and save it as .visualfries/program/<format>.json; --excerpt
+                    resolves the whole program, then slices one of its "excerpts" (a teaser:
+                    from, until, format, end card) and saves <excerpt>.<format>.json
   visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
                     with "cuts" or "shots" the still shows the whole program (footage and
                     every clip on screen); --clip is then optional and --at takes program
                     moments ("2.5s", "f120", "end") and --format <WxH> draws another frame
-                    size; check runs per segment of the program
+                    size; check runs per segment of the program; --excerpt <id> on check and
+                    still works on that excerpt (its frames; --format overrides its format)
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
                     with "cuts" or "shots" renders the whole program as one video
                     (--export video, the default there) or, with --export inserts
@@ -68,7 +71,8 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     size, transparent, 10 frames of handle each side, "layer": "behind" as a
                     holdout, manifest.json with the cut list under each insert; check
                     --export inserts lists what inserts leave to the program render.
-                    Video: [--format <WxH>] [--no-cache] [--stems]; segments are cached losslessly in
+                    Video: [--format <WxH>] [--excerpt <id>] [--no-cache] [--stems]; --excerpt renders
+                    one of the project's "excerpts" as <name>.<id>.mp4; segments are cached losslessly in
                     .visualfries/segments/ and only changed segments are drawn again;
                     <name>.program.json is saved beside the video. The sound is speech, sfx
                     and music mixed and normalised (-14 LUFS, -1 dBTP; "mix" in the project);
@@ -1692,11 +1696,12 @@ async function motionCheckCommand(args) {
 	// reads (keys, layer, transition); the clip checks below report the rest.
 	// --format checks the program in another frame size, as render --format draws it.
 	const format = formatFlag(args);
+	const excerpt = readFlag(args, '--excerpt');
 	if (format !== undefined && loaded.cutList.mode !== 'program')
 		throw new Error(
 			'--format checks a program (a project with "cuts" or "shots") in another frame size; this project renders its clips at the project size.'
 		);
-	const { program } = await motionProgram(loaded, { format });
+	const { program } = await motionProgram(loaded, { format, excerpt });
 	const programMode = program.mode === 'program';
 	if (format !== undefined && !json)
 		console.log(
@@ -1715,12 +1720,16 @@ async function motionCheckCommand(args) {
 	const exportAs = readFlag(args, '--export');
 	if (exportAs !== undefined && exportAs !== 'inserts' && exportAs !== 'video')
 		throw new Error(`--export must be video or inserts, got "${exportAs}".`);
+	if (exportAs === 'inserts' && excerpt !== undefined)
+		throw new Error('--excerpt renders a video; inserts come from the whole program.');
 	if (exportAs === 'inserts' && programMode) {
 		const { insertNotes } = await import('../dist/motion/inserts.js');
 		diagnostics.push(...insertNotes(program, loaded.project));
 	}
 	if (!json && diagnostics.length) {
-		console.log(`program (${program.frames} frames, ${program.segments.length} segments)`);
+		console.log(
+			`${excerpt ? `excerpt ${excerpt}` : 'program'} (${program.frames} frames, ${program.segments.length} segments)`
+		);
 		for (const d of diagnostics)
 			console.log(`  ${d.level}: ${d.item ?? d.clip ?? '-'} ${d.field}: ${d.message}`);
 	}
@@ -1745,7 +1754,8 @@ async function motionCheckCommand(args) {
 	const checkOptions = {
 		clips: readAllFlags(args, '--clip'),
 		determinism: hasFlag(args, '--determinism'),
-		format
+		format,
+		excerpt
 	};
 	const results = programMode
 		? await (await programModule()).checkProgram(loaded, checkOptions)
@@ -1794,9 +1804,9 @@ async function motionCheckCommand(args) {
 		process.exitCode = 1;
 }
 
-async function loadedProgram(loaded) {
+async function loadedProgram(loaded, excerpt) {
 	const { motionProgram } = await motionModule();
-	return motionProgram(loaded);
+	return motionProgram(loaded, { excerpt });
 }
 
 const frameTime = (frame, fps) => `${(frame / fps).toFixed(2)}s`;
@@ -1804,7 +1814,9 @@ const frameTime = (frame, fps) => `${(frame / fps).toFixed(2)}s`;
 async function motionProgramCommand(args) {
 	const file = args[0];
 	if (!file)
-		throw new Error('Usage: visualfries program <project.vf.json> [--format <WxH>] [--json]');
+		throw new Error(
+			'Usage: visualfries program <project.vf.json> [--format <WxH>] [--excerpt <id>] [--json]'
+		);
 	const { loadMotionProject, motionProgram, cleanPlateWarnings } = await motionModule();
 	const loaded = await loadMotionProject(file, {
 		transcript: readFlag(args, '--transcript'),
@@ -1812,6 +1824,7 @@ async function motionProgramCommand(args) {
 	});
 	const { program, file: saved } = await motionProgram(loaded, {
 		format: readFlag(args, '--format'),
+		excerpt: readFlag(args, '--excerpt'),
 		write: true
 	});
 	if (hasFlag(args, '--json')) {
@@ -1821,6 +1834,10 @@ async function motionProgramCommand(args) {
 		console.log(
 			`${program.mode} mode  ${program.format.name} (${program.format.class})  ${program.frames} frames  ${frameTime(program.frames, fps)}  ${fps} fps`
 		);
+		const range = (e) =>
+			`frames ${e.startFrame}–${e.startFrame + e.frames - 1} of the program (${frameTime(e.startFrame, fps)}–${frameTime(e.startFrame + e.frames, fps)})  ${e.format}${e.end ? `  end card ${frameTime(e.end.frames, fps)} (${e.end.clip})` : ''}`;
+		if (program.excerpt) console.log(`excerpt ${program.excerpt.id}  ${range(program.excerpt)}`);
+		for (const e of program.excerpts ?? []) console.log(`excerpt ${e.id.padEnd(9)}  ${range(e)}`);
 		for (const c of program.cuts)
 			console.log(
 				`cut ${c.id.padEnd(10)} ${frameTime(c.startFrame, fps)}  ${c.frames} frames  ${c.source} ${frameTime(c.srcIn, fps)}–${frameTime(c.srcOut, fps)}${c.hold ? `  hold ${frameTime(c.hold, fps)}` : ''}${c.audio.split ? `  split ${c.audio.split}s` : ''}${c.transition ? `  ← ${c.transition}` : ''}`
@@ -1873,6 +1890,9 @@ async function motionStillCommand(args) {
 		);
 	}
 	const resolved = clip ? loaded.resolved.clips.find((c) => c.id === clip) : null;
+	const excerpt = readFlag(args, '--excerpt');
+	if (excerpt !== undefined && !programMode)
+		throw new Error('--excerpt is a range of a program; this project has no "cuts" or "shots".');
 	let moments = readAllFlags(args, '--at');
 	let stills;
 	if (programMode) {
@@ -1880,12 +1900,12 @@ async function motionStillCommand(args) {
 		if (!moments.length) {
 			moments = resolved
 				? defaultMoments(resolved)
-				: program.defaultProgramMoments((await loadedProgram(loaded)).program);
+				: program.defaultProgramMoments((await loadedProgram(loaded, excerpt)).program);
 		}
 		stills = await program.renderProgramStills(
 			loaded,
 			moments.map((at) => ({ clip: clip ?? undefined, at })),
-			{ invalidate: readFlag(args, '--invalidate'), format: formatFlag(args) }
+			{ invalidate: readFlag(args, '--invalidate'), format: formatFlag(args), excerpt }
 		);
 	} else {
 		if (formatFlag(args) !== undefined)
@@ -2059,7 +2079,7 @@ async function motionRenderCommand(args) {
 	if (!output)
 		throw new Error(
 			'Usage: visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]\n' +
-				'       visualfries render <program.vf.json> --output <dir|video.mp4> [--export video] [--format <WxH>] [--jobs <n>] [--no-cache] [--stems]\n' +
+				'       visualfries render <program.vf.json> --output <dir|video.mp4> [--export video] [--format <WxH>] [--excerpt <id>] [--jobs <n>] [--no-cache] [--stems]\n' +
 				'       visualfries render <program.vf.json> --export inserts --output <dir|clip.mov> [--handles <frames>] [--clip <id>]... [--jobs <n>]'
 		);
 	const { loadMotionProject, renderMotionClips } = await motionModule();
@@ -2071,6 +2091,11 @@ async function motionRenderCommand(args) {
 	const exportAs = readFlag(args, '--export', programMode ? 'video' : 'inserts');
 	if (!['video', 'inserts'].includes(exportAs))
 		throw new Error(`--export must be video or inserts, got "${exportAs}".`);
+	const excerpt = readFlag(args, '--excerpt');
+	if (excerpt !== undefined && exportAs !== 'video')
+		throw new Error(
+			'--excerpt renders a video (--export video); inserts come from the whole program.'
+		);
 	if (exportAs === 'video') {
 		if (!programMode)
 			throw new Error(
@@ -2082,6 +2107,7 @@ async function motionRenderCommand(args) {
 		const result = await renderProgramVideo(loaded, {
 			output,
 			format: readFlag(args, '--format'),
+			excerpt,
 			jobs: numberFlag(args, '--jobs'),
 			invalidate: readFlag(args, '--invalidate'),
 			fresh: hasFlag(args, '--no-cache'),

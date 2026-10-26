@@ -60,6 +60,18 @@ export type FrameRange = {
     first: number;
     last: number;
 };
+/**
+ * A run of program frames whose picture is one source: frames `frame`, `frame + 1` … in turn,
+ * or with `held` frame `frame` throughout.
+ */
+export type FootageRun = {
+    source: string;
+    frame: number;
+    frames: number;
+    held: boolean;
+};
+/** The picture program frames `[from, to)` show, as runs (frames without footage left out). */
+export declare function pictureRuns(map: FootageMap, from: number, to: number): FootageRun[];
 type Span = {
     startFrame: number;
     frames: number;
@@ -97,4 +109,11 @@ export declare function sourceFrameAt(map: FootageMap, name: string, programFram
  * `offset`). Ranges closer than `gap` frames are merged.
  */
 export declare function footageRanges(map: FootageMap, clips: Span[], margins?: Record<string, number>, gap?: number): Record<string, FrameRange[]>;
+/**
+ * Source frames program frames `[from, to)` show, per source, as sorted inclusive ranges
+ * (frames outside the program are skipped). Ranges closer than `gap` frames are merged.
+ */
+export declare function shownRanges(map: FootageMap, from: number, to: number, gap?: number): Record<string, FrameRange[]>;
+/** Ranges per source, sorted, with those closer than `gap` frames (or overlapping) merged. */
+export declare function mergeRanges(found: Record<string, FrameRange[]>, gap?: number): Record<string, FrameRange[]>;
 export {};

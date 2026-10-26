@@ -23,8 +23,10 @@ import { measureSpeechEdges } from './edit-audio.js';
 import { BeatsFileShape, barRows, formatBarGrid } from './beat-grid.js';
 import { musicEnds, musicTrack, placeMusic } from './music.js';
 import { fileSha256 } from './beats.js';
-import { footageMap, footageRanges } from './footage-map.js';
+import { footageMap, footageRanges, mergeRanges } from './footage-map.js';
+import { headOfRuns } from './framing.js';
 import { holdoutFootage } from './inserts.js';
+import { END_CARD_BLOCK } from './excerpt.js';
 import { removeOrphans, trackPartial } from './partials.js';
 /** `.<clip>.partial-<pid>.mp4|mov`: a clip's encode before it replaces the file. */
 export const PARTIAL_CLIP = /^\..+\.partial-(\d+)\.(?:mp4|mov)$/;
@@ -38,7 +40,10 @@ const CHROMIUM_FLAGS = ['--enable-blink-features=CanvasDrawElement', '--font-ren
  */
 const ORIGIN = 'http://visualfries.local';
 const originUrl = (abs) => `${ORIGIN}/@fs${pathToFileURL(abs).pathname}`;
-/** Sound files the program mixes besides footage: sfx, transition sounds and music. */
+/**
+ * Sound files the program mixes besides footage: sfx, transition sounds, music and the sounds
+ * of excerpt end cards.
+ */
 function soundNames(project) {
     const transitions = [
         ...(project.cuts ?? []).map((c) => c.transition),
@@ -49,7 +54,8 @@ function soundNames(project) {
         ...new Set([
             ...(project.sfx ?? []).map((s) => s.sound),
             ...transitions.flatMap((t) => (t && typeof t === 'object' && t.sound ? [t.sound] : [])),
-            ...(project.music ?? []).map((m) => m.src)
+            ...(project.music ?? []).map((m) => m.src),
+            ...(project.excerpts ?? []).flatMap((e) => (e.end?.sound ? [e.end.sound] : []))
         ])
     ].sort();
 }
@@ -389,6 +395,19 @@ export async function loadMotionProject(file, opts = {}) {
         for (const block of new Set(project.clips.map((c) => c.block)))
             inputs.animatable[block] = await readBlockAnimatable(blockFile(dir, block));
     }
+    const cards = endCards(project);
+    if (isProgramProject(project) && cards.length) {
+        // Excerpt end cards are clips the project does not list: their blocks are checked here.
+        inputs.endBlocks = {};
+        for (const { block } of cards)
+            inputs.endBlocks[block] = existsSync(blockFile(dir, block))
+                ? null
+                : block.startsWith(BUILTIN_PREFIX)
+                    ? `Unknown built-in block "${block}". Built-in blocks: ${Object.keys(BUILTIN_BLOCKS)
+                        .map((b) => BUILTIN_PREFIX + b)
+                        .join(', ')}.`
+                    : `Block file not found: ${block}`;
+    }
     if (isProgramProject(project) || project.sfx?.length) {
         // Events the blocks declare, for `{ event, clip }` anchors.
         inputs.blockEvents = {};
@@ -471,10 +490,12 @@ function projectFile(dir, file) {
         return { error: `"${file}" is not a file (${abs}).` };
     return { abs };
 }
+/** The block and props of every excerpt's end card. */
+const endCards = (project) => (project.excerpts ?? []).flatMap((e) => e.end ? [{ block: e.end.block ?? END_CARD_BLOCK, props: e.end.props }] : []);
 /** Every file clip props name, checked (see `ProjectFiles`); undefined when props name none. */
 function propFilesOf(project, dir) {
     const out = {};
-    for (const clip of project.clips)
+    for (const clip of [...project.clips, ...endCards(project)])
         for (const { file } of propFileRefs(clip.props)) {
             if (file in out)
                 continue;
@@ -559,6 +580,7 @@ async function assetHashes(loaded) {
     const custom = (name, ext) => (ext.test(name) ? [name] : []);
     const code = new Set([
         ...project.clips.map((c) => c.block),
+        ...endCards(project).map((c) => c.block),
         ...(project.shots ?? []).flatMap((s) => custom(s.shot, /\.(ts|js)$/)),
         ...[...(project.cuts ?? []), ...(project.shots ?? []), ...project.clips].flatMap((item) => item.transition
             ? custom(typeof item.transition === 'string' ? item.transition : item.transition.type, /\.svelte$/)
@@ -599,7 +621,7 @@ async function assetHashes(loaded) {
         if (hash)
             out[name] = hash;
     }
-    for (const name of propFiles(project.clips.map((c) => c.props))) {
+    for (const name of propFiles([...project.clips, ...endCards(project)].map((c) => c.props))) {
         if (name in out)
             continue;
         const file = path.resolve(dir, name);
@@ -644,7 +666,8 @@ async function bundleInputs(loaded, entries) {
 }
 /**
  * The resolved program for one format (see `resolveProgram`), with the hashes of the files
- * behind it. `write` also saves it as `.visualfries/program/<format>.json` next to the project.
+ * behind it; with `excerpt`, that excerpt's program. `write` also saves it as
+ * `.visualfries/program/<format>.json` (`<excerpt>.<format>.json`) next to the project.
  */
 export async function motionProgram(loaded, opts = {}) {
     const hashes = {
@@ -657,7 +680,8 @@ export async function motionProgram(loaded, opts = {}) {
     const program = resolveProgram(loaded.project, { ...loaded.inputs, hashes }, opts);
     if (!opts.write)
         return { program, file: null };
-    const file = path.join(loaded.dir, '.visualfries', 'program', `${program.format.name}.json`);
+    const name = `${opts.excerpt ? `${opts.excerpt}.` : ''}${program.format.name}.json`;
+    const file = path.join(loaded.dir, '.visualfries', 'program', name);
     await fs.mkdir(path.dirname(file), { recursive: true });
     await fs.writeFile(file, JSON.stringify(program, null, 2) + '\n');
     return { program, file };
@@ -692,6 +716,7 @@ const BUILTIN_PREFIX = '@visualfries/';
 /** Blocks that ship with VisualFries; a clip names them as `"block": "@visualfries/captions"`. */
 const BUILTIN_BLOCKS = {
     captions: 'Captions.svelte',
+    'end-card': 'EndCard.svelte',
     'speaker-depth': 'SpeakerDepth.svelte',
     subject: 'SubjectLayer.svelte'
 };
@@ -760,8 +785,12 @@ async function bundleOptions() {
         }
     };
 }
-/** Compile the project's blocks together with the stage runtime into one page. */
-export async function bundleMotionProject(loaded, clips) {
+/**
+ * Compile the project's blocks together with the stage runtime into one page. `program` is the
+ * program the pages draw when it is not the project's own (an excerpt): its footage map then
+ * decides which footage frames are extracted.
+ */
+export async function bundleMotionProject(loaded, clips, program) {
     const { esbuild, options } = await bundleOptions();
     const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-motion-'));
     const stageModule = ownModule('stage');
@@ -819,7 +848,7 @@ export async function bundleMotionProject(loaded, clips) {
         const abs = path.resolve(loaded.dir, file);
         css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs), files) + '\n';
     }
-    const footage = await extractFootage(loaded, clips);
+    const footage = await extractFootage(loaded, clips, program);
     roots.push(...footage.roots);
     const cssBundle = path.join(outDir, 'bundle.css');
     const cssLink = existsSync(cssBundle) ? '<link rel="stylesheet" href="bundle.css">' : '';
@@ -830,7 +859,12 @@ export async function bundleMotionProject(loaded, clips) {
         html,
         roots,
         files,
-        footage: { frames: footage.frames, map: footage.map, warnings: footage.warnings },
+        footage: {
+            frames: footage.frames,
+            map: footage.map,
+            warnings: footage.warnings,
+            ...(footage.heads ? { heads: footage.heads } : {})
+        },
         brand: loaded.brand.resolved,
         props
     };
@@ -1202,7 +1236,7 @@ export async function prepareFootage(loaded, clips) {
     return (await extractFootage(loaded, clips)).roots;
 }
 /** `prepareFootage`, also returning the extracted frames and the footage map. */
-async function extractFootage(loaded, clips) {
+async function extractFootage(loaded, clips, drawn) {
     const footage = loaded.project.footage ?? {};
     const fps = loaded.project.fps;
     const sources = [];
@@ -1282,7 +1316,7 @@ async function extractFootage(loaded, clips) {
         return { roots, frames, map: null, warnings };
     }
     // Items that fail to resolve are left out; `check` and `program` report them.
-    const program = resolveProgram(loaded.project, loaded.inputs);
+    const program = drawn ?? resolveProgram(loaded.project, loaded.inputs);
     const map = footageMap(program, Object.fromEntries(sources.map((s) => [s.name, s.total])));
     const margins = Object.fromEntries(sources.map((s) => {
         const margin = footage[s.name].margin;
@@ -1292,7 +1326,13 @@ async function extractFootage(loaded, clips) {
         ];
     }));
     // Ranges less than a second apart are extracted as one: fewer decoder runs, few extra frames.
-    const wanted = footageRanges(map, clips, margins, Math.round(fps));
+    const gap = Math.round(fps);
+    const excerpt = drawn?.excerpt;
+    // An excerpt draws nothing new under its end card (it holds the last frame).
+    let wanted = footageRanges(excerpt ? { ...map, frames: excerpt.frames } : map, clips, margins, gap);
+    const whole = excerpt?.footage ? excerptFootage(excerpt.footage) : null;
+    if (whole)
+        wanted = mergeRanges(unite(wanted, whole.wanted), gap);
     for (const source of sources) {
         const ranges = [];
         for (const range of wanted[source.name] ?? [])
@@ -1303,7 +1343,36 @@ async function extractFootage(loaded, clips) {
         clip.footage = frames;
         clip.footageMap = map;
     }
-    return { roots, frames, map, warnings };
+    return { roots, frames, map, warnings, ...(whole ? { heads: whole.heads(frames) } : {}) };
+}
+/** Ranges of both lists per source (not merged). */
+const unite = (a, b) => {
+    const out = {};
+    for (const list of [a, b])
+        for (const [name, ranges] of Object.entries(list))
+            (out[name] ??= []).push(...ranges);
+    return out;
+};
+/**
+ * What an excerpt's framing reads of the whole program's footage (see `ExcerptFootage`): the
+ * frames to extract besides its own, and `heads`, the head size of each `headroom` shot across
+ * an edge over its whole shot, once they are extracted.
+ */
+function excerptFootage(footage) {
+    const runs = Object.values(footage.heads).flat();
+    const ranges = {};
+    for (const run of runs)
+        (ranges[run.source] ??= []).push({
+            first: run.frame,
+            last: run.held ? run.frame : run.frame + run.frames - 1
+        });
+    return {
+        wanted: unite(footage.around, ranges),
+        heads: (frames) => Object.fromEntries(Object.entries(footage.heads).map(([shot, list]) => [
+            shot,
+            Object.fromEntries(Object.keys(frames).map((name) => [name, headOfRuns(list, frames, name)]))
+        ]))
+    };
 }
 /**
  * The warning about frames of a footage whose matte covers the whole picture, which keep the

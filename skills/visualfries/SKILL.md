@@ -91,6 +91,8 @@ Work like an editor, in this order; each step ends on its criterion:
    When the creator finishes the edit in an editor, add `--export inserts` (one transparent file
    per clip, 10-frame handles, `manifest.json` with program and source frames; `check
 --export inserts` lists what stays in the program render).
+   Teasers of the same video are `excerpts` of the program, never a hand-cut copy of it (see
+   below); render each with `--excerpt <id>`.
 
 Traps the guide explains: a phrase in `until` means the end of its last word, so music or a clip
 meant to stop dead on a word needs `{ "say": "…", "edge": "start" }`; a few frames between two
@@ -104,6 +106,18 @@ Program tools for common needs:
   effects and music play on. No extra muted cut, no frame offsets in a block.
 - Running to the end: `"until": "end"` on clips, shots and music; `{ "program": "end", "offset":
 -1 }` for a moment before it. Never `until: 99`.
+- A teaser (9:16, 4:5) from the long video: add an excerpt to the same project,
+  `"excerpts": [{ "id": "teaser1", "from": 0, "until": { "say": "…", "edge": "end", "offset":
+0.15 }, "format": "1080x1920", "end": { "duration": 3, "props": { "lines": ["Full video", "on
+YouTube"], "handle": "@channel" }, "sound": "sfx/slam.wav" } }]`. The whole program resolves
+  first and is then sliced, so phrases, `until` and repeated phrases resolve as in the full video;
+  never copy the project and cut its cuts, shots, clips and sfx by hand. Items cut by an edge keep
+  their own time (a clip or move plays on mid-way), music fades at the edges and runs on under the
+  end card, which plays over the held last frame (`@visualfries/end-card`, or any block in
+  `end.block`). `program --excerpt teaser1` warns where an edge cuts a word, a shot's move or a
+  transition window; move the edge rather than accept it. Then `check --excerpt`, stills with
+  `still --excerpt` (blocks written in fixed 16:9 pixels show here), `render --excerpt` →
+  `<project>.teaser1.mp4`. One excerpt is one range. Guide: `docs/MOTION.md` → "Excerpts".
 - A sound on a moment a block computes: declare it in the block,
   `<script module> export const events = { land: 'tail+0.98' };</script>`, read it there with
   `clip.at(events.land)`, and anchor the `sfx` on `{ "event": "land", "clip": "kick" }`.

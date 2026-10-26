@@ -58,6 +58,17 @@ export type StageSegment = {
 	 * (see `frameFit` in `program-stage.ts`).
 	 */
 	checkSafe?: boolean;
+	/**
+	 * An excerpt's end card: from program frame `from` on, the footage, shots, transitions and
+	 * every clip but `clips` show frame `from − 1`, held; `clips` (the card) play on.
+	 */
+	hold?: { from: number; clips: string[] };
+	/**
+	 * An excerpt's head sizes (see `shotHead`) of shots that run across its edges, by shot and
+	 * source, measured over the whole shot in the whole program, so they frame as in the full
+	 * video. Other shots measure their own frames.
+	 */
+	heads?: Record<string, Record<string, number | null>>;
 };
 
 type Span = { startFrame: number; frames: number };
@@ -85,6 +96,44 @@ export function clipShowRange(
 	return { from, until };
 }
 
+/**
+ * The shots that decide what a range shows: those `shotsDuring` gives, and both shots of every
+ * shot transition whose window touches the range (in an excerpt, a window across an edge has a
+ * side outside the range). In program order.
+ */
+export function stagedShots<T extends ShotSpan>(
+	shots: readonly T[],
+	transitions: readonly ProgramTransition[],
+	span: Span
+): T[] {
+	const during = new Set(shotsDuring(shots, span));
+	const named = new Set(
+		transitions
+			.filter((t) => t.kind === 'shot' && t.startFrame < endOf(span) && endOf(t) > span.startFrame)
+			.flatMap((t) => [t.owner, t.outgoing])
+	);
+	return shots.filter((s) => during.has(s) || named.has(s.id));
+}
+
+/**
+ * The cuts a range shows: those overlapping it, and both sides of every cut transition whose
+ * window touches it (in an excerpt, a side may lie outside the range). In program order.
+ */
+export function stagedCuts<T extends Span & { id: string }>(
+	cuts: readonly T[],
+	transitions: readonly ProgramTransition[],
+	span: Span
+): T[] {
+	const named = new Set(
+		transitions
+			.filter((t) => t.kind === 'cut' && t.startFrame < endOf(span) && endOf(t) > span.startFrame)
+			.flatMap((t) => [t.owner, t.outgoing])
+	);
+	return cuts.filter(
+		(c) => (c.startFrame < endOf(span) && span.startFrame < endOf(c)) || named.has(c.id)
+	);
+}
+
 /** The clip frame shown at program frame `f`: held at its edges, null when not on screen. */
 export function clipFrameAt(clip: StageClip, f: number): number | null {
 	if (f < clip.show.from || f >= clip.show.until) return null;
@@ -108,10 +157,14 @@ export function segmentAt(
 export function segmentStage(
 	program: Pick<
 		ResolvedProgram,
-		'fps' | 'format' | 'background' | 'shots' | 'clips' | 'transitions'
+		'fps' | 'format' | 'background' | 'shots' | 'clips' | 'transitions' | 'excerpt'
 	>,
 	segment: Span & { id: string },
-	footage: { frames: Record<string, FootageFrames>; map: FootageMap | null },
+	footage: {
+		frames: Record<string, FootageFrames>;
+		map: FootageMap | null;
+		heads?: StageSegment['heads'];
+	},
 	brand: ResolvedBrand = NEUTRAL_BRAND
 ): StageSegment {
 	const from = segment.startFrame;
@@ -141,7 +194,7 @@ export function segmentStage(
 		background: program.background,
 		footage: footage.frames,
 		footageMap: footage.map,
-		shots: shotsDuring(program.shots, segment).map((s) => ({
+		shots: stagedShots(program.shots, program.transitions, segment).map((s) => ({
 			id: s.id,
 			shot: s.shot,
 			startFrame: s.startFrame,
@@ -152,7 +205,11 @@ export function segmentStage(
 			keys: s.keys
 		})),
 		clips,
-		transitions: program.transitions.filter((t) => t.startFrame < to && endOf(t) > from)
+		transitions: program.transitions.filter((t) => t.startFrame < to && endOf(t) > from),
+		...(program.excerpt?.end
+			? { hold: { from: program.excerpt.frames, clips: [program.excerpt.end.clip] } }
+			: {}),
+		...(footage.heads ? { heads: footage.heads } : {})
 	};
 }
 

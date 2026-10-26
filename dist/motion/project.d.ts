@@ -712,6 +712,19 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         loudness: z.ZodOptional<z.ZodNumber>;
         truePeak: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strict>>>;
+    excerpts: z.ZodOptional<z.ZodLazy<z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        from: z.ZodLazy<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
+        until: z.ZodLazy<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
+        format: z.ZodOptional<z.ZodString>;
+        end: z.ZodOptional<z.ZodObject<{
+            duration: z.ZodNumber;
+            block: z.ZodOptional<z.ZodString>;
+            props: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            sound: z.ZodOptional<z.ZodString>;
+            gain: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strict>>;
+    }, z.core.$strict>>>>;
     duration: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>, z.ZodTransform<{
     size: [number, number];
@@ -1038,6 +1051,19 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         loudness?: number | undefined;
         truePeak?: number | undefined;
     } | undefined;
+    excerpts?: {
+        id: string;
+        from: MotionAnchor;
+        until: MotionAnchor;
+        format?: string | undefined;
+        end?: {
+            duration: number;
+            block?: string | undefined;
+            props?: Record<string, unknown> | undefined;
+            sound?: string | undefined;
+            gain?: number | undefined;
+        } | undefined;
+    }[] | undefined;
     duration?: number | undefined;
 }, {
     size: [number, number];
@@ -1365,6 +1391,19 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         loudness?: number | undefined;
         truePeak?: number | undefined;
     } | undefined;
+    excerpts?: {
+        id: string;
+        from: MotionAnchor;
+        until: MotionAnchor;
+        format?: string | undefined;
+        end?: {
+            duration: number;
+            block?: string | undefined;
+            props?: Record<string, unknown> | undefined;
+            sound?: string | undefined;
+            gain?: number | undefined;
+        } | undefined;
+    }[] | undefined;
     duration?: number | undefined;
 }>>;
 export type MotionProject = z.output<typeof MotionProjectShape>;

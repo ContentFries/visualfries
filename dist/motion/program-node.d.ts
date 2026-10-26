@@ -29,8 +29,9 @@ export declare function programFrameForAt(program: ResolvedProgram, at: string, 
 /** Moments for a program contact sheet: the start, the middle and first frame of every cut, the end. */
 export declare function defaultProgramMoments(program: ResolvedProgram): string[];
 /**
- * Stills of the program: each request is drawn on the page of the segment holding its frame,
- * one page per segment; with `format` in that frame size, as `render --format` draws it.
+ * Stills of the program (of an excerpt with `excerpt`, its moments in excerpt time): each
+ * request is drawn on the page of the segment holding its frame, one page per segment; with
+ * `format` in that frame size, as `render --format` draws it.
  */
 export declare function renderProgramStills(loaded: LoadedMotionProject, requests: {
     at: string;
@@ -38,6 +39,7 @@ export declare function renderProgramStills(loaded: LoadedMotionProject, request
 }[], opts?: {
     invalidate?: string;
     format?: string;
+    excerpt?: string;
 }): Promise<{
     clip?: string;
     at: string;
@@ -52,6 +54,7 @@ export declare function renderProgramStills(loaded: LoadedMotionProject, request
 export declare function captureProgramFrames(loaded: LoadedMotionProject, frames: number[], opts?: {
     whole?: boolean;
     invalidate?: string;
+    excerpt?: string;
 }): Promise<Map<number, Buffer>>;
 /**
  * Checks a program on segment pages: runs every clip's logic at the frames around cuts, clip
@@ -60,12 +63,14 @@ export declare function captureProgramFrames(loaded: LoadedMotionProject, frames
  * program; all four must give identical pixels. One result per segment; `clips` limits the
  * check to the segments those clips are on screen in. With `format` (`WIDTHxHEIGHT`) the program
  * is checked in that frame size, as `render --format` draws it, and text outside the format's
- * safe zone warns too.
+ * safe zone warns too. With `excerpt`, the excerpt's program is checked (its format unless
+ * `format` overrides it, its end card).
  */
 export declare function checkProgram(loaded: LoadedMotionProject, opts?: {
     clips?: string[];
     determinism?: boolean;
     format?: string;
+    excerpt?: string;
 }): Promise<ClipCheck[]>;
 /**
  * Warnings for every stretch where a shot's camera window cuts the speaker's head (see

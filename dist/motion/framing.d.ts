@@ -1,4 +1,4 @@
-import { type FootageMap, type FootageView } from './footage-map.js';
+import { type FootageMap, type FootageRun, type FootageView } from './footage-map.js';
 import type { FootageFrames, SubjectBox } from './resolve.js';
 import type { ProgramTransition } from './program.js';
 import { type ShotLayout, type ShotSpan } from './shots/index.js';
@@ -9,13 +9,18 @@ type Span = {
 };
 /**
  * The head's height a shot frames `source` for (see `ShotInput.head`): a high percentile of the
- * matte's per-frame measure over every frame of the shot that shows that source, so one tall
+ * matte's per-frame measure over every program frame of the shot that shows that source, so one tall
  * frame (a lean, a hand) does not shrink the whole shot and the shot does not breathe with every
  * lean, while a shot across a cut from a close take to a wide one frames each for its own head.
  * Null without a matte that measures heads.
  */
 export declare function shotHead(shot: Span, map: FootageMap | null, footage: Record<string, FootageFrames>, source: string): number | null;
-export type FramingData = Pick<StageSegment, 'fps' | 'size' | 'cls' | 'format' | 'footage' | 'footageMap' | 'shots'>;
+/**
+ * `shotHead` over the picture `runs` give (see `FootageRun`) instead of a footage map: an
+ * excerpt's shot measured over the whole shot of the whole program.
+ */
+export declare function headOfRuns(runs: readonly FootageRun[], footage: Record<string, FootageFrames>, source: string): number | null;
+export type FramingData = Pick<StageSegment, 'fps' | 'size' | 'cls' | 'format' | 'footage' | 'footageMap' | 'shots' | 'heads'>;
 /**
  * The framing of a program (or a segment of it): the layout of a side showing `view` at
  * program frame `f`, from the shot track or from `shot` alone, and the smoothed subject of a

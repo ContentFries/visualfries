@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ENERGIES } from './energy.js';
 import {
 	CutShape,
+	ExcerptShape,
 	KeyShape,
 	MixShape,
 	ProvenanceShape,
@@ -416,6 +417,8 @@ const MotionProjectFields = z.object({
 	sfx: timeline(() => z.array(SfxShape)).optional(),
 	/** Levels of the program mix and the loudness of the finished video. */
 	mix: timeline(() => MixShape).optional(),
+	/** Ranges of the program rendered as videos of their own (`render --excerpt <id>`). */
+	excerpts: timeline(() => z.array(ExcerptShape)).optional(),
 	/** Program seconds when there is no cut list. Default: the latest end of clips or music. */
 	duration: z.number().positive().optional()
 });

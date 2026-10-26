@@ -73,13 +73,17 @@ export function assertProgramRenders(program: ResolvedProgram) {
 }
 
 /**
- * The program (in frame size `format`, `WIDTHxHEIGHT`, when given), bundled with the blocks of
- * all its clips and the footage it shows.
+ * The program (in frame size `format`, `WIDTHxHEIGHT`, when given; with `excerpt`, that
+ * excerpt's program), bundled with the blocks of all its clips and the footage it shows.
  */
-async function prepareProgram(loaded: LoadedMotionProject, format?: string) {
-	const program = resolveProgram(loaded.project, loaded.inputs, { format });
+async function prepareProgram(loaded: LoadedMotionProject, format?: string, excerpt?: string) {
+	const program = resolveProgram(loaded.project, loaded.inputs, { format, excerpt });
 	assertProgramRenders(program);
-	const bundle = await bundleMotionProject(loaded, program.clips);
+	const bundle = await bundleMotionProject(
+		loaded,
+		program.clips,
+		excerpt === undefined ? undefined : program
+	);
 	return { program, bundle };
 }
 
@@ -118,16 +122,24 @@ export function defaultProgramMoments(program: ResolvedProgram): string[] {
 }
 
 /**
- * Stills of the program: each request is drawn on the page of the segment holding its frame,
- * one page per segment; with `format` in that frame size, as `render --format` draws it.
+ * Stills of the program (of an excerpt with `excerpt`, its moments in excerpt time): each
+ * request is drawn on the page of the segment holding its frame, one page per segment; with
+ * `format` in that frame size, as `render --format` draws it.
  */
 export async function renderProgramStills(
 	loaded: LoadedMotionProject,
 	requests: { at: string; clip?: string }[],
-	opts: { invalidate?: string; format?: string } = {}
+	opts: { invalidate?: string; format?: string; excerpt?: string } = {}
 ): Promise<{ clip?: string; at: string; frame: number; png: Buffer; mode: string }[]> {
-	const { program, bundle } = await prepareProgram(loaded, opts.format);
+	const { program, bundle } = await prepareProgram(loaded, opts.format, opts.excerpt);
 	const wanted = requests.map((r) => ({ ...r, frame: programFrameForAt(program, r.at, r.clip) }));
+	for (const r of wanted)
+		if (r.frame < 0 || r.frame >= program.frames) {
+			await fs.rm(bundle.dir, { recursive: true, force: true });
+			throw new Error(
+				`Moment "${r.at}"${r.clip ? ` of clip "${r.clip}"` : ''} is frame ${r.frame}, outside the ${program.excerpt ? `excerpt "${program.excerpt.id}"` : 'program'} (frames 0–${program.frames - 1}).`
+			);
+		}
 	const browser = await launch();
 	const out = new Map<number, { png: Buffer; mode: string }>();
 	try {
@@ -157,9 +169,9 @@ export async function renderProgramStills(
 export async function captureProgramFrames(
 	loaded: LoadedMotionProject,
 	frames: number[],
-	opts: { whole?: boolean; invalidate?: string } = {}
+	opts: { whole?: boolean; invalidate?: string; excerpt?: string } = {}
 ): Promise<Map<number, Buffer>> {
-	const { program, bundle } = await prepareProgram(loaded);
+	const { program, bundle } = await prepareProgram(loaded, undefined, opts.excerpt);
 	const browser = await launch();
 	const out = new Map<number, Buffer>();
 	try {
@@ -190,13 +202,17 @@ const sha1 = (b: Buffer) => createHash('sha1').update(b).digest('hex');
  * program; all four must give identical pixels. One result per segment; `clips` limits the
  * check to the segments those clips are on screen in. With `format` (`WIDTHxHEIGHT`) the program
  * is checked in that frame size, as `render --format` draws it, and text outside the format's
- * safe zone warns too.
+ * safe zone warns too. With `excerpt`, the excerpt's program is checked (its format unless
+ * `format` overrides it, its end card).
  */
 export async function checkProgram(
 	loaded: LoadedMotionProject,
-	opts: { clips?: string[]; determinism?: boolean; format?: string } = {}
+	opts: { clips?: string[]; determinism?: boolean; format?: string; excerpt?: string } = {}
 ): Promise<ClipCheck[]> {
-	const program = resolveProgram(loaded.project, loaded.inputs, { format: opts.format });
+	const program = resolveProgram(loaded.project, loaded.inputs, {
+		format: opts.format,
+		excerpt: opts.excerpt
+	});
 	const checkSafe = opts.format !== undefined;
 	const known = new Set(loaded.project.clips.map((c) => c.id));
 	const unknown = (opts.clips ?? []).filter((id) => !known.has(id));
@@ -220,7 +236,11 @@ export async function checkProgram(
 			r.errors.push({ message: 'The program has errors (listed above), so it was not drawn.' });
 		return results;
 	}
-	const bundle = await bundleMotionProject(loaded, program.clips);
+	const bundle = await bundleMotionProject(
+		loaded,
+		program.clips,
+		opts.excerpt === undefined ? undefined : program
+	);
 	// Frames the clean plate could not be built for belong to the footage, not to a segment:
 	// they are told once, with the first segment checked.
 	for (const message of bundle.footage.warnings ?? []) results[0]?.warnings.push({ message });

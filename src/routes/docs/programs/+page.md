@@ -1,7 +1,7 @@
 ---
 title: 'Programs: from a raw take to a finished reel'
 description: A program is one motion project that describes a whole edit. It holds the cut list over raw takes, the shots that frame the speaker, the clips, the transitions, the captions and the sound, and it renders as one video per format. Retakes follow without edits.
-updated: 2026-10-22
+updated: 2026-10-25
 ---
 
 A program is one project that describes a whole edit:
@@ -161,6 +161,37 @@ segment seg1  frames 0–152  3c9aad249c2b  hook, take, open, hook-behind, list-
 - **Cache.** A segment's hash covers what is on screen in it, including every file its blocks import. Editing one clip draws only the segments it is on screen in; `--no-cache` draws everything again.
 - **What makes a segment redraw.** A clip that spans several segments (a captions clip over the whole program) puts all of them in play. A cut that gets longer or shorter moves everything after it.
 - **Housekeeping.** `visualfries cache reel.vf.json` shows the cache's size, and `--clear` drops it.
+
+## Excerpts: teasers from the same program
+
+A teaser for Shorts, Reels or a feed is a range of the long video in another format. Name it in `excerpts`, and VisualFries resolves the whole program first and then slices it: every phrase, `until` and repeated phrase lands where it does in the full video, so nothing in the slice goes missing.
+
+```json
+"excerpts": [
+	{
+		"id": "teaser1",
+		"from": 0,
+		"until": { "say": "while my computer is off", "edge": "end", "offset": 0.15 },
+		"format": "1080x1920",
+		"end": { "duration": 3, "props": { "lines": ["Full video", "on YouTube"], "handle": "@channel" }, "sound": "sfx/slam.wav", "gain": -4 }
+	}
+]
+```
+
+```bash
+npx visualfries program reel.vf.json --excerpt teaser1     # its range, edges and end card
+npx visualfries check reel.vf.json --excerpt teaser1
+npx visualfries still reel.vf.json --excerpt teaser1 --at 2s --at end --output teaser1.png
+npx visualfries render reel.vf.json --excerpt teaser1 --output out/   # out/reel.teaser1.mp4
+```
+
+- **Range and format.** `from` and `until` take any program anchor. `format` is the frame size; the whole program is resolved in it before the slice, so blocks see its `clip.format` and safe insets. `--format` overrides it.
+- **Edges.** Items keep their own time. A clip or a shot's move cut by `from` plays on from where it is in the full video; a transition window across an edge plays as it does there, with both its sides; cuts are trimmed. Framing near the edges reads the same footage as the full video, so each frame of the excerpt is the full video's frame in its format. `program` and `check` warn when an edge cuts a word, a move or a transition window.
+- **Sound.** Speech gets a 10 ms fade at both edges. An effect stays when its hit lands in the range. Music fades in over 0.25 s at `from`, goes on under the end card at its level at `until` and fades out at the excerpt's end; music that starts after `until` is left out. The excerpt is mixed and normalised on its own.
+- **End card.** `end` adds `duration` seconds after the range. The picture holds the excerpt's last frame and only the card plays over it. The built-in `@visualfries/end-card` takes `lines`, `accent`, `handle`, `image` (`{ "file" }`, default the brand's mark logo) and `dim`, and stays inside the safe zone at any size; any block works too (`"block": "blocks/MyEnd.svelte"`). `sound` plays on the card's first frame.
+- **Cache.** An excerpt's segments are cached under their own hashes beside the full video's; rendering it again draws only what changed in it. It does not reuse the full video's segment files (another format, other edges).
+
+An excerpt that does not resolve is an error when you ask for it and a warning in the whole program, so the full video still renders. One excerpt is one range.
 
 ## Retakes
 

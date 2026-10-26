@@ -1,3 +1,26 @@
+/** The picture program frames `[from, to)` show, as runs (frames without footage left out). */
+export function pictureRuns(map, from, to) {
+    const runs = [];
+    for (let f = Math.max(0, from); f < Math.min(map.frames, to); f++) {
+        const view = programFootageAt(map, f);
+        if (!view)
+            continue;
+        const last = runs[runs.length - 1];
+        if (last && last.source === view.source) {
+            if (!last.held && view.frame === last.frame + last.frames) {
+                last.frames++;
+                continue;
+            }
+            if ((last.held || last.frames === 1) && view.frame === last.frame) {
+                last.held = true;
+                last.frames++;
+                continue;
+            }
+        }
+        runs.push({ source: view.source, frame: view.frame, frames: 1, held: false });
+    }
+    return runs;
+}
 const contains = (s, f) => f >= s.startFrame && f < s.startFrame + s.frames;
 /** The map of a resolved program; `totals` overrides the probed source lengths. */
 export function footageMap(program, totals) {
@@ -145,9 +168,26 @@ export function footageRanges(map, clips, margins = {}, gap = 0) {
                 add(v.source, v.frame - margin, v.frame + margin);
             }
     }
+    return mergeRanges(found, gap);
+}
+/**
+ * Source frames program frames `[from, to)` show, per source, as sorted inclusive ranges
+ * (frames outside the program are skipped). Ranges closer than `gap` frames are merged.
+ */
+export function shownRanges(map, from, to, gap = 0) {
+    const found = {};
+    for (let f = Math.max(0, from); f < Math.min(map.frames, to); f++)
+        for (const v of footageAt(map, f))
+            (found[v.source] ??= []).push({ first: v.frame, last: v.frame });
+    return mergeRanges(found, gap);
+}
+/** Ranges per source, sorted, with those closer than `gap` frames (or overlapping) merged. */
+export function mergeRanges(found, gap = 0) {
     const out = {};
     for (const name of Object.keys(found).sort()) {
-        const sorted = found[name].sort((a, b) => a.first - b.first);
+        if (!found[name].length)
+            continue;
+        const sorted = [...found[name]].sort((a, b) => a.first - b.first);
         const merged = [{ ...sorted[0] }];
         for (const r of sorted.slice(1)) {
             const last = merged[merged.length - 1];

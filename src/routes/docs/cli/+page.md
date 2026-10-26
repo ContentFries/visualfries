@@ -9,10 +9,10 @@ Four commands cover the life of a motion project: see where things land (`clips`
 ## program
 
 ```bash
-npx visualfries program reel.vf.json [--format <WxH>] [--json]
+npx visualfries program reel.vf.json [--format <WxH>] [--excerpt <id>] [--json]
 ```
 
-For a project with `cuts` or `shots`. Resolves the whole program (cuts, program words, shots, clips, transitions, audio pieces and segments), measures every audio edit point on the sound and saves the result as `.visualfries/program/<format>.json`. Prints one line per cut, shot, clip, transition, music item and segment, then every warning and error; exits with code 1 on errors. `--format` resolves another frame size of the same project; `--json` prints the whole resolved program, including its `events`. See [Programs](/docs/programs).
+For a project with `cuts` or `shots`. Resolves the whole program (cuts, program words, shots, clips, transitions, audio pieces and segments), measures every audio edit point on the sound and saves the result as `.visualfries/program/<format>.json`. Prints one line per cut, shot, clip, transition, music item and segment, then every warning and error; exits with code 1 on errors. `--format` resolves another frame size of the same project; `--excerpt <id>` resolves the whole program and slices one of its `excerpts` (a teaser, see [Programs](/docs/programs)), saved as `.visualfries/program/<id>.<format>.json`; `--json` prints the whole resolved program, including its `events`. See [Programs](/docs/programs).
 
 ## clips
 
@@ -86,11 +86,11 @@ A render refuses to start when any requested clip has errors, and verifies that 
 ### Rendering a program
 
 ```bash
-npx visualfries render reel.vf.json --output out/ [--format <WxH>] [--jobs <n>] [--no-cache] [--stems]
+npx visualfries render reel.vf.json --output out/ [--format <WxH>] [--excerpt <id>] [--jobs <n>] [--no-cache] [--stems]
 npx visualfries render reel.vf.json --export inserts --output inserts/ [--handles <frames>] [--clip <id>]... [--jobs <n>]
 ```
 
-With `cuts` or `shots`, `render` makes the whole program one video (`--export video`, the default there). `--output` is an `.mp4`, or a directory that gets `<project>[.<format>].mp4`; `--format 1920x1080` renders another frame size from the same project. The sound is mixed first (speech, effects and music, normalised to −14 LUFS and −1 dBTP; see [Program sound](/docs/program-sound)), then each segment is drawn or taken from the cache in `.visualfries/segments/`, and the segments are joined and encoded once. `--no-cache` draws every segment again; `--stems` also writes `<name>.speech.wav`, `<name>.sfx.wav` and `<name>.music.wav`. The resolved program is saved beside the video as `<name>.program.json`, and the result is printed as JSON.
+With `cuts` or `shots`, `render` makes the whole program one video (`--export video`, the default there). `--output` is an `.mp4`, or a directory that gets `<project>[.<format>].mp4`; `--format 1920x1080` renders another frame size from the same project, and `--excerpt <id>` one of its excerpts as `<project>.<id>.mp4` (`check` and `still` take `--excerpt` too). The sound is mixed first (speech, effects and music, normalised to −14 LUFS and −1 dBTP; see [Program sound](/docs/program-sound)), then each segment is drawn or taken from the cache in `.visualfries/segments/`, and the segments are joined and encoded once. `--no-cache` draws every segment again; `--stems` also writes `<name>.speech.wav`, `<name>.sfx.wav` and `<name>.music.wav`. The resolved program is saved beside the video as `<name>.program.json`, and the result is printed as JSON.
 
 `--export inserts` renders every clip of the program as its own frame-sized file instead, with `--handles` frames before and after (default 10), transparent unless the clip says `"alpha": false`, and `manifest.json` with the cut list under each insert. See [Inserts for an editor](/docs/programs#inserts-for-an-editor).
 

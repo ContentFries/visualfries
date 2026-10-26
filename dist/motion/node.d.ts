@@ -9,6 +9,7 @@ import { type BarRow, type BeatsFile, type MusicBeats } from './beat-grid.js';
 import { type MusicTrack, type PlacedMusic } from './music.js';
 import { type FootageMap, type FrameRange } from './footage-map.js';
 import type { FootageFrames, SubjectBox } from './resolve.js';
+import type { StageSegment } from './segments.js';
 /** `.<clip>.partial-<pid>.mp4|mov`: a clip's encode before it replaces the file. */
 export declare const PARTIAL_CLIP: RegExp;
 export type LoadedMotionProject = {
@@ -100,10 +101,12 @@ export declare function loadMotionProject(file: string, opts?: {
 export declare function describeMusicGrid(loaded: LoadedMotionProject): string;
 /**
  * The resolved program for one format (see `resolveProgram`), with the hashes of the files
- * behind it. `write` also saves it as `.visualfries/program/<format>.json` next to the project.
+ * behind it; with `excerpt`, that excerpt's program. `write` also saves it as
+ * `.visualfries/program/<format>.json` (`<excerpt>.<format>.json`) next to the project.
  */
 export declare function motionProgram(loaded: LoadedMotionProject, opts?: {
     format?: string;
+    excerpt?: string;
     write?: boolean;
 }): Promise<{
     program: ResolvedProgram;
@@ -124,12 +127,14 @@ export type BundleResult = {
     files: string[];
     /**
      * Extracted footage and, in program mode, the map from program to source frames; `warnings`
-     * about frames that could not be made (a clean plate without background).
+     * about frames that could not be made (a clean plate without background); for an excerpt,
+     * `heads` (see `StageSegment.heads`).
      */
     footage: {
         frames: Record<string, FootageFrames>;
         map: FootageMap | null;
         warnings?: string[];
+        heads?: StageSegment['heads'];
     };
     /** The project's brand; the program stage sets its tokens on the whole stage. */
     brand: ResolvedBrand;
@@ -139,8 +144,12 @@ export type BundleResult = {
      */
     props: Record<string, Record<string, unknown>>;
 };
-/** Compile the project's blocks together with the stage runtime into one page. */
-export declare function bundleMotionProject(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<BundleResult>;
+/**
+ * Compile the project's blocks together with the stage runtime into one page. `program` is the
+ * program the pages draw when it is not the project's own (an excerpt): its footage map then
+ * decides which footage frames are extracted.
+ */
+export declare function bundleMotionProject(loaded: LoadedMotionProject, clips: ResolvedClip[], program?: ResolvedProgram): Promise<BundleResult>;
 export declare function findChromium(): string | undefined;
 type RouteLike = {
     request(): {

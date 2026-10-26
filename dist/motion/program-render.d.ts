@@ -32,10 +32,15 @@ export type RenderedProgram = {
     encodeSeconds: number;
 };
 export type ProgramRenderOptions = {
-    /** A `.mp4` file, or a directory that gets `<project name>[.<format>].mp4`. */
+    /**
+     * A `.mp4` file, or a directory that gets `<project name>[.<format>].mp4`
+     * (`<project name>.<excerpt>[.<format>].mp4` for an excerpt).
+     */
     output: string;
-    /** `WIDTHxHEIGHT`; the project size when omitted. */
+    /** `WIDTHxHEIGHT`; the project size (an excerpt's own format) when omitted. */
     format?: string;
+    /** An excerpt's id: that range of the program, sliced from the whole (see `excerpt.ts`). */
+    excerpt?: string;
     jobs?: number;
     invalidate?: string;
     /** Draw every segment again, replacing what the cache holds. */

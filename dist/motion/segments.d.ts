@@ -53,6 +53,20 @@ export type StageSegment = {
      * (see `frameFit` in `program-stage.ts`).
      */
     checkSafe?: boolean;
+    /**
+     * An excerpt's end card: from program frame `from` on, the footage, shots, transitions and
+     * every clip but `clips` show frame `from − 1`, held; `clips` (the card) play on.
+     */
+    hold?: {
+        from: number;
+        clips: string[];
+    };
+    /**
+     * An excerpt's head sizes (see `shotHead`) of shots that run across its edges, by shot and
+     * source, measured over the whole shot in the whole program, so they frame as in the full
+     * video. Other shots measure their own frames.
+     */
+    heads?: Record<string, Record<string, number | null>>;
 };
 type Span = {
     startFrame: number;
@@ -70,6 +84,19 @@ export declare function clipShowRange(clip: Span & {
     from: number;
     until: number;
 };
+/**
+ * The shots that decide what a range shows: those `shotsDuring` gives, and both shots of every
+ * shot transition whose window touches the range (in an excerpt, a window across an edge has a
+ * side outside the range). In program order.
+ */
+export declare function stagedShots<T extends ShotSpan>(shots: readonly T[], transitions: readonly ProgramTransition[], span: Span): T[];
+/**
+ * The cuts a range shows: those overlapping it, and both sides of every cut transition whose
+ * window touches it (in an excerpt, a side may lie outside the range). In program order.
+ */
+export declare function stagedCuts<T extends Span & {
+    id: string;
+}>(cuts: readonly T[], transitions: readonly ProgramTransition[], span: Span): T[];
 /** The clip frame shown at program frame `f`: held at its edges, null when not on screen. */
 export declare function clipFrameAt(clip: StageClip, f: number): number | null;
 /** The whole program as one segment (a page that can draw any frame). */
@@ -77,11 +104,12 @@ export declare function wholeProgram(program: Pick<ResolvedProgram, 'frames'>): 
 /** The segment holding program frame `f`. */
 export declare function segmentAt(program: Pick<ResolvedProgram, 'segments'>, f: number): ProgramSegment | null;
 /** The page data of one segment (or of `wholeProgram`): clips and transitions on screen in it. */
-export declare function segmentStage(program: Pick<ResolvedProgram, 'fps' | 'format' | 'background' | 'shots' | 'clips' | 'transitions'>, segment: Span & {
+export declare function segmentStage(program: Pick<ResolvedProgram, 'fps' | 'format' | 'background' | 'shots' | 'clips' | 'transitions' | 'excerpt'>, segment: Span & {
     id: string;
 }, footage: {
     frames: Record<string, FootageFrames>;
     map: FootageMap | null;
+    heads?: StageSegment['heads'];
 }, brand?: ResolvedBrand): StageSegment;
 /**
  * Frames worth running in a segment: every `every`th frame, the frames around each cut, shot

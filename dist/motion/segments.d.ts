@@ -49,6 +49,11 @@ export type StageSegment = {
         holdout: boolean;
     };
     /**
+     * `check --format`: also warn about clips whose text lies outside the format's safe zone
+     * (see `frameFit` in `program-stage.ts`).
+     */
+    checkSafe?: boolean;
+    /**
      * An excerpt's end card: from program frame `from` on, the footage, shots, transitions and
      * every clip but `clips` show frame `from − 1`, held; `clips` (the card) play on.
      */

@@ -14,7 +14,9 @@ export type ProgramScene = {
     /**
      * Measures what `check` cannot see from the plan at the frame last drawn (frames checked in
      * ascending order): subject region layers whose region holds none of the speaker for half a
-     * second or more, and text that covers the speaker's face (see `faceText`).
+     * second or more, text that covers the speaker's face (see `faceText`), content that does not
+     * fit the frame (see `frameFit`), captions drawn over a shot move (see `movingCaptions`) and
+     * text behind the speaker that the speaker covers (see `textBehind`).
      */
     measure(f: number): Promise<string[]>;
     /**

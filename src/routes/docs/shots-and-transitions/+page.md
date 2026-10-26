@@ -30,6 +30,19 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
 
 The word behind the head is a clip with `"layer": "behind"` and `"slot": "word"`; the shot only sets the stage. A clip with `"slot": "panel"` or `"slot": "card"` fills that slot and moves with it. While no shot frees its slot, the clip is hidden and `check` warns.
 
+**The safe part of a slot.** A slot can reach under platform UI: in a 9:16 `strip` the panel is 1056 px tall and only its top 384 px lie above the bottom inset. A slotted clip's root carries `--slot-safe-top`, `--slot-safe-right`, `--slot-safe-bottom` and `--slot-safe-left`, in px from the slot's edges (0 where an edge is inside the safe area), and the block reads the same as `clip.slotArea.safe`. They are set on every frame from where the shot puts the slot, so they follow it while it slides in or morphs into another shot's slot. Lay the panel's content out in the box they leave:
+
+```css
+.safe {
+	position: absolute;
+	inset: var(--slot-safe-top, 0px) var(--slot-safe-right, 0px) var(--slot-safe-bottom, 0px)
+		var(--slot-safe-left, 0px);
+	container-type: size;
+}
+```
+
+A clip without a slot has them at `0px`, so the same block fills the frame; keep the `0px` fallbacks, a missing property would collapse the box.
+
 ```json
 "clips": [
 	{ "id": "word", "block": "blocks/BehindWord.svelte", "layer": "behind", "slot": "word",
@@ -62,7 +75,11 @@ Shots add events to the program for sounds to land on:
 
 `check` warns wherever a shot's camera window cuts the speaker's head for more than a few frames, keys included. The warning names the shot, the time range, how much is cut and what to try: `headroom`, a taller window `aspect`, a larger strip `size`, a lower `zoom` or `scale`. It stays a warning: look at a still and decide, since a tight crop can be the creator's choice.
 
-**Text over the face.** `check` also warns where a clip's text covers the speaker's face: it measures in the page the text of every front clip (its line boxes, or the opaque card it sits on) and compares it with the head where the shot's camera puts it (from the matte). A clip warns once, when its text has covered at least a tenth of the face for half a second, with the first program time, the share covered and the side of the frame clear of the head. Left out: text under 0.1 opacity, hidden text and transparent letters (a typewriter's), clips with `"layer": "behind"`, text under a `<Subject>` layer that draws the speaker over at least half of the face (in the same clip after the text, or in a later clip; `"clean"` and `"plate"` layers hide nothing), frames where a clip shows a full-frame card over the head (an opaque background colour or a loaded picture over the head and at least 80 % of the frame; canvases, videos and gradients do not count), and cut and shot transition windows. Look at a still at that time and decide: move the text to the free side, put it behind the speaker, or give it a slot beside a `strip` or `window`.
+**Text over the face.** `check` also warns where a clip's text covers the speaker's face: it measures in the page the text of every front clip (its line boxes, or the opaque card it sits on) and compares it with the head where the shot's camera puts it (from the matte). A clip warns once, when its text has covered at least a tenth of the face for half a second, with the first program time, the share covered and the side of the frame clear of the head. Left out: text under 0.1 opacity, hidden text and transparent letters (a typewriter's), clips with `"layer": "behind"`, text under a `<Subject>` layer that draws the speaker over at least half of the face (in the same clip after the text, or in a later clip; `"clean"` and `"plate"` layers hide nothing), frames where a clip shows a full-frame card over the head (an opaque background colour, a gradient of opaque colours or a loaded picture over the head and at least 80 % of the frame; canvases, videos and gradients with transparent stops do not count), and cut and shot transition windows. Look at a still at that time and decide: move the text to the free side, put it behind the speaker, or give it a slot beside a `strip` or `window`.
+
+**Text behind the speaker.** The other way round, `check` warns where the head or body covers more than half of a text placed behind the speaker (a `"layer": "behind"` clip such as the word behind the head, or text under a `<Subject>` layer) for half a second, read from the matte's pixels. The warning names the parts of the frame clear of the speaker: on a portrait close-up the face fills the width, so the room is the band above the head. Align the words to the top, make them smaller or bring them in front, after a look at the still.
+
+**Captions in a move.** Captions that start on the same anchor as a shot move (a morph into `strip`, `whip` or back to `full`, two keys at most a second apart, a cut or shot transition) are drawn over the moving panel or the face until it lands. `check` warns when they are, and are clear once it has landed, with the time the move ends: shift the captions' `from` there if the stills agree. Captions that sit over the panel after the move as well get no hint (that is a layout question), and captions that start on a cut and ride its incoming side are left out.
 
 ## Transitions
 

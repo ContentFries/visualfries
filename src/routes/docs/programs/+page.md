@@ -119,7 +119,9 @@ npx visualfries beats music/bed.mp3
    - every cut;
    - the first, middle and last frame of every transition window;
    - every event and the first frames of every shot move;
-   - every time `check` names for a cut head or for text over the face.
+   - every time `check` names: a cut head, text over the face or hidden by the speaker, captions over a move, content cut by the frame.
+
+   For every other format the project renders, run `check --format WxH` and look at `still --format WxH` too.
 
    Ten moments per `still` call is a good size.
 8. **Render.** Run `visualfries render reel.vf.json --output out/`, adding `--format 1920x1080` for 16:9 from the same project.

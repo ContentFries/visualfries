@@ -15,6 +15,7 @@ type Span = {
 export declare function openSegment(browser: BrowserLike, bundle: BundleResult, program: ResolvedProgram, segment: Span, opts?: {
     invalidate?: string;
     timeout?: number;
+    checkSafe?: boolean;
 }): Promise<MotionPage & {
     segment: StageSegment;
 }>;
@@ -29,13 +30,15 @@ export declare function programFrameForAt(program: ResolvedProgram, at: string, 
 export declare function defaultProgramMoments(program: ResolvedProgram): string[];
 /**
  * Stills of the program (of an excerpt with `excerpt`, its moments in excerpt time): each
- * request is drawn on the page of the segment holding its frame, one page per segment.
+ * request is drawn on the page of the segment holding its frame, one page per segment; with
+ * `format` in that frame size, as `render --format` draws it.
  */
 export declare function renderProgramStills(loaded: LoadedMotionProject, requests: {
     at: string;
     clip?: string;
 }[], opts?: {
     invalidate?: string;
+    format?: string;
     excerpt?: string;
 }): Promise<{
     clip?: string;
@@ -58,12 +61,15 @@ export declare function captureProgramFrames(loaded: LoadedMotionProject, frames
  * edges, cues and transitions, and with `determinism` captures a sample of frames forward,
  * backward and scrambled on the segment's page and once more on a page holding the whole
  * program; all four must give identical pixels. One result per segment; `clips` limits the
- * check to the segments those clips are on screen in. With `excerpt`, the excerpt's program is
- * checked (its format, its end card).
+ * check to the segments those clips are on screen in. With `format` (`WIDTHxHEIGHT`) the program
+ * is checked in that frame size, as `render --format` draws it, and text outside the format's
+ * safe zone warns too. With `excerpt`, the excerpt's program is checked (its format unless
+ * `format` overrides it, its end card).
  */
 export declare function checkProgram(loaded: LoadedMotionProject, opts?: {
     clips?: string[];
     determinism?: boolean;
+    format?: string;
     excerpt?: string;
 }): Promise<ClipCheck[]>;
 /**

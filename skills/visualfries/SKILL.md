@@ -66,9 +66,20 @@ Work like an editor, in this order; each step ends on its criterion:
    clip's text covers the speaker's face for half a second or more (clip, block, first time, share
    of the face, the side of the frame clear of the head); add a still at each time it names and
    decide there: move the text to the free side, put it `"layer": "behind"`, or give it a slot
-   beside a `strip` or `window`. It only sees text the page lays out, so look at every frame
-   anyway. Done when you have looked
-   at each one and can answer for each: no text over a face, no text cut by the frame, accents and
+   beside a `strip` or `window`. Three more hints work the same way, look first, then decide:
+   text behind the speaker that the head or body covers for more than half (clip, time, share,
+   the clear part of the frame: on a portrait close-up usually only the band above the head);
+   captions that start inside a shot move (a strip's panel, a whip, a morph back, fast keys, a
+   transition) and are drawn over the moving panel or the face until it lands (it gives the time
+   the move ends; shift their `from` there if the still agrees); and a clip whose content is cut
+   by the frame edge or that leaves most of a full-frame card empty, the sign of a block laid out
+   in fixed pixels for another size (lay it out from `clip.format.class`, percentages, container
+   units and `--safe-*`). For every other format the project renders, run
+   `visualfries check <project> --format WxH` (it adds text outside that format's safe zone) and
+   `visualfries still <project> --format WxH …`. The engine moves nothing on its own. It only
+   sees what the page lays out, so look at every frame anyway. Done when you have looked
+   at each one, in every format, and can answer for each: no text over a face, no word hidden by
+   the speaker, no text cut by the frame, accents and
    descenders whole, no empty slot, no flash of a bright colour longer than a few frames, no frame
    standing still.
 7. **Fix.** Change the project or a block, then repeat from 4 for what changed. Done when a
@@ -194,6 +205,7 @@ In a motion block, give elements named moves with one line instead of writing GS
 - `"brand": "brand.json"` (colours `primary accent background surface text muted` + `extra`, fonts `heading body mono` with files, optional logo and `radius`). In blocks use the tokens, never literal colours or font names: `var(--brand-accent)`, `var(--brand-font-heading)`, `var(--brand-radius)`, `var(--brand-on-accent)` for text on the accent, or `clip.brand` in JS. Built-in blocks and `<Captions>` follow the brand on their own. `check` warns about hard-coded colours in custom blocks of a branded project.
 - `"style": "kinetic"` (built-ins `solid glass clean editorial kinetic depth brutal`), a style file, or inline `{ "extends": "styles/mine.json", "energy": "calm" }` for per-project overrides. Read `clip.style.energy` (`calm | balanced | punchy`) to scale durations and overshoot. Global CSS files go in `"css": ["theme.css"]` (old name `styles`, still read).
 - Keep text, logos and captions inside the safe insets: `var(--safe-top|right|bottom|left)` (all platforms by default, `"safeZone": "tiktok"` for one), `clip.format.class` (`landscape | square | portrait`) for layout. On 9:16 faces and titles may use `--safe-right-upper` above `--safe-notch-y`.
+- A clip in a slot (`panel`, `card`, `word`) gets the slot's own insets: `var(--slot-safe-top|right|bottom|left)` in px from the slot's edges (`clip.slotArea.safe` in JS), following the slot through morphs. Lay panel content out inside them: under a 9:16 `strip` only the panel's top 384 of 1056 px are above the bottom inset. Pattern: a box with `inset: var(--slot-safe-top, 0px) var(--slot-safe-right, 0px) var(--slot-safe-bottom, 0px) var(--slot-safe-left, 0px); container-type: size`, content sized in `cqw`/`cqh` of that box (always with the `0px` fallbacks: without them a missing property collapses the box; clips without a slot have them at `0px`).
 - `render` writes the brand and style hashes into `manifest.json`. Details: `docs/MOTION.md` → Brand, style and format.
 
 ## Legacy: scene JSON

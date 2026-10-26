@@ -53,3 +53,49 @@ export type TextOverFace = {
 export declare function textOverFaceMessage(found: TextOverFace, size: [number, number], fps: number): string;
 /** The clip a text-over-face warning names; null for any other message. */
 export declare function textOverFaceClip(message: string): string | null;
+/**
+ * Share of a text behind the speaker (a `"layer": "behind"` clip, or text under a subject layer)
+ * that the speaker covers, from which `check` warns: the head over part of a word is the look,
+ * over most of it the word cannot be read.
+ */
+export declare const BEHIND_TEXT_SHARE = 0.5;
+/** Seconds the speaker must cover it: a word passing behind the head on its way in is fine. */
+export declare const BEHIND_TEXT_SECONDS = 0.5;
+/**
+ * Where the speaker is on the stage, sampled on a grid: `hit[row * cols + col]` tells whether
+ * the speaker is drawn at the point (`(col + 0.5) * step`, `(row + 0.5) * step`).
+ */
+export type SpeakerMask = {
+    step: number;
+    cols: number;
+    rows: number;
+    hit: boolean[];
+};
+/**
+ * The parts of a frame of `size` clear of the speaker that a text at `text` could move to: the
+ * band above the speaker (its height in stage pixels), and beside the speaker at the text's
+ * height, the clear span on the left (`0`–`left`) and on the right (`right`–width). Null where
+ * there is none worth naming.
+ */
+export declare function clearOfSpeaker(mask: SpeakerMask, text: Rect, size: [number, number]): {
+    above: number | null;
+    left: number | null;
+    right: number | null;
+};
+export type TextBehind = {
+    clip: string;
+    block: string;
+    /** Program frame the speaker first covers more than half of the text in the frames checked. */
+    frame: number;
+    /** The largest share of the text covered (0–1) over the frames checked until the warning. */
+    share: number;
+    clear: ReturnType<typeof clearOfSpeaker>;
+};
+/**
+ * A `check` warning for text behind the speaker that the head or body covers, worded so an agent
+ * knows where it would show. It stays a warning: the engine moves nothing, the agent looks at a
+ * still and decides.
+ */
+export declare function textBehindMessage(found: TextBehind, size: [number, number], fps: number): string;
+/** The clip a text-behind warning names; null for any other message. */
+export declare function textBehindClip(message: string): string | null;

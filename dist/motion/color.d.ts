@@ -70,3 +70,16 @@ export declare function parseAngle(text: string): number | undefined;
 export declare function splitTopLevel(input: string, separator: ',' | ' '): string[];
 /** Round to `digits` decimals and drop trailing zeros; never writes `-0`. */
 export declare function formatNumber(value: number, digits: number): string;
+/**
+ * The alpha of a colour as the browser computes it, in any notation: `rgb(…)`, `rgba(…)`,
+ * `hsla(…)`, `color(srgb r g b / a)`, `color(display-p3 …)`, `oklab(… / a)`, `transparent`.
+ * 1 when it gives none. (`color-mix(in srgb, …)` computes to `color(srgb …)`, whose third
+ * number is blue, not alpha.)
+ */
+export declare function cssAlpha(colour: string): number;
+/**
+ * Whether a computed `background-image` is a gradient of colours at least `min` opaque only: it
+ * paints its whole box. A picture (`url(…)`) or a gradient with a transparent stop (a scrim)
+ * does not count.
+ */
+export declare function opaqueGradient(image: string, min?: number): boolean;

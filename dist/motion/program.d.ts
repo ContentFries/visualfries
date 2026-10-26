@@ -4,6 +4,7 @@ import { type FormatClass, type ResolvedFormat } from './format.js';
 import { type ResolvedClip } from './resolve.js';
 import { type ProgramExcerpt } from './excerpt.js';
 import { type ProgramDiagnostic, type ProgramInputs, type ProgramWord } from './cutlist.js';
+import { type ShotAway } from './shots/index.js';
 export type { BlockAnimatable, ProgramDiagnostic, ProgramInputs, ProgramWord, SourceInfo } from './cutlist.js';
 /** Hashes the node tooling computes from files; they go into the program and its segments. */
 export type ProgramHashes = {
@@ -105,6 +106,8 @@ export type ProgramShot = {
     morphEase: string;
     transition: string | null;
     keys: ResolvedKey[];
+    /** Stretches with the speaker off the frame (see `ShotAway`); absent when the shot has none. */
+    away?: ShotAway[];
     native: boolean | null;
 };
 export type ProgramClip = ResolvedClip & {

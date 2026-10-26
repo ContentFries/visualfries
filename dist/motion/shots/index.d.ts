@@ -1,9 +1,12 @@
 import type { ProgramShot } from '../program.js';
 import { type Placement } from '../keys.js';
+import type { SubjectBox } from '../resolve.js';
+import { type Box } from './away.js';
 import { type Morph, type ShotEvent, type ShotInput, type ShotLayout, type ShotModule } from './layout.js';
 export type { Energy, FormatClass, Morph, Rect, ShotEvent, ShotInput, ShotLayout, ShotModule } from './layout.js';
 export { facePoint, frameOnHead, HEADROOM } from './layout.js';
 export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
+export { AWAY_ENTER, AWAY_EXIT, awayAt, type Box, type ShotAway } from './away.js';
 /**
  * The shot engine: the registry of built-in shots and the layout on screen at any program frame,
  * morphing from the previous shot's layout over the shot's first `morphFrames` frames. Pure:
@@ -14,7 +17,7 @@ export declare const SHOT_MODULES: Readonly<Record<string, ShotModule>>;
 /** The module drawing `name`; null for a shot not built yet or a custom file. */
 export declare function shotModule(name: string): ShotModule | null;
 /** What the engine reads of a resolved shot. */
-export type ShotSpan = Pick<ProgramShot, 'id' | 'shot' | 'startFrame' | 'frames' | 'params' | 'morphFrames' | 'morphEase'> & Partial<Pick<ProgramShot, 'keys'>>;
+export type ShotSpan = Pick<ProgramShot, 'id' | 'shot' | 'startFrame' | 'frames' | 'params' | 'morphFrames' | 'morphEase'> & Partial<Pick<ProgramShot, 'keys' | 'away'>>;
 /**
  * The morph into shot `next` when the project does not set one: the previous shot's `leave`
  * (a punch-in settles slower than it hits), else the next shot's `enter`. Null with nothing
@@ -27,15 +30,24 @@ export declare function defaultMorph(prev: string | null, next: string): Morph |
  * and the shot's other events inside the morph move to its end, where the camera lands.
  */
 export declare function shotEvents(shot: ShotSpan, prev: string | null): ShotEvent[];
-type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys'> & {
+type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys' | 'away'> & {
     id?: string;
 };
 /**
  * What the engine needs to lay out shots at a frame: a shot's input without its params, and
  * `headOf`, the head size over a whole shot (see `ShotInput.head`; absent: each frame's own).
+ * Shots with `away` ranges also read `reach`, how far the matte reaches around this frame (the
+ * boxes of the frames `subject` is smoothed over, joined; absent: the subject's box), and `at`,
+ * the subject and its reach in the program's picture at another program frame, where a range
+ * decides its side (absent: this frame's).
  */
 export type LayoutInput = Omit<ShotInput, 'params' | 'head'> & {
     headOf?: (shot: Framed) => number | null;
+    reach?: Box | null;
+    at?: (f: number) => {
+        subject: SubjectBox | null;
+        reach: Box | null;
+    };
 };
 /**
  * The shot on screen at program frame `f`, the one it morphs from, and how far the morph has

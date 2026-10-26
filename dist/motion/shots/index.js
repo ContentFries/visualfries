@@ -6,9 +6,11 @@ import { behind } from './behind.js';
 import { whip } from './whip.js';
 import { easeOf } from '../ease.js';
 import { keyTracks } from '../keys.js';
+import { awayAt, awayDistance, moveAway, nearestSide } from './away.js';
 import { BACKDROP, backdropCamera, coversClip, facePoint, headroomParam, roundRect } from './layout.js';
 export { facePoint, frameOnHead, HEADROOM } from './layout.js';
 export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
+export { AWAY_ENTER, AWAY_EXIT, awayAt } from './away.js';
 /**
  * The shot engine: the registry of built-in shots and the layout on screen at any program frame,
  * morphing from the previous shot's layout over the shot's first `morphFrames` frames. Pure:
@@ -108,7 +110,32 @@ export function shotLayout(shot, input, f) {
         if (placement)
             layout = keyCamera(layout, placement(f), input.subject);
     }
-    return headroomParam(shot.params) === false ? layout : withBackdrop(layout, input);
+    if (headroomParam(shot.params) !== false)
+        layout = withBackdrop(layout, input);
+    return f !== undefined && shot.away?.length ? withAway(shot, layout, input, f) : layout;
+}
+/**
+ * `layout` (keys and backdrop included) with the picture slid off the frame as far as the
+ * shot's `away` ranges have it at `f` (see `awayAt`): by what clears the matte's reach there,
+ * toward the range's side, else the edge nearest to the speaker where the move starts.
+ */
+function withAway(shot, layout, input, f) {
+    const state = awayAt(shot.away, f);
+    if (!state)
+        return layout;
+    // Without boxes around the frame, the subject's own box; without either, the whole picture.
+    const reachOf = (subject, reach) => reach ?? subject;
+    const reach = reachOf(input.subject, input.reach);
+    let side = state.range.side;
+    if (!side) {
+        const there = input.at?.(state.decide);
+        const plain = { ...shot, away: undefined };
+        side = there
+            ? nearestSide(shotLayout(plain, { ...input, subject: there.subject, reach: undefined }, state.decide), reachOf(there.subject, there.reach), input.size)
+            : nearestSide(layout, reach, input.size);
+    }
+    const distance = awayDistance(layout, reach, side, input.size) * state.p;
+    return distance > 0 ? moveAway(layout, side, distance) : layout;
 }
 /** `layout` with a backdrop where its footage leaves the camera window open. */
 function withBackdrop(layout, input) {

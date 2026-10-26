@@ -2,7 +2,7 @@ import { programFootageAt } from './footage-map.js';
 import { sourceSubjectBox } from './footage.js';
 import { HEADROOM, SUBJECT_SMOOTH } from './shots/layout.js';
 import { aspectParam } from './shots/window.js';
-import { shotLayout, shotLayoutAt } from './shots/index.js';
+import { awayAt, shotLayout, shotLayoutAt } from './shots/index.js';
 /**
  * Framing a program's footage: what the shot engine gets at each frame (the subject, smoothed,
  * and each shot's one head size), shared by the stage that draws it and the `check` that warns
@@ -131,6 +131,38 @@ export function programFraming(data) {
         }
         return n ? sum / n : null;
     }
+    // How far the matte reaches is only worth working out when a shot sends the speaker away.
+    const sendsAway = data.shots.some((s) => !!s.away?.length);
+    /**
+     * How far the subject reaches around a view (see `LayoutInput.reach`): the matte's boxes of
+     * every frame within `SUBJECT_SMOOTH` seconds of it, joined, so an arm raised for a moment
+     * stays out of the frame with the rest of him. Null without boxes there.
+     */
+    function reachOf(view) {
+        const frames = framesOf(view);
+        if (!frames || !view)
+            return null;
+        const w = Math.round(SUBJECT_SMOOTH * data.fps);
+        let x0 = Infinity;
+        let y0 = Infinity;
+        let x1 = -Infinity;
+        let y1 = -Infinity;
+        for (let g = view.frame - w; g <= view.frame + w; g++) {
+            const box = sourceSubjectBox(frames, g);
+            if (!box)
+                continue;
+            x0 = Math.min(x0, box.x);
+            y0 = Math.min(y0, box.y);
+            x1 = Math.max(x1, box.x + box.width);
+            y1 = Math.max(y1, box.y + box.height);
+        }
+        return x1 < x0 ? null : { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+    }
+    /** The program's picture at frame `g`: its subject and reach (see `LayoutInput.at`). */
+    const programAt = (g) => {
+        const view = data.footageMap ? programFootageAt(data.footageMap, g) : null;
+        return { subject: subjectOf(view), reach: reachOf(view) };
+    };
     /** The subject in a view, averaged over `SUBJECT_SMOOTH` seconds on each side. */
     function subjectOf(view) {
         const frames = framesOf(view);
@@ -147,7 +179,8 @@ export function programFraming(data) {
             safe: data.format.safe,
             subject: subjectOf(view),
             headTop: headTopOf(view),
-            headOf: (s) => headOf(s, view?.source ?? null)
+            headOf: (s) => headOf(s, view?.source ?? null),
+            ...(sendsAway ? { reach: reachOf(view), at: programAt } : {})
         };
         return shot ? shotLayout(shot, input, f) : shotLayoutAt(data.shots, f, input);
     }
@@ -172,7 +205,8 @@ const BARE = 0.01;
  * row, its keys included: the top of the head less than `TOP_ROOM` of the window below its top
  * edge (or past it), or more than `FACE_CUT` of the head below its bottom edge. The head is
  * where each frame's matte puts it (not smoothed: a lean that the calm framing lags behind
- * counts). Morphs and cut or shot transition windows are skipped (the head is in motion there).
+ * counts). Morphs, cut or shot transition windows and the speaker's `away` moves and stretches
+ * are skipped (the head is in motion or meant to be off the frame there).
  * The stretches of one shot at one edge make one crop. `range` limits the frames looked at.
  */
 export function headCrops(data, range = { startFrame: 0, frames: Infinity }) {
@@ -202,7 +236,9 @@ export function headCrops(data, range = { startFrame: 0, frames: Infinity }) {
         };
         for (let f = from; f < to; f++) {
             const view = programFootageAt(map, f);
-            const frames = view && !inWindow(f) ? data.footage[view.source] : undefined;
+            // While the speaker is (partly) away his head is meant to leave the window.
+            const away = !!awayAt(shot.away, f);
+            const frames = view && !inWindow(f) && !away ? data.footage[view.source] : undefined;
             const box = frames && view ? sourceSubjectBox(frames, view.frame) : null;
             if (!box || !view) {
                 close('top');

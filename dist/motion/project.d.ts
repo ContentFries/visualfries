@@ -698,6 +698,23 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
                 oklch: "oklch";
             }>>;
         }, z.core.$strip>>>;
+        away: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            from: z.ZodLazy<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
+            until: z.ZodLazy<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
+            side: z.ZodOptional<z.ZodEnum<{
+                left: "left";
+                right: "right";
+                bottom: "bottom";
+            }>>;
+            exit: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodObject<{
+                seconds: z.ZodNumber;
+                ease: z.ZodOptional<z.ZodString>;
+            }, z.core.$strict>]>>;
+            enter: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodObject<{
+                seconds: z.ZodNumber;
+                ease: z.ZodOptional<z.ZodString>;
+            }, z.core.$strict>]>>;
+        }, z.core.$strict>>>;
         native: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>>>>;
     sfx: z.ZodOptional<z.ZodLazy<z.ZodArray<z.ZodObject<{
@@ -1036,6 +1053,19 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
             props?: Record<string, unknown> | undefined;
             ease?: string | undefined;
             mix?: "oklab" | "oklch" | undefined;
+        }[] | undefined;
+        away?: {
+            from: MotionAnchor;
+            until: MotionAnchor;
+            side?: "left" | "right" | "bottom" | undefined;
+            exit?: number | {
+                seconds: number;
+                ease?: string | undefined;
+            } | undefined;
+            enter?: number | {
+                seconds: number;
+                ease?: string | undefined;
+            } | undefined;
         }[] | undefined;
         native?: boolean | undefined;
     }[] | undefined;
@@ -1376,6 +1406,19 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
             props?: Record<string, unknown> | undefined;
             ease?: string | undefined;
             mix?: "oklab" | "oklch" | undefined;
+        }[] | undefined;
+        away?: {
+            from: MotionAnchor;
+            until: MotionAnchor;
+            side?: "left" | "right" | "bottom" | undefined;
+            exit?: number | {
+                seconds: number;
+                ease?: string | undefined;
+            } | undefined;
+            enter?: number | {
+                seconds: number;
+                ease?: string | undefined;
+            } | undefined;
         }[] | undefined;
         native?: boolean | undefined;
     }[] | undefined;

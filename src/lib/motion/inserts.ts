@@ -121,6 +121,7 @@ function reframingShots(program: Pick<ResolvedProgram, 'shots'>, clip: Span) {
 			endOf(s) > clip.startFrame &&
 			(!UNFRAMED.has(s.shot) ||
 				s.keys.length > 0 ||
+				!!s.away?.length ||
 				(s.shot === 'behind' && typeof s.params.scale === 'number' && s.params.scale !== 1))
 	);
 }

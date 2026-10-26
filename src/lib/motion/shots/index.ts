@@ -7,6 +7,8 @@ import { behind } from './behind.js';
 import { whip } from './whip.js';
 import { easeOf } from '../ease.js';
 import { keyTracks, type Placement } from '../keys.js';
+import type { SubjectBox } from '../resolve.js';
+import { awayAt, awayDistance, moveAway, nearestSide, type Box } from './away.js';
 import {
 	BACKDROP,
 	backdropCamera,
@@ -34,6 +36,7 @@ export type {
 } from './layout.js';
 export { facePoint, frameOnHead, HEADROOM } from './layout.js';
 export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
+export { AWAY_ENTER, AWAY_EXIT, awayAt, type Box, type ShotAway } from './away.js';
 
 /**
  * The shot engine: the registry of built-in shots and the layout on screen at any program frame,
@@ -61,7 +64,7 @@ export type ShotSpan = Pick<
 	ProgramShot,
 	'id' | 'shot' | 'startFrame' | 'frames' | 'params' | 'morphFrames' | 'morphEase'
 > &
-	Partial<Pick<ProgramShot, 'keys'>>;
+	Partial<Pick<ProgramShot, 'keys' | 'away'>>;
 
 /**
  * The morph into shot `next` when the project does not set one: the previous shot's `leave`
@@ -100,14 +103,20 @@ export function shotEvents(shot: ShotSpan, prev: string | null): ShotEvent[] {
 	return local.map((e) => ({ kind: e.kind, frame: shot.startFrame + e.frame }));
 }
 
-type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys'> & { id?: string };
+type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys' | 'away'> & { id?: string };
 
 /**
  * What the engine needs to lay out shots at a frame: a shot's input without its params, and
  * `headOf`, the head size over a whole shot (see `ShotInput.head`; absent: each frame's own).
+ * Shots with `away` ranges also read `reach`, how far the matte reaches around this frame (the
+ * boxes of the frames `subject` is smoothed over, joined; absent: the subject's box), and `at`,
+ * the subject and its reach in the program's picture at another program frame, where a range
+ * decides its side (absent: this frame's).
  */
 export type LayoutInput = Omit<ShotInput, 'params' | 'head'> & {
 	headOf?: (shot: Framed) => number | null;
+	reach?: Box | null;
+	at?: (f: number) => { subject: SubjectBox | null; reach: Box | null };
 };
 const FULL: Framed = { shot: 'full', params: {} };
 const endOf = (s: { startFrame: number; frames: number }) => s.startFrame + s.frames;
@@ -160,7 +169,35 @@ export function shotLayout(shot: Framed, input: LayoutInput, f?: number): ShotLa
 		const placement = keyTracks(shot.keys, { size: input.size }).placement;
 		if (placement) layout = keyCamera(layout, placement(f), input.subject);
 	}
-	return headroomParam(shot.params) === false ? layout : withBackdrop(layout, input);
+	if (headroomParam(shot.params) !== false) layout = withBackdrop(layout, input);
+	return f !== undefined && shot.away?.length ? withAway(shot, layout, input, f) : layout;
+}
+
+/**
+ * `layout` (keys and backdrop included) with the picture slid off the frame as far as the
+ * shot's `away` ranges have it at `f` (see `awayAt`): by what clears the matte's reach there,
+ * toward the range's side, else the edge nearest to the speaker where the move starts.
+ */
+function withAway(shot: Framed, layout: ShotLayout, input: LayoutInput, f: number): ShotLayout {
+	const state = awayAt(shot.away, f);
+	if (!state) return layout;
+	// Without boxes around the frame, the subject's own box; without either, the whole picture.
+	const reachOf = (subject: SubjectBox | null, reach: Box | null | undefined) => reach ?? subject;
+	const reach = reachOf(input.subject, input.reach);
+	let side = state.range.side;
+	if (!side) {
+		const there = input.at?.(state.decide);
+		const plain = { ...shot, away: undefined };
+		side = there
+			? nearestSide(
+					shotLayout(plain, { ...input, subject: there.subject, reach: undefined }, state.decide),
+					reachOf(there.subject, there.reach),
+					input.size
+				)
+			: nearestSide(layout, reach, input.size);
+	}
+	const distance = awayDistance(layout, reach, side, input.size) * state.p;
+	return distance > 0 ? moveAway(layout, side, distance) : layout;
 }
 
 /** `layout` with a backdrop where its footage leaves the camera window open. */

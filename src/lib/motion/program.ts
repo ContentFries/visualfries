@@ -3,10 +3,12 @@ import {
 	SHOTS,
 	TRANSITIONS,
 	isProgramProject,
+	type Away,
 	type Excerpt,
 	type ItemAnchor,
 	type Key,
 	type Provenance,
+	type Shot,
 	type SourceTime,
 	type Transition
 } from './timeline.js';
@@ -58,12 +60,15 @@ import {
 import { sha1 } from './sha1.js';
 import { chunkSpans, keyStates } from './chunks.js';
 import {
+	AWAY_ENTER,
+	AWAY_EXIT,
 	defaultMorph,
 	SHOT_MODULES,
 	shotAt,
 	shotEvents,
 	shotLayout,
-	shotModule
+	shotModule,
+	type ShotAway
 } from './shots/index.js';
 import type { MotionWord } from './transcript.js';
 import { clipShowRange, stagedCuts, stagedShots } from './segments.js';
@@ -177,6 +182,8 @@ export type ProgramShot = {
 	morphEase: string;
 	transition: string | null;
 	keys: ResolvedKey[];
+	/** Stretches with the speaker off the frame (see `ShotAway`); absent when the shot has none. */
+	away?: ShotAway[];
 	native: boolean | null;
 };
 
@@ -1228,6 +1235,10 @@ function resolveShots(
 			}),
 			native: shot.native ?? null
 		};
+		if (shot.away !== undefined) {
+			const away = resolveAway(shot, i, id, span, { at, fps, words, diagnostics });
+			if (away) resolved.away = away;
+		}
 		written.push(resolved);
 		asked.set(resolved, { morph: shot.morph, transition: shot.transition !== undefined });
 	});
@@ -1269,6 +1280,173 @@ function resolveShots(
 	}
 	gap(frames);
 	return morphs(out, asked, fps);
+}
+
+/**
+ * A word said this many seconds or more on one side of an away edge counts: transcripts are a
+ * few hundredths off, and a speaker gone in the last breath of a word reads as gone after it.
+ */
+const AWAY_WORD_SLACK = 0.1;
+
+/**
+ * The `away` ranges of a written shot in program frames, or null when one is broken (errors of
+ * the shot). Phrases resolve in program order: `from` at or after the previous range's `until`
+ * (the shot's start for the first), `until` at or after `from`. Each range must lie inside the
+ * shot with its moves (a range from the shot's first frame has no exit, one to its last frame
+ * no way back), after the one before it, on a shot that cuts the speaker out. Warns where the
+ * speaker is gone while still saying a word, or comes back after he started one.
+ */
+function resolveAway(
+	shot: Shot,
+	i: number,
+	id: string,
+	span: Span,
+	ctx: { at: AnchorAt; fps: number; words: MotionWord[] | null; diagnostics: ProgramDiagnostic[] }
+): ShotAway[] | null {
+	const { at, fps, words, diagnostics } = ctx;
+	const field = (j: number | null, name = '') =>
+		`shots[${i}].away${j === null ? '' : `[${j}]`}${name ? `.${name}` : ''}`;
+	const report = (level: 'error' | 'warning', f: string, message: string) =>
+		diagnostics.push({ level, item: id, field: f, message });
+	if (!shotModule(shot.shot)?.needsMatte) {
+		report(
+			'error',
+			field(null),
+			`"away" needs a shot that draws the speaker cut out by the matte ("behind"): in a "${shot.shot}" shot the speaker is the whole picture, so nothing would stay in the frame when he leaves. Use "behind" (with a clip behind him for the world he leaves), or move the picture with shot keys.`
+		);
+		return null;
+	}
+	const s = (frame: number) => `${(frame / fps).toFixed(2)} s`;
+	const end = endOf(span);
+	const out: ShotAway[] = [];
+	let after = span.startFrame / fps;
+	let broken = false;
+	for (const [j, spec] of (shot.away ?? []).entries()) {
+		const move = (
+			given: Away['exit'],
+			fallback: { seconds: number; ease: string },
+			name: string
+		) => {
+			const seconds = typeof given === 'number' ? given : (given?.seconds ?? fallback.seconds);
+			const ease = (typeof given === 'object' ? given.ease : undefined) ?? fallback.ease;
+			if (!parseEase(ease)) {
+				report('error', field(j, name), `Unknown ease "${ease}".`);
+				return null;
+			}
+			return { frames: Math.round(seconds * fps), ease };
+		};
+		const exit = move(spec.exit, AWAY_EXIT, 'exit');
+		const enter = move(spec.enter, AWAY_ENTER, 'enter');
+		let from: number;
+		let until: number;
+		try {
+			const hit = at(
+				spec.from,
+				undefined,
+				itemOrder(
+					diagnostics,
+					id,
+					field(j, 'from'),
+					after,
+					j ? `the previous range's "until"` : "the shot's start"
+				)
+			);
+			from = Math.round(hit.time * fps);
+		} catch (error) {
+			report('error', field(j, 'from'), (error as Error).message);
+			broken = true;
+			continue;
+		}
+		try {
+			const hit = at(
+				spec.until,
+				from / fps,
+				itemOrder(diagnostics, id, field(j, 'until'), from / fps, `the range's "from"`)
+			);
+			until = Math.round(hit.time * fps);
+			after = orderPoint(hit);
+		} catch (error) {
+			report('error', field(j, 'until'), (error as Error).message);
+			broken = true;
+			continue;
+		}
+		if (!exit || !enter) {
+			broken = true;
+			continue;
+		}
+		const fail = (name: string, message: string) => {
+			report('error', field(j, name), message);
+			broken = true;
+		};
+		if (until <= from) {
+			fail(
+				'until',
+				`The speaker would be back (${s(until)}) before he is gone (${s(from)}): "until" must come after "from".`
+			);
+			continue;
+		}
+		if (from < span.startFrame) {
+			fail('from', `"from" (${s(from)}) is before the shot starts (${s(span.startFrame)}).`);
+			continue;
+		}
+		if (until > end) {
+			fail(
+				'until',
+				`"until" (${s(until)}) is after the shot ends (${s(end)}). Write the shot's own end, or "end" in a shot that runs to the program end, to keep the speaker away to its end.`
+			);
+			continue;
+		}
+		const leaves = from - exit.frames;
+		if (from > span.startFrame && leaves < span.startFrame) {
+			fail(
+				'from',
+				`The exit (${s(exit.frames)}) would start at ${s(leaves)}, before the shot starts (${s(span.startFrame)}). Start the range at the shot's start to have the speaker away from its first frame, or shorten "exit".`
+			);
+			continue;
+		}
+		if (until < end && until + enter.frames > end) {
+			fail(
+				'until',
+				`The speaker would still be coming back (${(until / fps).toFixed(2)}–${s(until + enter.frames)}) when the shot ends (${s(end)}). End the range at the shot's end to keep him away to it, or shorten "enter".`
+			);
+			continue;
+		}
+		const prev = out[out.length - 1];
+		if (prev) {
+			const back = prev.until === null ? end : prev.until + prev.enter.frames;
+			if (leaves < back) {
+				fail(
+					'from',
+					`Away range ${j + 1} starts leaving at ${s(leaves)} (its exit takes ${s(exit.frames)}), before range ${j} is back (${s(back)}). Start it later, or join the two ranges.`
+				);
+				continue;
+			}
+		}
+		for (const w of words ?? []) {
+			const gone = from / fps;
+			if (w.start < gone && w.end - gone >= AWAY_WORD_SLACK)
+				report(
+					'warning',
+					field(j, 'from'),
+					`The speaker is wholly off the frame at ${s(from)}, ${(w.end - gone).toFixed(2)} s before he finishes "${w.text}" (${w.start.toFixed(2)}–${w.end.toFixed(2)} s): he leaves mid-word. Anchor "from" on the end of the word ({ "say": …, "edge": "end" }) unless that is meant.`
+				);
+			const back = until / fps;
+			if (until < end && w.end > back && back - w.start >= AWAY_WORD_SLACK)
+				report(
+					'warning',
+					field(j, 'until'),
+					`The speaker starts coming back at ${s(until)}, ${(back - w.start).toFixed(2)} s after he starts "${w.text}" (${w.start.toFixed(2)}–${w.end.toFixed(2)} s): he says its start off the frame. Anchor "until" on the start of the word ({ "say": …, "edge": "start" }) unless that is meant.`
+				);
+		}
+		out.push({
+			from,
+			until: until >= end ? null : until,
+			side: spec.side ?? null,
+			exit,
+			enter
+		});
+	}
+	return broken ? null : out;
 }
 
 /** The shot before shot `i`: the one ending where it starts, `full` across a gap, else null. */

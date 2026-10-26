@@ -124,7 +124,16 @@ export function sliceProgram(
 		...s,
 		startFrame: frame(s.startFrame),
 		transition: transitionOf(s.transition),
-		keys: s.keys.map((k) => ({ ...k, frame: frame(k.frame) }))
+		keys: s.keys.map((k) => ({ ...k, frame: frame(k.frame) })),
+		...(s.away
+			? {
+					away: s.away.map((r) => ({
+						...r,
+						from: frame(r.from),
+						until: r.until === null ? null : frame(r.until)
+					}))
+				}
+			: {})
 	}));
 	const clips = full.clips
 		.filter((c) => {

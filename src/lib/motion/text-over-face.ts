@@ -144,3 +144,96 @@ export function textOverFaceClip(message: string): string | null {
 	const m = /^Clip "(.*?)" \(.*?\): (.*?) from /.exec(message);
 	return m && m[2] === COVERS ? m[1] : null;
 }
+
+/**
+ * Share of a text behind the speaker (a `"layer": "behind"` clip, or text under a subject layer)
+ * that the speaker covers, from which `check` warns: the head over part of a word is the look,
+ * over most of it the word cannot be read.
+ */
+export const BEHIND_TEXT_SHARE = 0.5;
+/** Seconds the speaker must cover it: a word passing behind the head on its way in is fine. */
+export const BEHIND_TEXT_SECONDS = 0.5;
+/** A clear band narrower than this (stage pixels) is not worth naming. */
+const CLEAR_MIN = 40;
+
+/**
+ * Where the speaker is on the stage, sampled on a grid: `hit[row * cols + col]` tells whether
+ * the speaker is drawn at the point (`(col + 0.5) * step`, `(row + 0.5) * step`).
+ */
+export type SpeakerMask = { step: number; cols: number; rows: number; hit: boolean[] };
+
+/**
+ * The parts of a frame of `size` clear of the speaker that a text at `text` could move to: the
+ * band above the speaker (its height in stage pixels), and beside the speaker at the text's
+ * height, the clear span on the left (`0`–`left`) and on the right (`right`–width). Null where
+ * there is none worth naming.
+ */
+export function clearOfSpeaker(
+	mask: SpeakerMask,
+	text: Rect,
+	size: [number, number]
+): { above: number | null; left: number | null; right: number | null } {
+	const { step, cols, rows, hit } = mask;
+	let top: number | null = null;
+	for (let r = 0; r < rows && top === null; r++)
+		for (let c = 0; c < cols; c++)
+			if (hit[r * cols + c]) {
+				top = r * step;
+				break;
+			}
+	if (top === null) return { above: size[1], left: null, right: null };
+	let minX = Infinity;
+	let maxX = -Infinity;
+	for (let r = 0; r < rows; r++) {
+		const y = (r + 0.5) * step;
+		if (y < text.y || y > text.y + text.height) continue;
+		for (let c = 0; c < cols; c++)
+			if (hit[r * cols + c]) {
+				minX = Math.min(minX, c * step);
+				maxX = Math.max(maxX, (c + 1) * step);
+			}
+	}
+	const left = Number.isFinite(minX) && minX >= CLEAR_MIN ? Math.round(minX) : null;
+	const right =
+		Number.isFinite(maxX) && size[0] - maxX >= CLEAR_MIN
+			? Math.round(Math.min(size[0], maxX))
+			: null;
+	return { above: top >= CLEAR_MIN ? Math.round(top) : null, left, right };
+}
+
+export type TextBehind = {
+	clip: string;
+	block: string;
+	/** Program frame the speaker first covers more than half of the text in the frames checked. */
+	frame: number;
+	/** The largest share of the text covered (0–1) over the frames checked until the warning. */
+	share: number;
+	clear: ReturnType<typeof clearOfSpeaker>;
+};
+
+const BEHIND = 'the speaker covers its text behind them';
+
+/**
+ * A `check` warning for text behind the speaker that the head or body covers, worded so an agent
+ * knows where it would show. It stays a warning: the engine moves nothing, the agent looks at a
+ * still and decides.
+ */
+export function textBehindMessage(found: TextBehind, size: [number, number], fps: number) {
+	const at = `${(found.frame / fps).toFixed(2)} s`;
+	const { above, left, right } = found.clear;
+	const room = [
+		above !== null ? `the top ${above} px of the frame, above the speaker` : '',
+		left !== null ? `x 0–${left} px on the left at the text's height` : '',
+		right !== null ? `x ${right}–${size[0]} px on the right at the text's height` : ''
+	].filter(Boolean);
+	const where = room.length
+		? `Clear of the speaker there: ${room.join('; ')}.`
+		: 'The speaker fills the frame around the text there.';
+	return `Clip "${found.clip}" (${found.block}): ${BEHIND} from ${at} (program time) on, up to ${Math.round(found.share * 100)} % of it in the frames checked (more than half for ${BEHIND_TEXT_SECONDS} s or more). ${where} If the words are meant to be read, try: move them into a clear part (aligned to the top, or a smaller size if they must fit); bring them in front of the speaker. Look at a still at ${at} before deciding.`;
+}
+
+/** The clip a text-behind warning names; null for any other message. */
+export function textBehindClip(message: string): string | null {
+	const m = /^Clip "(.*?)" \(.*?\): (.*?) from /.exec(message);
+	return m && m[2] === BEHIND ? m[1] : null;
+}

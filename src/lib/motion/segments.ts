@@ -53,6 +53,11 @@ export type StageSegment = {
 	 * window look); with `holdout`, each frame then cuts the subject out of the alpha.
 	 */
 	insert?: { holdout: boolean };
+	/**
+	 * `check --format`: also warn about clips whose text lies outside the format's safe zone
+	 * (see `frameFit` in `program-stage.ts`).
+	 */
+	checkSafe?: boolean;
 };
 
 type Span = { startFrame: number; frames: number };

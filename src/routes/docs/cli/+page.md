@@ -26,20 +26,21 @@ Resolves every clip and cue against the transcript and prints program times, fra
 
 ```bash
 npx visualfries check project.vf.json [--clip <id>]... [--determinism] [--export inserts] [--json]
+npx visualfries check program.vf.json --format 1080x1920   # a program in another frame size
 ```
 
 With music beats in the project, it first prints each music item's bar grid (bar, start, BPM, energy, first beats): a BPM column at twice the tempo you hear calls for `"tempo": "half"` on the music item. Then it mounts every block and runs it at every fifth frame and around each cue, without rendering video. Finds resolution errors, runtime errors (unknown cues, bad eases, `map()` going back in time) and CSS animations on wall-clock time. `--determinism` also captures about a dozen sampled frames forward and backward and fails when they differ. An unknown `--clip` id is an error. The 16 clips of the CF004 example check in about six seconds.
 
-In a program, `check` first lists the program's warnings and errors, mixes the sound and prints its loudness, then checks every segment (a range between hard cuts) with every clip on screen in it; `--determinism` compares each segment forward, backward, scrambled and against a page holding the whole program. With a matte, it warns where a shot cuts the speaker's head and where a clip's text covers the face for half a second or more (the clip, its first time, the share of the face and the side of the frame clear of the head; see [Shots and transitions](/docs/shots-and-transitions)). `--export inserts` adds, as notes, every place where inserts would rely on the program render (cut and shot transitions, reframing shots, clips with audio).
+In a program, `check` first lists the program's warnings and errors, mixes the sound and prints its loudness, then checks every segment (a range between hard cuts) with every clip on screen in it; `--determinism` compares each segment forward, backward, scrambled and against a page holding the whole program. With a matte, it warns where a shot cuts the speaker's head and where a clip's text covers the face for half a second or more (the clip, its first time, the share of the face and the side of the frame clear of the head), where the speaker covers more than half of a text placed behind them, and where captions that start inside a shot move are drawn over the moving panel or the face until it lands (with the time the move ends); see [Shots and transitions](/docs/shots-and-transitions). It also warns where a clip's content does not fit the frame: a quarter or more of what reaches into the frame cut by its edge for a second, or an opaque full-frame card whose content is laid out like a frame of the other orientation (the bottom of a portrait frame or the right of a landscape one stays empty), the sign of a block laid out in fixed pixels for another size. Scrims, full-bleed pictures and short lists are not judged; tickers and other content that bleeds off the frame on purpose can warn. `--format WxH` checks the program in that frame size, as `render --format` draws it, and adds text outside that format's safe zone (the `--safe-*` insets). Every warning is a hint: look at a still at the time it names and decide; nothing moves on its own. `--export inserts` adds, as notes, every place where inserts would rely on the program render (cut and shot transitions, reframing shots, clips with audio).
 
 ## still
 
 ```bash
 npx visualfries still project.vf.json --clip <id> [--at <moment>]... [--columns <n>] --output sheet.png
-npx visualfries still program.vf.json [--clip <id>] [--at <moment>]... [--columns <n>] --output sheet.png   # a program
+npx visualfries still program.vf.json [--clip <id>] [--at <moment>]... [--columns <n>] [--format <WxH>] --output sheet.png   # a program
 ```
 
-Without `--at` it renders frame 0, frame 10, each cue plus 0.6 s and the last frame as one labelled contact sheet. With one `--at` it writes a single frame. Moments use the [clip moment grammar](/docs/clip-api): `extra`, `extra.end+0.3`, `2.5s`, `f120`, `mid`, `end`. In a program, `still` draws the whole program (footage and every clip on screen), `--clip` is optional and `--at` takes program moments (`2.5s`, `f120`, `end`); with `--clip`, the moments are that clip's.
+Without `--at` it renders frame 0, frame 10, each cue plus 0.6 s and the last frame as one labelled contact sheet. With one `--at` it writes a single frame. Moments use the [clip moment grammar](/docs/clip-api): `extra`, `extra.end+0.3`, `2.5s`, `f120`, `mid`, `end`. In a program, `still` draws the whole program (footage and every clip on screen), `--clip` is optional and `--at` takes program moments (`2.5s`, `f120`, `end`); with `--clip`, the moments are that clip's. `--format WxH` draws the program in another frame size, as `render --format` does.
 
 ## render
 

@@ -50,14 +50,17 @@ Usage:
 
 Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
   visualfries clips <project.vf.json> [--clip <id>] [--json]
-  visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--export inserts] [--json]
+  visualfries check <project.vf.json> [--clip <id>]... [--format <WxH>] [--determinism] [--export inserts] [--json]
+                    with "cuts" or "shots", --format checks the program in another frame size
+                    (as render --format draws it) and warns about text outside its safe zone too
   visualfries program <project.vf.json> [--format <WxH>] [--json]
                     resolve the whole program (cuts, shots, clips, transitions, audio,
                     segments) and save it as .visualfries/program/<format>.json
   visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>
                     with "cuts" or "shots" the still shows the whole program (footage and
                     every clip on screen); --clip is then optional and --at takes program
-                    moments ("2.5s", "f120", "end"); check runs per segment of the program
+                    moments ("2.5s", "f120", "end") and --format <WxH> draws another frame
+                    size; check runs per segment of the program
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
                     with "cuts" or "shots" renders the whole program as one video
                     (--export video, the default there) or, with --export inserts
@@ -1658,11 +1661,20 @@ async function motionClipsCommand(args) {
 	if (diagnostics.some((d) => d.level === 'error')) process.exitCode = 1;
 }
 
+/** `--format WxH` of a program command; an error when the flag has no value. */
+function formatFlag(args) {
+	if (!args.includes('--format')) return undefined;
+	const value = readFlag(args, '--format');
+	if (value === undefined || value.startsWith('--'))
+		throw new Error('--format needs a frame size, e.g. --format 1080x1920.');
+	return value;
+}
+
 async function motionCheckCommand(args) {
 	const file = args[0];
 	if (!file)
 		throw new Error(
-			'Usage: visualfries check <project.vf.json> [--clip <id>]... [--determinism] [--export inserts] [--json]'
+			'Usage: visualfries check <project.vf.json> [--clip <id>]... [--format <WxH>] [--determinism] [--export inserts] [--json]'
 		);
 	const { loadMotionProject, checkMotionProject, describeMusicGrid, motionProgram } =
 		await motionModule();
@@ -1678,8 +1690,18 @@ async function motionCheckCommand(args) {
 		(json ? console.error : console.log)(`warning: ${d.field}: ${d.message}`);
 	// Program diagnostics: cuts, shots, transitions, audio, and clip fields only the program
 	// reads (keys, layer, transition); the clip checks below report the rest.
-	const { program } = await motionProgram(loaded);
+	// --format checks the program in another frame size, as render --format draws it.
+	const format = formatFlag(args);
+	if (format !== undefined && loaded.cutList.mode !== 'program')
+		throw new Error(
+			'--format checks a program (a project with "cuts" or "shots") in another frame size; this project renders its clips at the project size.'
+		);
+	const { program } = await motionProgram(loaded, { format });
 	const programMode = program.mode === 'program';
+	if (format !== undefined && !json)
+		console.log(
+			`format ${program.format.name} (${program.format.class}), safe zone "${program.format.zone}": top ${program.format.safe.top}, right ${program.format.safe.right}, bottom ${program.format.safe.bottom}, left ${program.format.safe.left} px\n`
+		);
 	const key = (d) => JSON.stringify([d.clip, d.field, d.message]);
 	// Printed above (project-wide) or, in inserts mode, with each clip; program mode checks segments.
 	// The clip checks list errors and warnings only, so a clip's notes (info) come here.
@@ -1722,7 +1744,8 @@ async function motionCheckCommand(args) {
 	}
 	const checkOptions = {
 		clips: readAllFlags(args, '--clip'),
-		determinism: hasFlag(args, '--determinism')
+		determinism: hasFlag(args, '--determinism'),
+		format
 	};
 	const results = programMode
 		? await (await programModule()).checkProgram(loaded, checkOptions)
@@ -1730,8 +1753,24 @@ async function motionCheckCommand(args) {
 	const kind = programMode ? 'segments' : 'clips';
 	const segment = (id) => program.segments.find((s) => s.id === id);
 	if (json) {
+		// With --format, the frame size and safe zone checked; without it the output is unchanged.
+		const checked =
+			format === undefined
+				? {}
+				: {
+						format: {
+							name: program.format.name,
+							class: program.format.class,
+							zone: program.format.zone,
+							safe: program.format.safe
+						}
+					};
 		console.log(
-			JSON.stringify(programMode ? { program: diagnostics, mix, clips: results } : results, null, 2)
+			JSON.stringify(
+				programMode ? { ...checked, program: diagnostics, mix, clips: results } : results,
+				null,
+				2
+			)
 		);
 	} else {
 		for (const r of results) {
@@ -1829,7 +1868,8 @@ async function motionStillCommand(args) {
 	if (!loaded || !output || (!clip && !programMode)) {
 		throw new Error(
 			'Usage: visualfries still <project.vf.json> --clip <id> [--at <moment>]... --output <png>\n' +
-				'       (with "cuts" or "shots", --clip is optional: moments are program moments)'
+				'       (with "cuts" or "shots", --clip is optional: moments are program moments, and\n' +
+				'       --format <WxH> draws them in another frame size)'
 		);
 	}
 	const resolved = clip ? loaded.resolved.clips.find((c) => c.id === clip) : null;
@@ -1845,9 +1885,13 @@ async function motionStillCommand(args) {
 		stills = await program.renderProgramStills(
 			loaded,
 			moments.map((at) => ({ clip: clip ?? undefined, at })),
-			{ invalidate: readFlag(args, '--invalidate') }
+			{ invalidate: readFlag(args, '--invalidate'), format: formatFlag(args) }
 		);
 	} else {
+		if (formatFlag(args) !== undefined)
+			throw new Error(
+				'--format draws the program (a project with "cuts" or "shots") in another frame size; clip stills take the project size.'
+			);
 		if (!moments.length && resolved) moments = defaultMoments(resolved);
 		stills = await renderStills(
 			loaded,

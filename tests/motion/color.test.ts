@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+	cssAlpha,
 	formatColor,
 	interpolateColor,
 	mixColors,
 	oklabToOklch,
+	opaqueGradient,
 	oklabToSrgb,
 	parseColor,
 	shortestArc,
@@ -212,5 +214,35 @@ describe('mixColors', () => {
 		const b = Object.freeze(parseColor('oklch(0.6 0.2 250 / 0.4)'));
 		const runs = Array.from({ length: 3 }, () => formatColor(mixColors(a, b, 0.37, 'oklch')));
 		expect(new Set(runs).size).toBe(1);
+	});
+});
+
+describe('cssAlpha', () => {
+	it('reads the alpha of every notation the browser computes', () => {
+		expect(cssAlpha('rgb(255, 128, 0)')).toBe(1);
+		expect(cssAlpha('rgba(0, 0, 0, 0.6)')).toBe(0.6);
+		expect(cssAlpha('transparent')).toBe(0);
+		expect(cssAlpha('')).toBe(0);
+		// color-mix(in srgb, …) computes to color(srgb …): the third number is blue, not alpha.
+		expect(cssAlpha('color(srgb 1 0.6 0)')).toBe(1);
+		expect(cssAlpha('color(srgb 1 0.6 0 / 0.5)')).toBe(0.5);
+		expect(cssAlpha('color(display-p3 1 0.2 0.1)')).toBe(1);
+		expect(cssAlpha('oklab(0.7 0.1 0.1 / 0.25)')).toBe(0.25);
+		expect(cssAlpha('oklch(0.7 0.1 40)')).toBe(1);
+		expect(cssAlpha('lab(50 20 30 / 40%)')).toBe(0.4);
+		expect(cssAlpha('hsla(30, 100%, 50%, 0.3)')).toBe(0.3);
+	});
+});
+
+describe('opaqueGradient', () => {
+	it('tells a gradient of opaque colours from a scrim or a picture', () => {
+		expect(opaqueGradient('linear-gradient(rgb(17, 34, 51), color(srgb 0.2 0.3 0))')).toBe(true);
+		expect(
+			opaqueGradient('radial-gradient(at 50% 35%, rgb(18, 24, 50) 0%, rgb(5, 8, 20) 72%)')
+		).toBe(true);
+		expect(opaqueGradient('linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0) 40%)')).toBe(false);
+		expect(opaqueGradient('linear-gradient(rgb(0, 0, 0), transparent)')).toBe(false);
+		expect(opaqueGradient('url("photo.jpg")')).toBe(false);
+		expect(opaqueGradient('none')).toBe(false);
 	});
 });

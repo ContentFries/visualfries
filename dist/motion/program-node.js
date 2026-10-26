@@ -4,11 +4,15 @@ import { bundleMotionProject, frameForAt, launch, openStagePage } from './node.j
 import { resolveProgram } from './program.js';
 import { resolveMoment } from './moment.js';
 import { headCropMessage, headCrops } from './framing.js';
-import { textOverFaceClip } from './text-over-face.js';
+import { textBehindClip, textOverFaceClip } from './text-over-face.js';
+import { frameFitKey } from './frame-fit.js';
+import { captionsInMoveClip } from './shot-moves.js';
 import { edgeFrames, scrambled, segmentAt, segmentCheckFrames, segmentStage, wholeProgram } from './segments.js';
 /** One page with a segment of the program loaded; `capture` takes program frames. */
 export async function openSegment(browser, bundle, program, segment, opts = {}) {
     const data = segmentStage(program, segment, bundle.footage, bundle.brand);
+    if (opts.checkSafe)
+        data.checkSafe = true;
     const page = await openStagePage(browser, bundle, {
         name: segment.id === 'program' ? 'Program' : `Segment "${segment.id}"`,
         size: program.format.size,
@@ -27,9 +31,12 @@ export function assertProgramRenders(program) {
         throw new Error('Project has errors:\n' +
             errors.map((e) => `  ${e.item ?? e.clip ?? '-'} ${e.field}: ${e.message}`).join('\n'));
 }
-/** The program, bundled with the blocks of all its clips and the footage it shows. */
-async function prepareProgram(loaded) {
-    const program = resolveProgram(loaded.project, loaded.inputs);
+/**
+ * The program (in frame size `format`, `WIDTHxHEIGHT`, when given), bundled with the blocks of
+ * all its clips and the footage it shows.
+ */
+async function prepareProgram(loaded, format) {
+    const program = resolveProgram(loaded.project, loaded.inputs, { format });
     assertProgramRenders(program);
     const bundle = await bundleMotionProject(loaded, program.clips);
     return { program, bundle };
@@ -67,10 +74,10 @@ export function defaultProgramMoments(program) {
 }
 /**
  * Stills of the program: each request is drawn on the page of the segment holding its frame,
- * one page per segment.
+ * one page per segment; with `format` in that frame size, as `render --format` draws it.
  */
 export async function renderProgramStills(loaded, requests, opts = {}) {
-    const { program, bundle } = await prepareProgram(loaded);
+    const { program, bundle } = await prepareProgram(loaded, opts.format);
     const wanted = requests.map((r) => ({ ...r, frame: programFrameForAt(program, r.at, r.clip) }));
     const browser = await launch();
     const out = new Map();
@@ -133,10 +140,13 @@ const sha1 = (b) => createHash('sha1').update(b).digest('hex');
  * edges, cues and transitions, and with `determinism` captures a sample of frames forward,
  * backward and scrambled on the segment's page and once more on a page holding the whole
  * program; all four must give identical pixels. One result per segment; `clips` limits the
- * check to the segments those clips are on screen in.
+ * check to the segments those clips are on screen in. With `format` (`WIDTHxHEIGHT`) the program
+ * is checked in that frame size, as `render --format` draws it, and text outside the format's
+ * safe zone warns too.
  */
 export async function checkProgram(loaded, opts = {}) {
-    const program = resolveProgram(loaded.project, loaded.inputs);
+    const program = resolveProgram(loaded.project, loaded.inputs, { format: opts.format });
+    const checkSafe = opts.format !== undefined;
     const known = new Set(loaded.project.clips.map((c) => c.id));
     const unknown = (opts.clips ?? []).filter((id) => !known.has(id));
     if (unknown.length)
@@ -172,7 +182,7 @@ export async function checkProgram(loaded, opts = {}) {
             const result = results.find((r) => r.id === segment.id);
             let page;
             try {
-                page = await openSegment(browser, bundle, program, segment);
+                page = await openSegment(browser, bundle, program, segment, { checkSafe });
                 result.mode = page.mode;
                 const list = segmentCheckFrames(program, segment);
                 const found = await page.check(list);
@@ -214,16 +224,30 @@ export async function checkProgram(loaded, opts = {}) {
         await browser.close();
         await fs.rm(bundle.dir, { recursive: true, force: true });
     }
-    // Text over the face is told once per clip, in the first segment it is found in.
-    const toldFace = new Set();
+    // Warnings about a clip's text or content are told once per clip (and kind), in the first
+    // segment they are found in.
+    const told = new Set();
+    const onceKey = (message) => {
+        const face = textOverFaceClip(message);
+        if (face !== null)
+            return `face\u0000${face}`;
+        const behind = textBehindClip(message);
+        if (behind !== null)
+            return `behind\u0000${behind}`;
+        const captions = captionsInMoveClip(message);
+        if (captions !== null)
+            return `captions\u0000${captions}`;
+        const fit = frameFitKey(message);
+        return fit === null ? null : `fit\u0000${fit}`;
+    };
     for (const r of results)
         r.warnings = r.warnings.filter((w) => {
-            const clip = textOverFaceClip(w.message);
-            if (clip === null)
+            const key = onceKey(w.message);
+            if (key === null)
                 return true;
-            if (toldFace.has(clip))
+            if (told.has(key))
                 return false;
-            toldFace.add(clip);
+            told.add(key);
             return true;
         });
     for (const r of results)

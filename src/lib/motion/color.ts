@@ -411,3 +411,36 @@ const NAMED_COLORS = new Map(
 		.split(' ')
 		.map((entry) => entry.split(':') as [string, string])
 );
+
+/**
+ * The alpha of a colour as the browser computes it, in any notation: `rgb(…)`, `rgba(…)`,
+ * `hsla(…)`, `color(srgb r g b / a)`, `color(display-p3 …)`, `oklab(… / a)`, `transparent`.
+ * 1 when it gives none. (`color-mix(in srgb, …)` computes to `color(srgb …)`, whose third
+ * number is blue, not alpha.)
+ */
+export function cssAlpha(colour: string): number {
+	const c = colour.trim();
+	if (!c || c === 'transparent') return 0;
+	const inner = /\(([^()]*)\)\s*$/.exec(c)?.[1];
+	if (!inner) return 1;
+	const number = (v: string) => {
+		const n = parseFloat(v);
+		if (!Number.isFinite(n)) return 0;
+		return v.trim().endsWith('%') ? n / 100 : n;
+	};
+	if (inner.includes('/')) return number(inner.split('/').pop()!);
+	const parts = inner.split(',');
+	return parts.length === 4 ? number(parts[3]) : 1;
+}
+
+/**
+ * Whether a computed `background-image` is a gradient of colours at least `min` opaque only: it
+ * paints its whole box. A picture (`url(…)`) or a gradient with a transparent stop (a scrim)
+ * does not count.
+ */
+export function opaqueGradient(image: string, min = 0.9): boolean {
+	if (!image || image === 'none' || /url\(/.test(image) || !/gradient\(/.test(image)) return false;
+	const colours =
+		image.match(/(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]*\)|\btransparent\b/g) ?? [];
+	return colours.length > 0 && colours.every((c) => cssAlpha(c) >= min);
+}

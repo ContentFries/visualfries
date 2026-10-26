@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
 	FACE_TEXT_SHARE,
+	clearOfSpeaker,
 	faceCovered,
 	freeSide,
 	headOnStage,
+	textBehindClip,
+	textBehindMessage,
 	textOverFaceClip,
-	textOverFaceMessage
+	textOverFaceMessage,
+	type SpeakerMask
 } from '$lib/motion/text-over-face.js';
 import type { SubjectBox } from '$lib/motion/resolve.js';
 import type { Rect } from '$lib/motion/shots/index.js';
@@ -137,5 +141,76 @@ describe('textOverFaceMessage', () => {
 
 	it('finds no clip in other warnings', () => {
 		expect(textOverFaceClip('Clip "x": its region holds none of the speaker from 1 s')).toBeNull();
+	});
+});
+
+/** A mask of a 1080 × 1920 frame, 20 px a cell, where `inside(x, y)` holds the speaker. */
+function mask(inside: (x: number, y: number) => boolean): SpeakerMask {
+	const step = 20;
+	const cols = 54;
+	const rows = 96;
+	const hit: boolean[] = [];
+	for (let r = 0; r < rows; r++)
+		for (let c = 0; c < cols; c++) hit.push(inside((c + 0.5) * step, (r + 0.5) * step));
+	return { step, cols, rows, hit };
+}
+
+describe('clearOfSpeaker', () => {
+	// A face filling the width of a portrait frame from y 400, its body below.
+	const close = mask((x, y) => y >= 400 && x >= 60 && x < 1020);
+
+	it("gives the band above the speaker and the sides at the text's height", () => {
+		const text = { x: 200, y: 700, width: 680, height: 200 };
+		expect(clearOfSpeaker(close, text, [1080, 1920])).toEqual({
+			above: 400,
+			left: 60,
+			right: 1020
+		});
+	});
+
+	it('leaves out bands too narrow to use; without a speaker the whole frame is clear', () => {
+		const wide = mask((x, y) => y >= 20 && x >= 10);
+		expect(clearOfSpeaker(wide, { x: 0, y: 700, width: 100, height: 50 }, [1080, 1920])).toEqual({
+			above: null,
+			left: null,
+			right: null
+		});
+		const empty = mask(() => false);
+		expect(clearOfSpeaker(empty, { x: 0, y: 0, width: 1, height: 1 }, [1080, 1920])).toEqual({
+			above: 1920,
+			left: null,
+			right: null
+		});
+	});
+});
+
+describe('textBehindMessage', () => {
+	it('names the clip, the share and the clear parts, and leaves the decision to the agent', () => {
+		const message = textBehindMessage(
+			{
+				clip: 'hook',
+				block: 'blocks/StackWords.svelte',
+				frame: 10,
+				share: 0.74,
+				clear: { above: 400, left: null, right: null }
+			},
+			[1080, 1920],
+			25
+		);
+		expect(message).toBe(
+			`Clip "hook" (blocks/StackWords.svelte): the speaker covers its text behind them from 0.40 s (program time) on, up to 74 % of it in the frames checked (more than half for 0.5 s or more). Clear of the speaker there: the top 400 px of the frame, above the speaker. If the words are meant to be read, try: move them into a clear part (aligned to the top, or a smaller size if they must fit); bring them in front of the speaker. Look at a still at 0.40 s before deciding.`
+		);
+		expect(textBehindClip(message)).toBe('hook');
+		expect(textOverFaceClip(message)).toBeNull();
+	});
+
+	it('says so when the speaker fills the frame around the text', () => {
+		const clear = { above: null, left: null, right: null };
+		const message = textBehindMessage(
+			{ clip: 'w', block: 'b', frame: 0, share: 0.9, clear },
+			[1080, 1920],
+			25
+		);
+		expect(message).toContain('The speaker fills the frame around the text there.');
 	});
 });

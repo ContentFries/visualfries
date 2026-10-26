@@ -92,7 +92,8 @@ import { PANEL_TEXT_SHARE, captionsInMoveMessage, moveAtStart, shotMoves } from 
  * props keys set `clip.props` on every seek, which redraws what the block reads from them.
  *
  * Shot looks: a window's ring and shadow sit on `.vf-plate`; a dimmed room filters the plate's
- * image (the subject is then drawn over it, its edge dimmed too); motion blur filters the
+ * image (the subject is then drawn over it, its edge dimmed too); a room cut away fades
+ * `.vf-plate` (and the clean plate in holes), leaving the subject over the fill; motion blur filters the
  * plate's and the subject's images, `.vf-behind` and, in a segment with a shot that blurs its
  * moves, a `.vf-streak` box between a slotted clip's root and the block. Inside a transition
  * window there is no motion blur: the transition owns the move. The SVG filters are built on
@@ -1087,6 +1088,9 @@ export function createProgramScene(
 		frameBox(s.plate, layout);
 		frameBox(s.subject, layout);
 		s.plate.box.style.boxShadow = windowShadow(layout, seg.size);
+		// A room cut away (see `cutout`): the plate fades, the subject stays over the fill.
+		const gone = layout.cutout ?? 0;
+		s.plate.box.style.opacity = gone > 0 ? String(px(1 - gone)) : '';
 		const room = !!layout.room && (layout.room.dim > 0 || layout.room.blur >= BLUR_MIN);
 		s.plate.img.style.filter = filters.plate(s.name, layout.room, layout.motionBlur);
 		s.subject.img.style.filter = filters.subject(s.name, layout.room?.dim ?? 0, layout.motionBlur);
@@ -1118,10 +1122,10 @@ export function createProgramScene(
 			const copy = show(back, url);
 			if (copy) pending.push(copy);
 		} else hide(back);
-		// The subject covers behind clips only while one is on screen, or a dimmed room; in an
-		// insert it is only what a holdout cuts out.
+		// The subject covers behind clips only while one is on screen, a dimmed room or a room cut
+		// away; in an insert it is only what a holdout cuts out.
 		const subjectOn =
-			(seg.insert ? seg.insert.holdout && behind : behind || room) && frames.subject;
+			(seg.insert ? seg.insert.holdout && behind : behind || room || gone > 0) && frames.subject;
 		if (holes.length) {
 			// The holes' layers draw the subject (cut) instead of its picture.
 			hide(s.subject.img);
@@ -1132,6 +1136,8 @@ export function createProgramScene(
 				frameSheet(x, layout, frames.width, frames.height);
 			}
 			hole.canvas.style.filter = s.plate.img.style.filter;
+			// The clean plate in the holes is part of the room: it goes with it.
+			hole.box.style.opacity = s.plate.box.style.opacity;
 			cut.canvas.style.filter = subjectOn ? s.subject.img.style.filter : '';
 			pending.push(drawHoles(s, view, holes, subjectOn));
 			return;

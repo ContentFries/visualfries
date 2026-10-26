@@ -74,7 +74,7 @@ export declare function checkProgram(loaded: LoadedMotionProject, opts?: {
 }): Promise<ClipCheck[]>;
 /**
  * Warnings for every stretch where a shot's camera window cuts the speaker's head (see
- * `headCrops`), each at its first frame.
+ * `headCrops`) or a cutout shows the speaker cut (see `cutoutEdges`), each at its first frame.
  */
 export declare function headCropWarnings(segment: StageSegment): {
     frame: number;

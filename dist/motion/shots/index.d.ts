@@ -31,11 +31,13 @@ type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys'> & {
     id?: string;
 };
 /**
- * What the engine needs to lay out shots at a frame: a shot's input without its params, and
- * `headOf`, the head size over a whole shot (see `ShotInput.head`; absent: each frame's own).
+ * What the engine needs to lay out shots at a frame: a shot's input without its params,
+ * `headOf`, the head size over a whole shot (see `ShotInput.head`; absent: each frame's own),
+ * and `topOf`, how high the head gets over a whole shot (see `ShotInput.shotTop`).
  */
-export type LayoutInput = Omit<ShotInput, 'params' | 'head'> & {
+export type LayoutInput = Omit<ShotInput, 'params' | 'head' | 'shotTop'> & {
     headOf?: (shot: Framed) => number | null;
+    topOf?: (shot: Framed) => number | null;
 };
 /**
  * The shot on screen at program frame `f`, the one it morphs from, and how far the morph has

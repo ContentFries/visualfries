@@ -9,6 +9,7 @@ import type { FootageFrames, SubjectBox } from './resolve.js';
 import type { ProgramTransition } from './program.js';
 import { HEADROOM, SUBJECT_SMOOTH } from './shots/layout.js';
 import { aspectParam } from './shots/window.js';
+import { anchorParam, anchoredEdges } from './shots/cutout.js';
 import {
 	shotLayout,
 	shotLayoutAt,
@@ -84,14 +85,61 @@ export function headOfRuns(
 }
 
 function headPercentile(heights: number[]): number | null {
-	if (!heights.length) return null;
-	heights.sort((a, b) => a - b);
-	return heights[Math.min(heights.length - 1, Math.floor(heights.length * HEAD_PERCENTILE))];
+	return percentile(heights, HEAD_PERCENTILE);
+}
+
+function percentile(values: number[], share: number): number | null {
+	if (!values.length) return null;
+	values.sort((a, b) => a - b);
+	return values[Math.min(values.length - 1, Math.floor(values.length * share))];
+}
+
+/**
+ * How high the top of the head gets over a shot showing `source` (see `ShotInput.shotTop`): a
+ * low percentile of the matte's raw head tops over the shot's program frames, so a stray speck
+ * of matte does not count and a lean held for a while does. Null without a matte.
+ */
+export function shotTop(
+	shot: Span,
+	map: FootageMap | null,
+	footage: Record<string, FootageFrames>,
+	source: string
+): number | null {
+	if (!map) return null;
+	const tops: number[] = [];
+	const from = Math.max(0, shot.startFrame);
+	const to = Math.min(map.frames, shot.startFrame + shot.frames);
+	for (let f = from; f < to; f++) {
+		const view = programFootageAt(map, f);
+		if (view?.source !== source) continue;
+		const frames = footage[view.source];
+		const box = frames ? sourceSubjectBox(frames, view.frame) : null;
+		if (box) tops.push(box.headY);
+	}
+	return percentile(tops, PEAK_TOP);
+}
+
+/** `shotTop` over the picture `runs` give (see `headOfRuns`). */
+export function topOfRuns(
+	runs: readonly FootageRun[],
+	footage: Record<string, FootageFrames>,
+	source: string
+): number | null {
+	const frames = footage[source];
+	const tops: number[] = [];
+	for (const run of runs) {
+		if (run.source !== source || !frames) continue;
+		for (let k = 0; k < run.frames; k++) {
+			const box = sourceSubjectBox(frames, run.held ? run.frame : run.frame + k);
+			if (box) tops.push(box.headY);
+		}
+	}
+	return percentile(tops, PEAK_TOP);
 }
 
 export type FramingData = Pick<
 	StageSegment,
-	'fps' | 'size' | 'cls' | 'format' | 'footage' | 'footageMap' | 'shots' | 'heads'
+	'fps' | 'size' | 'cls' | 'format' | 'footage' | 'footageMap' | 'shots' | 'heads' | 'tops'
 >;
 
 /**
@@ -110,6 +158,17 @@ export function programFraming(data: FramingData) {
 		if (given && source in given) return given[source];
 		if (!heads.has(key)) heads.set(key, shotHead(span, data.footageMap, data.footage, source));
 		return heads.get(key)!;
+	};
+	const tops = new Map<string, number | null>();
+	/** How high the head gets over `shot` showing `source` (see `shotTop`). */
+	const topOf = (shot: { id?: string }, source: string | null) => {
+		const span = shot.id ? data.shots.find((s) => s.id === shot.id) : undefined;
+		if (!span || source === null) return null;
+		const key = `${span.id}\u0000${source}`;
+		const given = data.tops?.[span.id];
+		if (given && source in given) return given[source];
+		if (!tops.has(key)) tops.set(key, shotTop(span, data.footageMap, data.footage, source));
+		return tops.get(key)!;
 	};
 	const framesOf = (view: FootageView | null) =>
 		view ? (data.footage[view.source] ?? null) : null;
@@ -175,7 +234,8 @@ export function programFraming(data: FramingData) {
 			safe: data.format.safe,
 			subject: subjectOf(view),
 			headTop: headTopOf(view),
-			headOf: (s) => headOf(s, view?.source ?? null)
+			headOf: (s) => headOf(s, view?.source ?? null),
+			topOf: (s) => topOf(s, view?.source ?? null)
 		};
 		return shot ? shotLayout(shot, input, f) : shotLayoutAt(data.shots, f, input);
 	}
@@ -366,3 +426,173 @@ export function headCropMessage(
 		crop.edge === 'top' && crop.pixels === 0 ? 'If that is not meant' : 'If the crop is not meant';
 	return `${head} ${unless}, try: ${tries.join('; ')}. Look at a still of the shot before deciding.`;
 }
+
+/** Pixels of the speaker past an edge, of the frame's shorter side, before `check` counts it. */
+const EDGE_CUT = 0.01;
+/** A matte this close to an edge of the recording (of its size) runs into that edge. */
+const RECORDING_EDGE = 0.005;
+
+type Edge = 'left' | 'right' | 'top' | 'bottom';
+
+export type CutoutEdge = {
+	shot: string;
+	/**
+	 * `frame`: a frame edge the shot does not sit the speaker against cuts the speaker off;
+	 * `recording`: the speaker runs into an edge of the recording that lies inside the frame, so
+	 * the body ends in a hard line in mid-frame.
+	 */
+	kind: 'frame' | 'recording';
+	edge: Edge;
+	/** Program frames, first and last, over every stretch; each stretch, first and last frame. */
+	from: number;
+	to: number;
+	ranges: [number, number][];
+	/** The worst frame: pixels of the speaker past the frame edge, or of frame past the recording's. */
+	pixels: number;
+};
+
+/**
+ * Where a `cutout` shot shows the speaker cut, for at least `CROP_FRAMES` frames in a row, its
+ * keys included: the matte's box past a frame edge the anchor does not sit the speaker against
+ * (the top is `headCrops`'), or the matte running into an edge of the recording that sits inside
+ * the frame. Each frame's own matte box counts; frames with nothing of the speaker in the frame
+ * (sent away by a key), morphs and cut or shot transition windows are skipped.
+ */
+export function cutoutEdges(
+	data: FramingData & { transitions: readonly ProgramTransition[] },
+	range: Span = { startFrame: 0, frames: Infinity }
+): CutoutEdge[] {
+	const map = data.footageMap;
+	if (!map) return [];
+	const framing = programFraming(data);
+	const [W, H] = data.size;
+	const min = EDGE_CUT * Math.min(W, H);
+	const out: CutoutEdge[] = [];
+	const inWindow = (f: number) =>
+		data.transitions.some(
+			(t) => t.kind !== 'clip' && f >= t.startFrame && f < t.startFrame + t.frames
+		);
+	for (const shot of data.shots) {
+		if (shot.shot !== 'cutout') continue;
+		const anchored: string[] = anchoredEdges(anchorParam(shot.params));
+		const from = Math.max(shot.startFrame + shot.morphFrames, range.startFrame);
+		const to = Math.min(shot.startFrame + shot.frames, range.startFrame + range.frames);
+		type Run = { from: number; to: number; pixels: number };
+		const runs = new Map<string, Run>();
+		const done = new Map<string, Run[]>();
+		const close = (key: string) => {
+			const run = runs.get(key);
+			if (run && run.to - run.from + 1 >= CROP_FRAMES)
+				done.set(key, [...(done.get(key) ?? []), run]);
+			runs.delete(key);
+		};
+		for (let f = from; f < to; f++) {
+			const view = programFootageAt(map, f);
+			const frames = view && !inWindow(f) ? data.footage[view.source] : undefined;
+			const box = frames && view ? sourceSubjectBox(frames, view.frame) : null;
+			const found = new Map<string, number>();
+			if (box && view) {
+				const { camera } = framing.layoutFor(f, view);
+				const x0 = camera.x + box.x * camera.width;
+				const x1 = camera.x + (box.x + box.width) * camera.width;
+				const y0 = camera.y + box.y * camera.height;
+				const y1 = camera.y + (box.y + box.height) * camera.height;
+				const seen = x1 > 0 && x0 < W && y1 > 0 && y0 < H;
+				if (seen) {
+					const past: Record<Edge, number> = { left: -x0, right: x1 - W, top: 0, bottom: y1 - H };
+					for (const edge of ['left', 'right', 'bottom'] as const)
+						if (!anchored.includes(edge) && past[edge] > min)
+							found.set(`frame:${edge}`, past[edge]);
+					// How far inside the frame each edge of the recording is.
+					const inside: Record<Edge, number> = {
+						left: camera.x,
+						right: W - (camera.x + camera.width),
+						top: camera.y,
+						bottom: H - (camera.y + camera.height)
+					};
+					const touches: Record<Edge, boolean> = {
+						left: box.x <= RECORDING_EDGE,
+						right: box.x + box.width >= 1 - RECORDING_EDGE,
+						top: box.y <= RECORDING_EDGE,
+						bottom: box.y + box.height >= 1 - RECORDING_EDGE
+					};
+					for (const edge of ['left', 'right', 'top', 'bottom'] as const)
+						if (touches[edge] && inside[edge] > min) found.set(`recording:${edge}`, inside[edge]);
+				}
+			}
+			for (const key of [...runs.keys()]) if (!found.has(key)) close(key);
+			for (const [key, pixels] of found) {
+				const run = runs.get(key) ?? { from: f, to: f, pixels };
+				run.to = f;
+				run.pixels = Math.max(run.pixels, pixels);
+				runs.set(key, run);
+			}
+		}
+		for (const key of [...runs.keys()]) close(key);
+		for (const [key, list] of done) {
+			const [kind, edge] = key.split(':') as [CutoutEdge['kind'], Edge];
+			out.push({
+				shot: shot.id,
+				kind,
+				edge,
+				from: list[0].from,
+				to: list[list.length - 1].to,
+				ranges: list.map((r) => [r.from, r.to]),
+				pixels: Math.round(Math.max(...list.map((r) => r.pixels)))
+			});
+		}
+	}
+	return out.sort((a, b) => a.from - b.from);
+}
+
+/** A `check` warning for a cutout edge, worded so an agent knows what it can change. */
+export function cutoutEdgeMessage(
+	cut: CutoutEdge,
+	shot: Pick<ShotSpan, 'shot' | 'params' | 'keys'>,
+	fps: number
+): string {
+	const s = (f: number) => `${(f / fps).toFixed(2)} s`;
+	const when = cut.ranges.map(([a, b]) => `${s(a)} to ${s(b + 1)}`);
+	const span =
+		when.length === 1
+			? `from ${when[0]}`
+			: `from ${when.slice(0, -1).join(', ')} and ${when[when.length - 1]}`;
+	const anchor = anchorParam(shot.params);
+	const keyed = (k: string) => shot.keys?.some((key) => k in key.values) ?? false;
+	const tries: string[] = [];
+	let head: string;
+	if (cut.kind === 'frame') {
+		head = `Shot "${cut.shot}" (cutout) cuts the speaker off at the frame's ${cut.edge} edge (up to ${cut.pixels} px of the speaker past it) ${span}, its keys included; the "${anchor}" anchor sits the speaker against ${listEdges(anchoredEdges(anchor))}.`;
+		tries.push('a smaller "size"');
+		if (cut.edge !== 'bottom')
+			tries.push(
+				`an anchor on that side ("${cut.edge === 'left' ? 'bottom-left' : 'bottom-right'}" or "${cut.edge}")`
+			);
+		if (keyed('scale')) tries.push('a lower "scale" key');
+		if (keyed(cut.edge === 'bottom' ? 'y' : 'x'))
+			tries.push(`a "${cut.edge === 'bottom' ? 'y' : 'x'}" key closer to 0`);
+	} else {
+		head = `Shot "${cut.shot}" (cutout) shows where the recording ends: the speaker runs into the recording's ${cut.edge} edge, which sits up to ${cut.pixels} px inside the frame, so the speaker ends in a hard line in mid-frame ${span}, its keys included.`;
+		if (cut.edge === 'bottom')
+			tries.push(
+				anchor.startsWith('bottom')
+					? 'no key lifting the speaker'
+					: 'a bottom anchor ("bottom-left", "bottom" or "bottom-right"): the cut body then runs out of the frame\'s bottom edge'
+			);
+		else if (cut.edge === 'top')
+			tries.push('another take: the recording itself has the head at its top edge');
+		else
+			tries.push(
+				`an anchor on that side ("${cut.edge === 'left' ? 'bottom-left' : 'bottom-right'}" or "${cut.edge}") with "margin": 0`
+			);
+		if (keyed('scale')) tries.push('a "scale" key closer to 1');
+		if (keyed('x') && (cut.edge === 'left' || cut.edge === 'right'))
+			tries.push('an "x" key closer to 0');
+		if (keyed('y') && (cut.edge === 'top' || cut.edge === 'bottom'))
+			tries.push('a "y" key closer to 0');
+	}
+	return `${head} If that is not meant, try: ${tries.join('; ')}. Look at a still of the shot before deciding.`;
+}
+
+const listEdges = (edges: string[]) =>
+	edges.length ? `the ${edges.join(' and ')} edge${edges.length > 1 ? 's' : ''}` : 'no edge';

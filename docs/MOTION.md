@@ -621,9 +621,38 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
   Inside a transition window there is no motion blur (the transition owns the move). Without a
   clip in the slot the style's surface shows. A whip right after a whip does not move, so it
   has no event and `check` warns.
+- `cutout`: only the speaker, cut out by the matte, over the style's surface: no room, no
+  plate. Clips with `"layer": "behind"` go between the surface and the speaker (a 3D world, a
+  colour field). It places a speaker recorded wider than the format anywhere in the frame, such
+  as a seated landscape recording in the lower left of a 9:16 frame. `params.anchor` is where
+  the speaker sits: `bottom-left`, `bottom` (default), `bottom-right` put the body on the
+  frame's bottom edge; `left`, `center`, `right` centre the speaker's box (head top to the
+  matte's bottom) on the frame's height. `params.size` is how tall the head is, top to chin, as
+  a share of the frame height (default 0.2 landscape, 0.15 square, 0.11 portrait). It is
+  measured from the matte over the whole shot, so the speaker comes out the same size whatever
+  the recording's framing: a close take and a wide one at the same `size` look alike, which a
+  share of the matte's box (it grows with every gesture and with how much body the recording
+  shows) would not give. `params.margin` is the space to the side edges the anchor names, as a
+  share of the frame's shorter side (default 0.05; negative moves the speaker past them). Across,
+  the head's centre sits 1.2 head heights in from the margin, so the shoulders stay in and the
+  speaker holds still while the hands move, but at most 0.35 of the frame width, so a speaker
+  too big for both shoulders runs off the anchored edge instead of drifting to the middle. Down, a matte that reaches the recording's bottom edge (a seated speaker, a medium
+  shot) puts that edge on the frame's, so the cut body runs out of the frame; a matte that ends
+  above it (feet) stands a margin above the frame's edge. A `panel` slot takes the empty part
+  of the frame: above the speaker for `bottom`, and in portrait and square for `bottom-left`
+  and `bottom-right` too (from the top of the safe area down to a margin above how high the
+  head gets over the shot, so it holds still while the head moves); beside the speaker
+  otherwise (the other side of the frame, full height; in portrait inside the safe area);
+  `center` has none. Shot keys (`x`, `y`, `scale`, `rotation`, `opacity`) move the speaker on
+  top, the panel stays. In a morph into or out of the shot the room fades out or in while the
+  camera moves. `check` warns when a frame edge the anchor does not name cuts the speaker off,
+  and when the speaker runs into an edge of the recording that sits inside the frame (a body
+  cut by the recording ending in mid-frame, as with `left` on a seated recording or a `y` key
+  lifting it). Needs a matte (`check` reports footage without one).
 
 **Keeping the head in.** Shots frame the face a third from the top of their camera window
-(`full`, `punch`, `strip`, `window`, `behind`, `whip`). That suits most footage, but a close
+(`full`, `punch`, `strip`, `window`, `behind`, `whip`; `cutout` sizes the speaker by the head
+instead). That suits most footage, but a close
 handheld selfie, where the head fills half the frame, can lose the top of the head in a strip or
 a small window. `params.headroom` (off by default; 0.06 is a good start) keeps the whole head in
 the shot's camera window, from the matte: the footage moves down until that share of the window
@@ -752,14 +781,14 @@ second: a ticker or marquee, a card with text that bleeds off the frame by desig
 `--safe-*`, its own layout for `clip.format.class`), after a look at a still.
 
 The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full`,
-`strip` and `window`, 0.3 s into `behind` from `full` (0.7 s from a framed shot), 0.16 s into
+`strip`, `window` and `cutout`, 0.3 s into `behind` from `full` (0.7 s from a framed shot), 0.16 s into
 `punch`, 0.45 s out of a punch, 0.42 s
 into and out of a whip; none under a shot `transition`). A window's ring and shadow and a dimmed
-room fade with the move. A clip with `"slot": "panel"` fills that slot and moves with it; while
+room fade with the move, and so does a room cut away by `cutout`. A clip with `"slot": "panel"` fills that slot and moves with it; while
 no shot frees its slot it is hidden and `check` warns. Its root also says how much of the slot
 platform UI covers at that frame ([safe insets of a slot](#safe-insets-of-a-slot)). Shots add
-events to the program for sounds to land on: `shot` halfway through a move into `strip` or
-`window` and back out of them, `punch` on a punch-in's first frame, and `whip` halfway through the
+events to the program for sounds to land on: `shot` halfway through a move into `strip`,
+`window` or `cutout` and back out of them, `punch` on a punch-in's first frame, and `whip` halfway through the
 whip out and the whip back (a punch after a whip hits when the camera lands). Nothing moves on the program's first frame,
 so a shot there has no event. A shot may run across hard cuts (the jump cuts of a talking head);
 `check` warns only when its morph, a change between two of its keys or its transition window is

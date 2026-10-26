@@ -13,6 +13,7 @@ import {
 	shotLayout,
 	shotLayoutAt,
 	shotsDuring,
+	type LayoutInput,
 	type Rect,
 	type ShotInput,
 	type ShotLayout,
@@ -339,6 +340,194 @@ describe('behind', () => {
 	});
 });
 
+describe('cutout', () => {
+	/** The speaker of `SUBJECT` with a measured head a quarter of the footage tall. */
+	const SIZED: SubjectBox = { ...SUBJECT, headHeight: 0.25 };
+	const cut = (
+		size: [number, number],
+		params: Record<string, unknown>,
+		extra: Partial<LayoutInput> = {}
+	) => shotLayout({ shot: 'cutout', params }, { ...input(size, { subject: SIZED }), ...extra });
+	/** The head's height and the top of its head on the stage. */
+	const head = (l: ShotLayout, s: SubjectBox = SIZED) => ({
+		height: s.headHeight! * l.camera.height,
+		top: l.camera.y + s.headY * l.camera.height,
+		x: l.camera.x + s.headX * l.camera.width
+	});
+
+	it('sizes the speaker by the head and sits the body on the bottom edge, room gone', () => {
+		const l = cut(PORTRAIT, { anchor: 'bottom-left', size: 0.15 });
+		// The head is 15 % of the frame height, whatever the recording's framing.
+		expect(head(l).height).toBeCloseTo(0.15 * 1920, 1);
+		// The matte reaches the recording's bottom edge: that edge sits on the frame's.
+		expect(l.camera.y + l.camera.height).toBeCloseTo(1920, 1);
+		// The head 1.2 head heights in from the left margin (54 px): the shoulders stay in.
+		expect(head(l).x).toBeCloseTo(54 + 1.2 * 288, 1);
+		// The camera window is the frame; the room is gone and the style fill shows around.
+		expect(l.clip).toEqual({ x: 0, y: 0, width: 1080, height: 1920 });
+		expect(l.cutout).toBe(1);
+		expect(l.fill).toBe('surface');
+		expect(l.radius).toBe(0);
+		expect(l.room).toBeUndefined();
+		expect(l.backdrop).toBeUndefined();
+	});
+
+	it('anchors to the right, the middle and the vertical centre', () => {
+		const right = cut(PORTRAIT, { anchor: 'bottom-right', size: 0.15 });
+		expect(head(right).x).toBeCloseTo(1080 - 54 - 1.2 * 288, 1);
+		expect(right.camera.y + right.camera.height).toBeCloseTo(1920, 1);
+		const bottom = cut(PORTRAIT, { anchor: 'bottom', size: 0.15 });
+		expect(head(bottom).x).toBeCloseTo(540, 1);
+		// left, right and center: the speaker's box (head top to the matte's bottom) is centred
+		// on the frame's height.
+		for (const anchor of ['left', 'right', 'center']) {
+			const l = cut(LANDSCAPE, { anchor, size: 0.2 });
+			const top = head(l).top;
+			const bottom = l.camera.y + (SIZED.y + SIZED.height) * l.camera.height;
+			expect((top + bottom) / 2, anchor).toBeCloseTo(540, 1);
+		}
+		expect(head(cut(LANDSCAPE, { anchor: 'left', size: 0.2 })).x).toBeCloseTo(54 + 1.2 * 216, 1);
+		expect(head(cut(LANDSCAPE, { anchor: 'center', size: 0.2 })).x).toBeCloseTo(960, 1);
+	});
+
+	it('stands a speaker whose matte ends above the recording edge on the margin', () => {
+		// Feet at 80 % of the footage: the matte's bottom sits a margin above the frame's.
+		const standing = { ...SIZED, height: 0.69 };
+		const l = cut(PORTRAIT, { anchor: 'bottom', size: 0.1 }, { subject: standing });
+		expect(l.camera.y + 0.8 * l.camera.height).toBeCloseTo(1920 - 54, 1);
+		// Just above the edge: no further up than the gap, so the body never floats.
+		const close = { ...SIZED, height: 0.885 };
+		const k = cut(PORTRAIT, { anchor: 'bottom', size: 0.1 }, { subject: close });
+		expect(k.camera.y + k.camera.height).toBeCloseTo(1920, 1);
+	});
+
+	it('keeps a speaker too big for the shoulders rule on its side, running off the edge', () => {
+		// A head 37 % of the frame: the shoulders cannot both fit. The head stays 0.35 of the
+		// frame in from the margin instead of drifting to the middle.
+		const left = cut(PORTRAIT, { anchor: 'bottom-left', size: 0.37 });
+		expect(head(left).x).toBeCloseTo(54 + 378, 1);
+		const right = cut(PORTRAIT, { anchor: 'right', size: 0.37 });
+		expect(head(right).x).toBeCloseTo(1080 - 54 - 378, 1);
+		// A negative margin moves it further off the edge, the panel keeps its distance.
+		const off = cut(PORTRAIT, { anchor: 'bottom-left', size: 0.15, margin: -0.1 });
+		expect(head(off).x).toBeCloseTo(-108 + 1.2 * 288, 1);
+		expect(off.slots.panel.y + off.slots.panel.height).toBeCloseTo(head(off).top - 54, 1);
+	});
+
+	it('takes the shot-wide head size, and a default size per format class', () => {
+		const l = cut(PORTRAIT, { anchor: 'bottom' }, { headOf: () => 0.5 });
+		expect(0.5 * l.camera.height).toBeCloseTo(0.11 * 1920, 1);
+		expect(head(cut(LANDSCAPE, {})).height).toBeCloseTo(0.2 * 1080, 1);
+		expect(head(cut(SQUARE, {})).height).toBeCloseTo(0.15 * 1080, 1);
+		// The default anchor is the bottom middle.
+		expect(head(cut(PORTRAIT, {})).x).toBeCloseTo(540, 1);
+		// The margin is a share of the frame's shorter side.
+		const wide = cut(PORTRAIT, { anchor: 'bottom-left', size: 0.15, margin: 0.1 });
+		expect(head(wide).x).toBeCloseTo(108 + 1.2 * 288, 1);
+	});
+
+	it('opens a panel above the speaker in portrait and beside it in landscape', () => {
+		const p = cut(PORTRAIT, { anchor: 'bottom-left', size: 0.15 });
+		// From the top of the all-platform zone (15 %) to a margin above the head.
+		expect(p.slots.panel).toEqual({
+			x: 0,
+			y: 288,
+			width: 1080,
+			height: Math.round((head(p).top - 54 - 288) * 100) / 100
+		});
+		// It slides in from the top edge.
+		expect(p.closed.panel).toEqual({ ...p.slots.panel, y: -p.slots.panel.height });
+		// The format's safe top, when known.
+		const safe = { top: 200, right: 0, bottom: 0, left: 0 };
+		expect(cut(PORTRAIT, { anchor: 'bottom', size: 0.15 }, { safe }).slots.panel.y).toBe(200);
+		// Landscape, speaker on the left: the panel takes the frame right of the shoulders.
+		const l = cut(LANDSCAPE, { anchor: 'bottom-left', size: 0.25 });
+		const reach = 54 + 1.2 * 270 + 1.2 * 270 + 54;
+		expect(l.slots.panel).toEqual({ x: reach, y: 0, width: 1920 - reach, height: 1080 });
+		expect(l.closed.panel).toEqual({ ...l.slots.panel, x: 1920 });
+		// Speaker on the right: the panel on the left, sliding in from the left edge.
+		const r = cut(LANDSCAPE, { anchor: 'right', size: 0.25 });
+		expect(r.slots.panel).toEqual({ x: 0, y: 0, width: 1920 - reach, height: 1080 });
+		expect(r.closed.panel.x).toBe(-r.slots.panel.width);
+		// Centred in the frame: no panel.
+		expect(cut(LANDSCAPE, { anchor: 'center' }).slots).toEqual({});
+	});
+
+	it('holds the panel still while the head moves, by the shot-wide head top', () => {
+		const a = cut(PORTRAIT, { anchor: 'bottom', size: 0.15 }, { topOf: () => 0.08 });
+		const b = cut(
+			PORTRAIT,
+			{ anchor: 'bottom', size: 0.15 },
+			{ topOf: () => 0.08, subject: { ...SIZED, headY: 0.14, headX: 0.55 } }
+		);
+		expect(a.slots.panel).toEqual(b.slots.panel);
+		expect(a.slots.panel.y + a.slots.panel.height).toBeCloseTo(
+			a.camera.y + 0.08 * a.camera.height - 54,
+			1
+		);
+	});
+
+	it('frees its panel without footage, so check knows the slot', () => {
+		const l = layout('cutout', PORTRAIT, { footage: null, subject: null });
+		expect(l.camera).toEqual(l.clip);
+		expect(l.slots.panel).toBeDefined();
+	});
+
+	it('takes keys on top: the speaker moves and scales about the face, the panel stays', () => {
+		const plain = cut(PORTRAIT, { anchor: 'bottom-left', size: 0.15 });
+		const keys: ResolvedKey[] = [
+			{ frame: 0, values: { scale: 1.2, x: -40, y: 30 }, ease: 'none', mix: 'oklch' }
+		];
+		const l = shotLayout(
+			{ shot: 'cutout', params: { anchor: 'bottom-left', size: 0.15 }, keys },
+			input(PORTRAIT, { subject: SIZED }),
+			0
+		);
+		expect(l.camera.width).toBeCloseTo(plain.camera.width * 1.2, 1);
+		expect(faceOnStage(l, SIZED).x).toBeCloseTo(faceOnStage(plain, SIZED).x - 40, 1);
+		expect(faceOnStage(l, SIZED).y).toBeCloseTo(faceOnStage(plain, SIZED).y + 30, 1);
+		expect(l.slots).toEqual(plain.slots);
+		expect(l.cutout).toBe(1);
+	});
+
+	it('fades the room out and in over a morph', () => {
+		const full = layout('full', PORTRAIT, { subject: SIZED });
+		const c = cut(PORTRAIT, { anchor: 'bottom-left', size: 0.15 });
+		expect(mixLayouts(full, c, 0).cutout).toBe(0);
+		expect(mixLayouts(full, c, 0.5).cutout).toBe(0.5);
+		expect(mixLayouts(c, full, 1).cutout).toBe(0);
+		expect(mixLayouts(full, c, 0.5).fill).toBe('surface');
+		expect(mixLayouts(full, layout('punch', PORTRAIT), 0.5).cutout).toBeUndefined();
+		expect(defaultMorph('full', 'cutout')).toEqual({ seconds: 0.7, ease: 'expo.inOut' });
+		expect(defaultMorph('cutout', 'window')).toEqual({ seconds: 0.7, ease: 'expo.inOut' });
+		expect(shotEvents({ ...SPAN, shot: 'cutout' }, 'full')).toEqual([{ kind: 'shot', frame: 6 }]);
+		expect(shotEvents({ ...SPAN, shot: 'cutout' }, null)).toEqual([]);
+	});
+
+	it('needs a matte and checks its params', () => {
+		expect(SHOT_MODULES.cutout.needsMatte).toBe(true);
+		expect(SHOT_MODULES.cutout.check!({ anchor: 'bottom-left', size: 0.15, margin: 0 })).toEqual(
+			[]
+		);
+		expect(SHOT_MODULES.cutout.check!({ anchor: 'top', size: 0.9, margin: 1, zoom: 2 })).toEqual([
+			'Unknown param "zoom". Known: anchor, size, margin.',
+			'"anchor" must be one of bottom-left, bottom, bottom-right, left, center, right (got "top"): where the speaker sits; a body cut by the recording\'s bottom edge belongs on a bottom anchor.',
+			'"size" must be a number from 0.03 to 0.5 (got 0.9).',
+			'"margin" must be a number from -0.25 to 0.25 (got 1).'
+		]);
+	});
+});
+
+const SPAN: ShotSpan = {
+	id: 'c',
+	shot: 'full',
+	startFrame: 0,
+	frames: 30,
+	params: {},
+	morphFrames: 12,
+	morphEase: 'none'
+};
+
 describe('whip', () => {
 	it('sends the camera one frame away and brings a card slot in from the other side', () => {
 		const full = layout('full', LANDSCAPE);
@@ -528,7 +717,7 @@ describe('moves into, out of and between the new shots', () => {
 });
 
 describe('morph continuity between every pair of shots', () => {
-	const NAMES = ['full', 'punch', 'strip', 'window', 'behind', 'whip'];
+	const NAMES = ['full', 'punch', 'strip', 'window', 'behind', 'whip', 'cutout'];
 	const SIZES = [LANDSCAPE, SQUARE, PORTRAIT];
 	const rects = (l: ShotLayout) => [l.camera, l.clip];
 	const looks = (l: ShotLayout) => [
@@ -536,7 +725,8 @@ describe('morph continuity between every pair of shots', () => {
 		l.ring ?? 0,
 		l.lift ?? 0,
 		l.room?.dim ?? 0,
-		l.room?.blur ?? 0
+		l.room?.blur ?? 0,
+		l.cutout ?? 0
 	];
 
 	it('starts on the previous layout, ends on the next and never jumps in between', () => {
@@ -886,6 +1076,36 @@ describe('shots in the program', () => {
 			item: 'word',
 			field: 'shots',
 			message: 'The "behind" shot needs a matte, but footage "talk" has none (visualfries matte).'
+		});
+	});
+
+	it('resolves a cutout with a panel clip, and needs a matte for it', () => {
+		const json = structuredClone(PROJECT) as typeof PROJECT & { shots: object[] };
+		json.shots = [
+			{
+				id: 'me',
+				shot: 'cutout',
+				from: 'and three',
+				until: 'three points',
+				params: { anchor: 'bottom-left' }
+			}
+		];
+		json.clips = [
+			{ id: 'list', block: 'blocks/Panel.svelte', from: 'and three', until: 3.6, slot: 'panel' }
+		];
+		const ok = resolve(json);
+		// The panel is free all through the shot: no slot warning.
+		expect(ok.diagnostics.filter((d) => d.field === 'slot' || d.level === 'error')).toEqual([]);
+		expect(ok.shots.find((s) => s.id === 'me')).toMatchObject({
+			shot: 'cutout',
+			morphEase: 'expo.inOut'
+		});
+		json.footage.talk.matte = undefined as unknown as string;
+		expect(resolve(json).diagnostics).toContainEqual({
+			level: 'error',
+			item: 'me',
+			field: 'shots',
+			message: 'The "cutout" shot needs a matte, but footage "talk" has none (visualfries matte).'
 		});
 	});
 });

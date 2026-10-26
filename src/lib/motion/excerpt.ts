@@ -8,6 +8,7 @@ import {
 	type FrameRange
 } from './footage-map.js';
 import { headroomParam, SUBJECT_SMOOTH } from './shots/layout.js';
+import { shotModule } from './shots/index.js';
 import type {
 	AudioPiece,
 	ProgramClip,
@@ -65,8 +66,9 @@ export type ExcerptFootage = {
 	 */
 	around: Record<string, FrameRange[]>;
 	/**
-	 * The picture over the whole shot, in the whole program, of each shot with `headroom` that
-	 * runs across an edge: its one head size is measured over it (`headOfRuns`).
+	 * The picture over the whole shot, in the whole program, of each shot with `headroom` (or one
+	 * that always reads its head, see `ShotModule.measuresHead`) that runs across an edge: its
+	 * one head size and how high its head gets are measured over it (`headOfRuns`, `topOfRuns`).
 	 */
 	heads: Record<string, FootageRun[]>;
 };
@@ -177,7 +179,10 @@ export function sliceProgram(
 	const margin = Math.round(2 * SUBJECT_SMOOTH * fps) + gap;
 	const heads: ExcerptFootage['heads'] = {};
 	for (const s of stagedShots(full.shots, full.transitions, range))
-		if (headroomParam(s.params) !== false && (s.startFrame < first || endOf(s) > endOf(range)))
+		if (
+			(headroomParam(s.params) !== false || shotModule(s.shot)?.measuresHead) &&
+			(s.startFrame < first || endOf(s) > endOf(range))
+		)
 			heads[s.id] = pictureRuns(map, s.startFrame, endOf(s));
 	const around = shownRanges(map, first - margin, endOf(range) + margin, gap);
 

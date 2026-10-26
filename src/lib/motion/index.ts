@@ -39,6 +39,7 @@ export type {
 export { default as Footage } from './Footage.svelte';
 export { default as Captions } from './Captions.svelte';
 export { default as Subject } from './Subject.svelte';
+export { default as Front } from './Front.svelte';
 export {
 	placeRegion,
 	regionPivot,

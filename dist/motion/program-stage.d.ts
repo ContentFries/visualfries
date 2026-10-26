@@ -24,6 +24,12 @@ export type ProgramScene = {
      * drawn) and returns whether there is one to cut out; `false` shows the clips again.
      */
     holdout(on: boolean): boolean;
+    /**
+     * A holdout insert's third pass, for a clip with a front part (see `<Front>`): `true` shows
+     * the front part alone and returns whether it is on screen; `false` hides it again. The front
+     * part of a holdout insert stays out of the first two passes, so the holdout never cuts it.
+     */
+    frontPass(on: boolean): boolean;
     destroy(): void;
 };
 /**

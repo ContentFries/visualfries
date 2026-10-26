@@ -282,16 +282,27 @@ export type ClipController = {
     holes?: HoleSource[];
     /** Program mode: region layers `check` measures. */
     probes?: RegionProbe[];
+    /**
+     * Where `<Front>` draws: the inside of the clip's front part, a second root of the clip that
+     * the stage makes on the first call (in program mode in its front clip layer, above the
+     * speaker). Absent on a host without one: `<Front>` then draws its children in place.
+     */
+    front?: () => HTMLElement;
+    /** The clip's other roots (its front part), registered by `registerClipPart`. */
+    parts?: HTMLElement[];
 };
 /** Called by the stage for every mounted clip. */
 export declare function registerClipRoot(c: ClipController): void;
+/** Called by the stage for a second root of a clip (its front part, see `<Front>`). */
+export declare function registerClipPart(c: ClipController, part: HTMLElement): void;
 /** The clip an element of a mounted block belongs to. */
 export declare function controllerOf(node: Element): ClipController;
 /** The current clip: time, cues, bound transcript words, helpers. */
 export declare function useClip(): Clip;
 /**
  * Build a paused GSAP timeline in clip seconds. VisualFries seeks it to every frame,
- * so there is no wall-clock playback. Selectors via `q` are scoped to this clip.
+ * so there is no wall-clock playback. Selectors via `q` are scoped to this clip, its front
+ * part (`<Front>`) included.
  */
 export declare function useTimeline(build: TimelineBuild): void;
 /**

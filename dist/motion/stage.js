@@ -1,6 +1,6 @@
 import { findBadValues } from './badvalues.js';
 import { flushSync, mount, unmount } from 'svelte';
-import { Clip, MOTION_CONTEXT_KEY, registerClipRoot } from './runtime.svelte.js';
+import { Clip, MOTION_CONTEXT_KEY, registerClipPart, registerClipRoot } from './runtime.svelte.js';
 import { seekTimeline } from './seek.js';
 import { brandTokens, NEUTRAL_BRAND } from './brand.js';
 import { NO_SLOT_TOKENS, formatTokens, resolveFormat } from './format.js';
@@ -116,12 +116,26 @@ export function createMotionStage(options) {
         }))
             root.style.setProperty(name, value);
         stage.appendChild(root);
+        /** The clip's front part (see `<Front>`): over the rest of the block, made on first use. */
+        let part = null;
         const controller = {
             clip: new Clip(data),
             root,
             timelines: [],
             frameFns: [],
-            ready: []
+            ready: [],
+            front() {
+                if (part)
+                    return part;
+                part = document.createElement('div');
+                part.className = 'vf-clip';
+                part.dataset.part = 'front';
+                part.dataset.format = root.dataset.format;
+                part.style.cssText = root.style.cssText;
+                root.after(part);
+                registerClipPart(controller, part);
+                return part;
+            }
         };
         registerClipRoot(controller);
         const instance = mount(Block, {
@@ -250,6 +264,7 @@ export function createMotionStage(options) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawElementImage(stage, 0, 0);
             await holdoutPass(ctx);
+            await frontPass(ctx);
             if (capture)
                 image = canvas.toDataURL('image/png');
         }
@@ -274,6 +289,24 @@ export function createMotionStage(options) {
         finally {
             c.globalCompositeOperation = 'source-over';
             scene.holdout(false);
+        }
+    }
+    /**
+     * A holdout insert whose clip has a front part (see `<Front>`): the front part, left out of
+     * the first two passes, is drawn alone over what they left, so the holdout never cuts it.
+     */
+    async function frontPass(c) {
+        const scene = segment;
+        if (!scene?.frontPass(true))
+            return;
+        try {
+            if ((options.invalidate ?? 'filters') === 'filters' && nested.length === 0)
+                stage.style.filter = ++seeks % 2 ? 'saturate(1)' : 'contrast(1)';
+            await nextPaint();
+            c.drawElementImage(stage, 0, 0);
+        }
+        finally {
+            scene.frontPass(false);
         }
     }
     function unload() {

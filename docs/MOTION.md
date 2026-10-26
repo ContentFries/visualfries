@@ -276,6 +276,70 @@ prints where each cue landed. A second instance of the block (the labels in fron
 `layer`) declares the same cues. `clip.programTime` is the program's clock for a world clip
 that starts later than 0 and still has to run on program seconds.
 
+### Behind and in front from one clip
+
+A clip draws in one layer: in front of the speaker, or behind them with `"layer": "behind"`. A
+block that needs both, a 3D scene behind the speaker with labels pinned to points of it in
+front, wraps the front part of its markup in `<Front>`:
+
+```svelte
+<script>
+	import { Front, useClip, useFrame } from 'visualfries/motion';
+	const clip = useClip();
+	let canvas;
+	let pin = $state({ x: 0, y: 0 });
+	useFrame(() => {
+		// render the scene into `canvas`, project a 3D point to the screen
+		pin = engine.render(clip.t);
+	});
+</script>
+
+<canvas bind:this={canvas}></canvas>
+<Front>
+	<div class="label" style:left="{pin.x}px" style:top="{pin.y}px">HARNESS</div>
+</Front>
+```
+
+```json
+{ "id": "world", "block": "blocks/World.svelte", "from": 0, "until": "end", "layer": "behind" }
+```
+
+The canvas stays in the clip's layer (behind the speaker), and `<Front>`'s children are drawn in
+the clip's **front part**: a second root of the same clip in the layer of the front clips. It is
+one block instance with one state, one time, one `useFrame` and one timeline (`useTimeline`'s
+`q` finds elements inside `<Front>` too), so nothing is built twice to know where a label goes.
+
+- **Stacking:** the front part stands among the front clips where its clip stands in project
+  order: over the clips listed before it, under the ones after it. In a front clip it sits
+  right over the clip's own root, so `<Front>` there means "over the rest of the block".
+- **On screen:** it shows and hides with the clip, holds the clip's edge frames inside a
+  transition window, and follows the clip's placement keys (`x`, `y`, `scale`, `rotation`,
+  `opacity`), its slot and the slot's safe insets (`--slot-safe-*`).
+- **Transitions:** it goes as a front clip of the clip would. In a cut or shot transition it
+  rides the outgoing or incoming side when the clip ends or starts on that cut, and otherwise
+  stays where it is, above both sides (the clip's behind root lives in a side and moves with
+  it); in the clip's own transition it arrives with the clip. Motion blur reaches it only in a
+  slot, as for front clips.
+- **`check`** reads the text in the front part as front text of the clip (text over the face,
+  captions in a shot move) and the text in the clip's own layer as before: a behind clip's own
+  text is text behind the speaker, its front part is not. Content that does not fit the frame
+  counts both.
+- **Inserts:** a holdout insert (`--export inserts`) draws the front part last, over what the
+  holdout left: the speaker is cut out of the clip's own layer and never out of its labels, so
+  one file lays over the rough cut as the program draws it.
+- **A clip rendered alone** (stills and renders of a project without a program) draws the front
+  part over the rest of the block. The encoder's holdout of such a clip (`"layer": "behind"`
+  without `cuts` or `shots`, see Footage and mattes) cuts the speaker out of the whole picture,
+  front part included: render the program's inserts for labels in front of the speaker.
+- **Styles:** the block's scoped styles apply inside `<Front>`, but a selector that passes from
+  an element outside it to one inside it (`.world .label`) does not match: the front part is
+  elsewhere in the page. Give the front elements their own positioning; the front part covers
+  the frame like the clip's root.
+
+There is no `<Behind>`: a front clip cannot put part of itself behind the speaker. Draw that
+part in a clip of its own with `"layer": "behind"`, or make the clip a behind clip and put the
+rest in `<Front>`.
+
 ## Motion primitives
 
 Named entrances, exits and emphasis in one line, seek-safe and without GSAP:
@@ -439,8 +503,8 @@ the program frame by that footage's `start`: wherever the speaker is, the clip i
 and the real footage shows through. No plate is drawn, so nothing is resampled; before and
 after the footage nothing is cut. The matte is scaled to the clip's size, so it lines up when
 the footage has the clip's aspect ratio; `check` and `render` warn when it does not. The alpha is straight:
-set the editor's alpha mode to straight. Everything in such a clip is held out; put what must
-stay in front of the speaker in a second clip on a higher track.
+set the editor's alpha mode to straight. Everything in such a clip is held out, `<Front>`
+included; put what must stay in front of the speaker in a second clip on a higher track.
 
 ```json
 "footage": { "talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "start": 0 } },
@@ -496,7 +560,8 @@ cached on its own.
 
 In program mode `still` and `check` draw the whole program on one stage: the footage the cut
 list shows, clips with `"layer": "behind"` between the footage and the speaker cut out by the
-matte, then the other clips in project order. Each page holds one segment of the program (a
+matte, then the other clips in project order (with the front part of any clip that uses
+`<Front>`, see Blocks). Each page holds one segment of the program (a
 range between hard cuts) with every clip on screen in it; a clip is hidden and not run outside
 its window, and inside a transition window it holds its first or last frame. `still` takes
 program moments (`--at 2.5s`, `--at f120`) or, with `--clip`, that clip's moments, and
@@ -587,7 +652,7 @@ is clear of the head`). Left out:
 - text under 0.1 opacity (its own times its ancestors'), hidden text, and text with a
   transparent fill and no stroke or `background-clip: text` (letters a typewriter has not typed
   yet);
-- clips with `"layer": "behind"`;
+- clips with `"layer": "behind"`, apart from their `<Front>` part;
 - text under a subject layer that draws the speaker (`<Subject>` with `layer` `"subject"`, in
   the same clip after the text or in a later clip) over at least half of the face, read from
   the layer's pixels; a `"clean"` or `"plate"` layer, or one whose region misses the face, hides
@@ -608,7 +673,7 @@ drawn, a half-opaque chip that hugs the chin counts as its whole box, and inside
 order of its elements decides what is over what (a `z-index` there is not followed).
 
 `check` warns, the other way round, where the speaker covers text placed behind them: the text
-of a `"layer": "behind"` clip (a word slot behind the head), against the speaker as the matte
+of a `"layer": "behind"` clip (a word slot behind the head; not what it puts in `<Front>`), against the speaker as the matte
 cuts them out that frame, and text under a subject layer (`<Subject>` with `layer` `"subject"`,
 after the text in the same clip or in a later one), against that layer's pixels. A clip warns
 once, when the head or body has covered more than half of its text (sampled over its line
@@ -1767,7 +1832,8 @@ as the program draws it, alone:
   which is erased from the first (alpha × (1 − subject alpha), colours kept). Laid over the
   footage, the clip sits behind the speaker exactly as in the program render. The cut list maps
   every frame, handles included, to its source frame, so the holdout follows the speaker across
-  cuts.
+  cuts. A clip with a `<Front>` part is drawn a third time, its front part alone over the
+  result: the labels stay whole over the speaker, as in the program.
 
 Each manifest entry adds to the fields of a clip render: `handles` (`before`, `after`), `clip`
 (the clip's own `startFrame` and `frames`), `layer`, `slot`, `holdout`, `sources` (the cut list

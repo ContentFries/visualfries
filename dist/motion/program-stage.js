@@ -1381,7 +1381,13 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                 for (const fn of m.controller.frameFns) {
                     let result;
                     try {
-                        result = fn({ t: clip.t, frame: clip.frame, clip });
+                        result = fn({
+                            t: clip.t,
+                            frame: clip.frame,
+                            programTime: clip.programTime,
+                            programFrame: clip.programFrame,
+                            clip
+                        });
                     }
                     catch (error) {
                         throw clipError(m.data.id, error);

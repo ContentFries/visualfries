@@ -160,7 +160,14 @@ export function createMotionStage(options) {
         assertNoEffectOverNestedCanvas();
         const pending = [];
         for (const fn of controller.frameFns) {
-            const result = fn({ t, frame, clip: controller.clip });
+            const { clip } = controller;
+            const result = fn({
+                t,
+                frame,
+                programTime: clip.programTime,
+                programFrame: clip.programFrame,
+                clip
+            });
             if (result && typeof result.then === 'function')
                 pending.push(result);
         }

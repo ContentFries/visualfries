@@ -97,6 +97,18 @@ export class Clip {
 	readonly programStart: number;
 	/** Program frame of the clip start; `programStartFrame + frame` is the program frame. */
 	readonly programStartFrame: number;
+	/**
+	 * Program frame now: `programStartFrame + frame`. Reactive, like `frame`. Without a program
+	 * (clip mode, inserts) it is the frame on the project's timeline, where `from` and `until`
+	 * place the clip; in an excerpt, the excerpt's own frame.
+	 */
+	get programFrame(): number {
+		return this.programStartFrame + this.frame;
+	}
+	/** Program seconds now (`programFrame / fps`). Reactive, like `t`. */
+	get programTime(): number {
+		return this.programFrame / this.fps;
+	}
 	/** Frames of the project's footage (see `<Footage>`). */
 	readonly footage: Record<string, FootageFrames>;
 	/**
@@ -427,7 +439,14 @@ type TimelineBuild = (ctx: {
 	clip: Clip;
 }) => void;
 /** May return a promise (e.g. an image decode); the frame is captured after it settles. */
-type FrameFn = (ctx: { t: number; frame: number; clip: Clip }) => void | Promise<unknown>;
+type FrameFn = (ctx: {
+	t: number;
+	frame: number;
+	/** `clip.programTime` and `clip.programFrame` of this frame. */
+	programTime: number;
+	programFrame: number;
+	clip: Clip;
+}) => void | Promise<unknown>;
 
 /**
  * A hole a clip cuts into the subject on the stage while it is on screen (see `<Subject hole>`):

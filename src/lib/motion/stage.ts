@@ -211,7 +211,14 @@ export function createMotionStage(options: StageOptions) {
 		assertNoEffectOverNestedCanvas();
 		const pending: Promise<unknown>[] = [];
 		for (const fn of controller.frameFns) {
-			const result = fn({ t, frame, clip: controller.clip });
+			const { clip } = controller;
+			const result = fn({
+				t,
+				frame,
+				programTime: clip.programTime,
+				programFrame: clip.programFrame,
+				clip
+			});
 			if (result && typeof (result as Promise<unknown>).then === 'function')
 				pending.push(result as Promise<unknown>);
 		}

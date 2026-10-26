@@ -730,10 +730,14 @@ function blockFile(dir, block) {
 const ownModule = (name) => existsSync(path.join(HERE, `${name}.js`))
     ? path.join(HERE, `${name}.js`)
     : path.join(HERE, `${name}.ts`);
+/** Marks a resolve VisualFries asks for itself, so its own `onResolve` lets it through. */
+const OWN_COPY = { visualfries: 'own copy' };
 /**
  * esbuild with the settings blocks are bundled with: Svelte components and `.svelte.js`
- * modules compiled for the browser, `visualfries/motion` resolved to this package, and the
- * packages VisualFries depends on (svelte, gsap) found without the project's own node_modules.
+ * modules compiled for the browser, `visualfries/motion` resolved to this package, and other
+ * packages found from the importing file as Node finds them (node_modules of the project and
+ * the folders above it). Svelte and GSAP are always VisualFries's own copies, also when the
+ * project has others installed: the page runs one Svelte runtime and one GSAP.
  */
 async function bundleOptions() {
     const esbuild = await import('esbuild');
@@ -749,6 +753,25 @@ async function bundleOptions() {
         name: 'visualfries-motion',
         setup(build) {
             build.onResolve({ filter: /^visualfries\/motion$/ }, () => ({ path: motionIndex }));
+            build.onResolve({ filter: /^(svelte|gsap)(\/.*)?$/ }, async (args) => {
+                if (args.pluginData === OWN_COPY)
+                    return undefined;
+                const own = await build.resolve(args.path, {
+                    kind: args.kind,
+                    importer: args.importer,
+                    resolveDir: HERE,
+                    pluginData: OWN_COPY
+                });
+                if (own.errors.length)
+                    return { errors: own.errors };
+                return {
+                    path: own.path,
+                    namespace: own.namespace,
+                    external: own.external,
+                    sideEffects: own.sideEffects,
+                    suffix: own.suffix
+                };
+            });
             build.onLoad({ filter: /\.svelte$/ }, async (args) => {
                 const source = await fs.readFile(args.path, 'utf8');
                 const out = compile(source, {
@@ -785,6 +808,48 @@ async function bundleOptions() {
         }
     };
 }
+/** The package an import names: `three` for `three/addons/…`, `@scope/name` for `@scope/name/x`. */
+function packageName(spec) {
+    const parts = spec.split('/');
+    return parts.slice(0, spec.startsWith('@') ? 2 : 1).join('/');
+}
+/**
+ * A bundle error that says how to install the packages blocks import but the project lacks
+ * (naming the file that imports each one), or null when no package is missing. A package that
+ * is installed but has no such file or export keeps esbuild's own message.
+ */
+function missingPackages(error, dir, nodePaths) {
+    const errors = error?.errors;
+    if (!errors?.length)
+        return null;
+    const installed = (name, from) => {
+        for (let at = from;; at = path.dirname(at)) {
+            if (existsSync(path.join(at, 'node_modules', name, 'package.json')))
+                return true;
+            if (path.dirname(at) === at)
+                break;
+        }
+        return nodePaths.some((p) => existsSync(path.join(p, name, 'package.json')));
+    };
+    const missing = new Map();
+    const other = [];
+    for (const e of errors) {
+        const spec = /^Could not resolve "([^"]+)"$/.exec(e.text)?.[1];
+        const file = e.location ? path.resolve(e.location.file) : null;
+        const name = spec && !/^[./]|:/.test(spec) ? packageName(spec) : null;
+        if (file && name && !installed(name, path.dirname(file))) {
+            const importer = path.relative(dir, file);
+            missing.set(`${importer} ${name}`, `${importer} imports "${name}", which is not installed for this project. Install it in the project folder: npm install ${name} (blocks find packages in node_modules of the project folder or a folder above it).`);
+        }
+        else {
+            const at = e.location ? `${e.location.file}:${e.location.line}:${e.location.column}: ` : '';
+            other.push(`${at}${e.text}`);
+        }
+    }
+    if (!missing.size)
+        return null;
+    return new Error([...missing.values(), ...other].join('\n'));
+}
 /**
  * Compile the project's blocks together with the stage runtime into one page. `program` is the
  * program the pages draw when it is not the project's own (an excerpt): its footage map then
@@ -812,11 +877,20 @@ export async function bundleMotionProject(loaded, clips, program) {
             .map((b, i) => `${JSON.stringify(b)}: M${i}.animatable`)
             .join(', ')} }, fonts: window.__vfFonts, css: window.__vfCss, invalidate: window.__vfInvalidate });`
     ].join('\n');
-    await esbuild.build({
+    await esbuild
+        .build({
         ...options,
-        stdin: { contents: entry, resolveDir: loaded.dir, sourcefile: 'motion-entry.js', loader: 'js' },
+        stdin: {
+            contents: entry,
+            resolveDir: loaded.dir,
+            sourcefile: 'motion-entry.js',
+            loader: 'js'
+        },
         format: 'iife',
         outfile: path.join(outDir, 'bundle.js')
+    })
+        .catch((error) => {
+        throw missingPackages(error, loaded.dir, options.nodePaths) ?? error;
     });
     const roots = [outDir];
     const files = [];

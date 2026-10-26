@@ -102,6 +102,7 @@ Transcripts: Soniox-style `{ "words": [{ "text", "startMs", "endMs" }] }` or
 |                                                 |                                                      |
 | ----------------------------------------------- | ---------------------------------------------------- |
 | `clip.t`, `clip.frame`                          | clip-local seconds / frame                           |
+| `clip.programTime`, `clip.programFrame`         | program seconds / frame (see below)                  |
 | `clip.p(at, dur = 0.6, ease = 'power2.out')`    | eased 0→1 starting at `at`                           |
 | `clip.out(at, dur, ease)`                       | eased 1→0                                            |
 | `clip.after(at)`, `before(at)`, `between(a, b)` | booleans                                             |
@@ -134,6 +135,13 @@ const late = $derived(clip.p('stable'));  // ✓ follows time
 
 Functions called from markup (`const lit = (w) => clip.p(...)`) are live too.
 
+`clip.programTime` and `clip.programFrame` are the program's clock: `clip.programStartFrame +
+clip.frame` (seconds: that over `fps`), reactive like `clip.t`. Without a program (clips
+rendered alone, inserts) they are the time on the project's timeline, where `from` and `until`
+place the clip; in an excerpt they are the excerpt's own time, 0 at its first frame, like
+`clip.programStart` and the beats' `time`. Cues and `clip.t` stay the same in an excerpt, so a
+block that must look exactly as in the full video reads those.
+
 Other styles, all seek-safe:
 
 ```js
@@ -142,7 +150,7 @@ useTimeline(({ tl, at, q, clip }) => {
 	tl.from(q('.card'), { y: 30, opacity: 0, stagger: 0.1 }, at('extra'));
 });
 
-useFrame(({ t, frame, clip }) => {
+useFrame(({ t, frame, programTime, programFrame, clip }) => {
 	engine.render(t); // imperative drawing: canvas, procedural SVG, existing engines
 });
 
@@ -160,7 +168,108 @@ block's own HTML: in `useFrame`, `requestPaint()` the canvas and await its `pain
 `texElementImage2D` and draw (`tests/motion/fixtures/webgl-block`). Put no CSS `filter` or
 `mask` on such a canvas or any element around it (Chromium crashes on that, so the frame fails
 with the element's name); filter its children or in the shader instead. Without a GPU WebGL runs
-on the CPU and roughly doubles the cost of a 1080p frame.
+on the CPU (see 3D blocks for the cost).
+
+### Packages in blocks
+
+A block imports npm packages like any module, subpaths a package exports included:
+`import * as THREE from 'three'`, `import { RoomEnvironment } from
+'three/addons/environments/RoomEnvironment.js'`. They are found as Node finds them from the
+block's file: in `node_modules` of the project folder or of any folder above it, so install
+them there (`npm install three` in the project folder). A package that is not installed fails
+the bundle with the file that imports it and the command that installs it. `svelte` and `gsap`
+are always VisualFries's own copies, even when the project has others installed (the page runs
+one Svelte and one GSAP), and `visualfries/motion` needs no install. Every file a block
+imports, the packages' files included, is part of its hash, so a new version of a package
+renders the segments that show the block again.
+
+### 3D blocks
+
+Three.js in a block: install `three` in the project, build the world once at mount, and render
+it in `useFrame` with every frame a function of time alone (no clock, no animation mixer
+running on its own; set the poses from `t` or `clip.map`, then render).
+
+```svelte
+<script>
+	import { onMount } from 'svelte';
+	import * as THREE from 'three';
+	import { useClip, useFrame } from 'visualfries/motion';
+	const clip = useClip();
+	const W = clip.width;
+	const H = clip.height;
+	let canvas;
+	let world;
+
+	onMount(() => {
+		const renderer = new THREE.WebGLRenderer({
+			canvas,
+			alpha: true,
+			antialias: true,
+			preserveDrawingBuffer: true
+		});
+		renderer.setPixelRatio(1);
+		renderer.setSize(W, H, false);
+		const scene = new THREE.Scene();
+		const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
+		const cube = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshNormalMaterial());
+		scene.add(cube);
+		world = { renderer, scene, camera, cube };
+		return () => renderer.dispose();
+	});
+
+	useFrame(({ t }) => {
+		const { renderer, scene, camera, cube } = world;
+		cube.rotation.y = clip.map([[0, 0], ['turn', 0], ['turn+0.8', Math.PI]], 'power2.inOut');
+		camera.position.set(0, 2, 12 - t * 0.3);
+		camera.lookAt(0, 0, 0);
+		// What the camera looks at lands at (cx, cy) of the frame, the perspective unchanged.
+		const [cx, cy] = [0.5, 0.3];
+		camera.setViewOffset(W, H, (0.5 - cx) * W, (0.5 - cy) * H, W, H);
+		renderer.render(scene, camera);
+	});
+</script>
+
+<canvas bind:this={canvas} style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+```
+
+- `setPixelRatio(1)` and `setSize(W, H, false)`: the drawing buffer is exactly the clip's
+  pixels and the canvas keeps its CSS size.
+- `preserveDrawingBuffer: true`: the capture itself does not need it (frames rendered with
+  and without it come out identical, through HTML-in-Canvas and in programs), but it keeps the
+  frame in the canvas after the browser has shown it, so anything that reads the canvas later
+  (`drawImage` or `texElementImage2D` of it, `toDataURL`, a GPU driver that clears the buffer
+  once it is shown) still gets this frame instead of an empty one. One frame per capture makes
+  it free.
+- `camera.setViewOffset(…)` moves the scene in the frame (beside a speaker, above captions)
+  without turning the camera, so its perspective does not change.
+- Behind the speaker: in a program, give the clip `"layer": "behind"`. It is drawn between the
+  footage and the speaker cut out by the matte, so give the block its own background (an opaque
+  element under the canvas) when the world should replace the footage, and put labels that
+  must stay in front of the speaker in a second clip without `layer`.
+- Hardware: without a GPU, Chromium renders WebGL on the CPU. A 1080×1920 frame of a
+  modest scene costs roughly 0.5 s per job (a 1 395-frame 3D program took about 700 s with
+  `--jobs 2`), as much as or more than local matting (about 0.36 s per 1920×1080 frame on four
+  CPU threads). Look at stills first and render the whole program once.
+
+### A world clip across the program
+
+One clip can run a world through the whole program (`"from": 0, "until": "end"`) and time
+every beat of it with cues by phrase, instead of seconds computed beforehand and passed in
+`props`:
+
+```json
+{ "id": "world", "block": "blocks/World.svelte", "from": 0, "until": "end", "layer": "behind",
+  "cues": { "engine": "engine", "wheels": "no wheels", "skill": "skill",
+            "skill2": { "say": "skill", "occurrence": 2 }, "garage": "smart garage" } }
+```
+
+In the block, `clip.at('skill2')` (or `clip.cue.skill2.start`) is the moment in clip seconds,
+which is program seconds for a clip that starts at 0. A phrase is searched inside the clip, so
+in a clip that spans the program `occurrence` counts through the whole program; a repeated
+phrase without `occurrence` is an error that lists every occurrence. `visualfries clips`
+prints where each cue landed. A second instance of the block (the labels in front, without
+`layer`) declares the same cues. `clip.programTime` is the program's clock for a world clip
+that starts later than 0 and still has to run on program seconds.
 
 ## Motion primitives
 

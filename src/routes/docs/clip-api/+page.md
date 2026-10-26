@@ -1,7 +1,7 @@
 ---
 title: The clip object
 description: Reference for useClip() in VisualFries motion blocks. Clip time and frame, eased progress from cues, steps, piecewise maps, word helpers, bound words and props, plus the moment grammar and eases.
-updated: 2026-10-21
+updated: 2026-10-26
 ---
 
 `useClip()` returns the clip a block is drawing. Its time and frame are reactive, so anything computed from them in markup or in `$derived` follows the video.
@@ -12,6 +12,7 @@ updated: 2026-10-21
 | --------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `clip.id`                                                 | string    | The clip's id.                                                                                                                                                                                                                                                          |
 | `clip.t`, `clip.frame`                                    | number    | Clip-local seconds and frame.                                                                                                                                                                                                                                           |
+| `clip.programTime`, `clip.programFrame`                   | number    | Program seconds and frame: `programStartFrame + frame`. Without a program, the time on the project timeline; in an excerpt, the excerpt's own time.                                                                                                                     |
 | `clip.duration`, `clip.frames`, `clip.fps`                | number    | Length and rate of the clip.                                                                                                                                                                                                                                            |
 | `clip.width`, `clip.height`                               | number    | Output size.                                                                                                                                                                                                                                                            |
 | `clip.p(at, dur = 0.6, ease = 'power2.out')`              | 0 → 1     | Eased progress starting at `at`. `dur` 0 gives a step. Eases such as `back.out` overshoot past 1.                                                                                                                                                                       |

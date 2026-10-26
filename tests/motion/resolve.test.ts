@@ -82,6 +82,20 @@ describe('motion resolve', () => {
 		expect(c.cues.dup.words.map((w) => w.text)).toEqual(['ktoré', 'sú', 'duplicitné']);
 	});
 
+	it("counts a cue's occurrence inside its clip, not in the whole transcript", () => {
+		const r = resolveMotionProject(
+			project({
+				from: 'naviac',
+				until: 'koniec',
+				cues: { first: { say: 'ktoré sú', occurrence: 1 } }
+			}),
+			words
+		);
+		const c = r.clips[0];
+		// The phrase at 1.5 s is before the clip: the first one inside it is at 2.6 s.
+		expect(c.cues.first.start + c.start).toBeCloseTo(2.6);
+	});
+
 	it('fails the clip, not silently, when a range anchor is missing', () => {
 		const r = resolveMotionProject(project({ from: 'nikde', until: 'koniec' }), words);
 		expect(r.clips).toHaveLength(0);
@@ -358,6 +372,18 @@ describe('motion clip helpers', () => {
 		expect(clip.at('1.5s')).toBeCloseTo(1.5);
 		expect(clip.at('mid')).toBeCloseTo(clip.duration / 2);
 		expect(clip.at('extra.end - 0.1')).toBeCloseTo(clip.cue.extra.end - 0.1);
+	});
+
+	it('gives program time and frame: the clip start plus clip time', () => {
+		expect(clip.programStartFrame).toBe(31);
+		clip.frame = 12;
+		clip.t = 12 / 30;
+		expect(clip.programFrame).toBe(43);
+		expect(clip.programTime).toBe(43 / 30);
+		clip.frame = 0;
+		clip.t = 0;
+		expect(clip.programFrame).toBe(31);
+		expect(clip.programTime).toBe(clip.programStart);
 	});
 
 	it('refuses a map that goes back in time', () => {

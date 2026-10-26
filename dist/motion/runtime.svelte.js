@@ -31,6 +31,18 @@ export class Clip {
     programStart;
     /** Program frame of the clip start; `programStartFrame + frame` is the program frame. */
     programStartFrame;
+    /**
+     * Program frame now: `programStartFrame + frame`. Reactive, like `frame`. Without a program
+     * (clip mode, inserts) it is the frame on the project's timeline, where `from` and `until`
+     * place the clip; in an excerpt, the excerpt's own frame.
+     */
+    get programFrame() {
+        return this.programStartFrame + this.frame;
+    }
+    /** Program seconds now (`programFrame / fps`). Reactive, like `t`. */
+    get programTime() {
+        return this.programFrame / this.fps;
+    }
     /** Frames of the project's footage (see `<Footage>`). */
     footage;
     /**

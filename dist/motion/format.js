@@ -103,6 +103,49 @@ export function formatTokens(format) {
         '--safe-notch-y': `${safe.notchY}px`
     };
 }
+/** Whole hundredths of a pixel, like the shot layouts. */
+const hundredths = (v) => Math.round(v * 100) / 100;
+/** The safe part of `slot` (stage pixels) in the format: see `SlotArea`. */
+export function slotArea(slot, format) {
+    const { x, y, width, height } = slot;
+    const { safe } = format;
+    const inset = (v, size) => hundredths(Math.max(0, Math.min(size, v)));
+    const top = inset(safe.top - y, height);
+    const left = inset(safe.left - x, width);
+    return {
+        x,
+        y,
+        width,
+        height,
+        safe: {
+            top,
+            // A slot past the safe area's far edge is all inset, counted from the side it is on.
+            right: Math.min(inset(x + width - (format.width - safe.right), width), width - left),
+            bottom: Math.min(inset(y + height - (format.height - safe.bottom), height), height - top),
+            left
+        }
+    };
+}
+/** CSS custom properties of a slotted clip's root: `--slot-safe-top` … in px. */
+export function slotTokens(area) {
+    const { safe } = area;
+    return {
+        '--slot-safe-top': `${safe.top}px`,
+        '--slot-safe-right': `${safe.right}px`,
+        '--slot-safe-bottom': `${safe.bottom}px`,
+        '--slot-safe-left': `${safe.left}px`
+    };
+}
+/**
+ * `--slot-safe-*` of a clip without a slot: 0, so a block that lays out in them also works full
+ * frame (a slotted clip's root sets its own on every seek).
+ */
+export const NO_SLOT_TOKENS = {
+    '--slot-safe-top': '0px',
+    '--slot-safe-right': '0px',
+    '--slot-safe-bottom': '0px',
+    '--slot-safe-left': '0px'
+};
 export function isSafeZoneName(value) {
     return value === 'all' || SAFE_ZONE_PLATFORMS.includes(value);
 }

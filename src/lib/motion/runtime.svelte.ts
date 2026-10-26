@@ -15,7 +15,7 @@ import { NO_MUSIC_BEATS, beatPhase, type GridBeat, type MotionBeatRef } from './
 import { clipEnergy, type Energy } from './energy.js';
 import { NEUTRAL_BRAND, type ResolvedBrand } from './brand.js';
 import { NEUTRAL_STYLE, type ResolvedStyle } from './style.js';
-import { resolveFormat, type ResolvedFormat } from './format.js';
+import { resolveFormat, type ResolvedFormat, type SlotArea } from './format.js';
 
 /**
  * Where a moment in the clip is: a cue name ("extra"), a cue edge ("extra.end"),
@@ -134,6 +134,13 @@ export class Clip {
 	 * footage is on screen. `<Subject>` uses it to sit exactly on the picture.
 	 */
 	camera: CameraView | null = $state.raw(null);
+	/**
+	 * Program mode, a clip in a slot: where the slot is at the current frame (stage pixels) and
+	 * its insets that lie outside the format's safe area, in the slot's own pixels (set on every
+	 * seek, it follows the slot through morphs). Also on the clip's root as `--slot-safe-top|right|
+	 * bottom|left`. Null for a clip without a slot.
+	 */
+	slotArea: SlotArea | null = $state.raw(null);
 	/**
 	 * Program mode: the point (clip pixels) the clip's placement keys scale and turn about, or a
 	 * function giving it at the current frame; null: the clip's centre. `@visualfries/subject`

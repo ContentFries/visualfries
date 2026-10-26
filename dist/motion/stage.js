@@ -3,7 +3,7 @@ import { flushSync, mount, unmount } from 'svelte';
 import { Clip, MOTION_CONTEXT_KEY, registerClipRoot } from './runtime.svelte.js';
 import { seekTimeline } from './seek.js';
 import { brandTokens, NEUTRAL_BRAND } from './brand.js';
-import { formatTokens, resolveFormat } from './format.js';
+import { NO_SLOT_TOKENS, formatTokens, resolveFormat } from './format.js';
 import { createProgramScene } from './program-stage.js';
 /**
  * Browser side of motion rendering. Everything that decides pixels lives here so
@@ -111,7 +111,8 @@ export function createMotionStage(options) {
         root.dataset.format = format.class;
         for (const [name, value] of Object.entries({
             ...brandTokens(data.brand ?? NEUTRAL_BRAND),
-            ...formatTokens(format)
+            ...formatTokens(format),
+            ...NO_SLOT_TOKENS
         }))
             root.style.setProperty(name, value);
         stage.appendChild(root);

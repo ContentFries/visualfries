@@ -30,6 +30,19 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
 
 The word behind the head is a clip with `"layer": "behind"` and `"slot": "word"`; the shot only sets the stage. A clip with `"slot": "panel"` or `"slot": "card"` fills that slot and moves with it. While no shot frees its slot, the clip is hidden and `check` warns.
 
+**The safe part of a slot.** A slot can reach under platform UI: in a 9:16 `strip` the panel is 1056 px tall and only its top 384 px lie above the bottom inset. A slotted clip's root carries `--slot-safe-top`, `--slot-safe-right`, `--slot-safe-bottom` and `--slot-safe-left`, in px from the slot's edges (0 where an edge is inside the safe area), and the block reads the same as `clip.slotArea.safe`. They are set on every frame from where the shot puts the slot, so they follow it while it slides in or morphs into another shot's slot. Lay the panel's content out in the box they leave:
+
+```css
+.safe {
+	position: absolute;
+	inset: var(--slot-safe-top, 0px) var(--slot-safe-right, 0px) var(--slot-safe-bottom, 0px)
+		var(--slot-safe-left, 0px);
+	container-type: size;
+}
+```
+
+A clip without a slot has them at `0px`, so the same block fills the frame; keep the `0px` fallbacks, a missing property would collapse the box.
+
 ```json
 "clips": [
 	{ "id": "word", "block": "blocks/BehindWord.svelte", "layer": "behind", "slot": "word",

@@ -69,6 +69,13 @@ export class Clip {
      */
     camera = $state.raw(null);
     /**
+     * Program mode, a clip in a slot: where the slot is at the current frame (stage pixels) and
+     * its insets that lie outside the format's safe area, in the slot's own pixels (set on every
+     * seek, it follows the slot through morphs). Also on the clip's root as `--slot-safe-top|right|
+     * bottom|left`. Null for a clip without a slot.
+     */
+    slotArea = $state.raw(null);
+    /**
      * Program mode: the point (clip pixels) the clip's placement keys scale and turn about, or a
      * function giving it at the current frame; null: the clip's centre. `@visualfries/subject`
      * sets it to the middle of its region, so `rotation` keys spin the region in place.

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.8.0...visualfries-v0.9.0) (2026-10-26)
+
+
+### Features
+
+* **check:** check other formats; warn about content off the frame, captions in shot moves and text behind the speaker ([#119](https://github.com/ContentFries/visualfries/issues/119)) ([c88e926](https://github.com/ContentFries/visualfries/commit/c88e926d151beaf4c963190f98d4de73878315c2))
+* **motion:** excerpts of a program and the @visualfries/end-card block ([#118](https://github.com/ContentFries/visualfries/issues/118)) ([394655f](https://github.com/ContentFries/visualfries/commit/394655fc85d3348cc80b7653248f2fecc17470e8))
+* **motion:** tell slotted clips the safe part of their slot ([#117](https://github.com/ContentFries/visualfries/issues/117)) ([6283765](https://github.com/ContentFries/visualfries/commit/6283765e779128dacb1991099cd8f02d5f9efe20))
+
 ## [0.8.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.7.0...visualfries-v0.8.0) (2026-10-23)
 
 

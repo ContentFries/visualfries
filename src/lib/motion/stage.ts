@@ -9,7 +9,7 @@ import {
 import type { ResolvedClip } from './resolve.js';
 import { seekTimeline } from './seek.js';
 import { brandTokens, NEUTRAL_BRAND } from './brand.js';
-import { formatTokens, resolveFormat } from './format.js';
+import { NO_SLOT_TOKENS, formatTokens, resolveFormat } from './format.js';
 import { createProgramScene, type ProgramScene } from './program-stage.js';
 import type { StageSegment } from './segments.js';
 import type { Animatable } from './keys.js';
@@ -163,7 +163,8 @@ export function createMotionStage(options: StageOptions) {
 		root.dataset.format = format.class;
 		for (const [name, value] of Object.entries({
 			...brandTokens(data.brand ?? NEUTRAL_BRAND),
-			...formatTokens(format)
+			...formatTokens(format),
+			...NO_SLOT_TOKENS
 		}))
 			root.style.setProperty(name, value);
 		stage!.appendChild(root);

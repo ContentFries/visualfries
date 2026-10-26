@@ -149,6 +149,70 @@ export function formatTokens(format: ResolvedFormat): Record<string, string> {
 	};
 }
 
+/**
+ * Where a shot's slot is at a frame, in stage pixels, and how much of it platform UI covers:
+ * `safe` holds the slot's own insets in px (from its edges, 0 where the edge lies inside the
+ * format's safe rectangle), so the box they leave is the part of the slot inside the safe area.
+ * A slot wholly outside it leaves an empty box: its insets add up to its width or height.
+ */
+export type SlotArea = {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	safe: { top: number; right: number; bottom: number; left: number };
+};
+
+/** Whole hundredths of a pixel, like the shot layouts. */
+const hundredths = (v: number) => Math.round(v * 100) / 100;
+
+/** The safe part of `slot` (stage pixels) in the format: see `SlotArea`. */
+export function slotArea(
+	slot: { x: number; y: number; width: number; height: number },
+	format: Pick<ResolvedFormat, 'width' | 'height' | 'safe'>
+): SlotArea {
+	const { x, y, width, height } = slot;
+	const { safe } = format;
+	const inset = (v: number, size: number) => hundredths(Math.max(0, Math.min(size, v)));
+	const top = inset(safe.top - y, height);
+	const left = inset(safe.left - x, width);
+	return {
+		x,
+		y,
+		width,
+		height,
+		safe: {
+			top,
+			// A slot past the safe area's far edge is all inset, counted from the side it is on.
+			right: Math.min(inset(x + width - (format.width - safe.right), width), width - left),
+			bottom: Math.min(inset(y + height - (format.height - safe.bottom), height), height - top),
+			left
+		}
+	};
+}
+
+/** CSS custom properties of a slotted clip's root: `--slot-safe-top` … in px. */
+export function slotTokens(area: SlotArea): Record<string, string> {
+	const { safe } = area;
+	return {
+		'--slot-safe-top': `${safe.top}px`,
+		'--slot-safe-right': `${safe.right}px`,
+		'--slot-safe-bottom': `${safe.bottom}px`,
+		'--slot-safe-left': `${safe.left}px`
+	};
+}
+
+/**
+ * `--slot-safe-*` of a clip without a slot: 0, so a block that lays out in them also works full
+ * frame (a slotted clip's root sets its own on every seek).
+ */
+export const NO_SLOT_TOKENS: Readonly<Record<string, string>> = {
+	'--slot-safe-top': '0px',
+	'--slot-safe-right': '0px',
+	'--slot-safe-bottom': '0px',
+	'--slot-safe-left': '0px'
+};
+
 export function isSafeZoneName(value: string): value is SafeZoneName {
 	return value === 'all' || (SAFE_ZONE_PLATFORMS as readonly string[]).includes(value);
 }

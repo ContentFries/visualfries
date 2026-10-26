@@ -115,6 +115,7 @@ Transcripts: Soniox-style `{ "words": [{ "text", "startMs", "endMs" }] }` or
 | `clip.shown(name?, frame?)`                     | the footage frame on screen (cut list, holds)        |
 | `clip.picture(layer, opts?)`                    | that frame decoded, for a canvas (Subject layers)    |
 | `clip.camera`                                   | where the stage shows the footage (program mode)     |
+| `clip.slotArea`                                 | where a slotted clip's slot is and its safe insets   |
 
 `at` uses the same grammar everywhere (blocks and `still --at`): a cue (`'extra'`), a cue
 edge (`'extra.end'`), a cue with offset (`'extra+0.4'`, `'extra.end-0.2'`), `'2.5s'` or `'2.5'`, `'f120'`,
@@ -496,10 +497,11 @@ The layout moves from the previous shot's over `morph` seconds (default: 0.7 s i
 `punch`, 0.45 s out of a punch, 0.42 s
 into and out of a whip; none under a shot `transition`). A window's ring and shadow and a dimmed
 room fade with the move. A clip with `"slot": "panel"` fills that slot and moves with it; while
-no shot frees its slot it is hidden and `check` warns. Shots add events to the program for
-sounds to land on: `shot` halfway through a move into `strip` or `window` and back out of them,
-`punch` on a punch-in's first frame, and `whip` halfway through the whip out and the whip back
-(a punch after a whip hits when the camera lands). Nothing moves on the program's first frame,
+no shot frees its slot it is hidden and `check` warns. Its root also says how much of the slot
+platform UI covers at that frame ([safe insets of a slot](#safe-insets-of-a-slot)). Shots add
+events to the program for sounds to land on: `shot` halfway through a move into `strip` or
+`window` and back out of them, `punch` on a punch-in's first frame, and `whip` halfway through the
+whip out and the whip back (a punch after a whip hits when the camera lands). Nothing moves on the program's first frame,
 so a shot there has no event. A shot may run across hard cuts (the jump cuts of a talking head);
 `check` warns only when its morph, a change between two of its keys or its transition window is
 under way on such a cut, because the move then goes on over different footage. `check` warns when a whip and a transition fall within three
@@ -1166,6 +1168,42 @@ none for the ratio, `all` is used and `clips`/`check` warn once. The figures are
 }
 ```
 
+### Safe insets of a slot
+
+A clip in a shot's slot (`panel`, `card`, `word`) gets the slot's own safe insets on its root, in
+px from the slot's edges: how far each edge of the slot lies outside the format's safe rectangle
+(0 where it lies inside). The box they leave is the part of the slot no platform UI covers. In a
+9:16 `strip` the panel is 1056 px tall from y 864 and the bottom inset is 672, so only its top
+384 px are safe: `--slot-safe-bottom` is `672px`.
+
+| CSS                                             | `clip.slotArea`             |                                     |
+| ----------------------------------------------- | --------------------------- | ----------------------------------- |
+| `--slot-safe-top`, `-right`, `-bottom`, `-left` | `safe.top`, `right` …       | px from the slot's edges            |
+|                                                 | `x`, `y`, `width`, `height` | the slot itself, in stage pixels    |
+
+They are set on every seek from the slot where the shot puts it, so they follow it through a
+morph: while a strip's panel slides up, the safe part runs from the panel's top edge to the
+bottom inset and grows with it, and a strip that morphs into a `window` hands over to the
+window's panel frame by frame. A slot outside the safe area leaves an empty box (its insets add
+up to its height or width). They are px like `--safe-*`, not container units: they are measured in the
+slot and work in any container a block sets up. The right inset is the one of the whole
+rectangle (`--safe-right`, TikTok's button column). Lay out in the box and size inside it with
+container units:
+
+```css
+.safe {
+	position: absolute;
+	inset: var(--slot-safe-top, 0px) var(--slot-safe-right, 0px) var(--slot-safe-bottom, 0px)
+		var(--slot-safe-left, 0px);
+	container-type: size; /* cqw / cqh of the safe part, not of the whole slot */
+}
+```
+
+Placement keys move the block inside its root, not the slot: the insets stay the slot's. For a
+clip without a slot (outside program mode too) the properties are `0px`, so the same block fills
+the frame, and `clip.slotArea` is null. Keep the `0px` fallback in `var()` anyway: without it a
+missing property makes `inset` invalid, and a size-contained box collapses to nothing.
+
 ### Hashes
 
 `render` records the brand and style it used: `brand` and `style` hashes (12 hex characters, or
@@ -1244,7 +1282,10 @@ the chest (`"y": 0.85` in portrait, below the face of a phone close-up), give th
 when the project renders several formats (the default scales with the frame width), and leave
 them out where a panel repeats the words. Blocks that render in several formats read
 `clip.format.class` or style `[data-format='landscape']`; a slotted clip's `clip.width` and
-`clip.height` are the frame's, so size its content in CSS (container units or percentages).
+`clip.height` are the frame's, so size its content in CSS (container units or percentages). Lay a
+panel out inside `var(--slot-safe-top|right|bottom|left)`: under a 9:16 `strip` most of the panel
+lies under the platform's bottom UI, and these say how much of it does at every frame ([Safe
+insets of a slot](#safe-insets-of-a-slot)).
 Use the brand's tokens for colours and fonts, and declare the font files: the neutral brand names
 Anton and Inter but loads neither. See [Brand, style and format](#brand-style-and-format).
 

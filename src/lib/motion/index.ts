@@ -98,7 +98,13 @@ export {
 } from './brand.js';
 export { BUILTIN_STYLES, type ResolvedStyle } from './style.js';
 export { SAFE_ZONES, SAFE_ZONES_CHECKED } from './safe-zones.js';
-export { resolveFormat, type FormatClass, type ResolvedFormat, type SafeInsets } from './format.js';
+export {
+	resolveFormat,
+	type FormatClass,
+	type ResolvedFormat,
+	type SafeInsets,
+	type SlotArea
+} from './format.js';
 export type { Brand, Style } from './project.js';
 export {
 	KEY_EASE,

@@ -157,9 +157,9 @@ segment seg1  frames 0–152  3c9aad249c2b  hook, take, open, hook-behind, list-
 
 **`render`** makes the whole program one video. The output is an `.mp4`, or a directory that gets `<project>[.<format>].mp4`.
 
-- **Segments.** Each segment is drawn on its own pages and stored losslessly in `.visualfries/segments/`. The segments are joined without re-encoding and encoded once, and the resolved program is saved beside the video as `<name>.program.json`.
-- **Cache.** A segment's hash covers what is on screen in it, including every file its blocks import. Editing one clip draws only the segments it is on screen in; `--no-cache` draws everything again.
-- **What makes a segment redraw.** A clip that spans several segments (a captions clip over the whole program) puts all of them in play. A cut that gets longer or shorter moves everything after it.
+- **Segments and chunks.** Each segment is drawn in chunks of about 4 s on its own pages and stored losslessly in `.visualfries/segments/`. The chunks are joined without re-encoding and encoded once, and the resolved program is saved beside the video as `<name>.program.json`.
+- **Cache.** A chunk's hash covers what its frames show, including every file its blocks import. Editing one clip draws only the chunks it is on screen in; `--no-cache` draws everything again.
+- **What makes a chunk redraw.** Keys count by what they draw in the chunk: moving the speaker's exit by 0.1 s redraws the chunks around the exit only. A clip's other fields count whole, so a clip across the whole program (captions, a 3D world) puts every chunk in play when its props change. A cut that gets longer or shorter moves everything after it.
 - **Housekeeping.** `visualfries cache reel.vf.json` shows the cache's size, and `--clear` drops it.
 
 ## Excerpts: teasers from the same program

@@ -1,7 +1,10 @@
 import { type LoadedMotionProject } from './node.js';
 import { type MixReport, type StemName } from './audio.js';
+/** A chunk of a segment as the render drew or found it (`id` is the chunk's). */
 export type RenderedSegment = {
     id: string;
+    /** The segment it belongs to: the page that draws it. */
+    segment: string;
     startFrame: number;
     frames: number;
     hash: string;
@@ -26,6 +29,7 @@ export type RenderedProgram = {
     /** With `stems`: the WAV file of each stem beside the video. */
     stems: Record<StemName, string> | null;
     mode: string;
+    /** Every chunk of every segment, in program order. */
     segments: RenderedSegment[];
     /** Seconds for the whole render, and for the final join and encode alone. */
     seconds: number;
@@ -52,9 +56,9 @@ export type ProgramRenderOptions = {
      */
     stems?: boolean;
     /**
-     * How pages share the work: `auto` (whole segments per page when there are at least as many
-     * segments to draw as jobs, none much longer than its share), or always `segments` or always
-     * `frames`. For measurements.
+     * How pages share the work: `auto` (whole chunks per page when there are at least as many
+     * chunks to draw as jobs, none much longer than its share), or always `segments` (whole
+     * chunks) or always `frames`. For measurements.
      */
     schedule?: 'auto' | 'segments' | 'frames';
     onProgress?: (msg: string) => void;

@@ -174,6 +174,16 @@ export type ProgramSegment = {
     /** Cuts, shots, clips and transitions on screen in the segment. */
     items: string[];
     hash: string;
+    /**
+     * The pieces a render draws and caches on their own (see `chunkSpans`), in order; a short
+     * segment is one chunk with the segment's id. Each hash covers only what its frames show.
+     */
+    chunks: {
+        id: string;
+        startFrame: number;
+        frames: number;
+        hash: string;
+    }[];
 };
 export type ResolvedProgram = {
     version: 1;

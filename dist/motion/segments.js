@@ -53,7 +53,14 @@ export function clipFrameAt(clip, f) {
 }
 /** The whole program as one segment (a page that can draw any frame). */
 export function wholeProgram(program) {
-    return { id: 'program', startFrame: 0, frames: program.frames, items: [], hash: '' };
+    const span = { startFrame: 0, frames: program.frames };
+    return {
+        id: 'program',
+        ...span,
+        items: [],
+        hash: '',
+        chunks: [{ id: 'program', ...span, hash: '' }]
+    };
 }
 /** The segment holding program frame `f`. */
 export function segmentAt(program, f) {

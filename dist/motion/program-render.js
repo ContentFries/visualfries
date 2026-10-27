@@ -11,10 +11,11 @@ import { removeOrphans, trackPartial } from './partials.js';
 import { STEMS, encodeProgramMix, writeWav } from './audio.js';
 import { assertProgramRenders, openSegment } from './program-node.js';
 /**
- * `render --export video`: the whole program as one video. Each segment is drawn on its own
- * pages and encoded losslessly to `.visualfries/segments/`, where it stays as a cache: a later
- * render draws only segments whose hash changed. The segments are then joined without
- * re-encoding and go through one final encode with the settings of every other render.
+ * `render --export video`: the whole program as one video. Each chunk of a segment (see
+ * `chunkSpans`) is drawn on pages of its segment and encoded losslessly to
+ * `.visualfries/segments/`, where it stays as a cache: a later render draws only chunks whose
+ * hash changed. The chunks are then joined without re-encoding and go through one final encode
+ * with the settings of every other render.
  */
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -48,10 +49,11 @@ export async function renderProgramVideo(loaded, opts) {
     await removeOrphans(cacheDir, /\.(?:partial|concat)-(\d+)-[^/]*\.(?:mkv|txt)$/);
     await removeOrphans(path.dirname(file), /^\..+\.partial-(\d+)\.(?:mp4|m4a|wav|(?:speech|sfx|music)\.wav)$/);
     const engine = await engineHash(opts.invalidate);
-    const segments = program.segments.map((s) => {
+    const segments = program.segments.flatMap((seg) => seg.chunks.map((s) => {
         const cached = path.join(cacheDir, `${s.hash}-${engine}.mkv`);
         return {
             id: s.id,
+            segment: seg.id,
             startFrame: s.startFrame,
             frames: s.frames,
             hash: s.hash,
@@ -59,7 +61,7 @@ export async function renderProgramVideo(loaded, opts) {
             cached: !opts.fresh && existsSync(cached),
             seconds: 0
         };
-    });
+    }));
     const todo = segments.filter((s) => !s.cached);
     const log = opts.onProgress ?? (() => { });
     // Sound first: a missing or unreadable sound file fails the render before any picture is
@@ -195,18 +197,27 @@ async function engineHash(invalidate) {
     return hash.digest('hex').slice(0, 12);
 }
 /**
- * Draws segments into their intermediates. With at least as many segments as jobs and none much
- * longer than its share, each page takes whole segments (no reorder buffer across pages, every
+ * Draws chunks into their intermediates. With at least as many chunks as jobs and none much
+ * longer than its share, each page takes whole chunks (no reorder buffer across pages, every
  * page encodes its own file);
- * otherwise the segments go one after another with their frames spread over `jobs` pages. The
+ * otherwise the chunks go one after another with their frames spread over `jobs` pages. The
  * first failure, a crashed page included, stops every other page at its next frame.
  */
 async function renderSegments(browser, bundle, program, todo, opts) {
     const abort = new AbortController();
     let mode = '';
+    const idle = new Map();
+    const left = new Map();
+    for (const s of todo)
+        left.set(s.segment, (left.get(s.segment) ?? 0) + 1);
+    const closeIdle = async (segment) => {
+        const pages = idle.get(segment) ?? [];
+        idle.delete(segment);
+        await Promise.all(pages.map((p) => p.close()));
+    };
     const one = async (s, pages) => {
         const t0 = Date.now();
-        const segment = program.segments.find((x) => x.id === s.id);
+        const segment = program.segments.find((x) => x.id === s.segment);
         const partial = s.file.replace(/\.mkv$/, `.partial-${process.pid}-${s.id}.mkv`);
         const untrack = trackPartial(partial);
         try {
@@ -224,12 +235,20 @@ async function renderSegments(browser, bundle, program, todo, opts) {
                 partial
             ]);
             const open = async () => {
-                const page = await openSegment(browser, bundle, program, segment, {
-                    invalidate: opts.invalidate
-                });
+                const page = idle.get(segment.id)?.pop() ??
+                    (await openSegment(browser, bundle, program, segment, {
+                        invalidate: opts.invalidate
+                    }));
                 mode = page.mode;
-                // Pipe frames count from 0; the page takes program frames.
-                return { capture: (i) => page.capture(s.startFrame + i), close: page.close };
+                return {
+                    // Pipe frames count from 0; the page takes program frames.
+                    capture: (i) => page.capture(s.startFrame + i),
+                    close: async () => {
+                        if (abort.signal.aborted)
+                            return page.close();
+                        idle.set(segment.id, [...(idle.get(segment.id) ?? []), page]);
+                    }
+                };
             };
             await pipeFrames(s.frames, Math.min(pages, s.frames), open, sink, {
                 signal: abort.signal
@@ -241,6 +260,10 @@ async function renderSegments(browser, bundle, program, todo, opts) {
             untrack();
         }
         s.seconds = (Date.now() - t0) / 1000;
+        const rest = left.get(s.segment) - 1;
+        left.set(s.segment, rest);
+        if (!rest)
+            await closeIdle(s.segment);
         opts.log(`${s.id}: frames ${span(s)} rendered in ${s.seconds.toFixed(1)} s (${(s.frames / s.seconds).toFixed(1)} fps)`);
     };
     let failed = null;
@@ -248,27 +271,32 @@ async function renderSegments(browser, bundle, program, todo, opts) {
         failed ??= error;
         abort.abort(error);
     });
-    // Whole segments per page only pay off when they balance: one long segment on one page while
+    // Whole chunks per page only pay off when they balance: one long chunk on one page while
     // the others idle is slower than sharing its frames (measured: 22.6 s against 15.9 s).
     const total = todo.reduce((sum, s) => sum + s.frames, 0);
     const balanced = Math.max(...todo.map((s) => s.frames)) <= (1.5 * total) / opts.jobs;
     const whole = opts.schedule === 'segments' ||
         (opts.schedule === 'auto' && todo.length >= opts.jobs && balanced);
-    if (whole) {
-        const queue = [...todo];
-        const worker = async () => {
-            for (let s = queue.shift(); s && !failed; s = queue.shift())
-                await one(s, 1);
-        };
-        const workers = Math.min(opts.jobs, todo.length);
-        await Promise.all(Array.from({ length: workers }, () => guard(worker())));
-    }
-    else {
-        for (const s of todo) {
-            await guard(one(s, opts.jobs));
-            if (failed)
-                break;
+    try {
+        if (whole) {
+            const queue = [...todo];
+            const worker = async () => {
+                for (let s = queue.shift(); s && !failed; s = queue.shift())
+                    await one(s, 1);
+            };
+            const workers = Math.min(opts.jobs, todo.length);
+            await Promise.all(Array.from({ length: workers }, () => guard(worker())));
         }
+        else {
+            for (const s of todo) {
+                await guard(one(s, opts.jobs));
+                if (failed)
+                    break;
+            }
+        }
+    }
+    finally {
+        await Promise.all([...idle.keys()].map(closeIdle));
     }
     if (failed)
         throw failed;

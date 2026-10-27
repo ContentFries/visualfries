@@ -246,6 +246,11 @@ running on its own; set the poses from `t` or `clip.map`, then render).
   footage and the speaker cut out by the matte, so give the block its own background (an opaque
   element under the canvas) when the world should replace the footage, and put labels that
   must stay in front of the speaker in a second clip without `layer`.
+- Nothing may carry over from the frames drawn before: pages draw frames in any order. A
+  geometry whose vertices you move every frame (a water surface, a cloth) needs
+  `geometry.computeBoundingSphere()` after the move, as Three.js culls and sorts transparent
+  objects by bounds it computes once; with stale bounds a transparent surface draws in front of
+  or behind another depending on which frames came first. `check --determinism` finds this.
 - Hardware: without a GPU, Chromium renders WebGL on the CPU. A 1080×1920 frame of a
   modest scene costs roughly 0.5 s per job (a 1 395-frame 3D program took about 700 s with
   `--jobs 2`), as much as or more than local matting (about 0.36 s per 1920×1080 frame on four

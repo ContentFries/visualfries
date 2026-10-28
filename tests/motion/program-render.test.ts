@@ -320,7 +320,8 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 			await fs.copyFile(path.join(dir, name), path.join(longDir, name));
 		const project = path.join(longDir, 'long.vf.json');
 		// One cut, one segment of 300 frames: chunks 0–119, 120–239 and 240–299. The label is on
-		// screen in the second; the shot's keys move the picture in the third.
+		// screen in the second, but its page mounts it for every chunk; the shot's keys move the
+		// picture in the third.
 		const json = (label: string, at: number) =>
 			JSON.stringify({
 				size: [W, H],
@@ -356,9 +357,11 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 			['seg1.2', 'seg1', 120, 120],
 			['seg1.3', 'seg1', 240, 60]
 		]);
+		// New props of a clip draw every chunk of its segment: a block runs on its segment's page
+		// in chunks it is not on screen in too.
 		await fs.writeFile(project, json('TWO', 8.5));
 		const label = await render('label.mp4');
-		expect(label.segments.map((s) => s.cached)).toEqual([true, false, true]);
+		expect(label.segments.map((s) => s.cached)).toEqual([false, false, false]);
 		await fs.writeFile(project, json('TWO', 9));
 		const moved = await render('moved.mp4');
 		expect(moved.segments.map((s) => s.cached)).toEqual([true, true, false]);

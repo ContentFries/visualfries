@@ -3,7 +3,8 @@ import type { ResolvedKey } from './program.js';
 /**
  * Chunks: the pieces a render draws and caches on their own. A segment is the range one page
  * draws; a long one (a block across the whole program) is cut into chunks, each hashed by what
- * its own frames show, so an edit draws again only the chunks it changes.
+ * its page sets up for the segment and by the key states of the frames it draws, so moving keys
+ * draws again only the chunks they change.
  */
 
 type Span = { startFrame: number; frames: number };

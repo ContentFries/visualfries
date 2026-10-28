@@ -87,9 +87,11 @@ Work like an editor, in this order; each step ends on its criterion:
 8. **Render.** `visualfries render <project> --output out/` (and `--format WxH` for other
    formats). Done when the video plays to its last frame, a contact sheet of it shows what the
    stills showed, and the hand-over names the render time, the chunks drawn and cached, the
-   delivered loudness and the cut points the creator should listen to. A render after a small
-   edit draws only the ~4 s chunks whose frames changed (keys count by what they draw), so
-   iterate on a long 3D or world clip by editing and rendering again.
+   delivered loudness and the cut points the creator should listen to. A render after moving
+   keys draws only the ~4 s chunks whose frames changed (keys count by what they draw), so
+   iterate on a long 3D or world clip by editing and rendering again; new props, timing or code
+   of a clip draw every chunk of its segment. The cached video matches `--no-cache` only when
+   `check --determinism` passes (no block carries state over from earlier frames).
    When the creator finishes the edit in an editor, add `--export inserts` (one transparent file
    per clip, 10-frame handles, `manifest.json` with program and source frames; `check
 --export inserts` lists what stays in the program render).

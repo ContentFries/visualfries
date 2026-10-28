@@ -1593,7 +1593,13 @@ export function createProgramScene(
 				for (const fn of m.controller.frameFns) {
 					let result: unknown;
 					try {
-						result = fn({ t: clip.t, frame: clip.frame, clip });
+						result = fn({
+							t: clip.t,
+							frame: clip.frame,
+							programTime: clip.programTime,
+							programFrame: clip.programFrame,
+							clip
+						});
 					} catch (error) {
 						throw clipError(m.data.id, error);
 					}

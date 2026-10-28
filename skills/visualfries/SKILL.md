@@ -134,6 +134,20 @@ YouTube"], "handle": "@channel" }, "sound": "sfx/slam.wav" } }]`. The whole prog
   block, `<Subject region freeze hole x y rotation>` does the same, and `clip.picture()` gives
   footage frames for a canvas. Look at stills of the hole's first frames. Guide: `docs/MOTION.md`
   → "Subject layers".
+- npm packages in blocks (Three.js): `npm install three` in the project folder (or a folder
+  above it) and import it normally, addons as `three/addons/…`; never vendor or hand-edit a
+  package. `svelte`, `gsap` and `visualfries/motion` need no install. 3D: build the world once
+  in `onMount`, render in `useFrame` from time alone, `WebGLRenderer({ canvas, alpha: true,
+  antialias: true, preserveDrawingBuffer: true })`, `setPixelRatio(1)`, `setSize(W, H, false)`,
+  `camera.setViewOffset` to place the scene; behind the speaker as a `"layer": "behind"` clip
+  with its own background. A geometry moved every frame needs `computeBoundingSphere()` after
+  the move (stale bounds sort transparent objects by the frames drawn before); run
+  `check --determinism`. Without a GPU expect about 0.5 s per 1080×1920 frame per job.
+  Guide: `docs/MOTION.md` → "3D blocks".
+- A world clip across the whole program (`"from": 0, "until": "end"`): time its beats with
+  cues by phrase (`{ "say": "skill", "occurrence": 2 }` counts inside the clip, so through the
+  whole program), not seconds precomputed into `props`. `clip.programTime` / `programFrame`
+  (also on the `useFrame` context) are the program's clock.
 - Images in blocks: keep every picture mounted and switch with `opacity`; never swap `src` per
   frame (it decodes late and fails `check --determinism`).
 - A picture per clip (a screenshot, a photo) goes in `props` as a project file, not as an import:

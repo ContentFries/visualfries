@@ -207,13 +207,38 @@ async function renderSegments(browser, bundle, program, todo, opts) {
     const abort = new AbortController();
     let mode = '';
     const idle = new Map();
+    let live = 0;
     const left = new Map();
     for (const s of todo)
         left.set(s.segment, (left.get(s.segment) ?? 0) + 1);
+    const close = async (page) => {
+        live--;
+        await page.close();
+    };
     const closeIdle = async (segment) => {
         const pages = idle.get(segment) ?? [];
         idle.delete(segment);
-        await Promise.all(pages.map((p) => p.close()));
+        await Promise.all(pages.map(close));
+    };
+    const take = async (segment) => {
+        const own = idle.get(segment.id)?.pop();
+        if (own)
+            return own;
+        const other = [...idle.values()].find((pages) => pages.length);
+        const spare = live >= opts.jobs && other ? other.pop() : null;
+        // Counted before any wait, so pages opening at the same time see each other.
+        live++;
+        try {
+            if (spare)
+                await close(spare);
+            return await openSegment(browser, bundle, program, segment, {
+                invalidate: opts.invalidate
+            });
+        }
+        catch (error) {
+            live--;
+            throw error;
+        }
     };
     const one = async (s, pages) => {
         const t0 = Date.now();
@@ -235,17 +260,14 @@ async function renderSegments(browser, bundle, program, todo, opts) {
                 partial
             ]);
             const open = async () => {
-                const page = idle.get(segment.id)?.pop() ??
-                    (await openSegment(browser, bundle, program, segment, {
-                        invalidate: opts.invalidate
-                    }));
+                const page = await take(segment);
                 mode = page.mode;
                 return {
                     // Pipe frames count from 0; the page takes program frames.
                     capture: (i) => page.capture(s.startFrame + i),
                     close: async () => {
                         if (abort.signal.aborted)
-                            return page.close();
+                            return close(page);
                         idle.set(segment.id, [...(idle.get(segment.id) ?? []), page]);
                     }
                 };

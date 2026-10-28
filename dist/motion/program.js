@@ -1449,28 +1449,65 @@ function resolveSegments(program, project, excerpt) {
         .map((c) => c.startFrame)
         .filter((f) => f > 0 && f < (hold?.from ?? program.frames));
     const edges = [0, ...bounds, program.frames];
+    /** Clips that play on under the end card while the rest holds the frame before it. */
+    const live = new Set(hold?.clips ?? []);
     /**
-     * What a range of frames shows, hashed. A segment hashes its items whole; a chunk (`keyed`)
-     * hashes the states its own frames take of every key (see `keyStates`) instead of the keys,
-     * and the cuts every shot it shows measures its head over.
+     * The frames a range draws of everything but the end card: under the card, the frame it
+     * holds (`hold.from − 1`).
      */
-    const contentOf = (span, keyed) => {
-        const on = (list) => list.filter((x) => overlaps(x, span));
+    const drawn = (span) => !hold || endOf(span) <= hold.from
+        ? span
+        : span.startFrame < hold.from
+            ? { startFrame: span.startFrame, frames: hold.from - span.startFrame }
+            : { startFrame: hold.from - 1, frames: 1 };
+    /**
+     * The key states of the frames a clip draws in a range (null: not on screen in it). Under
+     * the end card and inside a transition window a clip holds a frame: its keys count there.
+     */
+    const drawnKeys = (clip, span) => {
+        const d = live.has(clip.id) ? span : drawn(span);
+        const show = clipShowRange(clip, program.transitions);
+        const from = Math.max(d.startFrame, show.from);
+        const to = Math.min(endOf(d), show.until);
+        if (from >= to)
+            return null;
+        const at = (f) => Math.max(clip.startFrame, Math.min(endOf(clip) - 1, f));
+        return keyStates(clip.keys, at(from), at(to - 1) + 1);
+    };
+    /**
+     * What a range of frames shows, hashed. A segment hashes its items whole. A chunk (with its
+     * `segment`) hashes what its page sets up for the whole segment (every clip it mounts, keys
+     * aside, with the value its keyed props mount with; the code of its blocks, shots and
+     * transitions), and of what its own frames draw, the states they take of every key (see
+     * `keyStates`) instead of the keys and the cuts every shot it shows measures its head over.
+     */
+    const contentOf = (span, segment) => {
+        const keyed = !!segment;
+        const view = keyed ? drawn(span) : span;
+        const on = (list) => list.filter((x) => overlaps(x, view));
         const transitions = on(program.transitions);
         // What the range shows: the sides of its transition windows and every clip it holds
         // (in an excerpt, a window or a held clip may reach past the range's items).
-        const shown = stagedShots(program.shots, transitions, span);
-        const cuts = stagedCuts(program.cuts, transitions, span);
+        const shown = stagedShots(program.shots, transitions, view);
+        const cuts = stagedCuts(program.cuts, transitions, view);
         // A shot frames the head it measures over all of its frames (see `shotHead`).
         const measured = keyed
             ? program.cuts.filter((c) => !cuts.includes(c) && shown.some((s) => overlaps(c, s)))
             : [];
-        const shots = shown.filter((s) => overlaps(s, span) ||
+        const shots = shown.filter((s) => overlaps(s, view) ||
             transitions.some((t) => t.kind === 'shot' && (t.owner === s.id || t.outgoing === s.id)));
-        const clips = program.clips.filter((c) => {
+        const showing = (range) => program.clips.filter((c) => {
             const show = clipShowRange(c, program.transitions);
-            return show.from < endOf(span) && show.until > span.startFrame;
+            return show.from < endOf(range) && show.until > range.startFrame;
         });
+        const clips = keyed ? showing(segment) : showing(span);
+        // What the page sets up for the whole segment: custom shots and transitions run there too.
+        const setUp = keyed
+            ? {
+                shots: stagedShots(program.shots, program.transitions, segment).map((s) => s.shot),
+                transitions: program.transitions.filter((t) => overlaps(t, segment)).map((t) => t.type)
+            }
+            : { shots: shots.map((s) => s.shot), transitions: transitions.map((t) => t.type) };
         const sourceNames = [
             ...new Set([
                 ...[...cuts, ...measured].map((c) => c.source),
@@ -1480,8 +1517,8 @@ function resolveSegments(program, project, excerpt) {
         const assets = [
             ...new Set([
                 ...clips.map((c) => c.block),
-                ...shots.map((s) => s.shot).filter((s) => isCustom(s, CUSTOM_SHOT)),
-                ...transitions.map((t) => t.type).filter((t) => isCustom(t, CUSTOM_TRANSITION)),
+                ...setUp.shots.filter((s) => isCustom(s, CUSTOM_SHOT)),
+                ...setUp.transitions.filter((t) => isCustom(t, CUSTOM_TRANSITION)),
                 ...(project.fonts ?? []).map((f) => f.src),
                 ...(project.css ?? []),
                 // Project files a clip names in its props (hashed when they exist).
@@ -1492,7 +1529,18 @@ function resolveSegments(program, project, excerpt) {
             if (!keyed)
                 return item;
             const { keys, ...rest } = item;
-            return { ...rest, keys: keyStates(keys, span.startFrame, endOf(span)) };
+            return { ...rest, keys: keyStates(keys, view.startFrame, endOf(view)) };
+        };
+        /** A mounted clip: keys aside, with its keyed props on its first frame (see `mount`). */
+        const mounted = (clip) => {
+            const { keys, ...rest } = clip;
+            const props = keys.map((k) => ({ ...k, values: { props: k.values.props } }));
+            return {
+                ...rest,
+                show: clipShowRange(clip, program.transitions),
+                mount: keyStates(props, clip.startFrame, clip.startFrame + 1),
+                keys: drawnKeys(clip, span)
+            };
         };
         const hash = sha1(JSON.stringify({
             span,
@@ -1510,7 +1558,7 @@ function resolveSegments(program, project, excerpt) {
             ...(measured.length ? { measured: measured.map(picture) } : {}),
             // The shot a morph starts from shapes the first frames too.
             shots: shown.map(frames),
-            clips: clips.map(frames),
+            clips: keyed ? clips.map(mounted) : clips,
             transitions: transitions.map(picture),
             // An excerpt: the end card's hold in the range it is in, and what its framing reads
             // of the whole program's footage (the head runs of the shots in this range).
@@ -1536,11 +1584,11 @@ function resolveSegments(program, project, excerpt) {
         segments.push({
             id,
             ...span,
-            ...contentOf(span, false),
+            ...contentOf(span),
             chunks: parts.map((part, k) => ({
                 id: parts.length > 1 ? `${id}.${k + 1}` : id,
                 ...part,
-                hash: contentOf(part, true).hash
+                hash: contentOf(part, span).hash
             }))
         });
     }

@@ -272,8 +272,8 @@ In the block, `clip.at('skill2')` (or `clip.cue.skill2.start`) is the moment in 
 which is program seconds for a clip that starts at 0. A phrase is searched inside the clip, so
 in a clip that spans the program `occurrence` counts through the whole program; a repeated
 phrase without `occurrence` is an error that lists every occurrence. `visualfries clips`
-prints where each cue landed. A second instance of the block (the labels in front, without
-`layer`) declares the same cues. `clip.programTime` is the program's clock for a world clip
+prints where each cue landed. Labels in front of the speaker go in the same clip, inside
+`<Front>` (next section), so they read the same cues. `clip.programTime` is the program's clock for a world clip
 that starts later than 0 and still has to run on program seconds.
 
 ### Behind and in front from one clip

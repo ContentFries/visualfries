@@ -183,6 +183,12 @@ describe('cutout edge check', () => {
 		// Moved out of the frame by a key (a speaker sent away): nothing of it is cut.
 		const keys: ShotSpan['keys'] = [{ frame: 0, values: { x: 3000 }, ease: 'none', mix: 'oklab' }];
 		expect(cutoutEdges(data([span({ anchor: 'bottom' }, { keys })], still()))).toEqual([]);
+		// Turned and sent away past the top left corner: the turned box's bounds still reach into
+		// the frame, the speaker does not.
+		const turned: ShotSpan['keys'] = [
+			{ frame: 0, values: { rotation: 30, x: -800, y: -1900 }, ease: 'none', mix: 'oklab' }
+		];
+		expect(cutoutEdges(data([span({ anchor: 'bottom' }, { keys: turned })], still()))).toEqual([]);
 	});
 
 	it('looks only at cutout shots after their morph', () => {

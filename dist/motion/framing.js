@@ -416,7 +416,29 @@ export function cutoutEdges(data, range = { startFrame: 0, frames: Infinity }) {
                 const x1 = Math.max(...corners.map((c) => c[0]));
                 const y0 = Math.min(...corners.map((c) => c[1]));
                 const y1 = Math.max(...corners.map((c) => c[1]));
-                const seen = x1 > 0 && x0 < W && y1 > 0 && y0 < H;
+                // Turned, the box's bounds can reach into the frame while the box does not: its own
+                // sides are axes that may part it from the frame too.
+                const frame = [
+                    [0, 0],
+                    [W, 0],
+                    [0, H],
+                    [W, H]
+                ];
+                const parted = (ax, ay) => {
+                    const on = (list) => list.map(([x, y]) => x * ax + y * ay);
+                    const a = on(corners);
+                    const b = on(frame);
+                    return Math.max(...a) <= Math.min(...b) || Math.min(...a) >= Math.max(...b);
+                };
+                const sides = [corners[1], corners[2]].map(([x, y]) => [
+                    x - corners[0][0],
+                    y - corners[0][1]
+                ]);
+                const seen = x1 > 0 &&
+                    x0 < W &&
+                    y1 > 0 &&
+                    y0 < H &&
+                    !(turn && sides.some(([dx, dy]) => parted(-dy, dx)));
                 if (seen) {
                     const past = { left: -x0, right: x1 - W, top: 0, bottom: y1 - H };
                     for (const edge of ['left', 'right', 'bottom'])

@@ -2155,6 +2155,8 @@ function resolveSegments(
 					transitions: program.transitions.filter((t) => overlaps(t, segment)).map((t) => t.type)
 				}
 			: { shots: shots.map((s) => s.shot), transitions: transitions.map((t) => t.type) };
+		// A shot that blurs its moves gives every slotted clip of the segment a streak box.
+		const streaks = keyed && setUp.shots.some((s) => shotModule(s)?.blur);
 		const sourceNames = [
 			...new Set([
 				...[...cuts, ...measured].map((c) => c.source),
@@ -2177,14 +2179,23 @@ function resolveSegments(
 			const { keys, ...rest } = item;
 			return { ...rest, keys: keyStates(keys, view.startFrame, endOf(view)) };
 		};
-		/** A mounted clip: keys aside, with its keyed props on its first frame (see `mount`). */
+		/**
+		 * A mounted clip: keys aside, with the boxes its root gets (a `.vf-keys` box for placement
+		 * keys, a streak box) and its keyed props on its first frame (see `createProgramScene`).
+		 */
 		const mounted = (clip: ProgramClip) => {
 			const { keys, ...rest } = clip;
 			const props = keys.map((k) => ({ ...k, values: { props: k.values.props } }));
+			const placed = keys.some((k) =>
+				PLACEMENT.some((n) => (k.values as Record<string, unknown>)[n] !== undefined)
+			);
 			return {
 				...rest,
 				show: clipShowRange(clip, program.transitions),
-				mount: keyStates(props, clip.startFrame, clip.startFrame + 1),
+				mount: {
+					boxes: { keys: placed, streak: !!clip.slot && streaks },
+					props: keyStates(props, clip.startFrame, clip.startFrame + 1)
+				},
 				keys: drawnKeys(clip, span)
 			};
 		};

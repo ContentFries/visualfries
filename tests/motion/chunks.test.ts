@@ -188,6 +188,35 @@ describe('chunk hashes of a program', () => {
 		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false]);
 	});
 
+	it('all change when a mounted clip gains placement keys', () => {
+		// Placement keys put a `.vf-keys` box around the block for the whole segment: project CSS
+		// or another block may see it in every chunk.
+		const a = labelled({ props: { text: 'ONE' } });
+		const b = labelled({ props: { text: 'ONE' }, keys: [{ at: 0, x: 0 }] });
+		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false]);
+	});
+
+	it('all change when a shot that blurs its moves joins the segment of a slotted clip', () => {
+		// A shot that blurs gives every slotted clip of its segment a streak box, in every chunk.
+		const late = (shot: string) => {
+			const j = json(5);
+			return {
+				...j,
+				shots: [
+					{ id: 'speaker', shot: 'full', from: 0, until: 10 },
+					{ id: 'late', shot, from: 10, until: 'end' }
+				],
+				clips: [
+					...j.clips,
+					{ id: 'card', block: 'blocks/World.svelte', from: 0, until: 2, slot: 'card' }
+				]
+			};
+		};
+		const a = hashes(late('full'));
+		const b = hashes(late('whip'));
+		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false]);
+	});
+
 	it('change only where a moved placement key of a mounted clip draws', () => {
 		const keys = (at: number) => ({
 			props: { text: 'ONE' },

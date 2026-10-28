@@ -208,12 +208,23 @@ async function renderSegments(browser, bundle, program, todo, opts) {
     let mode = '';
     const idle = new Map();
     let live = 0;
+    let waiting = [];
+    const wake = () => {
+        const w = waiting;
+        waiting = [];
+        w.forEach((f) => f());
+    };
     const left = new Map();
     for (const s of todo)
         left.set(s.segment, (left.get(s.segment) ?? 0) + 1);
     const close = async (page) => {
-        live--;
-        await page.close();
+        try {
+            await page.close();
+        }
+        finally {
+            live--;
+            wake();
+        }
     };
     const closeIdle = async (segment) => {
         const pages = idle.get(segment) ?? [];
@@ -221,22 +232,28 @@ async function renderSegments(browser, bundle, program, todo, opts) {
         await Promise.all(pages.map(close));
     };
     const take = async (segment) => {
-        const own = idle.get(segment.id)?.pop();
-        if (own)
-            return own;
-        const other = [...idle.values()].find((pages) => pages.length);
-        const spare = live >= opts.jobs && other ? other.pop() : null;
+        for (;;) {
+            const own = idle.get(segment.id)?.pop();
+            if (own)
+                return own;
+            if (live < opts.jobs)
+                break;
+            const other = [...idle.values()].find((pages) => pages.length);
+            if (other)
+                await close(other.pop());
+            else
+                await new Promise((r) => waiting.push(r));
+        }
         // Counted before any wait, so pages opening at the same time see each other.
         live++;
         try {
-            if (spare)
-                await close(spare);
             return await openSegment(browser, bundle, program, segment, {
                 invalidate: opts.invalidate
             });
         }
         catch (error) {
             live--;
+            wake();
             throw error;
         }
     };
@@ -269,6 +286,7 @@ async function renderSegments(browser, bundle, program, todo, opts) {
                         if (abort.signal.aborted)
                             return close(page);
                         idle.set(segment.id, [...(idle.get(segment.id) ?? []), page]);
+                        wake();
                     }
                 };
             };

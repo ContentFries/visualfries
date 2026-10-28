@@ -582,12 +582,14 @@ camera and the world behind them carries the rest.
   decided where each move starts (or, for the way back, where it lands) by the footage the whole
   program shows there, framed as the shot frames it there: a speaker near the middle never
   changes sides mid-move (across a cut to other footage either), and an excerpt that starts
-  inside a move slides them the way the full video does. A range from the shot's first frame
+  inside a move slides them the way the full video does (the decision reads only the frames
+  shown in one run around that moment, which every render extracts). A range from the shot's first frame
   decides at that frame.
 - How far the picture moves comes from the matte: the boxes of the frames around each frame
   (half a second either way, so a raised arm counts), where the shot, its keys (`x`, `y`, `scale`,
-  `rotation`) and its morph put them, plus a small margin; under footage that leaves its window
-  open, the speaker of the bigger blurred backdrop clears it too. The speaker just clears the
+  `rotation`) and its morph put them, plus a small margin past what the room's blur still
+  shows of them; under footage that leaves its window open, the speaker of the bigger blurred
+  backdrop clears it too, blur included. The speaker just clears the
   frame in any format, and keys and morphs go on moving the camera under the slide.
 - What moves is the footage picture inside the camera window: the room, the cut-out speaker, a
   blurred backdrop and subject layers of clips (`<Footage layer="subject">`, `<Subject>`) that

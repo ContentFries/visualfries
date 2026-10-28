@@ -208,7 +208,7 @@ export function resolveProgram(project, given, opts = {}) {
         : [];
     // Where an away move decides its side, the picture the whole program shows there.
     if (program && shots.some((s) => s.away?.some((r) => !r.side)))
-        awayLooks(shots, footageMap({ frames, sources, cuts, shots, transitions }));
+        awayLooks(shots, footageMap({ frames, sources, cuts, shots, transitions }), fps);
     if (program && cuts.length)
         checkHardCuts(shots, cutList.cuts, transitions, diagnostics);
     const events = resolveEvents(shots, transitions);

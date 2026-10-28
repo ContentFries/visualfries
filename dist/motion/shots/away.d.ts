@@ -21,10 +21,17 @@ export declare const AWAY_ENTER: {
     seconds: number;
     ease: string;
 };
-/** A source frame: the picture the program shows at a frame. */
+/**
+ * A source frame: the picture the program shows at a frame, and the source frames around it
+ * (`first`–`last`) the program shows in one run with it, at most two subject smoothing windows
+ * either way. A decision reads the matte of those frames only: every program extracts them, so
+ * a full program and its excerpts decide alike, whatever else each extracts.
+ */
 export type AwayLook = {
     source: string;
     frame: number;
+    first: number;
+    last: number;
 };
 /** A resolved away range of a shot, in program frames. */
 export type ShotAway = {
@@ -70,20 +77,29 @@ type AwayState = {
 /** Where the speaker is at program frame `f` among `away` ranges; null: in place. */
 export declare function awayAt(away: readonly ShotAway[] | undefined, f: number): AwayState | null;
 /**
- * The program frames where the moves that frames `[from, to)` show decide their side (ranges
- * without a `side`): what those frames draw depends on the shot there too.
+ * The moves without a `side` that frames `span` show, as the program frame where each decides
+ * its side and the picture there (see `ShotAway.looks`): what those frames draw depends on the
+ * shot and the footage there too.
  */
-export declare function awayDecisions(away: readonly ShotAway[] | undefined, span: {
+export declare function awayMovesDuring(away: readonly ShotAway[] | undefined, span: {
     startFrame: number;
     frames: number;
-}): number[];
+}): {
+    frame: number;
+    look: AwayLook | null | undefined;
+}[];
+/** The program frames where the moves that frames `span` show decide their side. */
+export declare const awayDecisions: (away: readonly ShotAway[] | undefined, span: {
+    startFrame: number;
+    frames: number;
+}) => number[];
 /**
  * Sets the `looks` of the away ranges without a `side` from the whole program's footage `map`:
  * the picture where each of their moves decides it.
  */
 export declare function awayLooks(shots: readonly {
     away?: ShotAway[];
-}[], map: FootageMap): void;
+}[], map: FootageMap, fps: number): void;
 /**
  * How far the picture moves toward `side` for the speaker to clear the frame, with a margin:
  * the speaker of the footage and, under footage that leaves its window open, the speaker of its
@@ -104,6 +120,16 @@ export declare const awayOffset: (side: AwaySide, distance: number) => AwayOffse
  * keyed turn. The camera window, the slots and the room's look stay.
  */
 export declare function moveAway(layout: ShotLayout, { dx, dy }: AwayOffset): ShotLayout;
+/**
+ * Where `check` reads the cut-out back under a turned camera: the part of the visible window
+ * `view` the turned picture covers, and how many canvas pixels per stage pixel (the picture's
+ * own resolution where it fits, so a one-pixel arm stays a pixel, but never more pixels than
+ * the frame has). Null when the picture lies wholly outside the view: nothing to read.
+ */
+export declare function turnedReadback(layout: Pick<ShotLayout, 'camera' | 'turn'>, view: Rect, picture: [number, number], size: [number, number]): {
+    region: Rect;
+    scale: number;
+} | null;
 /**
  * Of the frame's area, the share of speaker pixels from which `check` says he is still in the
  * frame while away: a matte's stray speck stays under it, a hand or a lock of hair does not.

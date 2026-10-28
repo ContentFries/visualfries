@@ -1,7 +1,7 @@
 import { easeOf } from '../ease.js';
 import { programFootageAt, type FootageMap } from '../footage-map.js';
 import type { SubjectBox } from '../resolve.js';
-import { roundRect, type Rect, type ShotLayout } from './layout.js';
+import { roundRect, SUBJECT_SMOOTH, type Rect, type ShotLayout } from './layout.js';
 
 /**
  * The speaker away from the frame: in a shot that draws the speaker cut out by the matte, an
@@ -26,8 +26,13 @@ export const AWAY_ENTER = { seconds: 0.22, ease: 'expo.out' };
  */
 const MARGIN = 0.02;
 
-/** A source frame: the picture the program shows at a frame. */
-export type AwayLook = { source: string; frame: number };
+/**
+ * A source frame: the picture the program shows at a frame, and the source frames around it
+ * (`first`–`last`) the program shows in one run with it, at most two subject smoothing windows
+ * either way. A decision reads the matte of those frames only: every program extracts them, so
+ * a full program and its excerpts decide alike, whatever else each extracts.
+ */
+export type AwayLook = { source: string; frame: number; first: number; last: number };
 
 /** A resolved away range of a shot, in program frames. */
 export type ShotAway = {
@@ -86,34 +91,59 @@ export function awayAt(away: readonly ShotAway[] | undefined, f: number): AwaySt
 }
 
 /**
- * The program frames where the moves that frames `[from, to)` show decide their side (ranges
- * without a `side`): what those frames draw depends on the shot there too.
+ * The moves without a `side` that frames `span` show, as the program frame where each decides
+ * its side and the picture there (see `ShotAway.looks`): what those frames draw depends on the
+ * shot and the footage there too.
  */
-export function awayDecisions(
+export function awayMovesDuring(
 	away: readonly ShotAway[] | undefined,
 	span: { startFrame: number; frames: number }
-): number[] {
-	const out: number[] = [];
+): { frame: number; look: AwayLook | null | undefined }[] {
+	const out: { frame: number; look: AwayLook | null | undefined }[] = [];
 	const end = span.startFrame + span.frames;
 	const touches = (a: number, b: number) => a < end && span.startFrame < b;
 	for (const range of away ?? []) {
 		if (range.side) continue;
 		const leaves = range.from - range.exit.frames;
-		if (touches(leaves, range.until ?? Infinity)) out.push(leaves);
+		if (touches(leaves, range.until ?? Infinity))
+			out.push({ frame: leaves, look: range.looks?.exit });
 		if (range.until !== null && touches(range.until, range.until + range.enter.frames))
-			out.push(range.until + range.enter.frames);
+			out.push({ frame: range.until + range.enter.frames, look: range.looks?.enter });
 	}
 	return out;
 }
+
+/** The program frames where the moves that frames `span` show decide their side. */
+export const awayDecisions = (
+	away: readonly ShotAway[] | undefined,
+	span: { startFrame: number; frames: number }
+): number[] => awayMovesDuring(away, span).map((m) => m.frame);
 
 /**
  * Sets the `looks` of the away ranges without a `side` from the whole program's footage `map`:
  * the picture where each of their moves decides it.
  */
-export function awayLooks(shots: readonly { away?: ShotAway[] }[], map: FootageMap): void {
+export function awayLooks(
+	shots: readonly { away?: ShotAway[] }[],
+	map: FootageMap,
+	fps: number
+): void {
+	const reach = 2 * Math.round(SUBJECT_SMOOTH * fps);
 	const look = (f: number): AwayLook | null => {
 		const view = programFootageAt(map, f);
-		return view ? { source: view.source, frame: view.frame } : null;
+		if (!view) return null;
+		// The run of source frames around it, as far as the decision reads.
+		const runs = (step: 1 | -1) => {
+			let k = 0;
+			while (k < reach) {
+				const g = f + step * (k + 1);
+				const next = g >= 0 && g < map.frames ? programFootageAt(map, g) : null;
+				if (next?.source !== view.source || next.frame !== view.frame + step * (k + 1)) break;
+				k++;
+			}
+			return view.frame + step * k;
+		};
+		return { source: view.source, frame: view.frame, first: runs(-1), last: runs(1) };
 	};
 	for (const range of shots.flatMap((s) => s.away ?? []))
 		if (!range.side)
@@ -151,6 +181,12 @@ function speakerOnStage(layout: Pick<ShotLayout, 'camera' | 'turn'>, reach: Box 
 	return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
 }
 
+/**
+ * How far a Gaussian blur carries a bright edge, in deviations: past 3 σ less than a level of
+ * 255 is left.
+ */
+const BLUR_REACH = 3;
+
 /** What of the camera window the frame shows. */
 function visible(clip: Rect, size: [number, number]) {
 	return {
@@ -175,10 +211,14 @@ export function awayDistance(
 	const margin = MARGIN * Math.min(...size);
 	const past = (s: Rect) =>
 		side === 'left' ? s.x + s.width - v.left : side === 'right' ? v.right - s.x : v.bottom - s.y;
+	// A blurred room still shows the speaker drawn in it (no clean plate) as far as its blur
+	// reaches; the copy is blurred with the room too.
+	const room = layout.room?.blur ?? 0;
 	const copy = layout.backdrop
-		? past(speakerOnStage({ camera: layout.backdrop.camera }, reach))
+		? past(speakerOnStage({ camera: layout.backdrop.camera }, reach)) +
+			BLUR_REACH * Math.hypot(layout.backdrop.blur, room)
 		: -Infinity;
-	return Math.max(0, past(speakerOnStage(layout, reach)), copy) + margin;
+	return Math.max(0, past(speakerOnStage(layout, reach)) + BLUR_REACH * room, copy) + margin;
 }
 
 /** The edge the speaker leaves by the shortest way (ties: left, right, bottom). */
@@ -219,6 +259,30 @@ export function moveAway(layout: ShotLayout, { dx, dy }: AwayOffset): ShotLayout
 			pivot: { x: px(layout.turn.pivot.x + dx), y: px(layout.turn.pivot.y + dy) }
 		};
 	return out;
+}
+
+/**
+ * Where `check` reads the cut-out back under a turned camera: the part of the visible window
+ * `view` the turned picture covers, and how many canvas pixels per stage pixel (the picture's
+ * own resolution where it fits, so a one-pixel arm stays a pixel, but never more pixels than
+ * the frame has). Null when the picture lies wholly outside the view: nothing to read.
+ */
+export function turnedReadback(
+	layout: Pick<ShotLayout, 'camera' | 'turn'>,
+	view: Rect,
+	picture: [number, number],
+	size: [number, number]
+): { region: Rect; scale: number } | null {
+	const s = speakerOnStage(layout, null);
+	const x0 = Math.max(view.x, Math.floor(s.x));
+	const y0 = Math.max(view.y, Math.floor(s.y));
+	const x1 = Math.min(view.x + view.width, Math.ceil(s.x + s.width));
+	const y1 = Math.min(view.y + view.height, Math.ceil(s.y + s.height));
+	if (x1 <= x0 || y1 <= y0) return null;
+	const region = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+	const own = Math.max(1, picture[0] / layout.camera.width, picture[1] / layout.camera.height);
+	const cap = Math.sqrt((size[0] * size[1]) / (region.width * region.height));
+	return { region, scale: Math.max(1, Math.min(own, cap)) };
 }
 
 /**

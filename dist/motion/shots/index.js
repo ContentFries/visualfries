@@ -10,7 +10,7 @@ import { awayAt, awayDistance, awayOffset, moveAway, nearestSide } from './away.
 import { BACKDROP, backdropCamera, coversClip, facePoint, headroomParam, roundRect } from './layout.js';
 export { facePoint, frameOnHead, HEADROOM } from './layout.js';
 export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
-export { AWAY_ENTER, AWAY_EXIT, awayAt, awayDecisions, awayLooks } from './away.js';
+export { AWAY_ENTER, AWAY_EXIT, awayAt, awayDecisions, awayLooks, awayMovesDuring, turnedReadback } from './away.js';
 /**
  * The shot engine: the registry of built-in shots and the layout on screen at any program frame,
  * morphing from the previous shot's layout over the shot's first `morphFrames` frames. Pure:

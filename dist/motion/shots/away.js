@@ -1,6 +1,6 @@
 import { easeOf } from '../ease.js';
 import { programFootageAt } from '../footage-map.js';
-import { roundRect } from './layout.js';
+import { roundRect, SUBJECT_SMOOTH } from './layout.js';
 /**
  * The speaker away from the frame: in a shot that draws the speaker cut out by the matte, an
  * `away` range slides the footage picture (the room, the cut-out, subject layers of clips) off
@@ -41,10 +41,11 @@ export function awayAt(away, f) {
     return null;
 }
 /**
- * The program frames where the moves that frames `[from, to)` show decide their side (ranges
- * without a `side`): what those frames draw depends on the shot there too.
+ * The moves without a `side` that frames `span` show, as the program frame where each decides
+ * its side and the picture there (see `ShotAway.looks`): what those frames draw depends on the
+ * shot and the footage there too.
  */
-export function awayDecisions(away, span) {
+export function awayMovesDuring(away, span) {
     const out = [];
     const end = span.startFrame + span.frames;
     const touches = (a, b) => a < end && span.startFrame < b;
@@ -53,20 +54,37 @@ export function awayDecisions(away, span) {
             continue;
         const leaves = range.from - range.exit.frames;
         if (touches(leaves, range.until ?? Infinity))
-            out.push(leaves);
+            out.push({ frame: leaves, look: range.looks?.exit });
         if (range.until !== null && touches(range.until, range.until + range.enter.frames))
-            out.push(range.until + range.enter.frames);
+            out.push({ frame: range.until + range.enter.frames, look: range.looks?.enter });
     }
     return out;
 }
+/** The program frames where the moves that frames `span` show decide their side. */
+export const awayDecisions = (away, span) => awayMovesDuring(away, span).map((m) => m.frame);
 /**
  * Sets the `looks` of the away ranges without a `side` from the whole program's footage `map`:
  * the picture where each of their moves decides it.
  */
-export function awayLooks(shots, map) {
+export function awayLooks(shots, map, fps) {
+    const reach = 2 * Math.round(SUBJECT_SMOOTH * fps);
     const look = (f) => {
         const view = programFootageAt(map, f);
-        return view ? { source: view.source, frame: view.frame } : null;
+        if (!view)
+            return null;
+        // The run of source frames around it, as far as the decision reads.
+        const runs = (step) => {
+            let k = 0;
+            while (k < reach) {
+                const g = f + step * (k + 1);
+                const next = g >= 0 && g < map.frames ? programFootageAt(map, g) : null;
+                if (next?.source !== view.source || next.frame !== view.frame + step * (k + 1))
+                    break;
+                k++;
+            }
+            return view.frame + step * k;
+        };
+        return { source: view.source, frame: view.frame, first: runs(-1), last: runs(1) };
     };
     for (const range of shots.flatMap((s) => s.away ?? []))
         if (!range.side)
@@ -102,6 +120,11 @@ function speakerOnStage(layout, reach) {
     const y = Math.min(...ys);
     return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
 }
+/**
+ * How far a Gaussian blur carries a bright edge, in deviations: past 3 σ less than a level of
+ * 255 is left.
+ */
+const BLUR_REACH = 3;
 /** What of the camera window the frame shows. */
 function visible(clip, size) {
     return {
@@ -119,10 +142,14 @@ export function awayDistance(layout, reach, side, size) {
     const v = visible(layout.clip, size);
     const margin = MARGIN * Math.min(...size);
     const past = (s) => side === 'left' ? s.x + s.width - v.left : side === 'right' ? v.right - s.x : v.bottom - s.y;
+    // A blurred room still shows the speaker drawn in it (no clean plate) as far as its blur
+    // reaches; the copy is blurred with the room too.
+    const room = layout.room?.blur ?? 0;
     const copy = layout.backdrop
-        ? past(speakerOnStage({ camera: layout.backdrop.camera }, reach))
+        ? past(speakerOnStage({ camera: layout.backdrop.camera }, reach)) +
+            BLUR_REACH * Math.hypot(layout.backdrop.blur, room)
         : -Infinity;
-    return Math.max(0, past(speakerOnStage(layout, reach)), copy) + margin;
+    return Math.max(0, past(speakerOnStage(layout, reach)) + BLUR_REACH * room, copy) + margin;
 }
 /** The edge the speaker leaves by the shortest way (ties: left, right, bottom). */
 export function nearestSide(layout, reach, size) {
@@ -153,6 +180,25 @@ export function moveAway(layout, { dx, dy }) {
             pivot: { x: px(layout.turn.pivot.x + dx), y: px(layout.turn.pivot.y + dy) }
         };
     return out;
+}
+/**
+ * Where `check` reads the cut-out back under a turned camera: the part of the visible window
+ * `view` the turned picture covers, and how many canvas pixels per stage pixel (the picture's
+ * own resolution where it fits, so a one-pixel arm stays a pixel, but never more pixels than
+ * the frame has). Null when the picture lies wholly outside the view: nothing to read.
+ */
+export function turnedReadback(layout, view, picture, size) {
+    const s = speakerOnStage(layout, null);
+    const x0 = Math.max(view.x, Math.floor(s.x));
+    const y0 = Math.max(view.y, Math.floor(s.y));
+    const x1 = Math.min(view.x + view.width, Math.ceil(s.x + s.width));
+    const y1 = Math.min(view.y + view.height, Math.ceil(s.y + s.height));
+    if (x1 <= x0 || y1 <= y0)
+        return null;
+    const region = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+    const own = Math.max(1, picture[0] / layout.camera.width, picture[1] / layout.camera.height);
+    const cap = Math.sqrt((size[0] * size[1]) / (region.width * region.height));
+    return { region, scale: Math.max(1, Math.min(own, cap)) };
 }
 /**
  * Of the frame's area, the share of speaker pixels from which `check` says he is still in the

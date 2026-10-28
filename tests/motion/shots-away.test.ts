@@ -16,6 +16,7 @@ import {
 	awayAt,
 	shotLayout,
 	shotLayoutAt,
+	turnedReadback,
 	type LayoutInput,
 	type ShotAway,
 	type ShotLayout,
@@ -80,8 +81,9 @@ describe('a speaker away from the frame', () => {
 			expect(away.camera.width).toBe(plain.camera.width);
 			const right = onStage(away).right;
 			expect(right).toBeLessThan(0);
-			// Just clear, with a small margin: the distance follows the speaker and the frame.
-			expect(right).toBeGreaterThan(-0.05 * Math.min(...size));
+			// Just clear, with a small margin past the room's blur: the distance follows the
+			// speaker and the frame.
+			expect(right).toBeGreaterThan(-0.05 * Math.min(...size) - 3 * away.room!.blur);
 		}
 		const left = range(10, 40, { side: 'left' });
 		const portrait = shotLayout(behind([left]), input(PORTRAIT), 20);
@@ -336,7 +338,10 @@ describe('away ranges in the program', () => {
 				exit: { frames: 5, ease: 'power2.in' },
 				enter: { frames: 7, ease: 'expo.out' },
 				// The picture where each move decides the side: where the exit starts, the way back lands.
-				looks: { exit: { source: 'talk', frame: 55 }, enter: { source: 'talk', frame: 97 } }
+				looks: {
+					exit: { source: 'talk', frame: 55, first: 25, last: 85 },
+					enter: { source: 'talk', frame: 97, first: 67, last: 127 }
+				}
 			},
 			{
 				from: 132,
@@ -370,7 +375,10 @@ describe('away ranges in the program', () => {
 			side: null,
 			exit: { frames: 9, ease: 'power2.in' },
 			enter: { frames: 15, ease: 'back.out(1.4)' },
-			looks: { exit: { source: 'talk', frame: 50 }, enter: { source: 'talk', frame: 104 } }
+			looks: {
+				exit: { source: 'talk', frame: 50, first: 20, last: 80 },
+				enter: { source: 'talk', frame: 104, first: 74, last: 134 }
+			}
 		});
 	});
 
@@ -708,6 +716,72 @@ describe('where an away move decides its side', () => {
 	});
 });
 
+describe('what an excerpt reads where a move decides', () => {
+	/** Boxes of source frames `first`–`last` only, as extraction leaves them. */
+	const extracted = (first: number, last: number, at: (f: number) => SubjectBox) => ({
+		...matted(1920, 1080, 300, at),
+		first,
+		last,
+		boxes: Array.from({ length: last - first + 1 }, (_, k) => at(first + k))
+	});
+	const json = {
+		size: [1920, 1080],
+		fps: 30,
+		footage: { a: { src: 'a.mp4', matte: 'a.matte.mp4' } },
+		cuts: [{ id: 'A', source: 'a', in: 2, out: 6 }],
+		shots: [
+			{
+				id: 'talk',
+				shot: 'behind',
+				from: 0,
+				until: 'end',
+				away: [{ from: 2.1, until: 3.2, exit: 2 }]
+			}
+		],
+		clips: [],
+		excerpts: [{ id: 'mid', from: 1.5, until: 4 }]
+	};
+	const inputs: ProgramInputs = {
+		words: null,
+		sources: { a: { frames: 300, duration: 10, width: 1920, height: 1080, fps: 30, audio: true } }
+	};
+
+	it('decides with the frames the full program has, though the excerpt extracts more', () => {
+		// On the left before source frame 60 (which the full program never shows), on the right after.
+		const at = (f: number) => (f < 60 ? leftish : rightish);
+		const full = framed(resolveProgram(parseMotionProject(json), inputs), {
+			a: extracted(60, 179, at)
+		});
+		const sliced = resolveProgram(parseMotionProject(json), inputs, { excerpt: 'mid' });
+		const excerpt = framed(sliced, { a: extracted(33, 193, at) });
+		for (const f of [50, 60, 70]) expect(excerpt(f - 45).layout).toEqual(full(f).layout);
+	});
+
+	it('extracts only what the moves drawn in the excerpt decide by', () => {
+		const far = {
+			...json,
+			cuts: [{ id: 'A', source: 'a', in: 0, out: 10 }],
+			shots: [
+				{
+					id: 'talk',
+					shot: 'behind',
+					from: 0,
+					until: 'end',
+					away: [
+						{ from: 2.1, until: 3.2, exit: 2 },
+						{ from: 8, until: 9 }
+					]
+				}
+			],
+			excerpts: [{ id: 'mid', from: 1.5, until: 3 }]
+		};
+		const sliced = resolveProgram(parseMotionProject(far), inputs, { excerpt: 'mid' });
+		const around = sliced.excerpt!.footage!.around.a;
+		// The second range (its moves at 7.8–8 s and 9–9.2 s) is not drawn: none of its frames.
+		expect(around.every((r) => r.last < 200)).toBe(true);
+	});
+});
+
 describe('what an away range moves', () => {
 	it('clears the blurred copy under footage that leaves its window open too', () => {
 		const keys: ResolvedKey[] = [{ frame: 0, values: { scale: 0.5 }, ease: 'none', mix: 'oklch' }];
@@ -716,6 +790,18 @@ describe('what an away range moves', () => {
 		expect(l.backdrop).toBeDefined();
 		const copy = l.backdrop!.camera;
 		expect(copy.x + (SUBJECT.x + SUBJECT.width) * copy.width).toBeLessThan(0);
+	});
+
+	it('clears the reach of the blur too: the room around the cut-out and the blurred copy', () => {
+		const keys: ResolvedKey[] = [{ frame: 0, values: { scale: 0.5 }, ease: 'none', mix: 'oklch' }];
+		const shot = { ...behind([range(10, 40, { side: 'left' })], keys), params: { headroom: 0.06 } };
+		const l = shotLayout(shot, input(LANDSCAPE), 20);
+		// A Gaussian blur of deviation σ still shows a bright shirt's edge up to about 3σ out.
+		const room = l.room!.blur;
+		const copyBlur = Math.hypot(l.backdrop!.blur, room);
+		const copy = l.backdrop!.camera;
+		expect(copy.x + (SUBJECT.x + SUBJECT.width) * copy.width).toBeLessThan(-3 * copyBlur);
+		expect(l.camera.x + (SUBJECT.x + SUBJECT.width) * l.camera.width).toBeLessThan(-3 * room);
 	});
 
 	it('leaves the word slot where it is through a morph into a shot that starts away', () => {
@@ -742,5 +828,30 @@ describe('what an away range moves', () => {
 			expect(moved.slots).toEqual(plain.slots);
 			expect(moved.camera.x).toBeLessThan(plain.camera.x);
 		}
+	});
+
+	it('reads a turned picture back at no more pixels than the frame has, and not at all once it is gone', () => {
+		const keys: ResolvedKey[] = [
+			{ frame: 0, values: { scale: 0.25, rotation: 4 }, ease: 'none', mix: 'oklch' }
+		];
+		const l = shotLayout(behind([range(10, 40, { side: 'left' })], keys), input(LANDSCAPE), 20);
+		const view = { x: 0, y: 0, width: 1920, height: 1080 };
+		for (const picture of [
+			[1920, 1080],
+			[3840, 2160]
+		] as [number, number][]) {
+			const read = turnedReadback(l, view, picture, LANDSCAPE)!;
+			const w = Math.ceil(read.region.width * read.scale);
+			const h = Math.ceil(read.region.height * read.scale);
+			expect(w * h).toBeLessThanOrEqual(1921 * 1081);
+			// Only what the turned picture covers of the frame.
+			expect(read.region.width).toBeLessThan(1920);
+		}
+		const gone = {
+			...l,
+			camera: { ...l.camera, x: -5000 },
+			turn: { ...l.turn!, pivot: { x: -4000, y: 500 } }
+		};
+		expect(turnedReadback(gone, view, [1920, 1080], LANDSCAPE)).toBeNull();
 	});
 });

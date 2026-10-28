@@ -21,7 +21,7 @@ import {
 	type ShotLayout,
 	type ShotSpan
 } from './shots/index.js';
-import { AWAY_SEEN_SHARE, awayInFrameMessage } from './shots/away.js';
+import { AWAY_SEEN_SHARE, awayInFrameMessage, turnedReadback } from './shots/away.js';
 import { facePoint, frameRect } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
 import type { Point } from './transitions/contract.js';
@@ -752,6 +752,8 @@ export function createProgramScene(
 	const behindAt = new Map<string, number>();
 	/** Where `subjectSampler` reads the subject picture back. */
 	let readBack: HTMLCanvasElement | null = null;
+	/** Where `turnedSpeakerInFrame` reads a turned cut-out back. */
+	let turnedBack: HTMLCanvasElement | null = null;
 	/** Away ranges (shot id and index) already warned about a speaker still in the frame. */
 	const toldAway = new Set<string>();
 
@@ -1520,9 +1522,9 @@ export function createProgramScene(
 	}
 
 	/**
-	 * `speakerInFrame` under a turned camera: the subject picture drawn turned over the visible
-	 * part of the window, at the picture's own resolution or finer (a one-pixel arm stays a
-	 * pixel), and read back whole.
+	 * `speakerInFrame` under a turned camera: the subject picture drawn turned over the part of
+	 * the visible window it covers, at its own resolution as far as the frame's pixel count
+	 * allows (see `turnedReadback`), and read back whole. Nothing is read once it is wholly out.
 	 */
 	function turnedSpeakerInFrame(
 		img: HTMLImageElement,
@@ -1530,22 +1532,25 @@ export function createProgramScene(
 		view: Rect
 	): { area: number; box: Rect } | null {
 		const { camera, turn } = layout;
-		const k = Math.max(1, img.naturalWidth / camera.width, img.naturalHeight / camera.height);
-		const cw = Math.max(1, Math.ceil(view.width * k));
-		const ch = Math.max(1, Math.ceil(view.height * k));
-		readBack ??= document.createElement('canvas');
-		if (readBack.width < cw || readBack.height < ch) {
-			readBack.width = Math.max(readBack.width, cw);
-			readBack.height = Math.max(readBack.height, ch);
+		const read = turnedReadback(layout, view, [img.naturalWidth, img.naturalHeight], seg.size);
+		if (!read) return null;
+		const { region, scale: k } = read;
+		const cw = Math.max(1, Math.ceil(region.width * k));
+		const ch = Math.max(1, Math.ceil(region.height * k));
+		// Its own canvas, sized to this read: the shared one keeps its largest size.
+		turnedBack ??= document.createElement('canvas');
+		if (turnedBack.width !== cw || turnedBack.height !== ch) {
+			turnedBack.width = cw;
+			turnedBack.height = ch;
 		}
-		const ctx = readBack.getContext('2d');
+		const ctx = turnedBack.getContext('2d');
 		if (!ctx) return null;
 		let data: Uint8ClampedArray;
 		try {
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
 			ctx.clearRect(0, 0, cw, ch);
 			// Stage pixels to canvas pixels, then the turn about its pivot.
-			ctx.setTransform(k, 0, 0, k, -view.x * k, -view.y * k);
+			ctx.setTransform(k, 0, 0, k, -region.x * k, -region.y * k);
 			if (turn) {
 				ctx.translate(turn.pivot.x, turn.pivot.y);
 				ctx.rotate((turn.rotation * Math.PI) / 180);
@@ -1574,7 +1579,12 @@ export function createProgramScene(
 		if (!n) return null;
 		return {
 			area: n / (k * k),
-			box: { x: view.x + x0 / k, y: view.y + y0 / k, width: (x1 - x0) / k, height: (y1 - y0) / k }
+			box: {
+				x: region.x + x0 / k,
+				y: region.y + y0 / k,
+				width: (x1 - x0) / k,
+				height: (y1 - y0) / k
+			}
 		};
 	}
 

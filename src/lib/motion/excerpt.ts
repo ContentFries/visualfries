@@ -8,6 +8,7 @@ import {
 	type FrameRange
 } from './footage-map.js';
 import { headroomParam, SUBJECT_SMOOTH } from './shots/layout.js';
+import { awayMovesDuring } from './shots/away.js';
 import type {
 	AudioPiece,
 	ProgramClip,
@@ -189,18 +190,12 @@ export function sliceProgram(
 		if (headroomParam(s.params) !== false && (s.startFrame < first || endOf(s) > endOf(range)))
 			heads[s.id] = pictureRuns(map, s.startFrame, endOf(s));
 	const around = shownRanges(map, first - margin, endOf(range) + margin, gap);
-	// Where an away move decides its side, maybe outside the range: the frames that framing
-	// smooths the picture there over (the subject, and how high the head gets).
-	const smooth = 2 * Math.round(SUBJECT_SMOOTH * fps);
+	// Where an away move drawn in the excerpt decides its side, maybe outside the range: the
+	// frames the decision reads, no more (see `AwayLook`).
+	const drawn = { startFrame: 0, frames: excerpt.frames };
 	for (const s of shots)
-		for (const r of s.away ?? [])
-			for (const look of [r.looks?.exit, r.looks?.enter])
-				if (look)
-					(around[look.source] ??= []).push({
-						first: Math.max(0, look.frame - smooth),
-						last: look.frame + smooth
-					});
-
+		for (const { look } of awayMovesDuring(s.away, drawn))
+			if (look) (around[look.source] ??= []).push({ first: look.first, last: look.last });
 	return {
 		...full,
 		frames: excerpt.frames + cardFrames,

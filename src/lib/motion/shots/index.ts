@@ -50,6 +50,8 @@ export {
 	awayAt,
 	awayDecisions,
 	awayLooks,
+	awayMovesDuring,
+	turnedReadback,
 	type AwayLook,
 	type Box,
 	type ShotAway

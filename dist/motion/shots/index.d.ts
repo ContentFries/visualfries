@@ -5,7 +5,7 @@ import { type Morph, type ShotEvent, type ShotInput, type ShotLayout, type ShotM
 export type { Energy, FormatClass, Morph, Rect, ShotEvent, ShotInput, ShotLayout, ShotModule } from './layout.js';
 export { facePoint, frameOnHead, HEADROOM } from './layout.js';
 export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
-export { AWAY_ENTER, AWAY_EXIT, awayAt, awayDecisions, awayLooks, type AwayLook, type Box, type ShotAway } from './away.js';
+export { AWAY_ENTER, AWAY_EXIT, awayAt, awayDecisions, awayLooks, awayMovesDuring, turnedReadback, type AwayLook, type Box, type ShotAway } from './away.js';
 /**
  * The shot engine: the registry of built-in shots and the layout on screen at any program frame,
  * morphing from the previous shot's layout over the shot's first `morphFrames` frames. Pure:

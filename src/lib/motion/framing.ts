@@ -114,8 +114,17 @@ export function programFraming(data: FramingData) {
 		if (!heads.has(key)) heads.set(key, shotHead(span, data.footageMap, data.footage, source));
 		return heads.get(key)!;
 	};
+	/**
+	 * The matte of an away decision's picture, only the frames its look names (see `AwayLook`),
+	 * under a name of its own so nothing it measures mixes with the footage's own.
+	 */
+	const looked = new Map<string, { source: string; frames: FootageFrames | null }>();
 	const framesOf = (view: FootageView | null) =>
-		view ? (data.footage[view.source] ?? null) : null;
+		view
+			? looked.has(view.source)
+				? looked.get(view.source)!.frames
+				: (data.footage[view.source] ?? null)
+			: null;
 	// How high the head gets is only worth working out when a shot keeps the head in.
 	const keepsHeads = data.shots.some((s) => typeof s.params.headroom === 'number');
 	const raw = new Map<string, number | null>();
@@ -200,7 +209,7 @@ export function programFraming(data: FramingData) {
 			safe: data.format.safe,
 			subject: subjectOf(view),
 			headTop: headTopOf(view),
-			headOf: (s) => headOf(s, view?.source ?? null),
+			headOf: (s) => headOf(s, view ? (looked.get(view.source)?.source ?? view.source) : null),
 			...(sendsAway ? { reach: reachOf(view), at: inputAt } : {})
 		};
 	}
@@ -209,8 +218,24 @@ export function programFraming(data: FramingData) {
 	 * source frame the range carries, else what this program shows at frame `g`.
 	 */
 	function inputAt(g: number, look?: AwayLook | null): LayoutInput {
-		if (look) return inputOf({ ...look, owner: '', held: false });
-		return inputOf(data.footageMap ? programFootageAt(data.footageMap, g) : null);
+		if (!look) return inputOf(data.footageMap ? programFootageAt(data.footageMap, g) : null);
+		const name = `${look.source}\u0000${look.first}-${look.last}`;
+		if (!looked.has(name)) {
+			const own = data.footage[look.source];
+			const frames: FootageFrames | null = own
+				? {
+						...own,
+						ranges: undefined,
+						first: look.first,
+						last: look.last,
+						boxes: Array.from({ length: look.last - look.first + 1 }, (_, k) =>
+							sourceSubjectBox(own, look.first + k)
+						)
+					}
+				: null;
+			looked.set(name, { source: look.source, frames });
+		}
+		return inputOf({ source: name, frame: look.frame, owner: '', held: false });
 	}
 	function layoutFor(
 		f: number,

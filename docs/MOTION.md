@@ -335,11 +335,12 @@ one block instance with one state, one time, one `useFrame` and one timeline (`u
 - **Styles:** the block's scoped styles apply inside `<Front>`, but a selector that passes from
   an element outside it to one inside it (`.world .label`) does not match: the front part is
   elsewhere in the page. Give the front elements their own positioning; the front part covers
-  the frame like the clip's root. In its place `<Front>` leaves an empty `<template>` (no box,
-  but it counts for `:first-child` and `+`).
+  the frame like the clip's root. `<Front>` adds no element to the block or around its
+  children, so `useTimeline`'s `q` finds only the block's own elements.
 - **Several `<Front>`s** stack in markup order, also those inside `{#if}` or `{#each}` that mount
   later: a later one draws over an earlier one, whatever frames were seeked before. A keyed
-  `{#each}` that reorders its items keeps their `<Front>`s in the order they mounted.
+  `{#each}` that reorders its items keeps their `<Front>`s in the order they mounted. A
+  `<Front>` inside another one draws its children in place, in front already.
 
 There is no `<Behind>`: a front clip cannot put part of itself behind the speaker. Draw that
 part in a clip of its own with `"layer": "behind"`, or make the clip a behind clip and put the

@@ -8,54 +8,76 @@
 	drawn over the rest of the block.
 
 	Selectors of the block's styles that pass from an element outside `<Front>` to one inside it
-	(`.stage .label`) no longer match: the children are elsewhere in the page. In its place
-	`<Front>` leaves an empty `<template>`, which keeps several of them in markup order.
+	(`.stage .label`) no longer match: the children are elsewhere in the page. A `<Front>` inside
+	another one draws its children in place: they are in front already.
 -->
 <script module lang="ts">
-	/** Each `<Front>`'s box in the front part, and the `<template>` it left in the block. */
-	const marks = new WeakMap<Element, Element>();
+	/** Marks the children of a `<Front>`, so one inside them draws in place. */
+	const IN_FRONT = Symbol('vf-front');
+	/** Per `<Front>`, the comment that opens its children in the front part, and its own mark. */
+	const marks = new WeakMap<Node, Comment>();
+	let made = 0;
 </script>
 
 <script lang="ts">
-	import { getAllContexts, mount, onDestroy, unmount, type Snippet } from 'svelte';
+	import { getAllContexts, getContext, mount, onDestroy, onMount, unmount } from 'svelte';
+	import type { Snippet } from 'svelte';
 	import { useController } from './runtime.svelte.js';
 	import FrontPart from './FrontPart.svelte';
 
 	let { children }: { children: Snippet } = $props();
 
-	const target = useController().front?.() ?? null;
-	// A box of its own (no box in the layout): its children stay in markup order with those of
-	// the block's other `<Front>`s, however late they mount (see `place`).
-	const box = target ? document.createElement('div') : null;
-	if (box) {
-		box.style.display = 'contents';
-		target!.appendChild(box);
-	}
+	const controller = useController();
+	const target = getContext(IN_FRONT) ? null : (controller.front?.() ?? null);
+	// Its children go between two comments of its own, with no element around them: what the
+	// block's selectors and `useTimeline`'s `q` find stays the same. The range moves as a whole
+	// to keep markup order with the block's other `<Front>`s, however late they mount.
+	const start = target ? document.createComment('') : null;
+	const end = target ? document.createComment('') : null;
+	if (start && end) target!.append(start, end);
 	// Mounted now, while the block renders: its children exist before the block's `onMount`
 	// (`useTimeline` finds them) and before the stage's first seek. The snippet keeps reading
 	// the block's state, so they update with it.
-	const part = box
-		? mount(FrontPart, { target: box, props: { children }, context: getAllContexts() })
-		: null;
-	onDestroy(() => {
-		if (part) unmount(part);
-		box?.remove();
-	});
+	const part =
+		target && end
+			? mount(FrontPart, {
+					target,
+					anchor: end,
+					props: { children },
+					context: new Map([...getAllContexts(), [IN_FRONT, true]])
+				})
+			: null;
+	/** What this `<Front>` leaves in the block: a comment, found by its text once it is there. */
+	const id = target ? `vf-front-${++made}` : '';
 
 	/**
-	 * Once its `<template>` is in the block: moves the box before the first one whose
-	 * `<Front>` comes after this one in the markup. A `<Front>` that mounts later (inside an
-	 * `{#if}`) would otherwise stack over the others in the order the seeks mounted them.
+	 * Moves the children before those of the first `<Front>` that comes after this one in the
+	 * markup. A `<Front>` that mounts later (inside an `{#if}`) would otherwise stack over the
+	 * others in the order the seeks mounted them.
 	 */
-	function place(mark: HTMLTemplateElement) {
-		if (!box || !target) return;
-		marks.set(box, mark);
-		const next = [...target.children].find((other) => {
-			const at = other !== box && marks.get(other);
+	onMount(() => {
+		if (!target || !start || !end) return;
+		const walk = document.createTreeWalker(controller.root, NodeFilter.SHOW_COMMENT);
+		let found: Comment | null = null;
+		while (!found && walk.nextNode())
+			if (walk.currentNode.nodeValue === id) found = walk.currentNode as Comment;
+		if (!found) return;
+		const mark = found;
+		marks.set(start, mark);
+		const next = [...target.childNodes].find((other) => {
+			const at = other !== start && marks.get(other);
 			return at && mark.compareDocumentPosition(at) & Node.DOCUMENT_POSITION_FOLLOWING;
 		});
-		target.insertBefore(box, next ?? null);
-	}
+		const range: Node[] = [];
+		for (let n: Node | null = start; n; n = n === end ? null : n.nextSibling) range.push(n);
+		for (const n of range) target.insertBefore(n, next ?? null);
+	});
+	onDestroy(() => {
+		if (part) unmount(part);
+		start?.remove();
+		end?.remove();
+	});
 </script>
 
-{#if target}<template use:place></template>{:else}{@render children()}{/if}
+<!-- eslint-disable-next-line svelte/no-at-html-tags -- a comment of our own, no user text -->
+{#if target}{@html `<!--${id}-->`}{:else}{@render children()}{/if}

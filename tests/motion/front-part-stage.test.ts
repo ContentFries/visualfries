@@ -126,6 +126,34 @@ const PAIR = `<script>
 </style>
 `;
 
+/** A card fading in on a timeline that staggers over every `div` that `q` finds. */
+const STAGGER = `<script>
+	import { Front, useTimeline } from 'visualfries/motion';
+	useTimeline(({ tl, q }) => {
+		tl.from(q('div'), { opacity: 0, duration: 1, ease: 'none', stagger: 0.5 }, 0);
+	});
+</script>
+
+<Front><div class="spot" style="background:#00ff00"></div></Front>
+
+<style>
+	.spot { position: absolute; left: 150px; top: 220px; width: 100px; height: 40px; }
+</style>
+`;
+
+/** A `<Front>` inside another one (blue), then a third (yellow) on the same spot. */
+const NESTED = `<script>
+	import { Front } from 'visualfries/motion';
+</script>
+
+<Front><div class="spot" style="background:#00ff00"></div><Front><div class="spot" style="background:#0000ff"></div></Front></Front>
+<Front><div class="spot" style="background:#ffff00"></div></Front>
+
+<style>
+	.spot { position: absolute; left: 150px; top: 220px; width: 100px; height: 40px; }
+</style>
+`;
+
 describe.skipIf(!hasChromium || !hasFfmpeg)('<Front>: one clip drawing behind and in front', () => {
 	let dir: string;
 	beforeAll(async () => {
@@ -140,7 +168,9 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('<Front>: one clip drawing behind an
 			Sticker: STICKER,
 			Stacked: STACKED,
 			Late: LATE,
-			Pair: PAIR
+			Pair: PAIR,
+			Stagger: STAGGER,
+			Nested: NESTED
 		}))
 			await fs.writeFile(path.join(dir, `${name}.svelte`), source);
 	}, 120_000);
@@ -264,6 +294,34 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('<Front>: one clip drawing behind an
 		);
 		const [still] = await renderStills(await loadMotionProject(file), [{ clip: 'one', at: '0.8' }]);
 		expect(at(rgba(still.png), 180, 240)).toSatisfy((p: number[]) => near(p, GREEN));
+	}, 300_000);
+
+	/** A still of block `block` rendered alone (no program) at `t` seconds. */
+	const alone = async (block: string, t: string) => {
+		const file = path.join(dir, `${block}.alone.vf.json`);
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [SW, SH],
+				fps: 30,
+				background: '#000000',
+				clips: [{ id: 'one', block: `${block}.svelte`, from: 0, until: 1 }]
+			})
+		);
+		const [still] = await renderStills(await loadMotionProject(file), [{ clip: 'one', at: t }]);
+		return rgba(still.png);
+	};
+
+	it("keeps what useTimeline's q finds inside <Front> to the block's own elements", async () => {
+		// The card is the only div: halfway through its fade at 0.5 s, not waiting for a stagger.
+		expect(at(await alone('Stagger', '0.5'), 200, 240)).toSatisfy((p: number[]) =>
+			near(p, [0, 128, 0])
+		);
+	}, 300_000);
+
+	it('stacks a <Front> inside another one in markup order', async () => {
+		// Green, blue inside it, then yellow: yellow comes last in the markup, so it is on top.
+		expect(at(await alone('Nested', '0.5'), 200, 240)).toSatisfy((p: number[]) => near(p, YELLOW));
 	}, 300_000);
 
 	it('draws the front part over a block whose own layer sets z-index, in a clip rendered alone', async () => {

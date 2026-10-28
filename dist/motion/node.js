@@ -7,6 +7,7 @@ import { once } from 'node:events';
 import { createHash, randomUUID } from 'node:crypto';
 import { createRequire, isBuiltin } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { missingPackageLine } from './package-hint.js';
 import { BrandShape } from './project.js';
 import { NEUTRAL_BRAND, resolveBrand } from './brand.js';
 import { BUILTIN_STYLES, NEUTRAL_STYLE, resolveStyle } from './style.js';
@@ -813,13 +814,6 @@ function packageName(spec) {
     const parts = spec.split('/');
     return parts.slice(0, spec.startsWith('@') ? 2 : 1).join('/');
 }
-/** The deepest folder that holds every one of `folders` (absolute paths). */
-function commonFolder(folders) {
-    let at = folders[0];
-    while (!folders.every((f) => f === at || f.startsWith(at.endsWith(path.sep) ? at : at + path.sep)))
-        at = path.dirname(at);
-    return at;
-}
 /**
  * A bundle error that says how to install the packages blocks import but the project lacks
  * (one line per package, naming the files that import it), or null when no package is missing.
@@ -863,18 +857,7 @@ function missingPackages(error, dir, nodePaths) {
     // A built-in alone: esbuild's message drops the note that says it is one.
     if (!missing.size && !builtin)
         return null;
-    const lines = [...missing].map(([name, files]) => {
-        const importers = [...files].map((f) => path.relative(dir, f));
-        const who = importers.length === 1
-            ? `${importers[0]} imports`
-            : `${importers.slice(0, -1).join(', ')} and ${importers.at(-1)} import`;
-        const inside = importers.every((f) => f !== '..' && !f.startsWith(`..${path.sep}`) && !path.isAbsolute(f));
-        if (inside)
-            return `${who} "${name}", which is not installed for this project. Install it in the project folder: npm install ${name} (blocks find packages in node_modules of the project folder or a folder above it).`;
-        // A file outside the project finds packages from its own folder up, not from the project.
-        const folder = path.relative(dir, commonFolder([...files].map((f) => path.dirname(f))));
-        return `${who} "${name}", which is not installed where ${importers.length === 1 ? 'that file finds' : 'those files find'} packages. Install it in ${folder || 'the project folder'} or a folder above it: cd ${folder || '.'} && npm install ${name} (paths from the project folder; a file finds packages in node_modules of its own folder or a folder above it).`;
-    });
+    const lines = [...missing].map(([name, files]) => missingPackageLine(name, [...files], dir));
     return new Error([...lines, ...other].join('\n'));
 }
 /**

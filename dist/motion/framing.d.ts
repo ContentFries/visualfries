@@ -99,7 +99,8 @@ export type CutoutEdge = {
  * keys included: the matte's box past a frame edge the anchor does not sit the speaker against
  * (the top is `headCrops`'), or the matte running into an edge of the recording that sits inside
  * the frame. Each frame's own matte box counts; frames with nothing of the speaker in the frame
- * (sent away by a key), morphs and cut or shot transition windows are skipped.
+ * (sent away by a key), morphs and cut or shot transition windows are skipped. A `rotation`
+ * key turns the matte's box and the recording's edges about its pivot, as the stage draws them.
  */
 export declare function cutoutEdges(data: FramingData & {
     transitions: readonly ProgramTransition[];

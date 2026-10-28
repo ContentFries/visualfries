@@ -426,6 +426,19 @@ describe('cutout', () => {
 		expect(head(wide).x).toBeCloseTo(108 + 1.2 * 288, 1);
 	});
 
+	it('falls back to a default head when the matte measures none (a speaker too far away)', () => {
+		// The matte's head rows all stay narrower than a head: the head measures 0, in this frame
+		// and over the shot.
+		const none = { ...SIZED, headHeight: 0 };
+		for (const extra of [{ subject: none }, { subject: none, headOf: () => 0 }]) {
+			const l = cut(PORTRAIT, { anchor: 'bottom-left', size: 0.15 }, extra);
+			for (const v of Object.values(l.camera)) expect(Number.isFinite(v)).toBe(true);
+			for (const v of Object.values(l.slots.panel)) expect(Number.isFinite(v)).toBe(true);
+			// The default: a head a fifth of the footage tall.
+			expect(0.2 * l.camera.height).toBeCloseTo(0.15 * 1920, 1);
+		}
+	});
+
 	it('opens a panel above the speaker in portrait and beside it in landscape', () => {
 		const p = cut(PORTRAIT, { anchor: 'bottom-left', size: 0.15 });
 		// From the top of the all-platform zone (15 %) to a margin above the head.

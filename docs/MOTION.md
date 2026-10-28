@@ -648,7 +648,8 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
   camera moves. `check` warns when a frame edge the anchor does not name cuts the speaker off,
   and when the speaker runs into an edge of the recording that sits inside the frame (a body
   cut by the recording ending in mid-frame, as with `left` on a seated recording or a `y` key
-  lifting it). Needs a matte (`check` reports footage without one).
+  lifting it). Both warnings follow the shot's keys, `rotation` included. Needs a matte
+  (`check` reports footage without one).
 
 **Keeping the head in.** Shots frame the face a third from the top of their camera window
 (`full`, `punch`, `strip`, `window`, `behind`, `whip`; `cutout` sizes the speaker by the head

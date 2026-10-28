@@ -149,6 +149,34 @@ describe('cutout edge check', () => {
 		);
 	});
 
+	it('turns the speaker with a rotation key before it looks at the edges', () => {
+		// Turned a quarter about the face, the seated torso lies across the frame to the left,
+		// past its left edge, which the bottom anchor does not sit the speaker against.
+		const keys: ShotSpan['keys'] = [
+			{ frame: 0, values: { rotation: 90 }, ease: 'none', mix: 'oklab' }
+		];
+		const edges = cutoutEdges(data([span({ anchor: 'bottom' }, { keys })], still()));
+		const left = edges.find((e) => e.kind === 'frame' && e.edge === 'left');
+		expect(left).toMatchObject({ from: 0, to: 59 });
+		expect(left!.pixels).toBeGreaterThan(100);
+		expect(cutoutEdgeMessage(left!, span({ anchor: 'bottom' }, { keys }), 30)).toContain(
+			'a "rotation" key closer to 0'
+		);
+		// The recording's bottom edge, where the body is cut, turns off the frame on the left.
+		expect(edges.map((e) => e.kind)).toEqual(['frame']);
+		// Turned a twelfth, it runs slanted across the frame's bottom left corner instead.
+		const tilt: ShotSpan['keys'] = [
+			{ frame: 0, values: { rotation: 30 }, ease: 'none', mix: 'oklab' }
+		];
+		const slant = cutoutEdges(data([span({ anchor: 'bottom' }, { keys: tilt })], still()));
+		expect(slant.find((e) => e.kind === 'recording' && e.edge === 'bottom')).toMatchObject({
+			from: 0,
+			to: 59
+		});
+		// Unturned, the same shot is quiet.
+		expect(cutoutEdges(data([span({ anchor: 'bottom' })], still()))).toEqual([]);
+	});
+
 	it('ignores a blink of a cut and a speaker wholly off the frame', () => {
 		const wide = still().map((b, i) => (i >= 20 && i < 23 ? { ...b, x: 0.05, width: 0.9 } : b));
 		expect(cutoutEdges(data([span({ anchor: 'bottom' })], wide))).toEqual([]);

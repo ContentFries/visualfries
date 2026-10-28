@@ -431,6 +431,8 @@ export function headCropMessage(
 const EDGE_CUT = 0.01;
 /** A matte this close to an edge of the recording (of its size) runs into that edge. */
 const RECORDING_EDGE = 0.005;
+/** Points along a turned recording edge where `cutoutEdges` looks for frame beyond it. */
+const EDGE_SAMPLES = 16;
 
 type Edge = 'left' | 'right' | 'top' | 'bottom';
 
@@ -456,7 +458,8 @@ export type CutoutEdge = {
  * keys included: the matte's box past a frame edge the anchor does not sit the speaker against
  * (the top is `headCrops`'), or the matte running into an edge of the recording that sits inside
  * the frame. Each frame's own matte box counts; frames with nothing of the speaker in the frame
- * (sent away by a key), morphs and cut or shot transition windows are skipped.
+ * (sent away by a key), morphs and cut or shot transition windows are skipped. A `rotation`
+ * key turns the matte's box and the recording's edges about its pivot, as the stage draws them.
  */
 export function cutoutEdges(
 	data: FramingData & { transitions: readonly ProgramTransition[] },
@@ -492,23 +495,60 @@ export function cutoutEdges(
 			const box = frames && view ? sourceSubjectBox(frames, view.frame) : null;
 			const found = new Map<string, number>();
 			if (box && view) {
-				const { camera } = framing.layoutFor(f, view);
-				const x0 = camera.x + box.x * camera.width;
-				const x1 = camera.x + (box.x + box.width) * camera.width;
-				const y0 = camera.y + box.y * camera.height;
-				const y1 = camera.y + (box.y + box.height) * camera.height;
+				const { camera, turn } = framing.layoutFor(f, view);
+				// A point of the recording (0–1) on the stage, turned with a rotation key.
+				const cos = turn ? Math.cos((turn.rotation * Math.PI) / 180) : 1;
+				const sin = turn ? Math.sin((turn.rotation * Math.PI) / 180) : 0;
+				const at = (u: number, v: number): [number, number] => {
+					const x = camera.x + u * camera.width;
+					const y = camera.y + v * camera.height;
+					if (!turn) return [x, y];
+					const dx = x - turn.pivot.x;
+					const dy = y - turn.pivot.y;
+					return [turn.pivot.x + dx * cos - dy * sin, turn.pivot.y + dx * sin + dy * cos];
+				};
+				const corners = [
+					at(box.x, box.y),
+					at(box.x + box.width, box.y),
+					at(box.x, box.y + box.height),
+					at(box.x + box.width, box.y + box.height)
+				];
+				const x0 = Math.min(...corners.map((c) => c[0]));
+				const x1 = Math.max(...corners.map((c) => c[0]));
+				const y0 = Math.min(...corners.map((c) => c[1]));
+				const y1 = Math.max(...corners.map((c) => c[1]));
 				const seen = x1 > 0 && x0 < W && y1 > 0 && y0 < H;
 				if (seen) {
 					const past: Record<Edge, number> = { left: -x0, right: x1 - W, top: 0, bottom: y1 - H };
 					for (const edge of ['left', 'right', 'bottom'] as const)
 						if (!anchored.includes(edge) && past[edge] > min)
 							found.set(`frame:${edge}`, past[edge]);
-					// How far inside the frame each edge of the recording is.
+					// How much frame lies beyond each edge of the recording along the matte, out from
+					// the recording (turned with it): the body would go on there. Unturned, that is
+					// how far inside the frame the edge is.
+					const beyond = (
+						[u0, v0]: [number, number],
+						[u1, v1]: [number, number],
+						[nx, ny]: [number, number]
+					) => {
+						const d = [nx * cos - ny * sin, nx * sin + ny * cos];
+						const size = [W, H];
+						const exit = (p: [number, number]) =>
+							Math.min(
+								...[0, 1]
+									.filter((i) => Math.abs(d[i]) > 1e-9)
+									.map((i) => ((d[i] > 0 ? size[i] : 0) - p[i]) / d[i])
+							);
+						if (!turn) return exit(at(u0, v0));
+						const steps = Array.from({ length: EDGE_SAMPLES + 1 }, (_, k) => k / EDGE_SAMPLES);
+						return Math.max(...steps.map((t) => exit(at(u0 + (u1 - u0) * t, v0 + (v1 - v0) * t))));
+					};
+					const { x: bx, y: by, width: bw, height: bh } = box;
 					const inside: Record<Edge, number> = {
-						left: camera.x,
-						right: W - (camera.x + camera.width),
-						top: camera.y,
-						bottom: H - (camera.y + camera.height)
+						left: beyond([0, by], [0, by + bh], [-1, 0]),
+						right: beyond([1, by], [1, by + bh], [1, 0]),
+						top: beyond([bx, 0], [bx + bw, 0], [0, -1]),
+						bottom: beyond([bx, 1], [bx + bw, 1], [0, 1])
 					};
 					const touches: Record<Edge, boolean> = {
 						left: box.x <= RECORDING_EDGE,
@@ -591,6 +631,7 @@ export function cutoutEdgeMessage(
 		if (keyed('y') && (cut.edge === 'top' || cut.edge === 'bottom'))
 			tries.push('a "y" key closer to 0');
 	}
+	if (keyed('rotation')) tries.push('a "rotation" key closer to 0');
 	return `${head} If that is not meant, try: ${tries.join('; ')}. Look at a still of the shot before deciding.`;
 }
 

@@ -36,7 +36,7 @@ export const SHOULDER = 1.2;
  * for both shoulders runs off the anchored edge instead of drifting to the middle.
  */
 const SIDE = 0.35;
-/** The head's height, of the footage height, when the matte gives none. */
+/** The head's height, of the footage height, when the matte gives none (or measures 0). */
 const HEAD = 0.2;
 /** In portrait a panel stays inside these shares of the frame height without the safe insets. */
 const PORTRAIT_TOP = 0.15;
@@ -111,7 +111,8 @@ export const cutout: ShotModule = {
 		// Between the speaker and a panel: the default margin, whatever the anchored edges get.
 		const gap = MARGIN * Math.min(W, H);
 		const headPx = numberParam(params, 'size', SIZE[cls]) * H;
-		const k = headPx / ((input.head ?? subject.headHeight ?? HEAD) * footage[1]);
+		// A matte too small for a head row measures 0: the default then, never a division by 0.
+		const k = headPx / (((input.head ?? subject.headHeight) || HEAD) * footage[1]);
 		const width = footage[0] * k;
 		const height = footage[1] * k;
 		const reach = SHOULDER * headPx;

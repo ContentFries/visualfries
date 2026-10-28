@@ -176,8 +176,11 @@ A block imports npm packages like any module, subpaths a package exports include
 `import * as THREE from 'three'`, `import { RoomEnvironment } from
 'three/addons/environments/RoomEnvironment.js'`. They are found as Node finds them from the
 block's file: in `node_modules` of the project folder or of any folder above it, so install
-them there (`npm install three` in the project folder). A package that is not installed fails
-the bundle with the file that imports it and the command that installs it. `svelte` and `gsap`
+them there (`npm install three` in the project folder). A block file outside the project
+folder (`../../shared/World3D.svelte`) finds packages from its own folder up, not from the
+project's. A package that is not installed fails the bundle with one line per package: the
+files that import it and the command that installs it where they find it. A Node built-in
+(`fs`, `path`) cannot run in a block; it fails with the bundler's own message. `svelte` and `gsap`
 are always VisualFries's own copies, even when the project has others installed (the page runs
 one Svelte and one GSAP), and `visualfries/motion` needs no install. Every file a block
 imports, the packages' files included, is part of its hash, so a new version of a package

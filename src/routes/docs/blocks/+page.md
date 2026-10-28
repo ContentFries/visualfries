@@ -124,7 +124,7 @@ Without a GPU, Chromium renders WebGL on the CPU: roughly 0.5 s per 1080×1920 f
 - **Transcript words** come from `words` bindings: `clip.words.row`, or the words of a cue: `clip.cue.duplicate.words`.
 - **Shared components and CSS** live in your project (for example `theme/`). Import components with relative paths; list global CSS under `css`.
 - **Fonts** are loaded before a block mounts, so measuring text in `onMount` is safe.
-- **Packages**: a block imports npm packages installed for the project (`node_modules` in the project folder or a folder above it), with the subpaths they export. A missing one fails the bundle with the importing file and the `npm install` command. `svelte`, `gsap` and `visualfries/motion` need no install and are always VisualFries's own copies. The package files a block imports are part of its hash, so a new version renders again.
+- **Packages**: a block imports npm packages installed for the project (`node_modules` in the project folder or a folder above it), with the subpaths they export. A missing one fails the bundle with the importing files and the `npm install` command. A block file outside the project folder finds packages from its own folder up, so install them where it is (the message says where). `svelte`, `gsap` and `visualfries/motion` need no install and are always VisualFries's own copies. The package files a block imports are part of its hash, so a new version renders again.
 
 ## Two Svelte details
 

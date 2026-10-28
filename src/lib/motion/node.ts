@@ -5,7 +5,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createHash, randomUUID } from 'node:crypto';
-import { createRequire } from 'node:module';
+import { createRequire, isBuiltin } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
 	BrandShape,
@@ -1038,10 +1038,21 @@ function packageName(spec: string): string {
 	return parts.slice(0, spec.startsWith('@') ? 2 : 1).join('/');
 }
 
+/** The deepest folder that holds every one of `folders` (absolute paths). */
+function commonFolder(folders: string[]): string {
+	let at = folders[0];
+	while (
+		!folders.every((f) => f === at || f.startsWith(at.endsWith(path.sep) ? at : at + path.sep))
+	)
+		at = path.dirname(at);
+	return at;
+}
+
 /**
  * A bundle error that says how to install the packages blocks import but the project lacks
- * (naming the file that imports each one), or null when no package is missing. A package that
- * is installed but has no such file or export keeps esbuild's own message.
+ * (one line per package, naming the files that import it), or null when no package is missing.
+ * A package that is installed but has no such file or export, a Node built-in and a `#` import
+ * keep esbuild's own message and its notes.
  */
 function missingPackages(error: unknown, dir: string, nodePaths: string[]): Error | null {
 	const errors = (error as { errors?: import('esbuild').Message[] })?.errors;
@@ -1053,25 +1064,42 @@ function missingPackages(error: unknown, dir: string, nodePaths: string[]): Erro
 		}
 		return nodePaths.some((p) => existsSync(path.join(p, name, 'package.json')));
 	};
-	const missing = new Map<string, string>();
+	/** Per missing package, the files that import it. */
+	const missing = new Map<string, Set<string>>();
 	const other: string[] = [];
+	let builtin = false;
 	for (const e of errors) {
 		const spec = /^Could not resolve "([^"]+)"$/.exec(e.text)?.[1];
 		const file = e.location ? path.resolve(e.location.file) : null;
-		const name = spec && !/^[./]|:/.test(spec) ? packageName(spec) : null;
+		const bare = !!spec && !/^[./#]|:/.test(spec);
+		if (bare && isBuiltin(spec)) builtin = true;
+		const name = bare && !isBuiltin(spec) ? packageName(spec) : null;
 		if (file && name && !installed(name, path.dirname(file))) {
-			const importer = path.relative(dir, file);
-			missing.set(
-				`${importer} ${name}`,
-				`${importer} imports "${name}", which is not installed for this project. Install it in the project folder: npm install ${name} (blocks find packages in node_modules of the project folder or a folder above it).`
-			);
+			if (!missing.has(name)) missing.set(name, new Set());
+			missing.get(name)!.add(file);
 		} else {
 			const at = e.location ? `${e.location.file}:${e.location.line}:${e.location.column}: ` : '';
-			other.push(`${at}${e.text}`);
+			other.push([`${at}${e.text}`, ...e.notes.map((n) => `  ${n.text}`)].join('\n'));
 		}
 	}
-	if (!missing.size) return null;
-	return new Error([...missing.values(), ...other].join('\n'));
+	// A built-in alone: esbuild's message drops the note that says it is one.
+	if (!missing.size && !builtin) return null;
+	const lines = [...missing].map(([name, files]) => {
+		const importers = [...files].map((f) => path.relative(dir, f));
+		const who =
+			importers.length === 1
+				? `${importers[0]} imports`
+				: `${importers.slice(0, -1).join(', ')} and ${importers.at(-1)} import`;
+		const inside = importers.every(
+			(f) => f !== '..' && !f.startsWith(`..${path.sep}`) && !path.isAbsolute(f)
+		);
+		if (inside)
+			return `${who} "${name}", which is not installed for this project. Install it in the project folder: npm install ${name} (blocks find packages in node_modules of the project folder or a folder above it).`;
+		// A file outside the project finds packages from its own folder up, not from the project.
+		const folder = path.relative(dir, commonFolder([...files].map((f) => path.dirname(f))));
+		return `${who} "${name}", which is not installed where ${importers.length === 1 ? 'that file finds' : 'those files find'} packages. Install it in ${folder || 'the project folder'} or a folder above it: cd ${folder || '.'} && npm install ${name} (paths from the project folder; a file finds packages in node_modules of its own folder or a folder above it).`;
+	});
+	return new Error([...lines, ...other].join('\n'));
 }
 
 /**

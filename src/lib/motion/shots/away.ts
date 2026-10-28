@@ -1,4 +1,5 @@
 import { easeOf } from '../ease.js';
+import { programFootageAt, type FootageMap } from '../footage-map.js';
 import type { SubjectBox } from '../resolve.js';
 import { roundRect, type Rect, type ShotLayout } from './layout.js';
 
@@ -25,6 +26,9 @@ export const AWAY_ENTER = { seconds: 0.22, ease: 'expo.out' };
  */
 const MARGIN = 0.02;
 
+/** A source frame: the picture the program shows at a frame. */
+export type AwayLook = { source: string; frame: number };
+
 /** A resolved away range of a shot, in program frames. */
 export type ShotAway = {
 	/** From this frame the speaker is wholly off the frame: the exit ends here. */
@@ -33,8 +37,15 @@ export type ShotAway = {
 	until: number | null;
 	/** Null: the edge nearest to the speaker where each move starts (see `awayAt`). */
 	side: AwaySide | null;
+	/** A range from the shot's first frame has no exit (0 frames): it starts away. */
 	exit: { frames: number; ease: string };
 	enter: { frames: number; ease: string };
+	/**
+	 * Without a `side`: the picture the whole program shows where each move decides it (see
+	 * `awayAt`), so a segment or an excerpt that does not show that frame decides the same way.
+	 * Null where there is no footage, or no way back (`until` null). Set by `awayLooks`.
+	 */
+	looks?: { exit: AwayLook | null; enter: AwayLook | null };
 };
 
 /** A box in 0–1 fractions of the footage frame. */
@@ -49,6 +60,8 @@ type AwayState = {
 	 * the exit starts (also through the hold), or where the way back in ends.
 	 */
 	decide: number;
+	/** The picture at `decide` (see `ShotAway.looks`); undefined: not resolved. */
+	look?: AwayLook | null;
 };
 
 /** Where the speaker is at program frame `f` among `away` ranges; null: in place. */
@@ -58,24 +71,63 @@ export function awayAt(away: readonly ShotAway[] | undefined, f: number): AwaySt
 		if (f < leaves) return null;
 		if (range.until === null || f < range.until) {
 			const p = f >= range.from ? 1 : easeOf(range.exit.ease)((f - leaves) / range.exit.frames);
-			return { p, range, decide: leaves };
+			return { p, range, decide: leaves, look: range.looks?.exit };
 		}
 		const back = range.until + range.enter.frames;
 		if (f < back)
 			return {
 				p: 1 - easeOf(range.enter.ease)((f - range.until) / range.enter.frames),
 				range,
-				decide: back
+				decide: back,
+				look: range.looks?.enter
 			};
 	}
 	return null;
 }
 
 /**
+ * The program frames where the moves that frames `[from, to)` show decide their side (ranges
+ * without a `side`): what those frames draw depends on the shot there too.
+ */
+export function awayDecisions(
+	away: readonly ShotAway[] | undefined,
+	span: { startFrame: number; frames: number }
+): number[] {
+	const out: number[] = [];
+	const end = span.startFrame + span.frames;
+	const touches = (a: number, b: number) => a < end && span.startFrame < b;
+	for (const range of away ?? []) {
+		if (range.side) continue;
+		const leaves = range.from - range.exit.frames;
+		if (touches(leaves, range.until ?? Infinity)) out.push(leaves);
+		if (range.until !== null && touches(range.until, range.until + range.enter.frames))
+			out.push(range.until + range.enter.frames);
+	}
+	return out;
+}
+
+/**
+ * Sets the `looks` of the away ranges without a `side` from the whole program's footage `map`:
+ * the picture where each of their moves decides it.
+ */
+export function awayLooks(shots: readonly { away?: ShotAway[] }[], map: FootageMap): void {
+	const look = (f: number): AwayLook | null => {
+		const view = programFootageAt(map, f);
+		return view ? { source: view.source, frame: view.frame } : null;
+	};
+	for (const range of shots.flatMap((s) => s.away ?? []))
+		if (!range.side)
+			range.looks = {
+				exit: look(range.from - range.exit.frames),
+				enter: range.until === null ? null : look(range.until + range.enter.frames)
+			};
+}
+
+/**
  * The speaker's box on the stage under `layout`: `reach` (fractions of the footage) where the
  * camera puts it, turned with the camera; without a reach, the whole picture.
  */
-function speakerOnStage(layout: ShotLayout, reach: Box | null): Rect {
+function speakerOnStage(layout: Pick<ShotLayout, 'camera' | 'turn'>, reach: Box | null): Rect {
 	const { camera, turn } = layout;
 	const box = reach ?? { x: 0, y: 0, width: 1, height: 1 };
 	let corners = [
@@ -108,19 +160,25 @@ function visible(clip: Rect, size: [number, number]) {
 	};
 }
 
-/** How far the picture moves toward `side` for the speaker to clear the frame, with a margin. */
+/**
+ * How far the picture moves toward `side` for the speaker to clear the frame, with a margin:
+ * the speaker of the footage and, under footage that leaves its window open, the speaker of its
+ * blurred copy (bigger, so often further in), which moves with it.
+ */
 export function awayDistance(
 	layout: ShotLayout,
 	reach: Box | null,
 	side: AwaySide,
 	size: [number, number]
 ): number {
-	const s = speakerOnStage(layout, reach);
 	const v = visible(layout.clip, size);
 	const margin = MARGIN * Math.min(...size);
-	const past =
+	const past = (s: Rect) =>
 		side === 'left' ? s.x + s.width - v.left : side === 'right' ? v.right - s.x : v.bottom - s.y;
-	return Math.max(0, past) + margin;
+	const copy = layout.backdrop
+		? past(speakerOnStage({ camera: layout.backdrop.camera }, reach))
+		: -Infinity;
+	return Math.max(0, past(speakerOnStage(layout, reach)), copy) + margin;
 }
 
 /** The edge the speaker leaves by the shortest way (ties: left, right, bottom). */
@@ -138,13 +196,20 @@ export function nearestSide(
 
 const px = (v: number) => Math.round(v * 100) / 100;
 
+/** A move of the picture on the stage, in pixels. */
+export type AwayOffset = { dx: number; dy: number };
+
+/** The move `distance` toward `side`. */
+export const awayOffset = (side: AwaySide, distance: number): AwayOffset => ({
+	dx: side === 'left' ? -distance : side === 'right' ? distance : 0,
+	dy: side === 'bottom' ? distance : 0
+});
+
 /**
- * `layout` with its picture moved `distance` toward `side`: the footage, its blurred copy and
- * the pivot of a keyed turn. The camera window, the slots and the room's look stay.
+ * `layout` with its picture moved by `offset`: the footage, its blurred copy and the pivot of a
+ * keyed turn. The camera window, the slots and the room's look stay.
  */
-export function moveAway(layout: ShotLayout, side: AwaySide, distance: number): ShotLayout {
-	const dx = side === 'left' ? -distance : side === 'right' ? distance : 0;
-	const dy = side === 'bottom' ? distance : 0;
+export function moveAway(layout: ShotLayout, { dx, dy }: AwayOffset): ShotLayout {
 	const move = (r: Rect) => roundRect({ ...r, x: r.x + dx, y: r.y + dy });
 	const out: ShotLayout = { ...layout, camera: move(layout.camera) };
 	if (layout.backdrop) out.backdrop = { ...layout.backdrop, camera: move(layout.backdrop.camera) };

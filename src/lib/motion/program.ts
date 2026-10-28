@@ -58,10 +58,13 @@ import {
 	type ResolvedCut
 } from './cutlist.js';
 import { sha1 } from './sha1.js';
+import { footageMap } from './footage-map.js';
 import { chunkSpans, keyStates } from './chunks.js';
 import {
 	AWAY_ENTER,
 	AWAY_EXIT,
+	awayDecisions,
+	awayLooks,
 	defaultMorph,
 	SHOT_MODULES,
 	shotAt,
@@ -533,6 +536,9 @@ export function resolveProgram(
 	const transitions = program
 		? resolveTransitions(project, cutList.cuts, cuts, shots, clips, fps, format.class, warn)
 		: [];
+	// Where an away move decides its side, the picture the whole program shows there.
+	if (program && shots.some((s) => s.away?.some((r) => !r.side)))
+		awayLooks(shots, footageMap({ frames, sources, cuts, shots, transitions }));
 	if (program && cuts.length) checkHardCuts(shots, cutList.cuts, transitions, diagnostics);
 	const events = resolveEvents(shots, transitions);
 	if (program) checkShotOrder(shots, diagnostics);
@@ -1442,7 +1448,9 @@ function resolveAway(
 			from,
 			until: until >= end ? null : until,
 			side: spec.side ?? null,
-			exit,
+			// From the shot's first frame he is away from the start: no exit, and a side decided
+			// by the shot's own first frame rather than by the picture before it.
+			exit: from === span.startFrame ? { ...exit, frames: 0 } : exit,
 			enter
 		});
 	}
@@ -2298,7 +2306,13 @@ function resolveSegments(
 		const sourceNames = [
 			...new Set([
 				...[...cuts, ...measured].map((c) => c.source),
-				...shots.flatMap((s) => (s.source ? [s.source.name] : []))
+				...shots.flatMap((s) => (s.source ? [s.source.name] : [])),
+				// Where an away move decides its side: footage the range may not show (see `ShotAway.looks`).
+				...shown.flatMap((s) =>
+					(s.away ?? []).flatMap((r) =>
+						[r.looks?.exit, r.looks?.enter].flatMap((l) => (l ? [l.source] : []))
+					)
+				)
 			])
 		].sort();
 		const assets = [
@@ -2312,10 +2326,16 @@ function resolveSegments(
 				...propFiles(clips.map((c) => c.props)).filter((f) => f in program.hashes.assets)
 			])
 		];
-		const frames = <T extends { keys: ResolvedKey[] }>(item: T) => {
+		const frames = <T extends { keys: ResolvedKey[]; away?: ShotAway[] }>(item: T) => {
 			if (!keyed) return item;
 			const { keys, ...rest } = item;
-			return { ...rest, keys: keyStates(keys, span.startFrame, endOf(span)) };
+			// An away move decides its side by the shot where it starts, maybe outside the range.
+			const decided = awayDecisions(item.away, span);
+			return {
+				...rest,
+				keys: keyStates(keys, span.startFrame, endOf(span)),
+				...(decided.length ? { decided: decided.map((f) => keyStates(keys, f, f + 1)) } : {})
+			};
 		};
 		const hash = sha1(
 			JSON.stringify({

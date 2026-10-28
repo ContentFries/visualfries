@@ -1,12 +1,11 @@
 import type { ProgramShot } from '../program.js';
 import { type Placement } from '../keys.js';
-import type { SubjectBox } from '../resolve.js';
-import { type Box } from './away.js';
+import { type AwayLook, type Box } from './away.js';
 import { type Morph, type ShotEvent, type ShotInput, type ShotLayout, type ShotModule } from './layout.js';
 export type { Energy, FormatClass, Morph, Rect, ShotEvent, ShotInput, ShotLayout, ShotModule } from './layout.js';
 export { facePoint, frameOnHead, HEADROOM } from './layout.js';
 export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
-export { AWAY_ENTER, AWAY_EXIT, awayAt, type Box, type ShotAway } from './away.js';
+export { AWAY_ENTER, AWAY_EXIT, awayAt, awayDecisions, awayLooks, type AwayLook, type Box, type ShotAway } from './away.js';
 /**
  * The shot engine: the registry of built-in shots and the layout on screen at any program frame,
  * morphing from the previous shot's layout over the shot's first `morphFrames` frames. Pure:
@@ -38,16 +37,14 @@ type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys' | 'away'> & {
  * `headOf`, the head size over a whole shot (see `ShotInput.head`; absent: each frame's own).
  * Shots with `away` ranges also read `reach`, how far the matte reaches around this frame (the
  * boxes of the frames `subject` is smoothed over, joined; absent: the subject's box), and `at`,
- * the subject and its reach in the program's picture at another program frame, where a range
- * decides its side (absent: this frame's).
+ * the input of the program's picture at another program frame, where a range decides its side:
+ * `look` when the range carries it (see `ShotAway.looks`), else the picture at that frame
+ * (absent: this frame's input).
  */
 export type LayoutInput = Omit<ShotInput, 'params' | 'head'> & {
     headOf?: (shot: Framed) => number | null;
     reach?: Box | null;
-    at?: (f: number) => {
-        subject: SubjectBox | null;
-        reach: Box | null;
-    };
+    at?: (f: number, look?: AwayLook | null) => LayoutInput;
 };
 /**
  * The shot on screen at program frame `f`, the one it morphs from, and how far the morph has
@@ -69,9 +66,10 @@ export declare function shotsDuring<T extends ShotSpan>(shots: readonly T[], spa
 }): T[];
 /**
  * The layout of one shot, alone. Shots not built yet are framed `full`. With program frame `f`
- * the shot's keys at that frame move its camera (see `keyCamera`). In a shot with `headroom`,
- * footage that leaves the camera window open (backed off to fit the head, or scaled down by a
- * key) gets a blurred copy under it (`backdrop`).
+ * the shot's keys at that frame move its camera (see `keyCamera`), and its `away` ranges slide
+ * the picture off the frame (see `awayMove`). In a shot with `headroom`, footage that leaves
+ * the camera window open (backed off to fit the head, or scaled down by a key) gets a blurred
+ * copy under it (`backdrop`).
  */
 export declare function shotLayout(shot: Framed, input: LayoutInput, f?: number): ShotLayout;
 /**

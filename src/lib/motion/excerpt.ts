@@ -189,6 +189,17 @@ export function sliceProgram(
 		if (headroomParam(s.params) !== false && (s.startFrame < first || endOf(s) > endOf(range)))
 			heads[s.id] = pictureRuns(map, s.startFrame, endOf(s));
 	const around = shownRanges(map, first - margin, endOf(range) + margin, gap);
+	// Where an away move decides its side, maybe outside the range: the frames that framing
+	// smooths the picture there over (the subject, and how high the head gets).
+	const smooth = 2 * Math.round(SUBJECT_SMOOTH * fps);
+	for (const s of shots)
+		for (const r of s.away ?? [])
+			for (const look of [r.looks?.exit, r.looks?.enter])
+				if (look)
+					(around[look.source] ??= []).push({
+						first: Math.max(0, look.frame - smooth),
+						last: look.frame + smooth
+					});
 
 	return {
 		...full,

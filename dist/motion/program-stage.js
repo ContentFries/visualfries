@@ -1235,7 +1235,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     /**
      * Stage pixels of the subject picture (side a) drawn at least half opaque inside the visible
      * part of the camera window, and their box; null when there are none or the picture is not
-     * drawn. A turned camera is sampled on the stage grid instead (see `speakerMask`).
+     * drawn. A turned camera is drawn turned and read back the same way (`turnedSpeakerInFrame`).
      */
     function speakerInFrame(layout) {
         const img = a.subject.img;
@@ -1244,34 +1244,8 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         const view = intersect(layout.clip, frameRect(seg.size));
         if (!view)
             return null;
-        if (layout.turn) {
-            const sample = subjectSampler(layout);
-            if (!sample)
-                return null;
-            const mask = speakerMask(sample);
-            let n = 0;
-            let x0 = Infinity;
-            let y0 = Infinity;
-            let x1 = -Infinity;
-            let y1 = -Infinity;
-            mask.hit.forEach((hit, k) => {
-                if (!hit)
-                    return;
-                const x = (k % mask.cols) * mask.step;
-                const y = Math.floor(k / mask.cols) * mask.step;
-                n++;
-                x0 = Math.min(x0, x);
-                y0 = Math.min(y0, y);
-                x1 = Math.max(x1, x + mask.step);
-                y1 = Math.max(y1, y + mask.step);
-            });
-            return n
-                ? {
-                    area: n * mask.step * mask.step,
-                    box: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }
-                }
-                : null;
-        }
+        if (layout.turn)
+            return turnedSpeakerInFrame(img, layout, view);
         const { camera } = layout;
         const part = intersect(view, camera);
         if (!part)
@@ -1327,6 +1301,64 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             height: (y1 - y0) * ky
         };
         return { area: n * kx * ky, box };
+    }
+    /**
+     * `speakerInFrame` under a turned camera: the subject picture drawn turned over the visible
+     * part of the window, at the picture's own resolution or finer (a one-pixel arm stays a
+     * pixel), and read back whole.
+     */
+    function turnedSpeakerInFrame(img, layout, view) {
+        const { camera, turn } = layout;
+        const k = Math.max(1, img.naturalWidth / camera.width, img.naturalHeight / camera.height);
+        const cw = Math.max(1, Math.ceil(view.width * k));
+        const ch = Math.max(1, Math.ceil(view.height * k));
+        readBack ??= document.createElement('canvas');
+        if (readBack.width < cw || readBack.height < ch) {
+            readBack.width = Math.max(readBack.width, cw);
+            readBack.height = Math.max(readBack.height, ch);
+        }
+        const ctx = readBack.getContext('2d');
+        if (!ctx)
+            return null;
+        let data;
+        try {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, cw, ch);
+            // Stage pixels to canvas pixels, then the turn about its pivot.
+            ctx.setTransform(k, 0, 0, k, -view.x * k, -view.y * k);
+            if (turn) {
+                ctx.translate(turn.pivot.x, turn.pivot.y);
+                ctx.rotate((turn.rotation * Math.PI) / 180);
+                ctx.translate(-turn.pivot.x, -turn.pivot.y);
+            }
+            ctx.drawImage(img, camera.x, camera.y, camera.width, camera.height);
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            data = ctx.getImageData(0, 0, cw, ch).data;
+        }
+        catch {
+            return null;
+        }
+        let n = 0;
+        let x0 = Infinity;
+        let y0 = Infinity;
+        let x1 = -Infinity;
+        let y1 = -Infinity;
+        for (let y = 0; y < ch; y++)
+            for (let x = 0; x < cw; x++) {
+                if (data[(y * cw + x) * 4 + 3] < 128)
+                    continue;
+                n++;
+                x0 = Math.min(x0, x);
+                y0 = Math.min(y0, y);
+                x1 = Math.max(x1, x + 1);
+                y1 = Math.max(y1, y + 1);
+            }
+        if (!n)
+            return null;
+        return {
+            area: n / (k * k),
+            box: { x: view.x + x0 / k, y: view.y + y0 / k, width: (x1 - x0) / k, height: (y1 - y0) / k }
+        };
     }
     /** The subject layers of front clips on screen that draw the speaker, at least half opaque. */
     function subjectLayers(page) {

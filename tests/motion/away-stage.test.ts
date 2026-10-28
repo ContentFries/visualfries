@@ -78,7 +78,12 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('a speaker away from the frame', () 
 		await fs.rm(dir, { recursive: true, force: true });
 	});
 
-	const write = async (file: string, source: string, away?: unknown) => {
+	const write = async (
+		file: string,
+		source: string,
+		away?: unknown,
+		shot: Record<string, unknown> = {}
+	) => {
 		await fs.writeFile(
 			path.join(dir, file),
 			JSON.stringify({
@@ -86,7 +91,9 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('a speaker away from the frame', () 
 				fps: 30,
 				footage: { [source]: { src: `${source}.mp4`, matte: `${source}.matte.mp4` } },
 				cuts: [{ source, in: 0, out: 3 }],
-				shots: [{ id: 'talk', shot: 'behind', from: 0, until: 'end', ...(away ? { away } : {}) }],
+				shots: [
+					{ id: 'talk', shot: 'behind', from: 0, until: 'end', ...(away ? { away } : {}), ...shot }
+				],
 				clips: [{ id: 'world', block: 'World.svelte', from: 0, until: 'end', layer: 'behind' }]
 			})
 		);
@@ -124,5 +131,16 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('a speaker away from the frame', () 
 		expect(warned[0]).toMatch(
 			/^Shot "talk" \(behind\), away range 1 \(1\.00–2\.00 s\): the speaker is still partly in the frame at 1\.\d\d s \(program time\)/
 		);
+	}, 300_000);
+
+	it('reads a turned camera at full size too: the thin arm warns', async () => {
+		const away = [{ from: 1, until: 2, side: 'left' }];
+		const turned = { keys: [{ at: 0, rotation: 4 }] };
+		const said = async (file: string, source: string) =>
+			(await checkProgram(await write(file, source, away, turned)))
+				.flatMap((r) => r.warnings.map((w) => w.message))
+				.filter((m) => m.includes('still partly in the frame'));
+		expect(await said('turned-clean.vf.json', 'talk')).toEqual([]);
+		expect(await said('turned-armed.vf.json', 'arm')).toHaveLength(1);
 	}, 300_000);
 });

@@ -579,16 +579,20 @@ camera and the world behind them carries the rest.
 - `exit` and `enter` are seconds (`0.3`) or `{ "seconds": 0.3, "ease": "power3.in" }`; default
   0.16 s `power2.in` out and 0.22 s `expo.out` back in.
 - `side`: `left`, `right` or `bottom`; default the edge the speaker reaches by the shortest way,
-  decided where each move starts (or, for the way back, where it lands), so a speaker near the
-  middle never changes sides mid-move.
+  decided where each move starts (or, for the way back, where it lands) by the footage the whole
+  program shows there, framed as the shot frames it there: a speaker near the middle never
+  changes sides mid-move (across a cut to other footage either), and an excerpt that starts
+  inside a move slides them the way the full video does. A range from the shot's first frame
+  decides at that frame.
 - How far the picture moves comes from the matte: the boxes of the frames around each frame
   (half a second either way, so a raised arm counts), where the shot, its keys (`x`, `y`, `scale`,
-  `rotation`) and its morph put them, plus a small margin. The speaker just clears the frame in
-  any format, and keys and morphs go on moving the camera under the slide.
+  `rotation`) and its morph put them, plus a small margin; under footage that leaves its window
+  open, the speaker of the bigger blurred backdrop clears it too. The speaker just clears the
+  frame in any format, and keys and morphs go on moving the camera under the slide.
 - What moves is the footage picture inside the camera window: the room, the cut-out speaker, a
   blurred backdrop and subject layers of clips (`<Footage layer="subject">`, `<Subject>`) that
   follow the camera. Clips with `"layer": "behind"`, front clips and the shot's slots (the `word`
-  slot too) stay where they are: the room leaves with the speaker, so give the shot a behind clip
+  slot too, also through a morph into or out of the shot) stay where they are: the room leaves with the speaker, so give the shot a behind clip
   that covers the frame (a scene, a colour) for the world they leave, or the background shows.
   A word in the `word` slot stays put; end its clip at the exit if it should go.
 - `full`, `punch`, `strip`, `window`, `whip` and custom shots reject `away`: there the speaker
@@ -600,7 +604,8 @@ camera and the world behind them carries the rest.
   gone while still saying a word (at least 0.1 s of it off the frame), or starts coming back
   0.1 s or more after a word began. `check` warns (once per range) where a piece of the speaker
   is still in the frame inside a range: it reads the cut-out's pixels in the frame after the exit
-  (an arm or hair the matte's boxes miss, a speck the matte keeps). Head-crop warnings skip the
+  at full size, under a turned camera too (an arm or hair the matte's boxes miss, a speck the
+  matte keeps). Head-crop warnings skip the
   ranges and their moves.
 
 **Keeping the head in.** Shots frame the face a third from the top of their camera window

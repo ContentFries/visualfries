@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { parseMotionProject } from '$lib/motion/timeline.js';
-import { resolveProgram, type ProgramInputs, type ResolvedKey } from '$lib/motion/program.js';
+import {
+	resolveProgram,
+	type ProgramInputs,
+	type ResolvedKey,
+	type ResolvedProgram
+} from '$lib/motion/program.js';
+import { footageMap, programFootageAt } from '$lib/motion/footage-map.js';
 import { parseTranscriptWords } from '$lib/motion/transcript.js';
 import { edgeFrames } from '$lib/motion/segments.js';
-import { headCrops } from '$lib/motion/framing.js';
+import { headCrops, programFraming } from '$lib/motion/framing.js';
 import {
 	AWAY_ENTER,
 	AWAY_EXIT,
@@ -15,7 +21,7 @@ import {
 	type ShotLayout,
 	type ShotSpan
 } from '$lib/motion/shots/index.js';
-import type { SubjectBox } from '$lib/motion/resolve.js';
+import type { FootageFrames, SubjectBox } from '$lib/motion/resolve.js';
 import { easeOf } from '$lib/motion/ease.js';
 
 const LANDSCAPE: [number, number] = [1920, 1080];
@@ -219,7 +225,8 @@ describe('a speaker away from the frame', () => {
 				.x
 		).toBeGreaterThan(home.camera.x);
 		// The exit started at frame 5 with the speaker on the left: he goes on leaving left.
-		const at = (f: number) => ({ subject: f < 7 ? leftish : rightish, reach: null });
+		const at = (f: number) =>
+			input(LANDSCAPE, { ...own, subject: f < 7 ? leftish : rightish, reach: null });
 		const l = shotLayout(
 			behind([range(10, 40)]),
 			input(LANDSCAPE, { ...own, subject: rightish, at }),
@@ -327,7 +334,9 @@ describe('away ranges in the program', () => {
 				until: 90,
 				side: null,
 				exit: { frames: 5, ease: 'power2.in' },
-				enter: { frames: 7, ease: 'expo.out' }
+				enter: { frames: 7, ease: 'expo.out' },
+				// The picture where each move decides the side: where the exit starts, the way back lands.
+				looks: { exit: { source: 'talk', frame: 55 }, enter: { source: 'talk', frame: 97 } }
 			},
 			{
 				from: 132,
@@ -360,7 +369,8 @@ describe('away ranges in the program', () => {
 			until: 89,
 			side: null,
 			exit: { frames: 9, ease: 'power2.in' },
-			enter: { frames: 15, ease: 'back.out(1.4)' }
+			enter: { frames: 15, ease: 'back.out(1.4)' },
+			looks: { exit: { source: 'talk', frame: 50 }, enter: { source: 'talk', frame: 104 } }
 		});
 	});
 
@@ -492,5 +502,245 @@ describe('away ranges in the program', () => {
 		});
 		const edges = edgeFrames(full);
 		for (const f of [55, 60, 90, 97]) expect(edges).toContain(f);
+	});
+});
+
+// ---------------------------------------------------------------- decisions and moves
+
+const leftish: SubjectBox = {
+	x: 0.1,
+	y: 0.05,
+	width: 0.35,
+	height: 0.95,
+	headX: 0.27,
+	headY: 0.05
+};
+const rightish: SubjectBox = { ...leftish, x: 0.55, headX: 0.73 };
+
+/** Matte boxes of a source: `at(frame)` for each of its `frames` frames. */
+const matted = (
+	width: number,
+	height: number,
+	frames: number,
+	at: (f: number) => SubjectBox
+): FootageFrames => ({
+	url: '',
+	first: 0,
+	last: frames - 1,
+	total: frames,
+	width,
+	height,
+	startFrame: 0,
+	subject: true,
+	boxes: Array.from({ length: frames }, (_, f) => at(f))
+});
+
+/** The framing a stage of the whole of `p` gets (see `programFraming`). */
+function framed(p: ResolvedProgram, footage: Record<string, FootageFrames>) {
+	const map = footageMap(p);
+	const framing = programFraming({
+		fps: p.fps,
+		size: p.format.size,
+		cls: p.format.class,
+		format: p.format as never,
+		footage,
+		footageMap: map,
+		shots: p.shots
+	});
+	/** Where the picture is at `f`, and how far the away ranges moved it from the shot alone. */
+	return (f: number) => {
+		const view = programFootageAt(map, f);
+		const shot = p.shots.find((s) => f >= s.startFrame && f < s.startFrame + s.frames)!;
+		const layout = framing.layoutFor(f, view, shot);
+		const plain = framing.layoutFor(f, view, { ...shot, away: undefined });
+		return {
+			layout,
+			dx: layout.camera.x - plain.camera.x,
+			dy: layout.camera.y - plain.camera.y
+		};
+	};
+}
+
+const twoCuts = (shots: unknown[], extra: Record<string, unknown> = {}) => ({
+	size: [1920, 1080],
+	fps: 30,
+	footage: {
+		a: { src: 'a.mp4', matte: 'a.matte.mp4' },
+		b: { src: 'b.mp4', matte: 'b.matte.mp4' }
+	},
+	cuts: [
+		{ id: 'A', source: 'a', in: 0, out: 4 },
+		{ id: 'B', source: 'b', in: 0, out: 4 }
+	],
+	shots,
+	clips: [],
+	...extra
+});
+const TWO: ProgramInputs = {
+	words: null,
+	sources: {
+		a: { frames: 240, duration: 8, width: 1920, height: 1080, fps: 30, audio: true },
+		b: { frames: 240, duration: 8, width: 1920, height: 1080, fps: 30, audio: true }
+	}
+};
+const hashes = (sources: Record<string, string>) => ({ sources }) as ProgramInputs['hashes'];
+/** The hash of the chunk that draws program frame `f`. */
+const chunkAt = (p: ResolvedProgram, f: number) =>
+	p.segments.flatMap((s) => s.chunks).find((c) => f >= c.startFrame && f < c.startFrame + c.frames)!
+		.hash;
+
+describe('where an away move decides its side', () => {
+	it('draws a chunk again when the footage its moves decide by changes, in a cut it does not show', () => {
+		// Gone at 5 s after a 2 s exit: the side is decided at 3 s, in cut A, while 4–5 s show B.
+		const json = twoCuts([
+			{ id: 'talk', shot: 'behind', from: 0, until: 'end', away: [{ from: 5, until: 7, exit: 2 }] }
+		]);
+		const at = (sources: Record<string, string>) =>
+			resolveProgram(parseMotionProject(json), { ...TWO, hashes: hashes(sources) });
+		expect(chunkAt(at({ a: 'a1', b: 'b1' }), 135)).not.toBe(chunkAt(at({ a: 'a2', b: 'b1' }), 135));
+		// The same in an excerpt that leaves cut A out.
+		const cut = { ...json, excerpts: [{ id: 'late', from: 4.5, until: 8 }] };
+		const excerpt = (sources: Record<string, string>) =>
+			resolveProgram(
+				parseMotionProject(cut),
+				{ ...TWO, hashes: hashes(sources) },
+				{ excerpt: 'late' }
+			);
+		expect(excerpt({ a: 'a1', b: 'b1' }).cuts.map((c) => c.source)).toEqual(['b']);
+		expect(chunkAt(excerpt({ a: 'a1', b: 'b1' }), 10)).not.toBe(
+			chunkAt(excerpt({ a: 'a2', b: 'b1' }), 10)
+		);
+	});
+
+	it('draws a chunk again when the keys where its moves decide change, though its own frames keep theirs', () => {
+		const json = (x: number) =>
+			twoCuts([
+				{
+					id: 'talk',
+					shot: 'behind',
+					from: 0,
+					until: 'end',
+					keys: [
+						{ at: 0, x },
+						{ at: 3.4, x: -300 }
+					],
+					away: [{ from: 5, until: 7, exit: 2 }]
+				}
+			]);
+		const at = (x: number) => resolveProgram(parseMotionProject(json(x)), TWO);
+		expect(chunkAt(at(0), 135)).not.toBe(chunkAt(at(200), 135));
+	});
+
+	it('decides with the footage shown where the move starts, its size included, across a cut', () => {
+		// A wide take, then a tall one: the exit (0.8–1.2 s) runs across the cut at 1 s.
+		const json = {
+			size: [1920, 1080],
+			fps: 30,
+			footage: {
+				wide: { src: 'wide.mp4', matte: 'wide.matte.mp4' },
+				tall: { src: 'tall.mp4', matte: 'tall.matte.mp4' }
+			},
+			cuts: [
+				{ source: 'wide', in: 0, out: 1 },
+				{ source: 'tall', in: 0, out: 2 }
+			],
+			shots: [
+				{
+					id: 'talk',
+					shot: 'behind',
+					from: 0,
+					until: 'end',
+					away: [{ from: 1.2, until: 2.5, exit: 0.4 }]
+				}
+			],
+			clips: []
+		};
+		const p = resolveProgram(parseMotionProject(json), {
+			words: null,
+			sources: {
+				wide: { frames: 90, duration: 3, width: 1920, height: 1080, fps: 30, audio: true },
+				tall: { frames: 90, duration: 3, width: 1080, height: 1920, fps: 30, audio: true }
+			}
+		});
+		expect(p.diagnostics.filter((d) => d.level === 'error')).toEqual([]);
+		const at = framed(p, {
+			wide: matted(1920, 1080, 90, () => SUBJECT),
+			tall: matted(1080, 1920, 90, () => SUBJECT)
+		});
+		// In the wide take where the exit starts, the speaker sinks out of the bottom.
+		expect(at(27).dx).toBe(0);
+		expect(at(27).dy).toBeGreaterThan(0);
+		// Past the cut he goes on the same way.
+		expect(at(33).dx).toBe(0);
+		expect(at(33).dy).toBeGreaterThan(0);
+	});
+
+	it('slides an excerpt the way the full program does, though its move started before it', () => {
+		// The exit runs 1–3 s; the speaker is on the left at 1 s and on the right from 1.7 s on.
+		const json = {
+			...project([{ from: 3, until: 4.5, exit: 2 }], {}),
+			size: [1920, 1080],
+			excerpts: [{ id: 'late', from: 2.5, until: 5 }]
+		};
+		const footage = { talk: matted(1920, 1080, 180, (f) => (f < 50 ? leftish : rightish)) };
+		const full = framed(resolve(json), footage);
+		const sliced = resolveProgram(parseMotionProject(json), INPUTS, { excerpt: 'late' });
+		const excerpt = framed(sliced, footage);
+		expect(full(80).dx).toBeLessThan(0);
+		expect(excerpt(80 - 75).layout).toEqual(full(80).layout);
+		// The excerpt extracts the footage the move decides by, with the frames it is smoothed over.
+		const around = sliced.excerpt!.footage!.around.talk;
+		expect(around.some((r) => r.first <= 30 - 15 && r.last >= 30 + 15)).toBe(true);
+	});
+
+	it('decides a range from the shot start by the shot, not by the picture before it', () => {
+		const json = twoCuts([
+			{ id: 'open', shot: 'full', from: 0, until: 4 },
+			{ id: 'talk', shot: 'behind', from: 4, until: 'end', away: [{ from: 4, until: 6 }] }
+		]);
+		const p = resolveProgram(parseMotionProject(json), TWO);
+		expect(p.diagnostics.filter((d) => d.level === 'error')).toEqual([]);
+		const at = framed(p, {
+			a: matted(1920, 1080, 240, () => leftish),
+			b: matted(1920, 1080, 240, () => rightish)
+		});
+		expect(at(150).dx).toBeGreaterThan(0);
+	});
+});
+
+describe('what an away range moves', () => {
+	it('clears the blurred copy under footage that leaves its window open too', () => {
+		const keys: ResolvedKey[] = [{ frame: 0, values: { scale: 0.5 }, ease: 'none', mix: 'oklch' }];
+		const shot = { ...behind([range(10, 40, { side: 'left' })], keys), params: { headroom: 0.06 } };
+		const l = shotLayout(shot, input(LANDSCAPE), 20);
+		expect(l.backdrop).toBeDefined();
+		const copy = l.backdrop!.camera;
+		expect(copy.x + (SUBJECT.x + SUBJECT.width) * copy.width).toBeLessThan(0);
+	});
+
+	it('leaves the word slot where it is through a morph into a shot that starts away', () => {
+		const open: ShotSpan = {
+			id: 'open',
+			shot: 'full',
+			params: {},
+			startFrame: 0,
+			frames: 30,
+			morphFrames: 0,
+			morphEase: 'none'
+		};
+		const talk = (away: ShotAway[]): ShotSpan => ({
+			...behind(away),
+			startFrame: 30,
+			frames: 60,
+			morphFrames: 10,
+			morphEase: 'none'
+		});
+		const away = talk([range(30, 60, { side: 'left', exit: { frames: 0, ease: 'none' } })]);
+		for (const f of [32, 35, 38]) {
+			const moved = shotLayoutAt([open, away], f, input(LANDSCAPE));
+			const plain = shotLayoutAt([open, talk([])], f, input(LANDSCAPE));
+			expect(moved.slots).toEqual(plain.slots);
+			expect(moved.camera.x).toBeLessThan(plain.camera.x);
+		}
 	});
 });

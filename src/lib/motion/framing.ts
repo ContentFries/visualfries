@@ -12,6 +12,7 @@ import { aspectParam } from './shots/window.js';
 import {
 	awayAt,
 	shotLayout,
+	type AwayLook,
 	shotLayoutAt,
 	type Box,
 	type LayoutInput,
@@ -182,11 +183,6 @@ export function programFraming(data: FramingData) {
 		}
 		return x1 < x0 ? null : { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 	}
-	/** The program's picture at frame `g`: its subject and reach (see `LayoutInput.at`). */
-	const programAt = (g: number) => {
-		const view = data.footageMap ? programFootageAt(data.footageMap, g) : null;
-		return { subject: subjectOf(view), reach: reachOf(view) };
-	};
 	/** The subject in a view, averaged over `SUBJECT_SMOOTH` seconds on each side. */
 	function subjectOf(view: FootageView | null): SubjectBox | null {
 		const frames = framesOf(view);
@@ -194,13 +190,10 @@ export function programFraming(data: FramingData) {
 			? sourceSubjectBox(frames, view.frame, Math.round(SUBJECT_SMOOTH * data.fps))
 			: null;
 	}
-	function layoutFor(
-		f: number,
-		view: FootageView | null,
-		shot?: Pick<ShotSpan, 'shot' | 'params' | 'keys' | 'away'> & { id?: string }
-	): ShotLayout {
+	/** What the shot engine gets of `view`. */
+	function inputOf(view: FootageView | null): LayoutInput {
 		const frames = framesOf(view);
-		const input: LayoutInput = {
+		return {
 			cls: data.cls,
 			size: data.size,
 			footage: frames ? [frames.width, frames.height] : null,
@@ -208,8 +201,23 @@ export function programFraming(data: FramingData) {
 			subject: subjectOf(view),
 			headTop: headTopOf(view),
 			headOf: (s) => headOf(s, view?.source ?? null),
-			...(sendsAway ? { reach: reachOf(view), at: programAt } : {})
+			...(sendsAway ? { reach: reachOf(view), at: inputAt } : {})
 		};
+	}
+	/**
+	 * The input of the picture where an away move decides its side (see `LayoutInput.at`): the
+	 * source frame the range carries, else what this program shows at frame `g`.
+	 */
+	function inputAt(g: number, look?: AwayLook | null): LayoutInput {
+		if (look) return inputOf({ ...look, owner: '', held: false });
+		return inputOf(data.footageMap ? programFootageAt(data.footageMap, g) : null);
+	}
+	function layoutFor(
+		f: number,
+		view: FootageView | null,
+		shot?: Pick<ShotSpan, 'shot' | 'params' | 'keys' | 'away'> & { id?: string }
+	): ShotLayout {
+		const input = inputOf(view);
 		return shot ? shotLayout(shot, input, f) : shotLayoutAt(data.shots, f, input);
 	}
 	return { layoutFor, subjectOf, headOf };

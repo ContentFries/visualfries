@@ -158,11 +158,6 @@ export function programFraming(data) {
         }
         return x1 < x0 ? null : { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
     }
-    /** The program's picture at frame `g`: its subject and reach (see `LayoutInput.at`). */
-    const programAt = (g) => {
-        const view = data.footageMap ? programFootageAt(data.footageMap, g) : null;
-        return { subject: subjectOf(view), reach: reachOf(view) };
-    };
     /** The subject in a view, averaged over `SUBJECT_SMOOTH` seconds on each side. */
     function subjectOf(view) {
         const frames = framesOf(view);
@@ -170,9 +165,10 @@ export function programFraming(data) {
             ? sourceSubjectBox(frames, view.frame, Math.round(SUBJECT_SMOOTH * data.fps))
             : null;
     }
-    function layoutFor(f, view, shot) {
+    /** What the shot engine gets of `view`. */
+    function inputOf(view) {
         const frames = framesOf(view);
-        const input = {
+        return {
             cls: data.cls,
             size: data.size,
             footage: frames ? [frames.width, frames.height] : null,
@@ -180,8 +176,20 @@ export function programFraming(data) {
             subject: subjectOf(view),
             headTop: headTopOf(view),
             headOf: (s) => headOf(s, view?.source ?? null),
-            ...(sendsAway ? { reach: reachOf(view), at: programAt } : {})
+            ...(sendsAway ? { reach: reachOf(view), at: inputAt } : {})
         };
+    }
+    /**
+     * The input of the picture where an away move decides its side (see `LayoutInput.at`): the
+     * source frame the range carries, else what this program shows at frame `g`.
+     */
+    function inputAt(g, look) {
+        if (look)
+            return inputOf({ ...look, owner: '', held: false });
+        return inputOf(data.footageMap ? programFootageAt(data.footageMap, g) : null);
+    }
+    function layoutFor(f, view, shot) {
+        const input = inputOf(view);
         return shot ? shotLayout(shot, input, f) : shotLayoutAt(data.shots, f, input);
     }
     return { layoutFor, subjectOf, headOf };

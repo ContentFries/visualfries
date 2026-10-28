@@ -132,6 +132,10 @@ export function createMotionStage(options) {
                 part.dataset.part = 'front';
                 part.dataset.format = root.dataset.format;
                 part.style.cssText = root.style.cssText;
+                // The root forms no stacking context (that would change how its blend modes and
+                // negative z-indexes draw), so a `z-index` in it competes with the front part:
+                // the part stacks above every one.
+                part.style.zIndex = String(2 ** 31 - 1);
                 root.after(part);
                 registerClipPart(controller, part);
                 return part;

@@ -144,8 +144,9 @@ The canvas stays behind the speaker; `<Front>`'s children are drawn in the clip'
 - It shows and hides with the clip and follows its placement keys, its slot and the transitions it rides or owns, like a front clip would.
 - `check` reads its text as front text (text over the face), and the clip's own text as text behind the speaker.
 - In `render --export inserts` the holdout cuts the speaker out of the clip's own layer only; the front part is drawn over it, so one file still lays over the rough cut.
-- In a clip rendered alone the front part is drawn over the rest of the block.
-- A style selector from an element outside `<Front>` to one inside it (`.world .label`) does not match: the front part is elsewhere in the page.
+- In a clip rendered alone the front part is drawn over the rest of the block, `z-index` in the block's own markup included.
+- A style selector from an element outside `<Front>` to one inside it (`.world .label`) does not match: the front part is elsewhere in the page. In its place `<Front>` leaves an empty `<template>`.
+- Several `<Front>`s stack in markup order, also those inside `{#if}` or `{#each}` that mount later.
 
 There is no `<Behind>`: put what a front clip needs behind the speaker in a clip of its own.
 

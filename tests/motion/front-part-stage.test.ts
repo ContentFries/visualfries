@@ -96,6 +96,36 @@ const STICKER = `<script>
 {/if}
 `;
 
+/** `ONE` with a band that sets `z-index`: in its own layer it still stays under `<Front>`. */
+const STACKED = ONE.replace('.band {', '.band { z-index: 1;');
+
+/** A label that mounts only once the clip has run half a second: a late `<Front>`. */
+const LATE = `<script>
+	import { Front, useClip } from 'visualfries/motion';
+	const clip = useClip();
+</script>
+
+{#if clip.t >= 0.5}<Front>${LABEL}</Front>{/if}
+
+<style>
+	${LABEL_STYLE}
+</style>
+`;
+
+/** Two late `<Front>`s on one spot, green first in the markup and blue second. */
+const PAIR = `<script>
+	import { Front, useClip } from 'visualfries/motion';
+	const clip = useClip();
+</script>
+
+{#if clip.t < 0.3 || clip.t > 0.9}<Front><div class="spot" style="background:#00ff00"></div></Front>{/if}
+{#if clip.t > 0.6}<Front><div class="spot" style="background:#0000ff"></div></Front>{/if}
+
+<style>
+	.spot { position: absolute; left: 150px; top: 220px; width: 100px; height: 40px; }
+</style>
+`;
+
 describe.skipIf(!hasChromium || !hasFfmpeg)('<Front>: one clip drawing behind and in front', () => {
 	let dir: string;
 	beforeAll(async () => {
@@ -107,7 +137,10 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('<Front>: one clip drawing behind an
 			Label: LABEL_BLOCK,
 			Under: box('#0000ff'),
 			Over: box('#ffff00'),
-			Sticker: STICKER
+			Sticker: STICKER,
+			Stacked: STACKED,
+			Late: LATE,
+			Pair: PAIR
 		}))
 			await fs.writeFile(path.join(dir, `${name}.svelte`), source);
 	}, 120_000);
@@ -231,6 +264,53 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('<Front>: one clip drawing behind an
 		);
 		const [still] = await renderStills(await loadMotionProject(file), [{ clip: 'one', at: '0.8' }]);
 		expect(at(rgba(still.png), 180, 240)).toSatisfy((p: number[]) => near(p, GREEN));
+	}, 300_000);
+
+	it('draws the front part over a block whose own layer sets z-index, in a clip rendered alone', async () => {
+		const file = path.join(dir, 'stacked.vf.json');
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [SW, SH],
+				fps: 30,
+				background: '#000000',
+				clips: [{ id: 'one', block: 'Stacked.svelte', from: 0, until: 1, props: { text: 'HI' } }]
+			})
+		);
+		const [still] = await renderStills(await loadMotionProject(file), [{ clip: 'one', at: '0.8' }]);
+		const px = rgba(still.png);
+		expect(at(px, 180, 240), 'the label over the band').toSatisfy((p: number[]) => near(p, GREEN));
+		expect(at(px, 20, 240), 'the band beside it').toSatisfy((p: number[]) => near(p, RED));
+	}, 300_000);
+
+	it('draws a late <Front> the same whatever frames were seeked before', async () => {
+		// A wipe into the clip (window from frame 54, first frame 66); the label mounts at 0.5 s.
+		const loaded = await project('late', [
+			{
+				id: 'late',
+				block: 'Late.svelte',
+				from: 2.2,
+				until: 3.2,
+				layer: 'behind',
+				transition: 'wipe'
+			}
+		]);
+		// Frame 55 leaves the clip hidden by the wipe; at frame 85 the label mounts.
+		const after = await captureProgramFrames(loaded, [55, 85]);
+		const fresh = await captureProgramFrames(loaded, [85]);
+		expect(at(rgba(fresh.get(85)!), 200, 240)).toSatisfy((p: number[]) => near(p, GREEN));
+		expect(sha1(after.get(85)!)).toBe(sha1(fresh.get(85)!));
+	}, 300_000);
+
+	it('stacks late <Front>s in markup order whatever frames were seeked before', async () => {
+		const loaded = await project('pair', [
+			{ id: 'pair', block: 'Pair.svelte', from: 0, until: 1.4, layer: 'behind' }
+		]);
+		// Green alone at 5, blue alone at 24, both at 33: blue comes second, so it is on top.
+		const after = await captureProgramFrames(loaded, [5, 24, 33]);
+		const fresh = await captureProgramFrames(loaded, [33]);
+		expect(at(rgba(fresh.get(33)!), 200, 240)).toSatisfy((p: number[]) => near(p, BLUE));
+		expect(at(rgba(after.get(33)!), 200, 240)).toSatisfy((p: number[]) => near(p, BLUE));
 	}, 300_000);
 
 	it('checks front text as front text and the rest as text behind the speaker', async () => {

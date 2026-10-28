@@ -463,6 +463,10 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         const next = [...front.children].find((c) => (order.get(c) ?? -1) > at);
         front.insertBefore(el, next ?? null);
     }
+    /** A clip root's own style. A slotted root is placed on every seek, where the shot puts its slot. */
+    const rootStyle = (data) => data.slot
+        ? `position:absolute;left:0;top:0;width:${seg.size[0]}px;height:${seg.size[1]}px;isolation:isolate`
+        : ISOLATED;
     /** Where `<Front>` of clip `m` (index `i`) draws: inside its front part, made on first use. */
     function frontOf(m, i) {
         if (!m.part) {
@@ -472,10 +476,20 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             el.dataset.clip = m.data.id;
             el.dataset.part = 'front';
             el.dataset.format = root.dataset.format;
-            if (root.dataset.box)
-                el.dataset.box = root.dataset.box;
-            // The root's look, its slot's place and insets, and whether it shows.
-            el.style.cssText = root.style.cssText;
+            // Built as the root was, with its slot's place and insets and whether it shows; not
+            // copied from it: a `<Front>` mounted by a seek finds the last frame's transition
+            // styles on the root, which the transition engine releases from the root alone.
+            el.style.cssText = rootStyle(m.data);
+            applyLook(el, seg);
+            if (root.dataset.box) {
+                const [x, y, width, height] = root.dataset.box.split(' ').map(Number);
+                place(el, { x, y, width, height });
+            }
+            const area = m.controller.clip.slotArea;
+            if (area)
+                for (const [name, value] of Object.entries(slotTokens(area)))
+                    el.style.setProperty(name, value);
+            el.style.display = root.style.display;
             stack(el, i + 0.5);
             const streak = m.streak ? layer(el, 'vf-streak') : null;
             if (streak)
@@ -498,9 +512,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             if (!Block)
                 throw new Error(`Block "${data.block}" is not in the bundle.`);
             // A slotted root is placed on every seek, where the shot puts its slot.
-            const root = layer(data.layer === 'behind' ? a.behind : front, 'vf-clip', data.slot
-                ? `position:absolute;left:0;top:0;width:${seg.size[0]}px;height:${seg.size[1]}px;isolation:isolate`
-                : ISOLATED);
+            const root = layer(data.layer === 'behind' ? a.behind : front, 'vf-clip', rootStyle(data));
             root.dataset.clip = data.id;
             if (data.layer !== 'behind')
                 order.set(root, i);

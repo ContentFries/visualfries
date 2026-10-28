@@ -328,13 +328,18 @@ one block instance with one state, one time, one `useFrame` and one timeline (`u
   holdout left: the speaker is cut out of the clip's own layer and never out of its labels, so
   one file lays over the rough cut as the program draws it.
 - **A clip rendered alone** (stills and renders of a project without a program) draws the front
-  part over the rest of the block. The encoder's holdout of such a clip (`"layer": "behind"`
-  without `cuts` or `shots`, see Footage and mattes) cuts the speaker out of the whole picture,
-  front part included: render the program's inserts for labels in front of the speaker.
+  part over the rest of the block, `z-index` in the block's own markup included. The encoder's
+  holdout of such a clip (`"layer": "behind"` without `cuts` or `shots`, see Footage and
+  mattes) cuts the speaker out of the whole picture, front part included: render the program's
+  inserts for labels in front of the speaker.
 - **Styles:** the block's scoped styles apply inside `<Front>`, but a selector that passes from
   an element outside it to one inside it (`.world .label`) does not match: the front part is
   elsewhere in the page. Give the front elements their own positioning; the front part covers
-  the frame like the clip's root.
+  the frame like the clip's root. In its place `<Front>` leaves an empty `<template>` (no box,
+  but it counts for `:first-child` and `+`).
+- **Several `<Front>`s** stack in markup order, also those inside `{#if}` or `{#each}` that mount
+  later: a later one draws over an earlier one, whatever frames were seeked before. A keyed
+  `{#each}` that reorders its items keeps their `<Front>`s in the order they mounted.
 
 There is no `<Behind>`: a front clip cannot put part of itself behind the speaker. Draw that
 part in a clip of its own with `"layer": "behind"`, or make the clip a behind clip and put the

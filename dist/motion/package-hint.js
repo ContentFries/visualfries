@@ -38,7 +38,9 @@ export function missingPackageLine(name, files, dir, p = path) {
     const common = commonFolder(files.map((f) => p.dirname(f)), p);
     const folders = common ? [common] : [...new Set(files.map((f) => p.dirname(f)))];
     const where = folders.map((f) => p.relative(dir, f) || '.');
-    const how = where.map((f) => `cd ${shellArg(f, p)} && npm install ${name}`).join(', and ');
+    // On Windows a folder on another drive needs `cd /d`, or cmd stays on the current drive.
+    const cd = (f) => (p.sep === '\\' && p.isAbsolute(f) ? 'cd /d' : 'cd');
+    const how = where.map((f) => `${cd(f)} ${shellArg(f, p)} && npm install ${name}`).join(', and ');
     const place = where.length === 1
         ? `${where[0] === '.' ? 'the project folder' : where[0]} or a folder above it`
         : `each of ${where.join(', ')} (or a folder above it)`;

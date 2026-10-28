@@ -13,7 +13,7 @@ describe('the line for a missing package', () => {
 		);
 		expect(line).toMatch(/^\.\.\\shared\\A\.svelte and D:\\shared\\B\.svelte import "three"/);
 		expect(line).toContain('cd ..\\shared && npm install three');
-		expect(line).toContain('cd D:\\shared && npm install three');
+		expect(line).toContain('cd /d D:\\shared && npm install three');
 	});
 
 	it('quotes a folder with a space in the cd it suggests', () => {

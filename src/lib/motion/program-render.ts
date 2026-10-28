@@ -328,16 +328,27 @@ async function renderSegments(
 	const abort = new AbortController();
 	let mode = '';
 	// Pages of a segment draw its next chunk too (opening one sets up every clip of the segment);
-	// the last chunk of a segment closes them. At most `jobs` pages are open: at the limit, an
-	// idle page of another segment closes before a new one opens.
+	// the last chunk of a segment closes them. At most `jobs` pages are open, closing ones
+	// included: at the limit an idle page of another segment closes first, or the page waits
+	// for one to close.
 	type Page = Awaited<ReturnType<typeof openSegment>>;
 	const idle = new Map<string, Page[]>();
 	let live = 0;
+	let waiting: (() => void)[] = [];
+	const wake = () => {
+		const w = waiting;
+		waiting = [];
+		w.forEach((f) => f());
+	};
 	const left = new Map<string, number>();
 	for (const s of todo) left.set(s.segment, (left.get(s.segment) ?? 0) + 1);
 	const close = async (page: Page) => {
-		live--;
-		await page.close();
+		try {
+			await page.close();
+		} finally {
+			live--;
+			wake();
+		}
 	};
 	const closeIdle = async (segment: string) => {
 		const pages = idle.get(segment) ?? [];
@@ -345,19 +356,23 @@ async function renderSegments(
 		await Promise.all(pages.map(close));
 	};
 	const take = async (segment: ProgramSegment): Promise<Page> => {
-		const own = idle.get(segment.id)?.pop();
-		if (own) return own;
-		const other = [...idle.values()].find((pages) => pages.length);
-		const spare = live >= opts.jobs && other ? other.pop()! : null;
+		for (;;) {
+			const own = idle.get(segment.id)?.pop();
+			if (own) return own;
+			if (live < opts.jobs) break;
+			const other = [...idle.values()].find((pages) => pages.length);
+			if (other) await close(other.pop()!);
+			else await new Promise<void>((r) => waiting.push(r));
+		}
 		// Counted before any wait, so pages opening at the same time see each other.
 		live++;
 		try {
-			if (spare) await close(spare);
 			return await openSegment(browser, bundle, program, segment, {
 				invalidate: opts.invalidate
 			});
 		} catch (error) {
 			live--;
+			wake();
 			throw error;
 		}
 	};
@@ -389,6 +404,7 @@ async function renderSegments(
 					close: async () => {
 						if (abort.signal.aborted) return close(page);
 						idle.set(segment.id, [...(idle.get(segment.id) ?? []), page]);
+						wake();
 					}
 				};
 			};

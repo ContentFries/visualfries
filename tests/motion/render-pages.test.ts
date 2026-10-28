@@ -10,24 +10,28 @@ import path from 'node:path';
  * opening, reusing and closing is all the render's own scheduling.
  */
 const pages = { live: 0, peak: 0, opened: 0 };
-/** Frames of these chunks (by their first program frame) take a while to draw. */
-const slow = new Set<number>();
+/** Milliseconds a frame takes to draw, by the first program frame of its 40-frame chunk. */
+const slow = new Map<number, number>();
+/** Milliseconds closing a page of these segments takes: it is open until then. */
+const slowClose = new Map<string, number>();
+const wait = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 let png: Buffer;
 
 vi.mock('../../src/lib/motion/program-node.js', async (actual) => ({
 	...(await actual<typeof import('../../src/lib/motion/program-node.js')>()),
-	openSegment: async () => {
+	openSegment: async (_b: unknown, _u: unknown, _p: unknown, segment: { id: string }) => {
 		pages.live++;
 		pages.opened++;
 		pages.peak = Math.max(pages.peak, pages.live);
 		return {
 			mode: 'test',
 			capture: async (f: number) => {
-				if ([...slow].some((from) => f >= from && f < from + 40))
-					await new Promise((r) => setTimeout(r, 25));
+				const ms = slow.get(f - (f % 40));
+				if (ms) await wait(ms);
 				return png;
 			},
 			close: async () => {
+				await wait(slowClose.get(segment.id));
 				pages.live--;
 			}
 		};
@@ -106,7 +110,7 @@ describe.skipIf(!hasFfmpeg)('render pages', () => {
 				]
 			})
 		);
-		slow.add(40);
+		slow.set(40, 25);
 		const r = await renderProgramVideo(await loadMotionProject(file), {
 			output: path.join(dir, 'pages.mp4'),
 			jobs: 2,
@@ -119,6 +123,45 @@ describe.skipIf(!hasFfmpeg)('render pages', () => {
 			['seg2.2', 120, 40]
 		]);
 		expect(pages.peak).toBeLessThanOrEqual(2);
+		expect(pages.live).toBe(0);
+	}, 60_000);
+
+	it('counts a page as open until it has closed', async () => {
+		// Segments of one, two and one chunk with --jobs 3. The first segment's page closes
+		// slowly; meanwhile the page done with chunk one of the second segment waits idle and
+		// its worker goes on to the third segment.
+		const file = path.join(dir, 'closing.vf.json');
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [64, 36],
+				fps: 10,
+				background: '#000000',
+				footage: { num: { src: 'num.mp4' } },
+				cuts: [
+					{ id: 'a', source: 'num', in: 0, out: 4 },
+					{ id: 'b', source: 'num', in: 4, out: 12 },
+					{ id: 'c', source: 'num', in: 12, out: 16 }
+				]
+			})
+		);
+		Object.assign(pages, { live: 0, peak: 0, opened: 0 });
+		slow.clear();
+		slow.set(40, 5);
+		slow.set(80, 25);
+		slowClose.set('seg1', 1500);
+		const r = await renderProgramVideo(await loadMotionProject(file), {
+			output: path.join(dir, 'closing.mp4'),
+			jobs: 3,
+			schedule: 'segments'
+		});
+		expect(r.segments.map((s) => [s.id, s.startFrame, s.frames])).toEqual([
+			['seg1', 0, 40],
+			['seg2.1', 40, 40],
+			['seg2.2', 80, 40],
+			['seg3', 120, 40]
+		]);
+		expect(pages.peak).toBeLessThanOrEqual(3);
 		expect(pages.live).toBe(0);
 	}, 60_000);
 });

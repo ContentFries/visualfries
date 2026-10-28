@@ -1538,16 +1538,22 @@ default there; `--export inserts` renders each clip as its own file, see
 [Inserts from a program](#inserts-from-a-program)).
 `--format WxH` renders another frame size from the same project; `--output` is an `.mp4` or a
 directory that gets `<project>[.<format>].mp4`. Each segment (the range between two hard cuts)
-is drawn on its own pages and stored losslessly in `.visualfries/segments/<hash>-<engine>.mkv`;
-the segments are joined without re-encoding and encoded once with the clip settings. A
-segment's hash covers what is on screen in it, including every file its blocks import, the
-files project CSS points to and project files named in clip props, so editing one clip or one
-helper draws only the segments it is on screen in (`--no-cache` draws everything again). After
-a render the folder keeps only the intermediates the latest render of each project and format
-there uses; an interrupted render removes its partial files, and the next render removes those
-of a render that was killed. With at least as many segments to draw as `--jobs` and none much
-longer than its share, each page takes whole segments; otherwise a segment's frames are spread
-over the pages. The resolved program is saved beside the video as `<name>.program.json`.
+is drawn in chunks of about 4 s (cut at every 4 s of program time, so the pieces stay put when
+an edit moves a segment's edges; a piece under 2 s at an edge joins its neighbour), each on
+pages of its segment and stored losslessly in `.visualfries/segments/<hash>-<engine>.mkv`; the
+chunks are joined without re-encoding and encoded once with the clip settings. A chunk's hash
+covers what its frames show, including every file its blocks import, the files project CSS
+points to and project files named in clip props, so editing one clip or one helper draws only
+the chunks it is on screen in (`--no-cache` draws everything again). Keys count by what they
+draw in the chunk's own frames: moving the speaker's exit by a tenth of a second draws again
+the chunks around the exit, not every chunk of the shot. A clip's other fields count whole: new
+props of a block that runs across the program draw all of it again. After a render the folder
+keeps only the intermediates the latest render of each project and format there uses; an
+interrupted render removes its partial files, and the next render removes those of a render
+that was killed. With at least as many chunks to draw as `--jobs` and none much longer than its
+share, each page takes whole chunks, going on to the next chunk of the same segment; otherwise a
+chunk's frames are spread over the pages. The resolved program, with every segment's `chunks`,
+is saved beside the video as `<name>.program.json`.
 
 A re-take that changes words (not just timing) makes the affected cues fail with a suggestion,
 e.g. `"extra" not found … Did you mean "spare" at 59.80s?`. Update the phrase in the JSON;

@@ -8,6 +8,7 @@ import { propFileRefs, resolveMotionClip, resolveMotionProject } from './resolve
 import { END_CARD_BLOCK, sliceProgram } from './excerpt.js';
 import { micro, programEnd, resolveCutList, soundEnd, soundLength } from './cutlist.js';
 import { sha1 } from './sha1.js';
+import { chunkSpans, keyStates } from './chunks.js';
 import { defaultMorph, SHOT_MODULES, shotAt, shotEvents, shotLayout, shotModule } from './shots/index.js';
 import { clipShowRange, stagedCuts, stagedShots } from './segments.js';
 import { parseEase } from './ease.js';
@@ -1448,17 +1449,22 @@ function resolveSegments(program, project, excerpt) {
         .map((c) => c.startFrame)
         .filter((f) => f > 0 && f < (hold?.from ?? program.frames));
     const edges = [0, ...bounds, program.frames];
-    const segments = [];
-    for (let i = 0; i + 1 < edges.length; i++) {
-        const span = { startFrame: edges[i], frames: edges[i + 1] - edges[i] };
-        if (span.frames <= 0)
-            continue;
+    /**
+     * What a range of frames shows, hashed. A segment hashes its items whole; a chunk (`keyed`)
+     * hashes the states its own frames take of every key (see `keyStates`) instead of the keys,
+     * and the cuts every shot it shows measures its head over.
+     */
+    const contentOf = (span, keyed) => {
         const on = (list) => list.filter((x) => overlaps(x, span));
         const transitions = on(program.transitions);
         // What the range shows: the sides of its transition windows and every clip it holds
         // (in an excerpt, a window or a held clip may reach past the range's items).
-        const cuts = stagedCuts(program.cuts, transitions, span);
         const shown = stagedShots(program.shots, transitions, span);
+        const cuts = stagedCuts(program.cuts, transitions, span);
+        // A shot frames the head it measures over all of its frames (see `shotHead`).
+        const measured = keyed
+            ? program.cuts.filter((c) => !cuts.includes(c) && shown.some((s) => overlaps(c, s)))
+            : [];
         const shots = shown.filter((s) => overlaps(s, span) ||
             transitions.some((t) => t.kind === 'shot' && (t.owner === s.id || t.outgoing === s.id)));
         const clips = program.clips.filter((c) => {
@@ -1467,7 +1473,7 @@ function resolveSegments(program, project, excerpt) {
         });
         const sourceNames = [
             ...new Set([
-                ...cuts.map((c) => c.source),
+                ...[...cuts, ...measured].map((c) => c.source),
                 ...shots.flatMap((s) => (s.source ? [s.source.name] : []))
             ])
         ].sort();
@@ -1482,6 +1488,12 @@ function resolveSegments(program, project, excerpt) {
                 ...propFiles(clips.map((c) => c.props)).filter((f) => f in program.hashes.assets)
             ])
         ];
+        const frames = (item) => {
+            if (!keyed)
+                return item;
+            const { keys, ...rest } = item;
+            return { ...rest, keys: keyStates(keys, span.startFrame, endOf(span)) };
+        };
         const hash = sha1(JSON.stringify({
             span,
             format: program.format,
@@ -1495,12 +1507,13 @@ function resolveSegments(program, project, excerpt) {
             assets: assets.map((a) => [a, program.hashes.assets[a] ?? null]),
             look: [program.hashes.brand, program.hashes.style],
             cuts: cuts.map(picture),
+            ...(measured.length ? { measured: measured.map(picture) } : {}),
             // The shot a morph starts from shapes the first frames too.
-            shots: shown,
-            clips,
+            shots: shown.map(frames),
+            clips: clips.map(frames),
             transitions: transitions.map(picture),
-            // An excerpt: the end card's hold in the segment it is in, and what its framing reads
-            // of the whole program's footage (the head runs of the shots in this segment).
+            // An excerpt: the end card's hold in the range it is in, and what its framing reads
+            // of the whole program's footage (the head runs of the shots in this range).
             ...(excerpt
                 ? {
                     excerpt: {
@@ -1511,11 +1524,24 @@ function resolveSegments(program, project, excerpt) {
                 }
                 : {})
         }));
+        return { items: [...cuts, ...shots, ...clips, ...transitions].map((x) => x.id), hash };
+    };
+    const segments = [];
+    for (let i = 0; i + 1 < edges.length; i++) {
+        const span = { startFrame: edges[i], frames: edges[i + 1] - edges[i] };
+        if (span.frames <= 0)
+            continue;
+        const id = `seg${segments.length + 1}`;
+        const parts = chunkSpans(span, program.fps);
         segments.push({
-            id: `seg${segments.length + 1}`,
+            id,
             ...span,
-            items: [...cuts, ...shots, ...clips, ...transitions].map((x) => x.id),
-            hash
+            ...contentOf(span, false),
+            chunks: parts.map((part, k) => ({
+                id: parts.length > 1 ? `${id}.${k + 1}` : id,
+                ...part,
+                hash: contentOf(part, true).hash
+            }))
         });
     }
     return segments;

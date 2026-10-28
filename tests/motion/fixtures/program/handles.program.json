@@ -836,7 +836,15 @@
 			"startFrame": 0,
 			"frames": 96,
 			"items": ["cut1", "broll", "full-0", "broll.transition"],
-			"hash": "a5507e16665424e17f60c8fe2d3e030e3af4b02a"
+			"hash": "a5507e16665424e17f60c8fe2d3e030e3af4b02a",
+			"chunks": [
+				{
+					"id": "seg1",
+					"startFrame": 0,
+					"frames": 96,
+					"hash": "28578ad35a22c9d81917056dd1d4ac48216937f8"
+				}
+			]
 		},
 		{
 			"id": "seg2",
@@ -853,7 +861,15 @@
 				"whip.transition",
 				"cut5.transition"
 			],
-			"hash": "d6bc9f8cb679d6e3be29301d16799b54a41d9e5f"
+			"hash": "d6bc9f8cb679d6e3be29301d16799b54a41d9e5f",
+			"chunks": [
+				{
+					"id": "seg2",
+					"startFrame": 96,
+					"frames": 150,
+					"hash": "c544fb6cf50daceec3d6968566dbdbc13b804d2f"
+				}
+			]
 		}
 	],
 	"diagnostics": [

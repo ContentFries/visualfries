@@ -237,9 +237,9 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		const resolvedFile = path.join(dir, '.visualfries', 'program', `${W}x${H}.json`);
 		expect(saved).toEqual(JSON.parse(await fs.readFile(resolvedFile, 'utf8')));
 		expect(saved.clips[0].footage).toBeUndefined();
-		expect(saved.segments.map((s: { hash: string }) => s.hash)).toEqual(
-			first.segments.map((s) => s.hash)
-		);
+		expect(
+			saved.segments.flatMap((s: { chunks: { hash: string }[] }) => s.chunks.map((c) => c.hash))
+		).toEqual(first.segments.map((s) => s.hash));
 	});
 
 	it('stores intermediates whose frames equal stills of the same program frames', async () => {
@@ -312,6 +312,61 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		expect(kept.sort()).toEqual(edited.segments.map((s) => path.basename(s.file)).sort());
 		await fs.writeFile(file, programJson('ONE'));
 	}, 150_000);
+
+	it('draws again only the chunk of a long segment that an edit changes', async () => {
+		const longDir = path.join(dir, 'long');
+		await fs.mkdir(longDir);
+		for (const name of ['num.mp4', 'Label.svelte'])
+			await fs.copyFile(path.join(dir, name), path.join(longDir, name));
+		const project = path.join(longDir, 'long.vf.json');
+		// One cut, one segment of 300 frames: chunks 0–119, 120–239 and 240–299. The label is on
+		// screen in the second; the shot's keys move the picture in the third.
+		const json = (label: string, at: number) =>
+			JSON.stringify({
+				size: [W, H],
+				fps: FPS,
+				background: '#000000',
+				footage: { num: { src: 'num.mp4' } },
+				cuts: [{ id: 'a', source: 'num', in: 0, out: 10 }],
+				shots: [
+					{
+						id: 'cam',
+						shot: 'full',
+						from: 0,
+						until: 'end',
+						keys: [
+							{ at: 0, x: 0 },
+							{ at, x: 0 },
+							{ at: at + 0.5, x: 120, ease: 'power2.in' }
+						]
+					}
+				],
+				clips: [{ id: 'label', block: 'Label.svelte', from: 5, until: 6, props: { text: label } }]
+			});
+		const render = async (name: string, fresh = false) =>
+			renderProgramVideo(await loadMotionProject(project), {
+				output: path.join(longDir, name),
+				jobs: 2,
+				fresh
+			});
+		await fs.writeFile(project, json('ONE', 8.5));
+		const base = await render('base.mp4');
+		expect(base.segments.map((s) => [s.id, s.segment, s.startFrame, s.frames])).toEqual([
+			['seg1.1', 'seg1', 0, 120],
+			['seg1.2', 'seg1', 120, 120],
+			['seg1.3', 'seg1', 240, 60]
+		]);
+		await fs.writeFile(project, json('TWO', 8.5));
+		const label = await render('label.mp4');
+		expect(label.segments.map((s) => s.cached)).toEqual([true, false, true]);
+		await fs.writeFile(project, json('TWO', 9));
+		const moved = await render('moved.mp4');
+		expect(moved.segments.map((s) => s.cached)).toEqual([true, true, false]);
+		// Drawn from the cache, the video is the one a render from scratch gives.
+		const fresh = await render('fresh.mp4', true);
+		expect(fresh.segments.every((s) => !s.cached)).toBe(true);
+		expect(sha1(rgb(moved.file))).toBe(sha1(rgb(fresh.file)));
+	}, 300_000);
 
 	it('keeps an unused intermediate written as a render starts, as file times lag the clock', async () => {
 		const cacheDir = path.join(dir, '.visualfries', 'segments');

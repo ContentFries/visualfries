@@ -73,7 +73,7 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     --export inserts lists what inserts leave to the program render.
                     Video: [--format <WxH>] [--excerpt <id>] [--no-cache] [--stems]; --excerpt renders
                     one of the project's "excerpts" as <name>.<id>.mp4; segments are cached losslessly in
-                    .visualfries/segments/ and only changed segments are drawn again;
+                    .visualfries/segments/ in chunks of about 4 s and only changed chunks are drawn again;
                     <name>.program.json is saved beside the video. The sound is speech, sfx
                     and music mixed and normalised (-14 LUFS, -1 dBTP; "mix" in the project);
                     --stems also writes <name>.speech|sfx|music.wav
@@ -1860,7 +1860,7 @@ async function motionProgramCommand(args) {
 			);
 		for (const seg of program.segments)
 			console.log(
-				`segment ${seg.id}  frames ${seg.startFrame}–${seg.startFrame + seg.frames - 1}  ${seg.hash.slice(0, 12)}  ${seg.items.join(', ')}`
+				`segment ${seg.id}  frames ${seg.startFrame}–${seg.startFrame + seg.frames - 1}  ${seg.hash.slice(0, 12)}  ${seg.items.join(', ')}${seg.chunks.length > 1 ? `  (${seg.chunks.length} chunks)` : ''}`
 			);
 		for (const d of program.diagnostics)
 			console.log(`${d.level.toUpperCase()} ${d.item ?? d.clip ?? '-'} ${d.field}: ${d.message}`);

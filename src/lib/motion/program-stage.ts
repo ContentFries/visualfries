@@ -2,6 +2,7 @@ import { flushSync, mount, unmount, type Component } from 'svelte';
 import {
 	Clip,
 	MOTION_CONTEXT_KEY,
+	registerClipPart,
 	registerClipRoot,
 	type ClipController
 } from './runtime.svelte.js';
@@ -75,6 +76,13 @@ import { PANEL_TEXT_SHARE, captionsInMoveMessage, moveAtStart, shotMoves } from 
  * layout of every frame comes from the shot engine: where the camera window and the footage in
  * it sit, which slots are open.
  *
+ * A block that uses `<Front>` gets a second root, its front part, in `.vf-clips` where the clip
+ * stands in project order (right after the root of a front clip): the same block instance draws
+ * into both. The front part mirrors the root (shown or hidden, slot, placement keys, motion
+ * blur) and counts as a front clip everywhere else: it rides the side of a cut or shot
+ * transition the clip starts or ends on, arrives with the clip's own transition and is checked
+ * as front text.
+ *
  * Inside a cut or shot transition window side a shows the outgoing picture and side b the
  * incoming one (see `transitionSidesAt`); clips that end on the cut leave with side a and clips
  * that start on it arrive with side b. The transition engine moves, hides or covers them.
@@ -103,7 +111,12 @@ type Mounted = {
 	keyed: HTMLDivElement | null;
 	/** Inside the root of a slotted clip: what a whip's motion blur filters (null without). */
 	streak: HTMLDivElement | null;
+	/** The clip's front part (see `<Front>`), made on first use; null without one. */
+	part: Part | null;
 };
+
+/** A clip's front part: a second root in the front clip layer, with the boxes its root has. */
+type Part = { root: HTMLDivElement; keyed: HTMLDivElement | null; streak: HTMLDivElement | null };
 
 /** Whether the speaker is drawn at each of a list of points (stage pixels); null: unknown. */
 type Sampler = (points: { x: number; y: number }[]) => boolean[] | null;
@@ -191,6 +204,12 @@ export type ProgramScene = {
 	 * drawn) and returns whether there is one to cut out; `false` shows the clips again.
 	 */
 	holdout(on: boolean): boolean;
+	/**
+	 * A holdout insert's third pass, for a clip with a front part (see `<Front>`): `true` shows
+	 * the front part alone and returns whether it is on screen; `false` hides it again. The front
+	 * part of a holdout insert stays out of the first two passes, so the holdout never cuts it.
+	 */
+	frontPass(on: boolean): boolean;
 	destroy(): void;
 };
 
@@ -448,11 +467,13 @@ function windowShadow(layout: ShotLayout, size: [number, number]): string {
  * the safe part of the slot as it moves.
  */
 function placeSlot(controller: ClipController, slot: Rect, seg: StageSegment) {
-	place(controller.root, slot);
+	// The clip's front part (see `<Front>`) sits where its root does.
+	const roots = [controller.root, ...(controller.parts ?? [])];
+	for (const root of roots) place(root, slot);
 	const area = slotArea(slot, seg.format);
 	if (sameArea(controller.clip.slotArea, area)) return;
 	for (const [name, value] of Object.entries(slotTokens(area)))
-		controller.root.style.setProperty(name, value);
+		for (const root of roots) root.style.setProperty(name, value);
 	controller.clip.slotArea = area;
 }
 
@@ -643,19 +664,67 @@ export function createProgramScene(
 
 	const mounted: Mounted[] = [];
 	const ready: Promise<unknown>[] = [];
+	/** Where each root in `.vf-clips` stands: its clip's index in project order (a part: + 0.5). */
+	const order = new Map<Element, number>();
+	/** Puts `el` into `.vf-clips` before the first root that stands after it. */
+	function stack(el: HTMLElement, at: number) {
+		order.set(el, at);
+		const next = [...front.children].find((c) => (order.get(c) ?? -1) > at);
+		front.insertBefore(el, next ?? null);
+	}
+
+	/** A clip root's own style. A slotted root is placed on every seek, where the shot puts its slot. */
+	const rootStyle = (data: (typeof seg.clips)[number]) =>
+		data.slot
+			? `position:absolute;left:0;top:0;width:${seg.size[0]}px;height:${seg.size[1]}px;isolation:isolate`
+			: ISOLATED;
+
+	/** Where `<Front>` of clip `m` (index `i`) draws: inside its front part, made on first use. */
+	function frontOf(m: Mounted, i: number): HTMLElement {
+		if (!m.part) {
+			const { root } = m.controller;
+			const el = document.createElement('div');
+			el.className = 'vf-clip';
+			el.dataset.clip = m.data.id;
+			el.dataset.part = 'front';
+			el.dataset.format = root.dataset.format;
+			// Built as the root was, with its slot's place and insets and whether it shows; not
+			// copied from it: a `<Front>` mounted by a seek finds the last frame's transition
+			// styles on the root, which the transition engine releases from the root alone.
+			el.style.cssText = rootStyle(m.data);
+			applyLook(el, seg);
+			if (root.dataset.box) {
+				const [x, y, width, height] = root.dataset.box.split(' ').map(Number);
+				place(el, { x, y, width, height });
+			}
+			const area = m.controller.clip.slotArea;
+			if (area)
+				for (const [name, value] of Object.entries(slotTokens(area)))
+					el.style.setProperty(name, value);
+			el.style.display = root.style.display;
+			stack(el, i + 0.5);
+			const streak = m.streak ? layer(el, 'vf-streak') : null;
+			if (streak) streak.style.filter = m.streak!.style.filter;
+			const keyed = m.keyed ? layer(streak ?? el, 'vf-keys') : null;
+			if (keyed)
+				for (const k of ['transform', 'opacity', 'transformOrigin'] as const)
+					keyed.style[k] = m.keyed!.style[k];
+			m.part = { root: el, keyed, streak };
+			registerClipPart(m.controller, el);
+			// A holdout insert draws its front part in a pass of its own (see `frontPass`).
+			if (seg.insert?.holdout) front.style.opacity = '0';
+		}
+		return m.part.keyed ?? m.part.streak ?? m.part.root;
+	}
+
 	try {
-		for (const data of seg.clips) {
+		for (const [i, data] of seg.clips.entries()) {
 			const Block = blocks[data.block];
 			if (!Block) throw new Error(`Block "${data.block}" is not in the bundle.`);
 			// A slotted root is placed on every seek, where the shot puts its slot.
-			const root = layer(
-				data.layer === 'behind' ? a.behind : front,
-				'vf-clip',
-				data.slot
-					? `position:absolute;left:0;top:0;width:${seg.size[0]}px;height:${seg.size[1]}px;isolation:isolate`
-					: ISOLATED
-			);
+			const root = layer(data.layer === 'behind' ? a.behind : front, 'vf-clip', rootStyle(data));
 			root.dataset.clip = data.id;
+			if (data.layer !== 'behind') order.set(root, i);
 			applyLook(root, seg);
 			let tracks: KeyTracks;
 			try {
@@ -686,10 +755,20 @@ export function createProgramScene(
 			registerClipRoot(controller);
 			// Until the first seek a slotted root covers the frame, and so do its safe insets.
 			if (data.slot) placeSlot(controller, frameRect(seg.size), seg);
-			let instance: ReturnType<typeof mount>;
+			const m: Mounted = {
+				data,
+				controller,
+				instance: null as unknown as ReturnType<typeof mount>,
+				shown: null,
+				tracks,
+				keyed,
+				streak,
+				part: null
+			};
+			controller.front = () => frontOf(m, i);
 			try {
 				// The clip's reactive props: what changes `clip.props` later reaches the block.
-				instance = mount(Block, {
+				m.instance = mount(Block, {
 					target: keyed ?? streak ?? root,
 					props: controller.clip.props,
 					context: new Map([[MOTION_CONTEXT_KEY, controller]])
@@ -697,7 +776,7 @@ export function createProgramScene(
 			} catch (error) {
 				throw clipError(data.id, error);
 			}
-			mounted.push({ data, controller, instance, shown: null, tracks, keyed, streak });
+			mounted.push(m);
 			ready.push(...controller.ready);
 		}
 		flushSync();
@@ -768,6 +847,13 @@ export function createProgramScene(
 	const live = new Set(seg.hold?.clips ?? []);
 	/** The frame the picture shows at `f`: under an end card, the excerpt's last frame. */
 	const held = (f: number) => (seg.hold && f >= seg.hold.from ? seg.hold.from - 1 : f);
+
+	/** A clip's roots: its own and its front part (see `<Front>`). */
+	const rootsOf = (m: Mounted): HTMLElement[] =>
+		m.part ? [m.controller.root, m.part.root] : [m.controller.root];
+	/** A clip's roots in front of the speaker: a front clip's own, and its front part. */
+	const frontRoots = (m: Mounted): HTMLElement[] =>
+		m.data.layer === 'behind' ? (m.part ? [m.part.root] : []) : rootsOf(m);
 
 	function plan(f: number): Plan {
 		// Everything but an end card is planned at the frame it holds.
@@ -876,14 +962,15 @@ export function createProgramScene(
 		return { out: under, in: under };
 	}
 
-	/** The elements leaving and arriving in transition `t` at the planned frame. */
+	/**
+	 * The elements leaving and arriving in transition `t` at the planned frame. A front part
+	 * (see `<Front>`) goes as a front clip of its clip would.
+	 */
 	function sidesOf(now: Plan, t: ProgramTransition) {
 		const onScreen = (m: Mounted, i: number) => now.clips[i].local !== null;
 		if (t.kind !== 'clip') {
 			const riders = (s: 'a' | 'b') =>
-				mounted
-					.filter((m, i) => m.data.layer === 'front' && onScreen(m, i) && now.clips[i].side === s)
-					.map((m) => m.controller.root);
+				mounted.filter((m, i) => onScreen(m, i) && now.clips[i].side === s).flatMap(frontRoots);
 			return { out: [a.el, ...riders('a')], in: [b.el, ...riders('b')] };
 		}
 		const i = mounted.findIndex((m) => m.data.id === t.owner);
@@ -891,14 +978,14 @@ export function createProgramScene(
 		if (!own) return { out: [], in: [] };
 		if (own.data.layer === 'behind') {
 			const home = now.clips[i].side === 'b' ? b : a;
-			return { out: [home.fill, home.plate.box], in: [own.controller.root] };
+			return { out: [home.fill, home.plate.box], in: rootsOf(own) };
 		}
 		const below = mounted
-			.filter((m, k) => m.data.layer === 'front' && m.data.z < own.data.z && onScreen(m, k))
-			.map((m) => m.controller.root);
+			.filter((m, k) => m.data.z < own.data.z && onScreen(m, k))
+			.flatMap(frontRoots);
 		return {
 			out: [a.el, ...(now.b ? [b.el] : []), ...below],
-			in: [own.controller.root]
+			in: rootsOf(own)
 		};
 	}
 
@@ -1087,15 +1174,25 @@ export function createProgramScene(
 		let hidden: boolean | null = null;
 		for (const m of mounted) {
 			const id = m.data.id;
-			const root = m.controller.root;
-			if (m.shown === null || toldFace.has(id) || m.data.layer === 'behind') {
+			// A clip behind the subject has front text only in its front part (see `<Front>`).
+			const roots = frontRoots(m);
+			if (m.shown === null || toldFace.has(id) || !roots.length) {
 				overFace.delete(id);
 				continue;
 			}
-			let share = faceCovered(head, page.boxes(root), window);
+			let share = faceCovered(
+				head,
+				roots.flatMap((root) => page.boxes(root)),
+				window
+			);
 			if (share >= FACE_TEXT_SHARE) {
 				over ??= speakerOver(head, page);
-				if (over.length) share = faceCovered(head, page.boxes(root, under), window);
+				if (over.length)
+					share = faceCovered(
+						head,
+						roots.flatMap((root) => page.boxes(root, under)),
+						window
+					);
 			}
 			if (share < FACE_TEXT_SHARE) {
 				overFace.delete(id);
@@ -1108,8 +1205,7 @@ export function createProgramScene(
 			// A full-frame card or picture over the head hides the face: the text is on the card.
 			// Looked for only once a warning is due.
 			hidden ??= mounted.some(
-				(x) =>
-					x.shown !== null && x.data.layer !== 'behind' && page.hidesHead(x.controller.root, head)
+				(x) => x.shown !== null && frontRoots(x).some((root) => page.hidesHead(root, head))
 			);
 			overFace.delete(id);
 			if (hidden) continue;
@@ -1133,10 +1229,10 @@ export function createProgramScene(
 		const points = facePoints(head);
 		const found: Element[] = [];
 		for (const m of mounted) {
-			if (m.shown === null || m.data.layer === 'behind') continue;
-			const layers = m.controller.root.querySelectorAll<HTMLElement>(
-				'.vf-subject-layer[data-layer="subject"]'
-			);
+			if (m.shown === null) continue;
+			const layers = frontRoots(m).flatMap((root) => [
+				...root.querySelectorAll<HTMLElement>('.vf-subject-layer[data-layer="subject"]')
+			]);
 			for (const el of layers)
 				if (page.opacityOf(el) >= 0.5 && drawnShare(el, points, stage, seg.size) >= 0.5)
 					found.push(el);
@@ -1186,7 +1282,7 @@ export function createProgramScene(
 
 	function fitOf(m: Mounted, f: number, page: TextReader): string[] {
 		const id = m.data.id;
-		const { boxes, text, covers, filled } = page.content(m.controller.root);
+		const { boxes, text, covers, filled } = contentOf(page, rootsOf(m));
 		const found: FitFinding[] = [];
 		const cut = cutShare(boxes, stageRect);
 		if (cut.share >= CUT_SHARE) found.push({ kind: 'cut', ...cut });
@@ -1307,7 +1403,7 @@ export function createProgramScene(
 
 	/** What the text of mounted clip `i` lies over at the planned frame: a panel, the face. */
 	function drawnOver(now: Plan, i: number, page: TextReader) {
-		const boxes = page.boxes(mounted[i].controller.root);
+		const boxes = rootsOf(mounted[i]).flatMap((root) => page.boxes(root));
 		const total = boxes.reduce((sum, b) => sum + b.width * b.height, 0);
 		if (!total) return { panel: false, face: false, text: false };
 		let onPanel = 0;
@@ -1351,8 +1447,12 @@ export function createProgramScene(
 		}
 		const out: string[] = [];
 		let layers: HTMLElement[] | null = null;
-		for (const m of mounted) {
-			const id = m.data.id;
+		// A clip's own root, and its front part (see `<Front>`) as front text of its own.
+		const units = mounted.flatMap((m) => [
+			{ m, root: m.controller.root, behind: m.data.layer === 'behind', id: m.data.id },
+			...(m.part ? [{ m, root: m.part.root, behind: false, id: `${m.data.id}\u0000front` }] : [])
+		]);
+		for (const { m, root, behind, id } of units) {
 			if (m.shown === null || toldBehind.has(id)) {
 				behindRun.delete(id);
 				behindAt.delete(id);
@@ -1363,12 +1463,11 @@ export function createProgramScene(
 			behindAt.set(id, f);
 			let boxes: Rect[] = [];
 			let sample: Sampler | null = null;
-			if (m.data.layer === 'behind') {
-				boxes = read().boxes(m.controller.root, undefined, false);
+			if (behind) {
+				boxes = read().boxes(root, undefined, false);
 				if (boxes.length) sample = subjectSampler(now.a.layout);
 			} else {
 				layers ??= subjectLayers(read());
-				const root = m.controller.root;
 				const after = layers.filter(
 					(l) =>
 						root.contains(l) ||
@@ -1401,7 +1500,7 @@ export function createProgramScene(
 			);
 			out.push(
 				textBehindMessage(
-					{ clip: id, block: m.data.block, frame: run.from, share: run.share, clear },
+					{ clip: m.data.id, block: m.data.block, frame: run.from, share: run.share, clear },
 					seg.size,
 					seg.fps
 				)
@@ -1414,11 +1513,12 @@ export function createProgramScene(
 	function subjectLayers(page: TextReader): HTMLElement[] {
 		const found: HTMLElement[] = [];
 		for (const m of mounted) {
-			if (m.shown === null || m.data.layer === 'behind') continue;
-			for (const el of m.controller.root.querySelectorAll<HTMLElement>(
-				'.vf-subject-layer[data-layer="subject"]'
-			))
-				if (page.opacityOf(el) >= 0.5) found.push(el);
+			if (m.shown === null) continue;
+			for (const root of frontRoots(m))
+				for (const el of root.querySelectorAll<HTMLElement>(
+					'.vf-subject-layer[data-layer="subject"]'
+				))
+					if (page.opacityOf(el) >= 0.5) found.push(el);
 		}
 		return found;
 	}
@@ -1529,6 +1629,7 @@ export function createProgramScene(
 				const { local, slot } = now.clips[i];
 				if (slot) placeSlot(m.controller, slot, seg);
 				m.controller.root.style.display = local === null ? 'none' : '';
+				if (m.part) m.part.root.style.display = m.controller.root.style.display;
 				m.shown = local;
 				if (local === null) return;
 				m.controller.clip.t = local / seg.fps;
@@ -1543,8 +1644,10 @@ export function createProgramScene(
 				if (m.tracks.props) Object.assign(m.controller.clip.props, m.tracks.props(at));
 				if (m.keyed) {
 					const p = m.tracks.placement!(at);
-					m.keyed.style.transform = placementTransform(p);
-					m.keyed.style.opacity = p.opacity === 1 ? '' : String(p.opacity);
+					for (const box of m.part?.keyed ? [m.keyed, m.part.keyed] : [m.keyed]) {
+						box.style.transform = placementTransform(p);
+						box.style.opacity = p.opacity === 1 ? '' : String(p.opacity);
+					}
 				}
 			});
 			const streak = filters.streak(
@@ -1554,7 +1657,10 @@ export function createProgramScene(
 					y: now.streak.y * CLIP_STREAK
 				}
 			);
-			for (const m of mounted) if (m.streak) m.streak.style.filter = streak;
+			for (const m of mounted) {
+				if (m.streak) m.streak.style.filter = streak;
+				if (m.part?.streak) m.part.streak.style.filter = streak;
+			}
 			arrangeBehind(now);
 			flushSync();
 			// A block may set the point its placement keys turn about (`clip.pivot`), from what
@@ -1564,6 +1670,7 @@ export function createProgramScene(
 				const p = m.controller.clip.pivot;
 				const at = typeof p === 'function' ? p() : p;
 				m.keyed.style.transformOrigin = at ? `${px(at.x)}px ${px(at.y)}px` : '';
+				if (m.part?.keyed) m.part.keyed.style.transformOrigin = m.keyed.style.transformOrigin;
 			}
 			for (const m of mounted) {
 				if (m.shown === null) continue;
@@ -1618,7 +1725,7 @@ export function createProgramScene(
 				if (t.kind !== 'clip' || t.type !== 'push' || f !== t.startFrame + t.frames) continue;
 				const m = mounted.find((x) => x.data.id === t.owner);
 				if (!m || m.shown === null || m.data.layer === 'behind' || m.data.slot) continue;
-				if (!coversStage(m.controller.root, stage))
+				if (!rootsOf(m).some((root) => coversStage(root, stage)))
 					out.push(
 						`The push into clip "${t.owner}" slides everything below it off the frame, but the clip does not cover the frame: the empty stage shows around it. Use wipe, or give the clip a full-frame background.`
 					);
@@ -1664,8 +1771,16 @@ export function createProgramScene(
 			if (on && !shown) return false;
 			a.subject.box.style.opacity = on ? '' : '0';
 			a.behind.style.opacity = on ? '0' : '';
-			front.style.opacity = on ? '0' : '';
+			// A front part stays hidden: it has a pass of its own (see `frontPass`).
+			front.style.opacity = on || mounted.some((m) => m.part) ? '0' : '';
 			under.style.opacity = on ? '0' : '';
+			return on;
+		},
+		frontPass(on) {
+			const parts = seg.insert?.holdout && mounted.some((m) => m.part && m.shown !== null);
+			if (on && !parts) return false;
+			a.behind.style.opacity = on ? '0' : '';
+			front.style.opacity = on ? '' : '0';
 			return on;
 		},
 		destroy() {
@@ -1918,6 +2033,18 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 			}
 			return false;
 		}
+	};
+}
+
+/** What `TextReader.content` finds in several roots of one clip, together. */
+function contentOf(page: TextReader, roots: HTMLElement[]) {
+	if (roots.length === 1) return page.content(roots[0]);
+	const all = roots.map((root) => page.content(root));
+	return {
+		boxes: all.flatMap((c) => c.boxes),
+		text: all.flatMap((c) => c.text),
+		covers: all.some((c) => c.covers),
+		filled: all.some((c) => c.filled)
 	};
 }
 

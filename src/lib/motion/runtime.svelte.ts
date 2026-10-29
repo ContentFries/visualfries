@@ -475,6 +475,14 @@ export type ClipController = {
 	holes?: HoleSource[];
 	/** Program mode: region layers `check` measures. */
 	probes?: RegionProbe[];
+	/**
+	 * Where `<Front>` draws: the inside of the clip's front part, a second root of the clip that
+	 * the stage makes on the first call (in program mode in its front clip layer, above the
+	 * speaker). Absent on a host without one: `<Front>` then draws its children in place.
+	 */
+	front?: () => HTMLElement;
+	/** The clip's other roots (its front part), registered by `registerClipPart`. */
+	parts?: HTMLElement[];
 };
 
 // Actions (`use:motion`) cannot read context, so they find their clip through the block's root.
@@ -483,6 +491,12 @@ const roots = new WeakMap<Element, ClipController>();
 /** Called by the stage for every mounted clip. */
 export function registerClipRoot(c: ClipController): void {
 	roots.set(c.root, c);
+}
+
+/** Called by the stage for a second root of a clip (its front part, see `<Front>`). */
+export function registerClipPart(c: ClipController, part: HTMLElement): void {
+	roots.set(part, c);
+	(c.parts ??= []).push(part);
 }
 
 /** The clip an element of a mounted block belongs to. */
@@ -510,13 +524,16 @@ export function useClip(): Clip {
 
 /**
  * Build a paused GSAP timeline in clip seconds. VisualFries seeks it to every frame,
- * so there is no wall-clock playback. Selectors via `q` are scoped to this clip.
+ * so there is no wall-clock playback. Selectors via `q` are scoped to this clip, its front
+ * part (`<Front>`) included.
  */
 export function useTimeline(build: TimelineBuild): void {
 	const c = controller();
 	onMount(() => {
 		const tl = gsap.timeline({ paused: true });
-		const q = (selector: string) => Array.from(c.root.querySelectorAll(selector));
+		// The clip's front part too: one block, one timeline.
+		const q = (selector: string) =>
+			[c.root, ...(c.parts ?? [])].flatMap((root) => Array.from(root.querySelectorAll(selector)));
 		build({ tl, at: (a) => c.clip.at(a), q, clip: c.clip });
 		// Pad to the clip end, then record every tween's start values once so any seek order is equal.
 		if (tl.duration() < c.clip.duration) tl.to({}, { duration: c.clip.duration - tl.duration() });

@@ -151,7 +151,7 @@ segment seg1  frames 0–152  3c9aad249c2b  hook, take, open, hook-behind, list-
 
 `--json` prints the whole resolved program, including the `events` that shots and transitions add for sounds to land on.
 
-**`still` and `check`** draw the whole program on one stage: the footage the cut list shows, clips with `"layer": "behind"` between the footage and the speaker, then the other clips in project order. Each page holds one segment (a range between hard cuts). `still` takes program moments (`--at 2.5s`, `--at f120`, `--at end`); with `--clip` it takes that clip's moments. `check --determinism` compares every segment forward, backward, scrambled and against a page holding the whole program, and prints the mix's loudness.
+**`still` and `check`** draw the whole program on one stage: the footage the cut list shows, clips with `"layer": "behind"` between the footage and the speaker, then the other clips in project order (with the `<Front>` part of a clip, see [Blocks](/docs/blocks)). Each page holds one segment (a range between hard cuts). `still` takes program moments (`--at 2.5s`, `--at f120`, `--at end`); with `--clip` it takes that clip's moments. `check --determinism` compares every segment forward, backward, scrambled and against a page holding the whole program, and prints the mix's loudness.
 
 `still` and `check` draw the project's own size. To look at another format, copy the project with another `size`.
 
@@ -223,6 +223,6 @@ An insert is the clip exactly as the program draws it, alone:
 - **Size and position.** Every insert has the program's frame size, and the clip sits where the program draws it, slots and keys included.
 - **Handles.** `--handles` frames before and after (default 10), in which the clip holds its first or last frame.
 - **Alpha.** Inserts are transparent ProRes 4444 `.mov` files with straight alpha, unless the clip says `"alpha": false`.
-- **Behind clips.** A clip with `"layer": "behind"` becomes a holdout: the speaker is erased from it frame by frame, across cuts.
+- **Behind clips.** A clip with `"layer": "behind"` becomes a holdout: the speaker is erased from it frame by frame, across cuts. What it draws in `<Front>` is drawn over the holdout and never erased.
 
 `manifest.json` lists each insert's program start frame, handles and the cut list under it (`sources`). The cut list, shots, transitions and the program's sound stay in the program render; `check --export inserts` lists every place where the program relies on them.

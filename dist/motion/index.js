@@ -6,6 +6,7 @@ export { ENERGY } from './primitives.js';
 export { default as Footage } from './Footage.svelte';
 export { default as Captions } from './Captions.svelte';
 export { default as Subject } from './Subject.svelte';
+export { default as Front } from './Front.svelte';
 export { placeRegion, regionPivot, headOf } from './subject-region.js';
 export { drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 export { footageFrameAt, footageFrameUrl, sourceFrameUrl, sourceSubjectBox, subjectBox } from './footage.js';

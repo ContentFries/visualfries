@@ -150,6 +150,12 @@ YouTube"], "handle": "@channel" }, "sound": "sfx/slam.wav" } }]`. The whole prog
   cues by phrase (`{ "say": "skill", "occurrence": 2 }` counts inside the clip, so through the
   whole program), not seconds precomputed into `props`. `clip.programTime` / `programFrame`
   (also on the `useFrame` context) are the program's clock.
+- One block behind the speaker with parts in front of them (a 3D scene with labels pinned to
+  it): make it one clip with `"layer": "behind"` and wrap the front markup in `<Front>` from
+  `visualfries/motion`. Same block, state and time; the front part stacks where the clip stands
+  in project order, follows its keys, slot and transitions, and `check` reads its text as front
+  text. Never mount the same block twice to split it into layers. Guide: `docs/MOTION.md` →
+  "Behind and in front from one clip".
 - Images in blocks: keep every picture mounted and switch with `opacity`; never swap `src` per
   frame (it decodes late and fails `check --determinism`).
 - A picture per clip (a screenshot, a photo) goes in `props` as a project file, not as an import:

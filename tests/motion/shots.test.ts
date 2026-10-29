@@ -414,6 +414,24 @@ describe('cutout', () => {
 		expect(off.slots.panel.y + off.slots.panel.height).toBeCloseTo(head(off).top - 54, 1);
 	});
 
+	it('keeps a body cut by the recording on the bottom edge whatever the margin', () => {
+		// The margin is the space to the side edges the anchor names: a negative one moves the
+		// speaker past the side edge, never below the bottom one.
+		for (const anchor of ['bottom-left', 'bottom', 'bottom-right'])
+			for (const margin of [-0.1, 0, 0.1]) {
+				const l = cut(LANDSCAPE, { anchor, size: 0.2, margin });
+				expect(l.camera.y + l.camera.height, `${anchor} ${margin}`).toBeCloseTo(1080, 1);
+			}
+		const right = cut(LANDSCAPE, { anchor: 'bottom-right', size: 0.2, margin: -0.1 });
+		expect(head(right).x).toBeCloseTo(1920 + 108 - 1.2 * 216, 1);
+		// Feet stand on the frame's edge with a negative margin, a margin above it otherwise.
+		const standing = { ...SIZED, height: 0.69 };
+		const feet = (margin: number) =>
+			cut(PORTRAIT, { anchor: 'bottom', size: 0.1, margin }, { subject: standing });
+		expect(feet(-0.1).camera.y + 0.8 * feet(-0.1).camera.height).toBeCloseTo(1920, 1);
+		expect(feet(0.05).camera.y + 0.8 * feet(0.05).camera.height).toBeCloseTo(1920 - 54, 1);
+	});
+
 	it('takes the shot-wide head size, and a default size per format class', () => {
 		const l = cut(PORTRAIT, { anchor: 'bottom' }, { headOf: () => 0.5 });
 		expect(0.5 * l.camera.height).toBeCloseTo(0.11 * 1920, 1);

@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { ShotSpan } from '$lib/motion/shots/index.js';
+import { SHOT_MODULES, type ShotSpan } from '$lib/motion/shots/index.js';
 import {
 	cutoutEdgeMessage,
 	cutoutEdges,
+	cutoutPanels,
+	cutoutPanelMessage,
+	headCropMessage,
+	headCrops,
 	programFraming,
 	shotTop,
 	type FramingData
@@ -10,6 +14,8 @@ import {
 import { programFootageAt, type FootageMap } from '$lib/motion/footage-map.js';
 import type { FootageFrames, SubjectBox } from '$lib/motion/resolve.js';
 import type { ProgramTransition } from '$lib/motion/program.js';
+import type { StageSegment } from '$lib/motion/segments.js';
+import { headCropWarnings } from '$lib/motion/program-node.js';
 
 /** A seated speaker in landscape footage: the matte runs into the recording's bottom edge. */
 const SEATED: SubjectBox = {
@@ -189,6 +195,13 @@ describe('cutout edge check', () => {
 			{ frame: 0, values: { rotation: 30, x: -800, y: -1900 }, ease: 'none', mix: 'oklab' }
 		];
 		expect(cutoutEdges(data([span({ anchor: 'bottom' }, { keys: turned })], still()))).toEqual([]);
+		// Turned and lifted past the top right corner: the recording's bottom edge lies off the
+		// frame, though frame lies beyond the line it is on.
+		const lifted: ShotSpan['keys'] = [
+			{ frame: 0, values: { rotation: 30, x: 800, y: -2000 }, ease: 'none', mix: 'oklab' }
+		];
+		const far = data([span({ anchor: 'bottom', size: 0.25 }, { keys: lifted })], still());
+		expect(cutoutEdges(far).filter((e) => e.kind === 'recording')).toEqual([]);
 	});
 
 	it('looks only at cutout shots after their morph', () => {
@@ -198,5 +211,61 @@ describe('cutout edge check', () => {
 		});
 		expect(edges[0]).toMatchObject({ from: 20, to: 39 });
 		expect(cutoutEdges(data([{ ...span({}), shot: 'full' }], still()))).toEqual([]);
+	});
+});
+
+describe('cutout head crops', () => {
+	it('advise params the cutout takes', () => {
+		// A head half the frame tall: the bottom-anchored speaker's head runs out of the top.
+		const shot = span({ anchor: 'bottom', size: 0.5 });
+		const [crop] = headCrops(data([shot], still())).filter((c) => c.edge === 'top');
+		expect(crop).toMatchObject({ shot: 'me', edge: 'top', from: 0, to: 59 });
+		const message = headCropMessage(crop, shot, 30);
+		expect(message).not.toContain('"headroom"');
+		expect(message).toContain('a smaller "size"');
+		expect(SHOT_MODULES.cutout.check!({ anchor: 'bottom', size: 0.3 })).toEqual([]);
+		// The face cut at the bottom (a key pushing the speaker down): what is left to try.
+		const face = { ...crop, edge: 'face' as const };
+		const down = headCropMessage(face, shot, 30);
+		expect(down).not.toContain('"headroom"');
+		expect(down).toContain('"window" or a "strip"');
+	});
+});
+
+describe('cutout panels', () => {
+	const list = { id: 'list', slot: 'panel', show: { from: 0, until: 60 } };
+	it('warn when a clip fills a panel the speaker leaves no room for', () => {
+		// A head half the frame tall: nothing is left above it.
+		const shot = span({ anchor: 'bottom', size: 0.5 });
+		const panels = cutoutPanels({ ...data([shot], still()), clips: [list] });
+		expect(panels).toEqual([
+			{ clip: 'list', shot: 'me', slot: 'panel', from: 0, to: 59, ranges: [[0, 59]] }
+		]);
+		expect(cutoutPanelMessage(panels[0], shot, 30)).toBe(
+			'Clip "list" fills the "panel" slot of shot "me" (cutout), but the speaker leaves the slot no room from 0.00 s to 2.00 s, so the clip does not show there. If that is not meant, try: a smaller "size"; a "left" or "right" anchor, which puts the panel beside the speaker.'
+		);
+	});
+
+	it('are among the warnings check gives', () => {
+		const shot = span({ anchor: 'bottom', size: 0.5 });
+		const segment = {
+			...data([shot], still()),
+			startFrame: 0,
+			frames: 60,
+			clips: [list]
+		} as unknown as StageSegment;
+		expect(headCropWarnings(segment).map((w) => w.message)).toContainEqual(
+			expect.stringContaining('Clip "list" fills the "panel" slot of shot "me" (cutout)')
+		);
+	});
+
+	it('are quiet with room for the panel, or without a clip in it', () => {
+		const shot = span({ anchor: 'bottom', size: 0.15 });
+		expect(cutoutPanels({ ...data([shot], still()), clips: [list] })).toEqual([]);
+		const big = span({ anchor: 'bottom', size: 0.5 });
+		expect(cutoutPanels({ ...data([big], still()), clips: [] })).toEqual([]);
+		expect(cutoutPanels({ ...data([big], still()), clips: [{ ...list, slot: 'word' }] })).toEqual(
+			[]
+		);
 	});
 });

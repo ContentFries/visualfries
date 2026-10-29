@@ -107,4 +107,32 @@ export declare function cutoutEdges(data: FramingData & {
 }, range?: Span): CutoutEdge[];
 /** A `check` warning for a cutout edge, worded so an agent knows what it can change. */
 export declare function cutoutEdgeMessage(cut: CutoutEdge, shot: Pick<ShotSpan, 'shot' | 'params' | 'keys'>, fps: number): string;
+export type CutoutPanel = {
+    clip: string;
+    shot: string;
+    slot: string;
+    /** Program frames, first and last, over every stretch; each stretch, first and last frame. */
+    from: number;
+    to: number;
+    ranges: [number, number][];
+};
+/**
+ * Where a clip fills a slot of a `cutout` shot that the speaker leaves no room for (less than
+ * `EDGE_CUT` of the frame's shorter side across or down), for at least `CROP_FRAMES` frames in
+ * a row: a head that gets close to the top of the safe area takes the panel above it, and the
+ * clip in it does not show. Morphs and cut or shot transition windows are skipped.
+ */
+export declare function cutoutPanels(data: FramingData & {
+    transitions: readonly ProgramTransition[];
+    clips: readonly {
+        id: string;
+        slot: string | null;
+        show: {
+            from: number;
+            until: number;
+        };
+    }[];
+}): CutoutPanel[];
+/** A `check` warning for a cutout slot without room, worded so an agent knows what to change. */
+export declare function cutoutPanelMessage(panel: CutoutPanel, shot: Pick<ShotSpan, 'shot' | 'params' | 'keys'>, fps: number): string;
 export {};

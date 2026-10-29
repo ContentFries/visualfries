@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { bundleMotionProject, frameForAt, launch, openStagePage } from './node.js';
 import { resolveProgram } from './program.js';
 import { resolveMoment } from './moment.js';
-import { cutoutEdgeMessage, cutoutEdges, headCropMessage, headCrops } from './framing.js';
+import { cutoutEdgeMessage, cutoutEdges, cutoutPanelMessage, cutoutPanels, headCropMessage, headCrops } from './framing.js';
 import { textBehindClip, textOverFaceClip } from './text-over-face.js';
 import { frameFitKey } from './frame-fit.js';
 import { captionsInMoveClip } from './shot-moves.js';
@@ -266,7 +266,8 @@ export async function checkProgram(loaded, opts = {}) {
 }
 /**
  * Warnings for every stretch where a shot's camera window cuts the speaker's head (see
- * `headCrops`) or a cutout shows the speaker cut (see `cutoutEdges`), each at its first frame.
+ * `headCrops`), a cutout shows the speaker cut (see `cutoutEdges`) or leaves a filled slot no
+ * room (see `cutoutPanels`), each at its first frame.
  */
 export function headCropWarnings(segment) {
     const shot = (id) => segment.shots.find((s) => s.id === id);
@@ -278,6 +279,10 @@ export function headCropWarnings(segment) {
         ...cutoutEdges(segment, segment).map((cut) => ({
             frame: cut.from,
             message: cutoutEdgeMessage(cut, shot(cut.shot), segment.fps)
+        })),
+        ...cutoutPanels(segment).map((panel) => ({
+            frame: panel.from,
+            message: cutoutPanelMessage(panel, shot(panel.shot), segment.fps)
         }))
     ].sort((a, b) => a.frame - b.frame);
 }

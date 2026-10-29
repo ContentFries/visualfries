@@ -396,7 +396,10 @@ export function headCropMessage(
 		return `${head} The recording itself has the head at its top edge there, so no framing param adds room above it: keep it, or use another take.`;
 	const keyed = (k: string) => shot.keys?.some((key) => k in key.values) ?? false;
 	const tries: string[] = [];
-	if (typeof shot.params.headroom !== 'number')
+	// A cutout sizes the speaker by the head instead (it takes no "headroom").
+	if (shot.shot === 'cutout') {
+		if (crop.edge === 'top') tries.push('a smaller "size"');
+	} else if (typeof shot.params.headroom !== 'number')
 		tries.push(
 			`set "headroom": ${HEADROOM} (keeps the whole head in, backing off over a blurred copy when it must)`
 		);
@@ -563,8 +566,12 @@ export function cutoutEdges(
 									.map((i) => ((d[i] > 0 ? size[i] : 0) - p[i]) / d[i])
 							);
 						if (!turn) return exit(at(u0, v0));
+						// Turned, only where the edge itself is on the frame: off it, no line shows.
 						const steps = Array.from({ length: EDGE_SAMPLES + 1 }, (_, k) => k / EDGE_SAMPLES);
-						return Math.max(...steps.map((t) => exit(at(u0 + (u1 - u0) * t, v0 + (v1 - v0) * t))));
+						const on = steps
+							.map((t) => at(u0 + (u1 - u0) * t, v0 + (v1 - v0) * t))
+							.filter(([x, y]) => x >= 0 && x <= W && y >= 0 && y <= H);
+						return Math.max(-Infinity, ...on.map(exit));
 					};
 					const { x: bx, y: by, width: bw, height: bh } = box;
 					const inside: Record<Edge, number> = {
@@ -660,3 +667,88 @@ export function cutoutEdgeMessage(
 
 const listEdges = (edges: string[]) =>
 	edges.length ? `the ${edges.join(' and ')} edge${edges.length > 1 ? 's' : ''}` : 'no edge';
+
+export type CutoutPanel = {
+	clip: string;
+	shot: string;
+	slot: string;
+	/** Program frames, first and last, over every stretch; each stretch, first and last frame. */
+	from: number;
+	to: number;
+	ranges: [number, number][];
+};
+
+/**
+ * Where a clip fills a slot of a `cutout` shot that the speaker leaves no room for (less than
+ * `EDGE_CUT` of the frame's shorter side across or down), for at least `CROP_FRAMES` frames in
+ * a row: a head that gets close to the top of the safe area takes the panel above it, and the
+ * clip in it does not show. Morphs and cut or shot transition windows are skipped.
+ */
+export function cutoutPanels(
+	data: FramingData & {
+		transitions: readonly ProgramTransition[];
+		clips: readonly { id: string; slot: string | null; show: { from: number; until: number } }[];
+	}
+): CutoutPanel[] {
+	const map = data.footageMap;
+	if (!map) return [];
+	const framing = programFraming(data);
+	const min = EDGE_CUT * Math.min(...data.size);
+	const out: CutoutPanel[] = [];
+	const inWindow = (f: number) =>
+		data.transitions.some(
+			(t) => t.kind !== 'clip' && f >= t.startFrame && f < t.startFrame + t.frames
+		);
+	for (const shot of data.shots) {
+		if (shot.shot !== 'cutout') continue;
+		for (const clip of data.clips) {
+			if (!clip.slot) continue;
+			const from = Math.max(shot.startFrame + shot.morphFrames, clip.show.from);
+			const to = Math.min(shot.startFrame + shot.frames, clip.show.until);
+			const ranges: [number, number][] = [];
+			let run: [number, number] | null = null;
+			const close = () => {
+				if (run && run[1] - run[0] + 1 >= CROP_FRAMES) ranges.push(run);
+				run = null;
+			};
+			for (let f = from; f < to; f++) {
+				const view = inWindow(f) ? null : programFootageAt(map, f);
+				const rect = view ? framing.layoutFor(f, view).slots[clip.slot] : undefined;
+				if (rect && (rect.width < min || rect.height < min)) {
+					if (run) run[1] = f;
+					else run = [f, f];
+				} else close();
+			}
+			close();
+			if (ranges.length)
+				out.push({
+					clip: clip.id,
+					shot: shot.id,
+					slot: clip.slot,
+					from: ranges[0][0],
+					to: ranges[ranges.length - 1][1],
+					ranges
+				});
+		}
+	}
+	return out.sort((a, b) => a.from - b.from);
+}
+
+/** A `check` warning for a cutout slot without room, worded so an agent knows what to change. */
+export function cutoutPanelMessage(
+	panel: CutoutPanel,
+	shot: Pick<ShotSpan, 'shot' | 'params' | 'keys'>,
+	fps: number
+): string {
+	const s = (f: number) => `${(f / fps).toFixed(2)} s`;
+	const when = panel.ranges.map(([a, b]) => `${s(a)} to ${s(b + 1)}`);
+	const span =
+		when.length === 1
+			? `from ${when[0]}`
+			: `from ${when.slice(0, -1).join(', ')} and ${when[when.length - 1]}`;
+	const tries = ['a smaller "size"'];
+	const anchor = anchorParam(shot.params);
+	if (anchor !== 'left' && anchor !== 'right')
+		tries.push('a "left" or "right" anchor, which puts the panel beside the speaker');
+	return `Clip "${panel.clip}" fills the "${panel.slot}" slot of shot "${panel.shot}" (cutout), but the speaker leaves the slot no room ${span}, so the clip does not show there. If that is not meant, try: ${tries.join('; ')}.`;
+}

@@ -83,9 +83,10 @@ export function anchoredEdges(anchor: CutoutAnchor): ('left' | 'right' | 'bottom
  * `bottom` and `center`), so the shoulders stay in and the speaker holds still while the hands
  * move; at most 0.35 of the frame width in from the margin, so a speaker too big for both
  * shoulders runs off the anchored edge rather than drifting to the middle. A negative `margin`
- * moves the speaker past the anchored edges. Down, a matte that reaches the recording's bottom edge (a seated speaker, a medium shot)
- * puts that edge on the frame's bottom edge, so the cut body runs out of the frame; a matte that
- * ends above it (feet) stands a margin above the frame's edge.
+ * moves the speaker past the anchored side edges. Down, a matte that reaches the recording's
+ * bottom edge (a seated speaker, a medium shot) puts that edge on the frame's bottom edge,
+ * whatever the margin, so the cut body runs out of the frame; a matte that ends above it (feet)
+ * stands a margin above the frame's edge (on it with a negative margin).
  *
  * A `panel` slot takes the empty part of the frame: above the speaker for `bottom` and, in
  * portrait and square, for `bottom-left` and `bottom-right` (from the top of the safe area to a
@@ -124,9 +125,10 @@ export const cutout: ShotModule = {
 		const bottom = subject.y + subject.height;
 		let y: number;
 		if (anchor.startsWith('bottom')) {
-			// The cut body runs out of the frame; feet stand a margin above its edge.
+			// The cut body runs out of the frame; feet stand a margin above its edge. The margin
+			// moves the speaker past the side edges only, never below this one.
 			const below = Math.max(0, 1 - bottom) * height;
-			y = H - Math.min(m, below) - bottom * height;
+			y = H - Math.max(0, Math.min(m, below)) - bottom * height;
 		} else y = H / 2 - ((subject.headY + bottom) / 2) * height;
 		const camera = roundRect({ x: headX - subject.headX * width, y, width, height });
 		const slots: Record<string, Rect> = {};

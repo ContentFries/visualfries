@@ -637,8 +637,9 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
   the head's centre sits 1.2 head heights in from the margin, so the shoulders stay in and the
   speaker holds still while the hands move, but at most 0.35 of the frame width, so a speaker
   too big for both shoulders runs off the anchored edge instead of drifting to the middle. Down, a matte that reaches the recording's bottom edge (a seated speaker, a medium
-  shot) puts that edge on the frame's, so the cut body runs out of the frame; a matte that ends
-  above it (feet) stands a margin above the frame's edge. A `panel` slot takes the empty part
+  shot) puts that edge on the frame's whatever the margin, so the cut body runs out of the
+  frame; a matte that ends above it (feet) stands a margin above the frame's edge (on it with a
+  negative margin). A `panel` slot takes the empty part
   of the frame: above the speaker for `bottom`, and in portrait and square for `bottom-left`
   and `bottom-right` too (from the top of the safe area down to a margin above how high the
   head gets over the shot, so it holds still while the head moves); beside the speaker
@@ -648,8 +649,9 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
   camera moves. `check` warns when a frame edge the anchor does not name cuts the speaker off,
   and when the speaker runs into an edge of the recording that sits inside the frame (a body
   cut by the recording ending in mid-frame, as with `left` on a seated recording or a `y` key
-  lifting it). Both warnings follow the shot's keys, `rotation` included. Needs a matte
-  (`check` reports footage without one).
+  lifting it). Both warnings follow the shot's keys, `rotation` included. It also warns when a
+  clip fills a `panel` the speaker leaves no room for (a head that reaches the top of the safe
+  area), since the clip then does not show. Needs a matte (`check` reports footage without one).
 
 **Keeping the head in.** Shots frame the face a third from the top of their camera window
 (`full`, `punch`, `strip`, `window`, `behind`, `whip`; `cutout` sizes the speaker by the head

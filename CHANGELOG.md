@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.10.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.9.0...visualfries-v0.10.0) (2026-10-29)
+
+
+### Features
+
+* **motion:** &lt;Front&gt; draws part of a clip in front of the speaker ([#123](https://github.com/ContentFries/visualfries/issues/123)) ([aa8be5d](https://github.com/ContentFries/visualfries/commit/aa8be5d73e97fcedcdc96cc90b32a4925719e15b))
+* **motion:** npm packages in blocks, a 3D blocks guide, and program time in a block ([#121](https://github.com/ContentFries/visualfries/issues/121)) ([f6f0d3e](https://github.com/ContentFries/visualfries/commit/f6f0d3e8b677f7a9a78db2cbf94a3fcd4b07c38a))
+* **render:** cache long segments in 4 s chunks ([#122](https://github.com/ContentFries/visualfries/issues/122)) ([bfb8dad](https://github.com/ContentFries/visualfries/commit/bfb8dadc19683bfb01678188c62d04e6455f73b4))
+
+
+### Bug Fixes
+
+* **motion:** the missing-package message skips built-ins and says where to install ([#128](https://github.com/ContentFries/visualfries/issues/128)) ([7ad1753](https://github.com/ContentFries/visualfries/commit/7ad17536a37d9f0c2a3f8ef80dc8dab7527bc9e8))
+* **render:** chunk hashes cover the frames a chunk draws and what its page mounts ([#127](https://github.com/ContentFries/visualfries/issues/127)) ([90b389e](https://github.com/ContentFries/visualfries/commit/90b389ef925a7ab61657b2dcf0f04cff6c7c2c24))
+
 ## [0.9.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.8.0...visualfries-v0.9.0) (2026-10-26)
 
 

@@ -336,7 +336,8 @@ one block instance with one state, one time, one `useFrame` and one timeline (`u
   an element outside it to one inside it (`.world .label`) does not match: the front part is
   elsewhere in the page. Give the front elements their own positioning; the front part covers
   the frame like the clip's root. `<Front>` adds no element to the block or around its
-  children, so `useTimeline`'s `q` finds only the block's own elements.
+  children; like the root, the front part of a keyed or slotted clip has the engine's own boxes
+  around them, which a broad `q('div')` also finds.
 - **Several `<Front>`s** stack in markup order, also those inside `{#if}` or `{#each}` that mount
   later: a later one draws over an earlier one, whatever frames were seeked before. A keyed
   `{#each}` that reorders its items keeps their `<Front>`s in the order they mounted. A

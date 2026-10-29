@@ -120,6 +120,17 @@ YouTube"], "handle": "@channel" }, "sound": "sfx/slam.wav" } }]`. The whole prog
   transition window; move the edge rather than accept it. Then `check --excerpt`, stills with
   `still --excerpt` (blocks written in fixed 16:9 pixels show here), `render --excerpt` →
   `<project>.teaser1.mp4`. One excerpt is one range. Guide: `docs/MOTION.md` → "Excerpts".
+- The speaker on screen only while they talk to the camera (a scene behind them carries the
+  rest): `"away"` ranges on a `behind` shot, never hand-timed `x` keys. `{ "from": { "say": "…",
+"edge": "end" }, "until": { "say": "…", "edge": "start" } }` has the speaker wholly gone from
+  `from` until `until` (`until` at the shot's own end keeps them away to it; `"until": "end"`
+  is the program end, so only in a shot that runs there); `side` (`left`, `right`, `bottom`)
+  defaults to the nearest edge, `exit`/`enter` to 0.16 s `power2.in` / 0.22 s `expo.out`. The
+  slide follows the matte, clears the frame in any format and composes with keys and morphs.
+  The footage picture moves (the room too), behind and front clips and the `word` slot stay: put
+  a full-frame behind clip under the shot. `program` warns where the speaker leaves mid-word,
+  `check` where a piece of them stays in the frame; look at stills around each exit and entry.
+  Guide: `docs/MOTION.md` → "The speaker away".
 - A sound on a moment a block computes: declare it in the block,
   `<script module> export const events = { land: 'tail+0.98' };</script>`, read it there with
   `clip.at(events.land)`, and anchor the `sfx` on `{ "event": "land", "clip": "kick" }`.

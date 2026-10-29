@@ -27,7 +27,7 @@ export type FramingData = Pick<StageSegment, 'fps' | 'size' | 'cls' | 'format' |
  * view. Head sizes are measured once per shot and source.
  */
 export declare function programFraming(data: FramingData): {
-    layoutFor: (f: number, view: FootageView | null, shot?: Pick<ShotSpan, "shot" | "params" | "keys"> & {
+    layoutFor: (f: number, view: FootageView | null, shot?: Pick<ShotSpan, "shot" | "params" | "keys" | "away"> & {
         id?: string;
     }) => ShotLayout;
     subjectOf: (view: FootageView | null) => SubjectBox | null;
@@ -58,7 +58,8 @@ export type HeadCrop = {
  * row, its keys included: the top of the head less than `TOP_ROOM` of the window below its top
  * edge (or past it), or more than `FACE_CUT` of the head below its bottom edge. The head is
  * where each frame's matte puts it (not smoothed: a lean that the calm framing lags behind
- * counts). Morphs and cut or shot transition windows are skipped (the head is in motion there).
+ * counts). Morphs, cut or shot transition windows and the speaker's `away` moves and stretches
+ * are skipped (the head is in motion or meant to be off the frame there).
  * The stretches of one shot at one edge make one crop. `range` limits the frames looked at.
  */
 export declare function headCrops(data: FramingData & {

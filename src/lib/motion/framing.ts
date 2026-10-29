@@ -10,8 +10,11 @@ import type { ProgramTransition } from './program.js';
 import { HEADROOM, SUBJECT_SMOOTH } from './shots/layout.js';
 import { aspectParam } from './shots/window.js';
 import {
+	awayAt,
 	shotLayout,
+	type AwayLook,
 	shotLayoutAt,
+	type Box,
 	type LayoutInput,
 	type ShotLayout,
 	type ShotSpan
@@ -111,8 +114,17 @@ export function programFraming(data: FramingData) {
 		if (!heads.has(key)) heads.set(key, shotHead(span, data.footageMap, data.footage, source));
 		return heads.get(key)!;
 	};
+	/**
+	 * The matte of an away decision's picture, only the frames its look names (see `AwayLook`),
+	 * under a name of its own so nothing it measures mixes with the footage's own.
+	 */
+	const looked = new Map<string, { source: string; frames: FootageFrames | null }>();
 	const framesOf = (view: FootageView | null) =>
-		view ? (data.footage[view.source] ?? null) : null;
+		view
+			? looked.has(view.source)
+				? looked.get(view.source)!.frames
+				: (data.footage[view.source] ?? null)
+			: null;
 	// How high the head gets is only worth working out when a shot keeps the head in.
 	const keepsHeads = data.shots.some((s) => typeof s.params.headroom === 'number');
 	const raw = new Map<string, number | null>();
@@ -155,6 +167,31 @@ export function programFraming(data: FramingData) {
 		}
 		return n ? sum / n : null;
 	}
+	// How far the matte reaches is only worth working out when a shot sends the speaker away.
+	const sendsAway = data.shots.some((s) => !!s.away?.length);
+	/**
+	 * How far the subject reaches around a view (see `LayoutInput.reach`): the matte's boxes of
+	 * every frame within `SUBJECT_SMOOTH` seconds of it, joined, so an arm raised for a moment
+	 * stays out of the frame with the rest of him. Null without boxes there.
+	 */
+	function reachOf(view: FootageView | null): Box | null {
+		const frames = framesOf(view);
+		if (!frames || !view) return null;
+		const w = Math.round(SUBJECT_SMOOTH * data.fps);
+		let x0 = Infinity;
+		let y0 = Infinity;
+		let x1 = -Infinity;
+		let y1 = -Infinity;
+		for (let g = view.frame - w; g <= view.frame + w; g++) {
+			const box = sourceSubjectBox(frames, g);
+			if (!box) continue;
+			x0 = Math.min(x0, box.x);
+			y0 = Math.min(y0, box.y);
+			x1 = Math.max(x1, box.x + box.width);
+			y1 = Math.max(y1, box.y + box.height);
+		}
+		return x1 < x0 ? null : { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+	}
 	/** The subject in a view, averaged over `SUBJECT_SMOOTH` seconds on each side. */
 	function subjectOf(view: FootageView | null): SubjectBox | null {
 		const frames = framesOf(view);
@@ -162,21 +199,50 @@ export function programFraming(data: FramingData) {
 			? sourceSubjectBox(frames, view.frame, Math.round(SUBJECT_SMOOTH * data.fps))
 			: null;
 	}
-	function layoutFor(
-		f: number,
-		view: FootageView | null,
-		shot?: Pick<ShotSpan, 'shot' | 'params' | 'keys'> & { id?: string }
-	): ShotLayout {
+	/** What the shot engine gets of `view`. */
+	function inputOf(view: FootageView | null): LayoutInput {
 		const frames = framesOf(view);
-		const input: LayoutInput = {
+		return {
 			cls: data.cls,
 			size: data.size,
 			footage: frames ? [frames.width, frames.height] : null,
 			safe: data.format.safe,
 			subject: subjectOf(view),
 			headTop: headTopOf(view),
-			headOf: (s) => headOf(s, view?.source ?? null)
+			headOf: (s) => headOf(s, view ? (looked.get(view.source)?.source ?? view.source) : null),
+			...(sendsAway ? { reach: reachOf(view), at: inputAt } : {})
 		};
+	}
+	/**
+	 * The input of the picture where an away move decides its side (see `LayoutInput.at`): the
+	 * source frame the range carries, else what this program shows at frame `g`.
+	 */
+	function inputAt(g: number, look?: AwayLook | null): LayoutInput {
+		if (!look) return inputOf(data.footageMap ? programFootageAt(data.footageMap, g) : null);
+		const name = `${look.source}\u0000${look.first}-${look.last}`;
+		if (!looked.has(name)) {
+			const own = data.footage[look.source];
+			const frames: FootageFrames | null = own
+				? {
+						...own,
+						ranges: undefined,
+						first: look.first,
+						last: look.last,
+						boxes: Array.from({ length: look.last - look.first + 1 }, (_, k) =>
+							sourceSubjectBox(own, look.first + k)
+						)
+					}
+				: null;
+			looked.set(name, { source: look.source, frames });
+		}
+		return inputOf({ source: name, frame: look.frame, owner: '', held: false });
+	}
+	function layoutFor(
+		f: number,
+		view: FootageView | null,
+		shot?: Pick<ShotSpan, 'shot' | 'params' | 'keys' | 'away'> & { id?: string }
+	): ShotLayout {
+		const input = inputOf(view);
 		return shot ? shotLayout(shot, input, f) : shotLayoutAt(data.shots, f, input);
 	}
 	return { layoutFor, subjectOf, headOf };
@@ -222,7 +288,8 @@ const BARE = 0.01;
  * row, its keys included: the top of the head less than `TOP_ROOM` of the window below its top
  * edge (or past it), or more than `FACE_CUT` of the head below its bottom edge. The head is
  * where each frame's matte puts it (not smoothed: a lean that the calm framing lags behind
- * counts). Morphs and cut or shot transition windows are skipped (the head is in motion there).
+ * counts). Morphs, cut or shot transition windows and the speaker's `away` moves and stretches
+ * are skipped (the head is in motion or meant to be off the frame there).
  * The stretches of one shot at one edge make one crop. `range` limits the frames looked at.
  */
 export function headCrops(
@@ -263,7 +330,9 @@ export function headCrops(
 		};
 		for (let f = from; f < to; f++) {
 			const view = programFootageAt(map, f);
-			const frames = view && !inWindow(f) ? data.footage[view.source] : undefined;
+			// While the speaker is (partly) away his head is meant to leave the window.
+			const away = !!awayAt(shot.away, f);
+			const frames = view && !inWindow(f) && !away ? data.footage[view.source] : undefined;
 			const box = frames && view ? sourceSubjectBox(frames, view.frame) : null;
 			if (!box || !view) {
 				close('top');

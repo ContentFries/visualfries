@@ -17,6 +17,7 @@ import { headCropMessage, headCrops } from './framing.js';
 import { textBehindClip, textOverFaceClip } from './text-over-face.js';
 import { frameFitKey } from './frame-fit.js';
 import { captionsInMoveClip } from './shot-moves.js';
+import { awayInFrameKey } from './shots/away.js';
 import {
 	edgeFrames,
 	scrambled,
@@ -293,8 +294,8 @@ export async function checkProgram(
 		await browser.close();
 		await fs.rm(bundle.dir, { recursive: true, force: true });
 	}
-	// Warnings about a clip's text or content are told once per clip (and kind), in the first
-	// segment they are found in.
+	// Warnings about a clip's text or content are told once per clip (and kind), and about a
+	// speaker still in the frame once per away range, in the first segment they are found in.
 	const told = new Set<string>();
 	const onceKey = (message: string) => {
 		const face = textOverFaceClip(message);
@@ -303,6 +304,8 @@ export async function checkProgram(
 		if (behind !== null) return `behind\u0000${behind}`;
 		const captions = captionsInMoveClip(message);
 		if (captions !== null) return `captions\u0000${captions}`;
+		const away = awayInFrameKey(message);
+		if (away !== null) return `away\u0000${away}`;
 		const fit = frameFitKey(message);
 		return fit === null ? null : `fit\u0000${fit}`;
 	};

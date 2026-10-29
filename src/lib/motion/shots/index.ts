@@ -8,6 +8,16 @@ import { whip } from './whip.js';
 import { easeOf } from '../ease.js';
 import { keyTracks, type Placement } from '../keys.js';
 import {
+	awayAt,
+	awayDistance,
+	awayOffset,
+	moveAway,
+	nearestSide,
+	type AwayLook,
+	type AwayOffset,
+	type Box
+} from './away.js';
+import {
 	BACKDROP,
 	backdropCamera,
 	coversClip,
@@ -34,6 +44,18 @@ export type {
 } from './layout.js';
 export { facePoint, frameOnHead, HEADROOM } from './layout.js';
 export { DEFAULT_PUNCH_SCALE, PUNCH_SCALE } from './punch.js';
+export {
+	AWAY_ENTER,
+	AWAY_EXIT,
+	awayAt,
+	awayDecisions,
+	awayLooks,
+	awayMovesDuring,
+	turnedReadback,
+	type AwayLook,
+	type Box,
+	type ShotAway
+} from './away.js';
 
 /**
  * The shot engine: the registry of built-in shots and the layout on screen at any program frame,
@@ -61,7 +83,7 @@ export type ShotSpan = Pick<
 	ProgramShot,
 	'id' | 'shot' | 'startFrame' | 'frames' | 'params' | 'morphFrames' | 'morphEase'
 > &
-	Partial<Pick<ProgramShot, 'keys'>>;
+	Partial<Pick<ProgramShot, 'keys' | 'away'>>;
 
 /**
  * The morph into shot `next` when the project does not set one: the previous shot's `leave`
@@ -100,16 +122,24 @@ export function shotEvents(shot: ShotSpan, prev: string | null): ShotEvent[] {
 	return local.map((e) => ({ kind: e.kind, frame: shot.startFrame + e.frame }));
 }
 
-type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys'> & { id?: string };
+type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys' | 'away'> & { id?: string };
 
 /**
  * What the engine needs to lay out shots at a frame: a shot's input without its params, and
  * `headOf`, the head size over a whole shot (see `ShotInput.head`; absent: each frame's own).
+ * Shots with `away` ranges also read `reach`, how far the matte reaches around this frame (the
+ * boxes of the frames `subject` is smoothed over, joined; absent: the subject's box), and `at`,
+ * the input of the program's picture at another program frame, where a range decides its side:
+ * `look` when the range carries it (see `ShotAway.looks`), else the picture at that frame
+ * (absent: this frame's input).
  */
 export type LayoutInput = Omit<ShotInput, 'params' | 'head'> & {
 	headOf?: (shot: Framed) => number | null;
+	reach?: Box | null;
+	at?: (f: number, look?: AwayLook | null) => LayoutInput;
 };
 const FULL: Framed = { shot: 'full', params: {} };
+const STILL: AwayOffset = { dx: 0, dy: 0 };
 const endOf = (s: { startFrame: number; frames: number }) => s.startFrame + s.frames;
 
 /**
@@ -145,11 +175,19 @@ export function shotsDuring<T extends ShotSpan>(
 
 /**
  * The layout of one shot, alone. Shots not built yet are framed `full`. With program frame `f`
- * the shot's keys at that frame move its camera (see `keyCamera`). In a shot with `headroom`,
- * footage that leaves the camera window open (backed off to fit the head, or scaled down by a
- * key) gets a blurred copy under it (`backdrop`).
+ * the shot's keys at that frame move its camera (see `keyCamera`), and its `away` ranges slide
+ * the picture off the frame (see `awayMove`). In a shot with `headroom`, footage that leaves
+ * the camera window open (backed off to fit the head, or scaled down by a key) gets a blurred
+ * copy under it (`backdrop`).
  */
 export function shotLayout(shot: Framed, input: LayoutInput, f?: number): ShotLayout {
+	const layout = keyedLayout(shot, input, f);
+	const move = f === undefined ? null : awayMove(shot, layout, input, f);
+	return move ? moveAway(layout, move) : layout;
+}
+
+/** `shotLayout` without the `away` slide: the shot, its keys at `f` and its backdrop. */
+function keyedLayout(shot: Framed, input: LayoutInput, f?: number): ShotLayout {
 	const { headOf, ...rest } = input;
 	let layout = (shotModule(shot.shot) ?? full).layout({
 		...rest,
@@ -160,7 +198,36 @@ export function shotLayout(shot: Framed, input: LayoutInput, f?: number): ShotLa
 		const placement = keyTracks(shot.keys, { size: input.size }).placement;
 		if (placement) layout = keyCamera(layout, placement(f), input.subject);
 	}
-	return headroomParam(shot.params) === false ? layout : withBackdrop(layout, input);
+	if (headroomParam(shot.params) !== false) layout = withBackdrop(layout, input);
+	return layout;
+}
+
+/**
+ * How far the shot's `away` ranges have slid the picture of `layout` (keys and backdrop
+ * included) at `f` (see `awayAt`): by what clears the matte's reach there, toward the range's
+ * side, else the edge nearest to the speaker where the move starts, as the shot frames the
+ * picture there. Null: in place.
+ */
+function awayMove(
+	shot: Framed,
+	layout: ShotLayout,
+	input: LayoutInput,
+	f: number
+): AwayOffset | null {
+	const state = shot.away?.length ? awayAt(shot.away, f) : null;
+	if (!state) return null;
+	// Without boxes around the frame, the subject's own box; without either, the whole picture.
+	const reachOf = (i: LayoutInput) => i.reach ?? i.subject;
+	const reach = reachOf(input);
+	let side = state.range.side;
+	if (!side) {
+		const there = input.at?.(state.decide, state.look);
+		side = there
+			? nearestSide(keyedLayout(shot, there, state.decide), reachOf(there), input.size)
+			: nearestSide(layout, reach, input.size);
+	}
+	const distance = awayDistance(layout, reach, side, input.size) * state.p;
+	return distance > 0 ? awayOffset(side, distance) : null;
 }
 
 /** `layout` with a backdrop where its footage leaves the camera window open. */
@@ -186,10 +253,18 @@ export function shotLayoutAt(
 	input: LayoutInput
 ): ShotLayout {
 	const { shot, prev, p } = shotAt(shots, f);
-	const to = shotLayout(shot, input, f);
-	if (!prev) return to;
-	const from = shotLayout(prev, input, f);
-	const out = mixLayouts(from, to, p);
+	if (!prev) return shotLayout(shot, input, f);
+	const to = keyedLayout(shot, input, f);
+	const from = keyedLayout(prev, input, f);
+	let out = mixLayouts(from, to, p);
+	// The speaker's slide off the frame comes on top of the morph, so slots the morph carries
+	// with the camera stay where they are (see `ShotAway`).
+	const left = awayMove(prev, from, input, f);
+	const leaving = awayMove(shot, to, input, f);
+	if (left || leaving) {
+		const [m, n] = [left ?? STILL, leaving ?? STILL];
+		out = moveAway(out, { dx: m.dx + (n.dx - m.dx) * p, dy: m.dy + (n.dy - m.dy) * p });
+	}
 	// A shot that blurs its moves blurs the morphs into and out of it, most at the middle.
 	const peak = (s: Framed) => shotModule(s.shot)?.blur?.({ ...input, params: s.params });
 	const a = peak(prev);

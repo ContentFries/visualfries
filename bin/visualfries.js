@@ -1844,7 +1844,12 @@ async function motionProgramCommand(args) {
 			);
 		for (const s of program.shots.filter((x) => !x.implicit))
 			console.log(
-				`shot ${s.id.padEnd(9)} ${frameTime(s.startFrame, fps)}  ${s.frames} frames  ${s.shot}${s.morphFrames ? `  morph ${s.morphFrames} frames ${s.morphEase}` : ''}${s.keys.length ? `  ${s.keys.length} keys` : ''}`
+				`shot ${s.id.padEnd(9)} ${frameTime(s.startFrame, fps)}  ${s.frames} frames  ${s.shot}${s.morphFrames ? `  morph ${s.morphFrames} frames ${s.morphEase}` : ''}${s.keys.length ? `  ${s.keys.length} keys` : ''}${(s.away ?? [])
+					.map(
+						(r) =>
+							`  away ${frameTime(r.from, fps)}–${r.until === null ? 'end' : frameTime(r.until, fps)}${r.side ? ` ${r.side}` : ''}`
+					)
+					.join('')}`
 			);
 		for (const c of program.clips)
 			console.log(

@@ -104,7 +104,8 @@ export function segmentStage(program, segment, footage, brand = NEUTRAL_BRAND) {
             params: s.params,
             morphFrames: s.morphFrames,
             morphEase: s.morphEase,
-            keys: s.keys
+            keys: s.keys,
+            ...(s.away ? { away: s.away } : {})
         })),
         clips,
         transitions: program.transitions.filter((t) => t.startFrame < to && endOf(t) > from),
@@ -147,6 +148,12 @@ export function edgeFrames(program) {
             s.startFrame + Math.floor(s.morphFrames / 2),
             s.startFrame + s.morphFrames
         ]),
+        // The speaker leaving and coming back: where each move starts and lands.
+        ...program.shots.flatMap((s) => (s.away ?? []).flatMap((r) => [
+            r.from - r.exit.frames,
+            r.from,
+            ...(r.until === null ? [] : [r.until, r.until + r.enter.frames])
+        ])),
         ...program.clips.flatMap((c) => [c.startFrame, endOf(c)]),
         ...program.transitions.flatMap((t) => [t.startFrame, t.cutFrame, endOf(t)])
     ];

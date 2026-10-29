@@ -154,6 +154,32 @@ export const CutShape = z.object({
         .optional(),
     native: z.boolean().optional()
 });
+/** Seconds of a speaker's move off or onto the frame, or seconds with an ease. */
+const AwayMoveShape = z.union([
+    z.number().min(0).max(2, 'at most 2 seconds'),
+    z
+        .object({
+        seconds: z.number().min(0).max(2, 'at most 2 seconds'),
+        ease: z.string().min(1).optional()
+    })
+        .strict()
+]);
+/**
+ * A stretch of a shot with the speaker off the frame: wholly gone from `from` (the exit ends
+ * there) until `until` (the way back in starts there). Program time, like the shot's own range.
+ */
+const AwayShape = z
+    .object({
+    from: anchor,
+    until: anchor,
+    /** left | right | bottom. Default: the edge nearest to the speaker. */
+    side: z.enum(['left', 'right', 'bottom']).optional(),
+    /** Default 0.16 s, power2.in. */
+    exit: AwayMoveShape.optional(),
+    /** Default 0.22 s, expo.out. */
+    enter: AwayMoveShape.optional()
+})
+    .strict();
 /** How footage is framed from `from` until `until` (program time). */
 export const ShotShape = z.object({
     id: itemId.optional(),
@@ -170,6 +196,8 @@ export const ShotShape = z.object({
     morph: z.number().min(0).optional(),
     transition: TransitionShape.optional(),
     keys: z.array(KeyShape).optional(),
+    /** Stretches with the speaker off the frame, in program order (shots that cut him out). */
+    away: z.array(AwayShape).optional(),
     native: z.boolean().optional()
 });
 /** Where generated material came from (provider, model, prompt, seed …). */

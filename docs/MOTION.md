@@ -547,6 +547,72 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
   clip in the slot the style's surface shows. A whip right after a whip does not move, so it
   has no event and `check` warns.
 
+**The speaker away.** A shot that cuts the speaker out by the matte (`behind`) takes `away`:
+stretches where the speaker is off the frame, so they are on screen only while they talk to the
+camera and the world behind them carries the rest.
+
+```json
+{
+	"id": "speaker",
+	"shot": "behind",
+	"from": 0,
+	"until": "end",
+	"away": [
+		{
+			"from": { "say": "the answer", "edge": "end" },
+			"until": { "say": "Now", "edge": "start" },
+			"side": "left"
+		},
+		{ "from": { "say": "harness", "occurrence": 2, "edge": "end" }, "until": "end" }
+	]
+}
+```
+
+- `from` is where the speaker is wholly gone (the exit ends there) and `until` where they start
+  coming back; both are program moments in the usual grammar, so a phrase in `until` is the end of
+  its last word: write `"edge": "start"` to be back for a word. A repeated phrase resolves in
+  program order: `from` to the first occurrence at or after the previous range's `until` (the
+  shot's start for the first range), `until` at or after `from`. `until` at the shot's own end
+  (its `until` moment) keeps the speaker away to the end of the shot and through a morph out of
+  it, which then brings them in; `"until": "end"` is the program's end, so it does that only in a
+  shot that runs to the program end (in a shot that ends before it, it is an error). A range from
+  the shot's first frame starts away, also wherever the shot's picture is drawn before its
+  start: a morph into the shot takes them out, a shot transition into it shows them already
+  gone.
+- `exit` and `enter` are seconds (`0.3`) or `{ "seconds": 0.3, "ease": "power3.in" }`; default
+  0.16 s `power2.in` out and 0.22 s `expo.out` back in.
+- `side`: `left`, `right` or `bottom`; default the edge the speaker reaches by the shortest way,
+  decided where each move starts (or, for the way back, on its last frame) by the footage the whole
+  program shows there, framed as the shot frames it there: a speaker near the middle never
+  changes sides mid-move (across a cut to other footage either), and an excerpt that starts
+  inside a move slides them the way the full video does (the decision reads only the frames
+  shown in one run around that moment, which every render extracts). A range from the shot's first frame
+  decides at that frame.
+- How far the picture moves comes from the matte: the boxes of the frames around each frame
+  (half a second either way, so a raised arm counts), where the shot, its keys (`x`, `y`, `scale`,
+  `rotation`) and its morph put them, plus a small margin past what the room's blur still
+  shows of them; under footage that leaves its window open, the speaker of the bigger blurred
+  backdrop clears it too, blur included. The speaker just clears the
+  frame in any format, and keys and morphs go on moving the camera under the slide.
+- What moves is the footage picture inside the camera window: the room, the cut-out speaker, a
+  blurred backdrop and subject layers of clips (`<Footage layer="subject">`, `<Subject>`) that
+  follow the camera. Clips with `"layer": "behind"`, front clips and the shot's slots (the `word`
+  slot too, also through a morph into or out of the shot) stay where they are: the room leaves with the speaker, so give the shot a behind clip
+  that covers the frame (a scene, a colour) for the world they leave, or the background shows.
+  A word in the `word` slot stays put; end its clip at the exit if it should go.
+- `full`, `punch`, `strip`, `window`, `whip` and custom shots reject `away`: there the speaker
+  is the whole picture, and sliding it off leaves an empty frame. Move the picture with shot keys
+  there, or use `behind`.
+- Errors: `until` not after `from`, a range outside the shot, an exit that would start before
+  the shot (unless `from` is its first frame), a way back that would outlast it, and a range
+  that starts leaving before the one before it is back. `program` warns where the speaker is
+  gone while still saying a word (at least 0.1 s of it off the frame), or starts coming back
+  0.1 s or more after a word began. `check` warns (once per range) where a piece of the speaker
+  is still in the frame inside a range: it reads the cut-out's pixels in the frame after the exit
+  at full size, under a turned camera too (an arm or hair the matte's boxes miss, a speck the
+  matte keeps). Head-crop warnings skip the
+  ranges and their moves.
+
 **Keeping the head in.** Shots frame the face a third from the top of their camera window
 (`full`, `punch`, `strip`, `window`, `behind`, `whip`). That suits most footage, but a close
 handheld selfie, where the head fills half the frame, can lose the top of the head in a strip or
@@ -1782,7 +1848,7 @@ transitions, a clip's own `transition`, the program's sound and a clip's `audio`
 the program render (`--export video`). `check --export inserts` lists, as `info`, where a
 program relies on them: clips that arrive or leave with a cut or shot transition (the insert
 cuts in or out), clips with their own transition, clips in a slot of a shot that reframes the
-footage (`punch`, `strip`, `window`, `whip`, a shot with keys; such an insert lines up with the
+footage (`punch`, `strip`, `window`, `whip`, a shot with keys or `away`; such an insert lines up with the
 program's framing, so frame the footage like the shot or use the program render), behind clips
 under such a shot, behind clips inside a cut or shot transition window, and clips with `audio`;
 as a `warning`, `"alpha": false` on a behind clip. `render` prints the same notes and writes

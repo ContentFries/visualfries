@@ -13,7 +13,15 @@ import { sourceFrameUrl, sourceSubjectBox } from './footage.js';
 import { programFraming } from './framing.js';
 import type { ProgramTransition } from './program.js';
 import { clipFrameAt, type StageClip, type StageSegment } from './segments.js';
-import { shotModule, type Rect, type ShotLayout, type ShotSpan } from './shots/index.js';
+import {
+	awayAt,
+	shotAt,
+	shotModule,
+	type Rect,
+	type ShotLayout,
+	type ShotSpan
+} from './shots/index.js';
+import { AWAY_SEEN_SHARE, awayInFrameMessage, turnedReadback } from './shots/away.js';
 import { facePoint, frameRect } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
 import type { Point } from './transitions/contract.js';
@@ -744,6 +752,10 @@ export function createProgramScene(
 	const behindAt = new Map<string, number>();
 	/** Where `subjectSampler` reads the subject picture back. */
 	let readBack: HTMLCanvasElement | null = null;
+	/** Where `turnedSpeakerInFrame` reads a turned cut-out back. */
+	let turnedBack: HTMLCanvasElement | null = null;
+	/** Away ranges (shot id and index) already warned about a speaker still in the frame. */
+	const toldAway = new Set<string>();
 
 	/** The extracted frames of the source a view shows; null without them. */
 	const framesOf = (view: FootageView | null) => (view ? (seg.footage[view.source] ?? null) : null);
@@ -753,7 +765,7 @@ export function createProgramScene(
 	const layoutFor = (
 		f: number,
 		view: FootageView | null,
-		shot?: Pick<ShotSpan, 'shot' | 'params' | 'keys'> & { id?: string }
+		shot?: Pick<ShotSpan, 'shot' | 'params' | 'keys' | 'away'> & { id?: string }
 	) => framing.layoutFor(f, view, shot);
 
 	/** Which side a clip rides in transition `t`: out when it ends on the cut, in when it starts on it. */
@@ -1410,6 +1422,172 @@ export function createProgramScene(
 		return out;
 	}
 
+	/**
+	 * The speaker still in the frame at the frame last drawn, while an `away` range of the shot
+	 * on screen has him wholly off it: the subject picture's pixels (at least half opaque) inside
+	 * the visible part of the camera window, read back at full size. A range warns once, at the
+	 * first frame checked that shows more than `AWAY_SEEN_SHARE` of the frame of him. Left out:
+	 * transition windows, morphs and footage without a drawn subject picture.
+	 */
+	function awayInFrame(f: number): string[] {
+		const now = last?.f === f ? last : null;
+		if (!now || now.b || seg.insert) return [];
+		const { shot, prev } = shotAt(seg.shots, now.g);
+		const state = prev ? null : awayAt(shot.away, now.g);
+		if (!state || state.p < 1 || !shot.id) return [];
+		const index = shot.away!.indexOf(state.range);
+		const key = `${shot.id}\u0000${index}`;
+		if (toldAway.has(key)) return [];
+		const seen = speakerInFrame(now.a.layout);
+		if (!seen || seen.area < AWAY_SEEN_SHARE * seg.size[0] * seg.size[1]) return [];
+		toldAway.add(key);
+		return [
+			awayInFrameMessage(
+				{
+					shot: shot.id,
+					kind: shot.shot,
+					range: index + 1,
+					from: state.range.from,
+					until: state.range.until,
+					frame: now.g,
+					...seen
+				},
+				seg.size,
+				seg.fps
+			)
+		];
+	}
+
+	/**
+	 * Stage pixels of the subject picture (side a) drawn at least half opaque inside the visible
+	 * part of the camera window, and their box; null when there are none or the picture is not
+	 * drawn. A turned camera is drawn turned and read back the same way (`turnedSpeakerInFrame`).
+	 */
+	function speakerInFrame(layout: ShotLayout): { area: number; box: Rect } | null {
+		const img = a.subject.img;
+		if (img.style.display === 'none' || !img.complete || !img.naturalWidth) return null;
+		const view = intersect(layout.clip, frameRect(seg.size));
+		if (!view) return null;
+		if (layout.turn) return turnedSpeakerInFrame(img, layout, view);
+		const { camera } = layout;
+		const part = intersect(view, camera);
+		if (!part) return null;
+		const w = img.naturalWidth;
+		const h = img.naturalHeight;
+		// The part of the picture inside the frame, in picture pixels.
+		const sx = Math.floor(((part.x - camera.x) / camera.width) * w);
+		const sy = Math.floor(((part.y - camera.y) / camera.height) * h);
+		const sw = Math.max(1, Math.ceil(((part.x + part.width - camera.x) / camera.width) * w) - sx);
+		const sh = Math.max(1, Math.ceil(((part.y + part.height - camera.y) / camera.height) * h) - sy);
+		readBack ??= document.createElement('canvas');
+		if (readBack.width < sw || readBack.height < sh) {
+			readBack.width = Math.max(readBack.width, sw);
+			readBack.height = Math.max(readBack.height, sh);
+		}
+		const ctx = readBack.getContext('2d');
+		if (!ctx) return null;
+		let data: Uint8ClampedArray;
+		try {
+			ctx.clearRect(0, 0, sw, sh);
+			ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+			data = ctx.getImageData(0, 0, sw, sh).data;
+		} catch {
+			return null;
+		}
+		let n = 0;
+		let x0 = Infinity;
+		let y0 = Infinity;
+		let x1 = -Infinity;
+		let y1 = -Infinity;
+		for (let y = 0; y < sh; y++)
+			for (let x = 0; x < sw; x++) {
+				if (data[(y * sw + x) * 4 + 3] < 128) continue;
+				n++;
+				x0 = Math.min(x0, x);
+				y0 = Math.min(y0, y);
+				x1 = Math.max(x1, x + 1);
+				y1 = Math.max(y1, y + 1);
+			}
+		if (!n) return null;
+		// Picture pixels back to stage pixels.
+		const kx = camera.width / w;
+		const ky = camera.height / h;
+		const box = {
+			x: Math.max(view.x, camera.x + (sx + x0) * kx),
+			y: Math.max(view.y, camera.y + (sy + y0) * ky),
+			width: (x1 - x0) * kx,
+			height: (y1 - y0) * ky
+		};
+		return { area: n * kx * ky, box };
+	}
+
+	/**
+	 * `speakerInFrame` under a turned camera: the subject picture drawn turned over the part of
+	 * the visible window it covers, at its own resolution as far as the frame's pixel count
+	 * allows (see `turnedReadback`), and read back whole. Nothing is read once it is wholly out.
+	 */
+	function turnedSpeakerInFrame(
+		img: HTMLImageElement,
+		layout: ShotLayout,
+		view: Rect
+	): { area: number; box: Rect } | null {
+		const { camera, turn } = layout;
+		const read = turnedReadback(layout, view, [img.naturalWidth, img.naturalHeight], seg.size);
+		if (!read) return null;
+		const { region, scale: k } = read;
+		const cw = Math.max(1, Math.ceil(region.width * k));
+		const ch = Math.max(1, Math.ceil(region.height * k));
+		// Its own canvas, sized to this read: the shared one keeps its largest size.
+		turnedBack ??= document.createElement('canvas');
+		if (turnedBack.width !== cw || turnedBack.height !== ch) {
+			turnedBack.width = cw;
+			turnedBack.height = ch;
+		}
+		const ctx = turnedBack.getContext('2d');
+		if (!ctx) return null;
+		let data: Uint8ClampedArray;
+		try {
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+			ctx.clearRect(0, 0, cw, ch);
+			// Stage pixels to canvas pixels, then the turn about its pivot.
+			ctx.setTransform(k, 0, 0, k, -region.x * k, -region.y * k);
+			if (turn) {
+				ctx.translate(turn.pivot.x, turn.pivot.y);
+				ctx.rotate((turn.rotation * Math.PI) / 180);
+				ctx.translate(-turn.pivot.x, -turn.pivot.y);
+			}
+			ctx.drawImage(img, camera.x, camera.y, camera.width, camera.height);
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+			data = ctx.getImageData(0, 0, cw, ch).data;
+		} catch {
+			return null;
+		}
+		let n = 0;
+		let x0 = Infinity;
+		let y0 = Infinity;
+		let x1 = -Infinity;
+		let y1 = -Infinity;
+		for (let y = 0; y < ch; y++)
+			for (let x = 0; x < cw; x++) {
+				if (data[(y * cw + x) * 4 + 3] < 128) continue;
+				n++;
+				x0 = Math.min(x0, x);
+				y0 = Math.min(y0, y);
+				x1 = Math.max(x1, x + 1);
+				y1 = Math.max(y1, y + 1);
+			}
+		if (!n) return null;
+		return {
+			area: n / (k * k),
+			box: {
+				x: region.x + x0 / k,
+				y: region.y + y0 / k,
+				width: (x1 - x0) / k,
+				height: (y1 - y0) / k
+			}
+		};
+	}
+
 	/** The subject layers of front clips on screen that draw the speaker, at least half opaque. */
 	function subjectLayers(page: TextReader): HTMLElement[] {
 		const found: HTMLElement[] = [];
@@ -1656,7 +1834,7 @@ export function createProgramScene(
 			let page: TextReader | null = null;
 			const read = () => (page ??= textReader(stage, seg.size));
 			out.push(...faceText(f, read), ...textBehind(f, read));
-			out.push(...frameFit(f, read), ...movingCaptions(f, read));
+			out.push(...frameFit(f, read), ...movingCaptions(f, read), ...awayInFrame(f));
 			return out;
 		},
 		holdout(on) {

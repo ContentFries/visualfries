@@ -5,8 +5,9 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createHash, randomUUID } from 'node:crypto';
-import { createRequire } from 'node:module';
+import { createRequire, isBuiltin } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { missingPackageLine } from './package-hint.js';
 import { BrandShape } from './project.js';
 import { NEUTRAL_BRAND, resolveBrand } from './brand.js';
 import { BUILTIN_STYLES, NEUTRAL_STYLE, resolveStyle } from './style.js';
@@ -815,8 +816,9 @@ function packageName(spec) {
 }
 /**
  * A bundle error that says how to install the packages blocks import but the project lacks
- * (naming the file that imports each one), or null when no package is missing. A package that
- * is installed but has no such file or export keeps esbuild's own message.
+ * (one line per package, naming the files that import it), or null when no package is missing.
+ * A package that is installed but has no such file or export, a Node built-in and a `#` import
+ * keep esbuild's own message and its notes.
  */
 function missingPackages(error, dir, nodePaths) {
     const errors = error?.errors;
@@ -831,24 +833,32 @@ function missingPackages(error, dir, nodePaths) {
         }
         return nodePaths.some((p) => existsSync(path.join(p, name, 'package.json')));
     };
+    /** Per missing package, the files that import it. */
     const missing = new Map();
     const other = [];
+    let builtin = false;
     for (const e of errors) {
         const spec = /^Could not resolve "([^"]+)"$/.exec(e.text)?.[1];
         const file = e.location ? path.resolve(e.location.file) : null;
-        const name = spec && !/^[./]|:/.test(spec) ? packageName(spec) : null;
+        const bare = !!spec && !/^[./#]|:/.test(spec);
+        if (bare && isBuiltin(spec))
+            builtin = true;
+        const name = bare && !isBuiltin(spec) ? packageName(spec) : null;
         if (file && name && !installed(name, path.dirname(file))) {
-            const importer = path.relative(dir, file);
-            missing.set(`${importer} ${name}`, `${importer} imports "${name}", which is not installed for this project. Install it in the project folder: npm install ${name} (blocks find packages in node_modules of the project folder or a folder above it).`);
+            if (!missing.has(name))
+                missing.set(name, new Set());
+            missing.get(name).add(file);
         }
         else {
             const at = e.location ? `${e.location.file}:${e.location.line}:${e.location.column}: ` : '';
-            other.push(`${at}${e.text}`);
+            other.push([`${at}${e.text}`, ...e.notes.map((n) => `  ${n.text}`)].join('\n'));
         }
     }
-    if (!missing.size)
+    // A built-in alone: esbuild's message drops the note that says it is one.
+    if (!missing.size && !builtin)
         return null;
-    return new Error([...missing.values(), ...other].join('\n'));
+    const lines = [...missing].map(([name, files]) => missingPackageLine(name, [...files], dir));
+    return new Error([...lines, ...other].join('\n'));
 }
 /**
  * Compile the project's blocks together with the stage runtime into one page. `program` is the

@@ -572,14 +572,17 @@ camera and the world behind them carries the rest.
   coming back; both are program moments in the usual grammar, so a phrase in `until` is the end of
   its last word: write `"edge": "start"` to be back for a word. A repeated phrase resolves in
   program order: `from` to the first occurrence at or after the previous range's `until` (the
-  shot's start for the first range), `until` at or after `from`. `"until": "end"` (or the shot's
-  own end) keeps the speaker away to the end of the shot and through a morph out of it, which then
-  brings them in; a range from the shot's first frame starts away (a morph into the shot takes
-  them out).
+  shot's start for the first range), `until` at or after `from`. `until` at the shot's own end
+  (its `until` moment) keeps the speaker away to the end of the shot and through a morph out of
+  it, which then brings them in; `"until": "end"` is the program's end, so it does that only in a
+  shot that runs to the program end (in a shot that ends before it, it is an error). A range from
+  the shot's first frame starts away, also wherever the shot's picture is drawn before its
+  start: a morph into the shot takes them out, a shot transition into it shows them already
+  gone.
 - `exit` and `enter` are seconds (`0.3`) or `{ "seconds": 0.3, "ease": "power3.in" }`; default
   0.16 s `power2.in` out and 0.22 s `expo.out` back in.
 - `side`: `left`, `right` or `bottom`; default the edge the speaker reaches by the shortest way,
-  decided where each move starts (or, for the way back, where it lands) by the footage the whole
+  decided where each move starts (or, for the way back, on its last frame) by the footage the whole
   program shows there, framed as the shot frames it there: a speaker near the middle never
   changes sides mid-move (across a cut to other footage either), and an excerpt that starts
   inside a move slides them the way the full video does (the decision reads only the frames

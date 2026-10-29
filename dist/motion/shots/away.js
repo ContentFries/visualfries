@@ -19,14 +19,21 @@ export const AWAY_ENTER = { seconds: 0.22, ease: 'expo.out' };
  * shorter side: the matte's soft edge and a stray hair stay out too.
  */
 const MARGIN = 0.02;
+/**
+ * The last frame of a range's way back, where it decides its side: inside the shot even when
+ * the speaker lands on its end.
+ */
+const landsAt = (until, enter) => until + Math.max(0, enter.frames - 1);
 /** Where the speaker is at program frame `f` among `away` ranges; null: in place. */
 export function awayAt(away, f) {
     for (const range of away ?? []) {
         const leaves = range.from - range.exit.frames;
-        if (f < leaves)
+        if (f < leaves && !range.atStart)
             return null;
         if (range.until === null || f < range.until) {
-            const p = f >= range.from ? 1 : easeOf(range.exit.ease)((f - leaves) / range.exit.frames);
+            const p = f >= range.from || range.atStart
+                ? 1
+                : easeOf(range.exit.ease)((f - leaves) / range.exit.frames);
             return { p, range, decide: leaves, look: range.looks?.exit };
         }
         const back = range.until + range.enter.frames;
@@ -34,7 +41,7 @@ export function awayAt(away, f) {
             return {
                 p: 1 - easeOf(range.enter.ease)((f - range.until) / range.enter.frames),
                 range,
-                decide: back,
+                decide: landsAt(range.until, range.enter),
                 look: range.looks?.enter
             };
     }
@@ -53,10 +60,11 @@ export function awayMovesDuring(away, span) {
         if (range.side)
             continue;
         const leaves = range.from - range.exit.frames;
-        if (touches(leaves, range.until ?? Infinity))
+        // A range from the shot's start is away before it too (see `ShotAway.atStart`).
+        if (touches(range.atStart ? -Infinity : leaves, range.until ?? Infinity))
             out.push({ frame: leaves, look: range.looks?.exit });
         if (range.until !== null && touches(range.until, range.until + range.enter.frames))
-            out.push({ frame: range.until + range.enter.frames, look: range.looks?.enter });
+            out.push({ frame: landsAt(range.until, range.enter), look: range.looks?.enter });
     }
     return out;
 }
@@ -90,7 +98,7 @@ export function awayLooks(shots, map, fps) {
         if (!range.side)
             range.looks = {
                 exit: look(range.from - range.exit.frames),
-                enter: range.until === null ? null : look(range.until + range.enter.frames)
+                enter: range.until === null ? null : look(landsAt(range.until, range.enter))
             };
 }
 /**

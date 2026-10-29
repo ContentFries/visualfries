@@ -6,7 +6,7 @@ import {
 	type ResolvedKey,
 	type ResolvedProgram
 } from '$lib/motion/program.js';
-import { footageMap, programFootageAt } from '$lib/motion/footage-map.js';
+import { footageMap, programFootageAt, transitionSidesAt } from '$lib/motion/footage-map.js';
 import { parseTranscriptWords } from '$lib/motion/transcript.js';
 import { edgeFrames } from '$lib/motion/segments.js';
 import { headCrops, programFraming } from '$lib/motion/framing.js';
@@ -337,10 +337,10 @@ describe('away ranges in the program', () => {
 				side: null,
 				exit: { frames: 5, ease: 'power2.in' },
 				enter: { frames: 7, ease: 'expo.out' },
-				// The picture where each move decides the side: where the exit starts, the way back lands.
+				// The picture where each move decides the side: where the exit starts, the way back's last frame.
 				looks: {
 					exit: { source: 'talk', frame: 55, first: 25, last: 85 },
-					enter: { source: 'talk', frame: 97, first: 67, last: 127 }
+					enter: { source: 'talk', frame: 96, first: 66, last: 126 }
 				}
 			},
 			{
@@ -377,7 +377,7 @@ describe('away ranges in the program', () => {
 			enter: { frames: 15, ease: 'back.out(1.4)' },
 			looks: {
 				exit: { source: 'talk', frame: 50, first: 20, last: 80 },
-				enter: { source: 'talk', frame: 104, first: 74, last: 134 }
+				enter: { source: 'talk', frame: 103, first: 73, last: 133 }
 			}
 		});
 	});
@@ -713,6 +713,81 @@ describe('where an away move decides its side', () => {
 			b: matted(1920, 1080, 240, () => rightish)
 		});
 		expect(at(150).dx).toBeGreaterThan(0);
+	});
+
+	it('decides a way back that lands on the shot end by the shot, not by what follows it', () => {
+		// Back from 3.78 s with the default 0.22 s: he lands on 4 s, where the next cut starts.
+		const json = twoCuts([
+			{ id: 'talk', shot: 'behind', from: 0, until: 4, away: [{ from: 1, until: 3.78 }] },
+			{ id: 'after', shot: 'full', from: 4, until: 'end' }
+		]);
+		const p = resolveProgram(parseMotionProject(json), TWO);
+		expect(p.diagnostics.filter((d) => d.level === 'error')).toEqual([]);
+		const r = p.shots[0].away![0];
+		expect(r.until! + r.enter.frames).toBe(120);
+		const at = framed(p, {
+			a: matted(1920, 1080, 240, () => leftish),
+			b: matted(1920, 1080, 240, () => rightish)
+		});
+		expect(at(116).dx).toBeLessThan(0);
+	});
+});
+
+describe('a shot that starts away, behind a shot transition', () => {
+	const json = twoCuts([
+		{ id: 'open', shot: 'full', from: 0, until: 4 },
+		{
+			id: 'talk',
+			shot: 'behind',
+			from: 4,
+			until: 'end',
+			transition: { type: 'push', duration: 0.6 },
+			away: [{ from: 4, until: 6 }]
+		}
+	]);
+
+	it('is away wherever its picture is drawn before its start: the transition window too', () => {
+		const p = resolveProgram(parseMotionProject(json), TWO);
+		expect(p.diagnostics.filter((d) => d.level === 'error')).toEqual([]);
+		const t = p.transitions.find((x) => x.owner === 'talk')!;
+		expect(t.startFrame).toBeLessThan(120);
+		const map = footageMap(p);
+		const framing = programFraming({
+			fps: p.fps,
+			size: p.format.size,
+			cls: p.format.class,
+			format: p.format as never,
+			footage: {
+				a: matted(1920, 1080, 240, () => SUBJECT),
+				b: matted(1920, 1080, 240, () => SUBJECT)
+			},
+			footageMap: map,
+			shots: p.shots
+		});
+		const talk = p.shots.find((s) => s.id === 'talk')!;
+		// The incoming side as the window draws it, before and at the shot's start.
+		const incoming = (g: number) => {
+			const view = transitionSidesAt(map, t, g)!.in;
+			return {
+				away: framing.layoutFor(g, view, talk),
+				plain: framing.layoutFor(g, view, { ...talk, away: undefined })
+			};
+		};
+		const gone = incoming(120).away.camera;
+		for (let g = t.startFrame; g < 120; g++) {
+			const { away, plain } = incoming(g);
+			expect(away.camera).not.toEqual(plain.camera);
+			expect(away.camera).toEqual(gone);
+		}
+	});
+
+	it('draws the window again when the footage the side is decided by changes', () => {
+		const at = (sources: Record<string, string>) =>
+			resolveProgram(parseMotionProject(json), { ...TWO, hashes: hashes(sources) });
+		const t = at({ a: 'a1', b: 'b1' }).transitions.find((x) => x.owner === 'talk')!;
+		const p1 = at({ a: 'a1', b: 'b1' });
+		const p2 = at({ a: 'a1', b: 'b2' });
+		expect(chunkAt(p1, t.startFrame)).not.toBe(chunkAt(p2, t.startFrame));
 	});
 });
 

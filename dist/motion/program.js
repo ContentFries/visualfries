@@ -913,10 +913,11 @@ function resolveAway(shot, i, id, span, ctx) {
             from,
             until: until >= end ? null : until,
             side: spec.side ?? null,
-            // From the shot's first frame he is away from the start: no exit, and a side decided
-            // by the shot's own first frame rather than by the picture before it.
+            // From the shot's first frame he is away from the start (and before it, in a shot
+            // transition's window): no exit, and a side decided by the shot's own first frame.
             exit: from === span.startFrame ? { ...exit, frames: 0 } : exit,
-            enter
+            enter,
+            ...(from === span.startFrame ? { atStart: true } : {})
         });
     }
     return broken ? null : out;

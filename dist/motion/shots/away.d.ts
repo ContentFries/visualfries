@@ -46,6 +46,11 @@ export type ShotAway = {
         frames: number;
         ease: string;
     };
+    /**
+     * The range starts at the shot's first frame: the speaker is away before it too, wherever
+     * the shot's picture is drawn before its start (the window of a shot transition into it).
+     */
+    atStart?: true;
     enter: {
         frames: number;
         ease: string;
@@ -68,7 +73,7 @@ type AwayState = {
     range: ShotAway;
     /**
      * The program frame whose speaker decides the side when the range does not give one: where
-     * the exit starts (also through the hold), or where the way back in ends.
+     * the exit starts (also through the hold), or the last frame of the way back in.
      */
     decide: number;
     /** The picture at `decide` (see `ShotAway.looks`); undefined: not resolved. */

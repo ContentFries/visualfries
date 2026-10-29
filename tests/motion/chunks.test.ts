@@ -137,6 +137,26 @@ describe('chunk hashes of a program', () => {
 		expect(b.map((h, i) => h === a[i])).toEqual([true, false, true]);
 	});
 
+	it('change in the first segment of a cutout when the footage of its second cut changes', () => {
+		// A cutout's panel holds below how high the head gets over the whole shot (`shotTop`), so
+		// the first cut's frames depend on the second cut's footage too.
+		const two = (second: number) => ({
+			...json(5),
+			cuts: [
+				{ id: 'a', source: 'talk', in: 0, out: 4 },
+				{ id: 'b', source: 'talk', in: second, out: second + 4 }
+			],
+			shots: [{ id: 'me', shot: 'cutout', from: 0, until: 'end', params: { anchor: 'bottom' } }],
+			clips: []
+		});
+		const a = resolve(two(4));
+		const b = resolve(two(8));
+		expect(a.segments).toHaveLength(2);
+		expect(b.segments[0].chunks.map((c) => c.hash)).not.toEqual(
+			a.segments[0].chunks.map((c) => c.hash)
+		);
+	});
+
 	it('all change with the props of a clip on screen in all of them', () => {
 		const a = hashes(json(5));
 		const b = hashes(json(5, { tint: 'red' }));

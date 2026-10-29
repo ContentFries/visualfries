@@ -58,7 +58,7 @@ import {
 	type FootageMap,
 	type FrameRange
 } from './footage-map.js';
-import { headOfRuns } from './framing.js';
+import { headOfRuns, topOfRuns } from './framing.js';
 import type { FootageFrames, FootageRange, SubjectBox } from './resolve.js';
 import { holdoutFootage } from './inserts.js';
 import { END_CARD_BLOCK, type ExcerptFootage } from './excerpt.js';
@@ -917,13 +917,14 @@ export type BundleResult = {
 	/**
 	 * Extracted footage and, in program mode, the map from program to source frames; `warnings`
 	 * about frames that could not be made (a clean plate without background); for an excerpt,
-	 * `heads` (see `StageSegment.heads`).
+	 * `heads` and `tops` (see `StageSegment.heads`).
 	 */
 	footage: {
 		frames: Record<string, FootageFrames>;
 		map: FootageMap | null;
 		warnings?: string[];
 		heads?: StageSegment['heads'];
+		tops?: StageSegment['tops'];
 	};
 	/** The project's brand; the program stage sets its tokens on the whole stage. */
 	brand: ResolvedBrand;
@@ -1188,7 +1189,8 @@ export async function bundleMotionProject(
 			frames: footage.frames,
 			map: footage.map,
 			warnings: footage.warnings,
-			...(footage.heads ? { heads: footage.heads } : {})
+			...(footage.heads ? { heads: footage.heads } : {}),
+			...(footage.tops ? { tops: footage.tops } : {})
 		},
 		brand: loaded.brand.resolved,
 		props
@@ -1711,6 +1713,7 @@ async function extractFootage(
 	map: FootageMap | null;
 	warnings: string[];
 	heads?: StageSegment['heads'];
+	tops?: StageSegment['tops'];
 }> {
 	const footage = loaded.project.footage ?? {};
 	const fps = loaded.project.fps;
@@ -1830,7 +1833,13 @@ async function extractFootage(
 		clip.footage = frames;
 		clip.footageMap = map;
 	}
-	return { roots, frames, map, warnings, ...(whole ? { heads: whole.heads(frames) } : {}) };
+	return {
+		roots,
+		frames,
+		map,
+		warnings,
+		...(whole ? { heads: whole.heads(frames), tops: whole.tops(frames) } : {})
+	};
 }
 
 /** Ranges of both lists per source (not merged). */
@@ -1843,8 +1852,9 @@ const unite = (a: Record<string, FrameRange[]>, b: Record<string, FrameRange[]>)
 
 /**
  * What an excerpt's framing reads of the whole program's footage (see `ExcerptFootage`): the
- * frames to extract besides its own, and `heads`, the head size of each `headroom` shot across
- * an edge over its whole shot, once they are extracted.
+ * frames to extract besides its own, and `heads` and `tops`, the head size and how high the
+ * head gets of each shot across an edge that reads them, over its whole shot, once they are
+ * extracted.
  */
 function excerptFootage(footage: ExcerptFootage) {
 	const runs = Object.values(footage.heads).flat();
@@ -1856,16 +1866,23 @@ function excerptFootage(footage: ExcerptFootage) {
 		});
 	return {
 		wanted: unite(footage.around, ranges),
-		heads: (frames: Record<string, FootageFrames>) =>
-			Object.fromEntries(
-				Object.entries(footage.heads).map(([shot, list]) => [
-					shot,
-					Object.fromEntries(
-						Object.keys(frames).map((name) => [name, headOfRuns(list, frames, name)])
-					)
-				])
-			)
+		heads: (frames: Record<string, FootageFrames>) => byShot(footage, frames, headOfRuns),
+		tops: (frames: Record<string, FootageFrames>) => byShot(footage, frames, topOfRuns)
 	};
+}
+
+/** A measure of each shot's runs (see `ExcerptFootage.heads`), by shot and source. */
+function byShot(
+	footage: ExcerptFootage,
+	frames: Record<string, FootageFrames>,
+	measure: typeof headOfRuns
+) {
+	return Object.fromEntries(
+		Object.entries(footage.heads).map(([shot, list]) => [
+			shot,
+			Object.fromEntries(Object.keys(frames).map((name) => [name, measure(list, frames, name)]))
+		])
+	);
 }
 
 /**

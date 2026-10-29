@@ -55,7 +55,7 @@ describe('resolved program', () => {
 				clip: 'codec',
 				field: 'slot',
 				message:
-					'No shot frees the "panel" slot for 90 of the clip\'s 90 frames (first at 3.30 s); the clip is hidden there. Shots with a "panel" slot: strip, window.'
+					'No shot frees the "panel" slot for 90 of the clip\'s 90 frames (first at 3.30 s); the clip is hidden there. Shots with a "panel" slot: strip, window, cutout.'
 			}
 		]);
 		expectGolden('retake.program.json', p);
@@ -345,7 +345,7 @@ describe('shots, clips, keys and events', () => {
 		json.cuts[2].transition = 'dissolve';
 		const messages = errors(program(json)).map((d) => d.message);
 		expect(messages).toContain(
-			'Unknown shot "zoom". Built in: full, punch, strip, window, behind, whip; or a file such as "shots/My.ts".'
+			'Unknown shot "zoom". Built in: full, punch, strip, window, behind, whip, cutout; or a file such as "shots/My.ts".'
 		);
 		expect(messages).toContain(
 			'Unknown transition "dissolve". Built in: wipe, push, zoom-through, shape-mask, blinds, card; or a file such as "transitions/My.svelte".'

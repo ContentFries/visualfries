@@ -5,6 +5,7 @@ import { strip } from './strip.js';
 import { windowShot } from './window.js';
 import { behind } from './behind.js';
 import { whip } from './whip.js';
+import { cutout } from './cutout.js';
 import { easeOf } from '../ease.js';
 import { keyTracks, type Placement } from '../keys.js';
 import {
@@ -48,7 +49,8 @@ export const SHOT_MODULES: Readonly<Record<string, ShotModule>> = {
 	strip,
 	window: windowShot,
 	behind,
-	whip
+	whip,
+	cutout
 };
 
 /** The module drawing `name`; null for a shot not built yet or a custom file. */
@@ -103,11 +105,13 @@ export function shotEvents(shot: ShotSpan, prev: string | null): ShotEvent[] {
 type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys'> & { id?: string };
 
 /**
- * What the engine needs to lay out shots at a frame: a shot's input without its params, and
- * `headOf`, the head size over a whole shot (see `ShotInput.head`; absent: each frame's own).
+ * What the engine needs to lay out shots at a frame: a shot's input without its params,
+ * `headOf`, the head size over a whole shot (see `ShotInput.head`; absent: each frame's own),
+ * and `topOf`, how high the head gets over a whole shot (see `ShotInput.shotTop`).
  */
-export type LayoutInput = Omit<ShotInput, 'params' | 'head'> & {
+export type LayoutInput = Omit<ShotInput, 'params' | 'head' | 'shotTop'> & {
 	headOf?: (shot: Framed) => number | null;
+	topOf?: (shot: Framed) => number | null;
 };
 const FULL: Framed = { shot: 'full', params: {} };
 const endOf = (s: { startFrame: number; frames: number }) => s.startFrame + s.frames;
@@ -150,10 +154,13 @@ export function shotsDuring<T extends ShotSpan>(
  * key) gets a blurred copy under it (`backdrop`).
  */
 export function shotLayout(shot: Framed, input: LayoutInput, f?: number): ShotLayout {
-	const { headOf, ...rest } = input;
-	let layout = (shotModule(shot.shot) ?? full).layout({
+	const { headOf, topOf, ...rest } = input;
+	const module = shotModule(shot.shot) ?? full;
+	let layout = module.layout({
 		...rest,
 		head: headOf?.(shot) ?? null,
+		// Measured only for a shot that reads it.
+		...(module.measuresHead ? { shotTop: topOf?.(shot) ?? null } : {}),
 		params: shot.params
 	});
 	if (f !== undefined && shot.keys?.length) {
@@ -308,6 +315,9 @@ export function mixLayouts(a: ShotLayout, b: ShotLayout, t: number): ShotLayout 
 	// A window's ring and shadow, and a dimmed room, fade in and out with the move.
 	if (a.ring || b.ring) out.ring = mix(a.ring ?? 0, b.ring ?? 0, t);
 	if (a.lift || b.lift) out.lift = mix(a.lift ?? 0, b.lift ?? 0, t);
+	// A room cut away fades out and in with the move.
+	if (a.cutout !== undefined || b.cutout !== undefined)
+		out.cutout = mix(a.cutout ?? 0, b.cutout ?? 0, t);
 	if (a.room || b.room)
 		out.room = {
 			dim: mix(a.room?.dim ?? 0, b.room?.dim ?? 0, t),

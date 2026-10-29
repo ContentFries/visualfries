@@ -38,6 +38,12 @@ export type ShotInput = {
      * layouts take the subject's (smoothed) `headY`.
      */
     headTop?: number | null;
+    /**
+     * How high the top of the head gets over the whole shot (a low percentile of the matte's head
+     * tops, in fractions of the footage height): one line per shot, so a slot beside the head
+     * holds still while the head moves. Absent, layouts take the subject's (smoothed) `headY`.
+     */
+    shotTop?: number | null;
     params: Record<string, unknown>;
     /** The style's energy; null without a style. */
     energy?: Energy | null;
@@ -95,6 +101,11 @@ export type ShotLayout = {
         dim: number;
         blur: number;
     };
+    /**
+     * How much of the room is gone, 0–1: the footage plate is drawn at `1 - cutout` opacity and
+     * the subject, cut out by its matte, over the fill and the behind clips. Absent: 0.
+     */
+    cutout?: number;
     /**
      * Motion blur along each axis in pixels (standard deviation) on the footage and the clips in
      * slots; only inside a morph into or out of a shot that blurs its moves (see `ShotModule.blur`).
@@ -160,6 +171,12 @@ export type ShotModule = {
     };
     /** The shot draws the subject cut out by its matte, so the footage on screen needs a matte. */
     needsMatte?: boolean;
+    /**
+     * The layout reads the shot-wide head measures (`ShotInput.head` and `shotTop`) whatever its
+     * params; other shots read them only with `headroom`. `shotTop` is measured only for such a
+     * shot.
+     */
+    measuresHead?: boolean;
 };
 /**
  * Seconds of subject track averaged on each side of a frame before a shot frames it, so the

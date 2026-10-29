@@ -111,7 +111,8 @@ export function segmentStage(program, segment, footage, brand = NEUTRAL_BRAND) {
         ...(program.excerpt?.end
             ? { hold: { from: program.excerpt.frames, clips: [program.excerpt.end.clip] } }
             : {}),
-        ...(footage.heads ? { heads: footage.heads } : {})
+        ...(footage.heads ? { heads: footage.heads } : {}),
+        ...(footage.tops ? { tops: footage.tops } : {})
     };
 }
 /**

@@ -17,7 +17,7 @@
 				'@type': 'SoftwareSourceCode',
 				name: 'VisualFries',
 				description:
-					'Open-source Svelte 5 engine for social visuals: talking-head reels, static posts, carousels, explainers and kinetic type. A JSON project describes clips, timed by transcript words; blocks are Svelte components; a matte cuts the speaker out so layers can sit behind them. A program describes a whole edit in one project: a cut list over raw takes, shots (full, punch, strip, window, behind, whip), transitions, keys, sound effects, music snapped to bars and a mix normalised to -14 LUFS. Built-in blocks include word-timed captions and a speaker-depth reel. The CLI resolves and checks programs, verifies determinism, writes stills and renders MP4 or ProRes 4444 alpha inserts.',
+					'Open-source Svelte 5 engine for social visuals: talking-head reels, static posts, carousels, explainers and kinetic type. A JSON project describes clips, timed by transcript words; blocks are Svelte components; a matte cuts the speaker out so layers can sit behind them. A program describes a whole edit in one project: a cut list over raw takes, shots (full, punch, strip, window, behind, whip, cutout), transitions, keys, sound effects, music snapped to bars and a mix normalised to -14 LUFS. Built-in blocks include word-timed captions and a speaker-depth reel. The CLI resolves and checks programs, verifies determinism, writes stills and renders MP4 or ProRes 4444 alpha inserts.',
 				codeRepository: 'https://github.com/ContentFries/visualfries',
 				programmingLanguage: ['TypeScript', 'Svelte'],
 				license: 'https://opensource.org/licenses/MIT',

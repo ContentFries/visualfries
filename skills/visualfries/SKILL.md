@@ -21,7 +21,7 @@ The same guides are on the site: https://visualfries.com/docs/programs.md, https
 
 Use a **program** (a motion project with `cuts` and `shots`) when the input is a raw recording
 and the output is the finished video: the cut list removes pauses and retakes, shots frame the
-speaker (punch, strip, window, behind, whip), clips fill the shots' slots, transitions and sound
+speaker (punch, strip, window, behind, whip, cutout), clips fill the shots' slots, transitions and sound
 effects land on words, music ends on a bar, all in one `.vf.json`. Guide: `docs/MOTION.md` →
 "Programs" (read it before building). Worked example: [`static/demo/reel`](https://github.com/ContentFries/visualfries/tree/main/static/demo/reel) in the
 VisualFries repository (README, project, blocks, fonts, sample transcript); it is not in the npm
@@ -32,6 +32,16 @@ placement against the face, caption size) are made per video by looking at still
 shot. Defaults are a starting point and `check` warnings are hints; you decide. Example: a close
 handheld selfie whose face fills half the frame needs `"headroom": 0.06`, a taller window
 (`"aspect": "4:5"`) or a bigger strip `size`; footage where the face is small needs none of it.
+
+To place the speaker in part of the frame without the room (a seated landscape recording in the
+lower left of a 9:16 frame, a 3D world or colour field around them), use the `cutout` shot, not
+`behind` with `scale`/`x`/`y` keys and a clip covering the room: `"params": { "anchor":
+"bottom-left", "size": 0.14 }` (`size` is the head's height as a share of the frame height,
+measured from the matte, so it does not depend on the recording's framing). Clips with `"layer":
+"behind"` sit between the style's surface and the speaker, and its `panel` slot takes the empty
+part of the frame (above the speaker in portrait). A body cut by the recording's bottom edge
+belongs on a bottom anchor; `check` warns when that cut shows in mid-frame or a frame edge the
+anchor does not name cuts the speaker off. Needs a matte.
 
 Work like an editor, in this order; each step ends on its criterion:
 

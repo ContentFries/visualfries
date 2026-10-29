@@ -20,7 +20,15 @@ export declare function shotHead(shot: Span, map: FootageMap | null, footage: Re
  * excerpt's shot measured over the whole shot of the whole program.
  */
 export declare function headOfRuns(runs: readonly FootageRun[], footage: Record<string, FootageFrames>, source: string): number | null;
-export type FramingData = Pick<StageSegment, 'fps' | 'size' | 'cls' | 'format' | 'footage' | 'footageMap' | 'shots' | 'heads'>;
+/**
+ * How high the top of the head gets over a shot showing `source` (see `ShotInput.shotTop`): a
+ * low percentile of the matte's raw head tops over the shot's program frames, so a stray speck
+ * of matte does not count and a lean held for a while does. Null without a matte.
+ */
+export declare function shotTop(shot: Span, map: FootageMap | null, footage: Record<string, FootageFrames>, source: string): number | null;
+/** `shotTop` over the picture `runs` give (see `headOfRuns`). */
+export declare function topOfRuns(runs: readonly FootageRun[], footage: Record<string, FootageFrames>, source: string): number | null;
+export type FramingData = Pick<StageSegment, 'fps' | 'size' | 'cls' | 'format' | 'footage' | 'footageMap' | 'shots' | 'heads' | 'tops'>;
 /**
  * The framing of a program (or a segment of it): the layout of a side showing `view` at
  * program frame `f`, from the shot track or from `shot` alone, and the smoothed subject of a
@@ -69,4 +77,62 @@ export declare function headCrops(data: FramingData & {
  * warning: a tight crop can be the creator's choice, so the agent looks at a still and decides.
  */
 export declare function headCropMessage(crop: HeadCrop, shot: Pick<ShotSpan, 'shot' | 'params' | 'keys'>, fps: number): string;
+type Edge = 'left' | 'right' | 'top' | 'bottom';
+export type CutoutEdge = {
+    shot: string;
+    /**
+     * `frame`: a frame edge the shot does not sit the speaker against cuts the speaker off;
+     * `recording`: the speaker runs into an edge of the recording that lies inside the frame, so
+     * the body ends in a hard line in mid-frame.
+     */
+    kind: 'frame' | 'recording';
+    edge: Edge;
+    /** Program frames, first and last, over every stretch; each stretch, first and last frame. */
+    from: number;
+    to: number;
+    ranges: [number, number][];
+    /** The worst frame: pixels of the speaker past the frame edge, or of frame past the recording's. */
+    pixels: number;
+};
+/**
+ * Where a `cutout` shot shows the speaker cut, for at least `CROP_FRAMES` frames in a row, its
+ * keys included: the matte's box past a frame edge the anchor does not sit the speaker against
+ * (the top is `headCrops`'), or the matte running into an edge of the recording that sits inside
+ * the frame. Each frame's own matte box counts; frames with nothing of the speaker in the frame
+ * (sent away by a key), morphs and cut or shot transition windows are skipped. A `rotation`
+ * key turns the matte's box and the recording's edges about its pivot, as the stage draws them.
+ */
+export declare function cutoutEdges(data: FramingData & {
+    transitions: readonly ProgramTransition[];
+}, range?: Span): CutoutEdge[];
+/** A `check` warning for a cutout edge, worded so an agent knows what it can change. */
+export declare function cutoutEdgeMessage(cut: CutoutEdge, shot: Pick<ShotSpan, 'shot' | 'params' | 'keys'>, fps: number): string;
+export type CutoutPanel = {
+    clip: string;
+    shot: string;
+    slot: string;
+    /** Program frames, first and last, over every stretch; each stretch, first and last frame. */
+    from: number;
+    to: number;
+    ranges: [number, number][];
+};
+/**
+ * Where a clip fills a slot of a `cutout` shot that the speaker leaves no room for (less than
+ * `EDGE_CUT` of the frame's shorter side across or down), for at least `CROP_FRAMES` frames in
+ * a row: a head that gets close to the top of the safe area takes the panel above it, and the
+ * clip in it does not show. Morphs and cut or shot transition windows are skipped.
+ */
+export declare function cutoutPanels(data: FramingData & {
+    transitions: readonly ProgramTransition[];
+    clips: readonly {
+        id: string;
+        slot: string | null;
+        show: {
+            from: number;
+            until: number;
+        };
+    }[];
+}): CutoutPanel[];
+/** A `check` warning for a cutout slot without room, worded so an agent knows what to change. */
+export declare function cutoutPanelMessage(panel: CutoutPanel, shot: Pick<ShotSpan, 'shot' | 'params' | 'keys'>, fps: number): string;
 export {};

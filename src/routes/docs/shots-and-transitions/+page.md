@@ -1,7 +1,7 @@
 ---
 title: Shots, transitions and keys
-description: How a program frames the speaker with shots (full, punch, strip, window, behind, whip), hands the frame over with transitions (push, wipe, zoom-through, shape-mask, blinds, card), and moves cameras, clips and block props with keys.
-updated: 2026-10-22
+description: How a program frames the speaker with shots (full, punch, strip, window, behind, whip, cutout), hands the frame over with transitions (push, wipe, zoom-through, shape-mask, blinds, card), and moves cameras, clips and block props with keys.
+updated: 2026-10-26
 ---
 
 Shots and keys work in a [program](/docs/programs), a project with `cuts` or `shots`. Every shot frames the speaker's head from the footage's matte ([Footage, mattes and speaker depth](/docs/footage)), so make the matte first.
@@ -27,8 +27,15 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
 | `window` | The speaker in a rounded window with a ring in the brand's primary colour, and a `panel` slot beside it. In landscape and square the window sits in a corner; in portrait it is centred at the top of the safe area, the panel below. | `corner` (`bottom-right`), `size` (0.3 landscape, 0.4 square, 0.44 portrait), `zoom` (1.2), `ring` (4 px at 1080 px; 0: none), `aspect` (`"4:5"`, `"1:1"`, `"16:9"` or a number) |
 | `behind` | The stage for a word behind the head: the room dims and blurs while the speaker, cut out by the matte, stays sharp in front, and a `word` slot follows the head. Needs a matte.                                                       | `scale`, `dim` (0.55), `blur` (12 px at 1080 px)                                                                                                               |
 | `whip`   | The camera whips off the frame with motion blur while a frame-sized `card` slot flies in from the other side; the move out of the shot whips back.                                                                                   | `direction` (`left`, `right`, `up`, `down`, `forward`, `back`; default `forward`), `blur` (48 px of a 1920 px move; 0: none)                                     |
+| `cutout` | Only the speaker, cut out by the matte, over the style's surface: no room. `"layer": "behind"` clips go between the surface and the speaker. Puts a wide recording anywhere in the frame, such as a seated speaker in the lower left of 9:16. A `panel` slot takes the empty part: above the speaker for `bottom` (and for `bottom-left`/`bottom-right` in portrait and square), beside it otherwise. Needs a matte. | `anchor` (`bottom-left`, `bottom`, `bottom-right`, `left`, `center`, `right`; default `bottom`), `size` (head height as a share of the frame height: 0.2 landscape, 0.15 square, 0.11 portrait), `margin` (0.05 of the shorter side; negative runs off the edge) |
 
 The word behind the head is a clip with `"layer": "behind"` and `"slot": "word"`; the shot only sets the stage. A clip with `"slot": "panel"` or `"slot": "card"` fills that slot and moves with it. While no shot frees its slot, the clip is hidden and `check` warns.
+
+**The speaker alone.** `cutout` sizes the speaker by the head, measured from the matte over the whole shot, so a close take and a wide one at the same `size` look alike whatever the room's framing. Across, the head sits 1.2 head heights in from the anchored edge's margin (at most 0.35 of the frame width, so a big speaker runs off that edge), so the shoulders stay in and the speaker holds still while the hands move; a negative `margin` moves the speaker further off the edge. A body cut by the recording's bottom edge sits on the frame's bottom edge with a bottom anchor; with `left`, `center` or `right` (or a `y` key lifting it) that cut shows in mid-frame and `check` warns, as it does when a frame edge the anchor does not name cuts the speaker off. Both warnings follow the shot's keys, `rotation` included. `check` also warns when a clip fills a `panel` the speaker leaves no room for. Shot keys move the speaker on top; in a morph the room fades out or in while the camera moves.
+
+```json
+{ "shot": "cutout", "from": "here is how", "until": "the end", "params": { "anchor": "bottom-left", "size": 0.14 } }
+```
 
 **The safe part of a slot.** A slot can reach under platform UI: in a 9:16 `strip` the panel is 1056 px tall and only its top 384 px lie above the bottom inset. A slotted clip's root carries `--slot-safe-top`, `--slot-safe-right`, `--slot-safe-bottom` and `--slot-safe-left`, in px from the slot's edges (0 where an edge is inside the safe area), and the block reads the same as `clip.slotArea.safe`. They are set on every frame from where the shot puts the slot, so they follow it while it slides in or morphs into another shot's slot. Lay the panel's content out in the box they leave:
 
@@ -56,7 +63,7 @@ A clip without a slot has them at `0px`, so the same block fills the frame; keep
 
 | Into or out of                          | Default `morph`                      |
 | --------------------------------------- | ------------------------------------ |
-| into `full`, `strip` and `window`       | 0.7 s                                |
+| into `full`, `strip`, `window` and `cutout` | 0.7 s                            |
 | into `behind`                           | 0.3 s from `full`, 0.7 s from a framed shot |
 | into a `punch`                          | 0.16 s                               |
 | out of a `punch`                        | 0.45 s                               |
@@ -65,7 +72,7 @@ A clip without a slot has them at `0px`, so the same block fills the frame; keep
 
 Shots add events to the program for sounds to land on:
 
-- `shot`, halfway through a move into or out of `strip` and `window`;
+- `shot`, halfway through a move into or out of `strip`, `window` and `cutout`;
 - `punch`, on a punch-in's first frame;
 - `whip`, halfway through the whip out and the whip back.
 

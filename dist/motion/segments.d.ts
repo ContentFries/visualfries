@@ -67,6 +67,8 @@ export type StageSegment = {
      * video. Other shots measure their own frames.
      */
     heads?: Record<string, Record<string, number | null>>;
+    /** How high the head gets (see `shotTop`) over the same shots, like `heads`. */
+    tops?: Record<string, Record<string, number | null>>;
 };
 type Span = {
     startFrame: number;
@@ -110,6 +112,7 @@ export declare function segmentStage(program: Pick<ResolvedProgram, 'fps' | 'for
     frames: Record<string, FootageFrames>;
     map: FootageMap | null;
     heads?: StageSegment['heads'];
+    tops?: StageSegment['tops'];
 }, brand?: ResolvedBrand): StageSegment;
 /**
  * Frames worth running in a segment: every `every`th frame, the frames around each cut, shot

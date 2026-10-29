@@ -25,6 +25,13 @@ describe('docs markdown twins', () => {
 		expect(checked).toBeGreaterThan(40);
 	});
 
+	it('puts every code fence on a line of its own', () => {
+		// Text after a closing fence keeps it open: the prose below shows as code.
+		for (const [file, raw] of Object.entries(sources))
+			for (const line of raw.split('\n'))
+				if (line.trimStart().startsWith('```')) expect(line.trim(), file).toMatch(/^```[\w-]*$/);
+	});
+
 	it('strips only the page script, not fenced code', () => {
 		const md =
 			'<script>\nimport X from "x";\n</script>\n\nText\n\n```svelte\n<script>\n  const a = 1;\n</script>\n```\n';

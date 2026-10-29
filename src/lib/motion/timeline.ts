@@ -104,7 +104,7 @@ export const TRANSITIONS = [
 	'card'
 ] as const;
 /** Built-in shots; a path ("shots/My.ts") names a custom one. */
-export const SHOTS = ['full', 'punch', 'strip', 'window', 'behind', 'whip'] as const;
+export const SHOTS = ['full', 'punch', 'strip', 'window', 'behind', 'whip', 'cutout'] as const;
 
 /**
  * The handoff into the item that carries it. A name ("push") or the full form. It never changes

@@ -158,8 +158,9 @@ segment seg1  frames 0–152  3c9aad249c2b  hook, take, open, hook-behind, list-
 **`render`** makes the whole program one video. The output is an `.mp4`, or a directory that gets `<project>[.<format>].mp4`.
 
 - **Segments and chunks.** Each segment is drawn in chunks of about 4 s on its own pages and stored losslessly in `.visualfries/segments/`. The chunks are joined without re-encoding and encoded once, and the resolved program is saved beside the video as `<name>.program.json`.
-- **Cache.** A chunk's hash covers what its frames show, including every file its blocks import. Editing one clip draws only the chunks it is on screen in; `--no-cache` draws everything again.
-- **What makes a chunk redraw.** Keys count by what they draw in the chunk: moving the speaker's exit by 0.1 s redraws the chunks around the exit only. A clip's other fields count whole, so a clip across the whole program (captions, a 3D world) puts every chunk in play when its props change. A cut that gets longer or shorter moves everything after it.
+- **Cache.** A chunk's hash covers what its segment's page sets up (every clip it mounts, keys aside, and every file their blocks import) and what the chunk's own frames show. Editing one clip's props, timing or block redraws the chunks of the segments it is on screen in; `--no-cache` draws everything again.
+- **What makes a chunk redraw.** Keys count by what they draw in the chunk: moving the speaker's exit by 0.1 s redraws the chunks around the exit only. A clip held at its edge inside a transition window, and the frame an excerpt's end card holds, count at the frame they hold. A clip's other fields count across its segment, so a clip across the whole program (captions, a 3D world) puts every chunk in play when its props change. A cut that gets longer or shorter moves everything after it.
+- **Same frames as `--no-cache`.** Only when every block draws a frame from its program frame alone. A page goes on from chunk to chunk, and which chunks it draws depends on the cache, so a block that carries state over from earlier frames mixes histories; `check --determinism` finds such blocks.
 - **Housekeeping.** `visualfries cache reel.vf.json` shows the cache's size, and `--clear` drops it.
 
 ## Excerpts: teasers from the same program

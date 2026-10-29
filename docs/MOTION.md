@@ -1656,17 +1656,26 @@ is drawn in chunks of about 4 s (cut at every 4 s of program time, so the pieces
 an edit moves a segment's edges; a piece under 2 s at an edge joins its neighbour), each on
 pages of its segment and stored losslessly in `.visualfries/segments/<hash>-<engine>.mkv`; the
 chunks are joined without re-encoding and encoded once with the clip settings. A chunk's hash
-covers what its frames show, including every file its blocks import, the files project CSS
-points to and project files named in clip props, so editing one clip or one helper draws only
-the chunks it is on screen in (`--no-cache` draws everything again). Keys count by what they
-draw in the chunk's own frames: moving the speaker's exit by a tenth of a second draws again
-the chunks around the exit, not every chunk of the shot. A clip's other fields count whole: new
-props of a block that runs across the program draw all of it again. After a render the folder
+covers what its page sets up and what its frames show: every clip the page of its segment
+mounts (all of it but its keys), every file their blocks import, the files project CSS points
+to and project files named in clip props, and the cuts, shots and transitions its frames show.
+So editing one clip's props, timing or block, or one helper, draws again the chunks of the
+segments it is on screen in, and leaves the other segments alone (`--no-cache` draws everything
+again). Keys count by what they draw in the frames the chunk shows: moving the speaker's exit by
+a tenth of a second draws again the chunks around the exit, not every chunk of the shot. A clip
+held at its edge frame inside a transition window, and the frame an excerpt's end card holds,
+count at the frame they hold; a keyed prop also counts with the value its block mounts with (on
+the clip's first frame). A cached render gives the same frames as `--no-cache` only when every
+block draws a frame from its program frame alone: a page goes on from chunk to chunk, and which
+chunks it draws depends on the cache, so a block that carries state over from earlier frames
+gives a video mixed from different histories (`check --determinism` finds such blocks). After
+a render the folder
 keeps only the intermediates the latest render of each project and format there uses; an
 interrupted render removes its partial files, and the next render removes those of a render
 that was killed. With at least as many chunks to draw as `--jobs` and none much longer than its
 share, each page takes whole chunks, going on to the next chunk of the same segment; otherwise a
-chunk's frames are spread over the pages. The resolved program, with every segment's `chunks`,
+chunk's frames are spread over the pages. At most `--jobs` pages are open at once: an idle page
+of another segment closes before a new one opens. The resolved program, with every segment's `chunks`,
 is saved beside the video as `<name>.program.json`.
 
 A re-take that changes words (not just timing) makes the affected cues fail with a suggestion,

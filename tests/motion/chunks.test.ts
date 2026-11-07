@@ -171,6 +171,10 @@ describe('chunk hashes of a program', () => {
 		expect(resolve(json(5, {}, null)).chunks.map((c) => c.frames)).toEqual([390]);
 		const two = resolveProgram(parseMotionProject(json(5)), inputs, { chunkSeconds: 2 });
 		expect(two.chunks.map((c) => c.frames)).toEqual([60, 60, 60, 60, 60, 60, 30]);
+		for (const bad of [0, -1, Number.NaN, Infinity])
+			expect(() =>
+				resolveProgram(parseMotionProject(json(5)), inputs, { chunkSeconds: bad })
+			).toThrow(/chunkSeconds must be a positive number/);
 	});
 
 	it('change only where a moved key changes the picture', () => {

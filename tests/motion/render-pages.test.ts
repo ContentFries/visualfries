@@ -166,4 +166,69 @@ describe.skipIf(!hasFfmpeg)('render pages', () => {
 		expect(pages.peak).toBeLessThanOrEqual(3);
 		expect(pages.live).toBe(0);
 	}, 60_000);
+
+	it('opens one page per short segment of a chunk, drawing the segments side by side', async () => {
+		// 28 hard cuts of half a second (5 frames each) in one 15 s chunk: a page per segment, as
+		// many at once as --jobs allows, not --jobs pages for every segment in turn.
+		const file = path.join(dir, 'cuts.vf.json');
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [64, 36],
+				fps: 10,
+				background: '#000000',
+				footage: { num: { src: 'num.mp4' } },
+				cuts: Array.from({ length: 28 }, (_, i) => ({
+					id: `c${i}`,
+					source: 'num',
+					in: i * 0.5,
+					out: i * 0.5 + 0.5
+				}))
+			})
+		);
+		Object.assign(pages, { live: 0, peak: 0, opened: 0 });
+		slow.clear();
+		slowClose.clear();
+		const r = await renderProgramVideo(await loadMotionProject(file), {
+			output: path.join(dir, 'cuts.mp4'),
+			jobs: 6
+		});
+		expect(r.chunks).toHaveLength(1);
+		expect(r.chunks[0].parts).toHaveLength(28);
+		expect(pages.opened).toBe(28);
+		expect(pages.peak).toBeGreaterThan(1);
+		expect(pages.peak).toBeLessThanOrEqual(6);
+		expect(pages.live).toBe(0);
+		const frames = spawnSync('ffprobe', [
+			'-v',
+			'error',
+			'-count_frames',
+			'-show_entries',
+			'stream=nb_read_frames',
+			'-of',
+			'csv=p=0',
+			r.file
+		]);
+		expect(String(frames.stdout).trim()).toBe('140');
+	}, 60_000);
+
+	it('draws chunks again when another ffmpeg encodes, also in the same process', async () => {
+		const file = path.join(dir, 'pages.vf.json');
+		const render = async () =>
+			renderProgramVideo(await loadMotionProject(file), {
+				output: path.join(dir, 'other.mp4')
+			}).then((r) => r.chunks.map((c) => c.cached));
+		await render();
+		expect(await render()).toEqual([true, true, true, true]);
+		const other = path.join(dir, 'ffmpeg-other');
+		await fs.writeFile(other, '#!/bin/sh\nexec ffmpeg "$@"\n', { mode: 0o755 });
+		const before = process.env.FFMPEG_PATH;
+		process.env.FFMPEG_PATH = other;
+		try {
+			expect(await render()).toEqual([false, false, false, false]);
+		} finally {
+			if (before === undefined) delete process.env.FFMPEG_PATH;
+			else process.env.FFMPEG_PATH = before;
+		}
+	}, 60_000);
 });

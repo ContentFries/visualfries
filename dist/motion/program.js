@@ -75,6 +75,8 @@ const overlaps = (a, b) => a.startFrame < endOf(b) && b.startFrame < endOf(a);
  */
 export function resolveProgram(project, given, opts = {}) {
     const chunkSeconds = opts.chunkSeconds ?? project.chunkSeconds ?? CHUNK_SECONDS;
+    if (!(chunkSeconds > 0 && Number.isFinite(chunkSeconds)))
+        throw new Error(`chunkSeconds must be a positive number, got ${chunkSeconds}.`);
     const fps = project.fps;
     // An excerpt resolves the whole program in its own format, then slices it.
     const spec = opts.excerpt === undefined ? null : excerptSpec(project, opts.excerpt);

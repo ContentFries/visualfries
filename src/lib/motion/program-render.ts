@@ -384,63 +384,83 @@ async function renderChunks(
 			throw error;
 		}
 	};
-	const one = async (c: RenderedChunk, pages: number) => {
-		const t0 = Date.now();
-		const partial = c.file.replace(/\.mp4$/, `.partial-${process.pid}-${c.id}.mp4`);
-		const untrack = trackPartial(partial);
-		try {
-			const sink = ffmpegFramePipe([
-				'-y',
-				'-f',
-				'image2pipe',
-				'-framerate',
-				String(program.fps),
-				'-c:v',
-				'png',
-				'-i',
-				'pipe:0',
-				...CHUNK_ENCODE,
-				partial
-			]);
-			// Every part writes into the chunk's one encode; the last one ends it.
-			const shared = { write: sink.write, end: async () => {}, kill: sink.kill };
+	/**
+	 * A part of a chunk is drawn and encoded on its own, into a file that starts on a keyframe;
+	 * when the last part of a chunk is done, the parts are joined by stream copy into the chunk.
+	 */
+	type Unit = { chunk: RenderedChunk; part: ProgramChunk['parts'][number]; file: string };
+	const units: Unit[] = todo.flatMap((c) =>
+		c.parts.map((part, k) => ({
+			chunk: c,
+			part,
+			file:
+				c.parts.length === 1
+					? c.file.replace(/\.mp4$/, `.partial-${process.pid}-${c.id}.mp4`)
+					: c.file.replace(/\.mp4$/, `.partial-${process.pid}-${c.id}-${k + 1}.mp4`)
+		}))
+	);
+	const pending = new Map(todo.map((c) => [c.id, c.parts.length]));
+	const started = new Map<string, number>();
+	const untrack = units.map((u) => trackPartial(u.file));
+	const finish = async (c: RenderedChunk) => {
+		const files = units.filter((u) => u.chunk === c).map((u) => u.file);
+		if (files.length === 1) await fs.rename(files[0], c.file);
+		else {
+			const joined = c.file.replace(/\.mp4$/, `.partial-${process.pid}-${c.id}.mp4`);
+			const done = trackPartial(joined);
 			try {
-				for (const part of c.parts) {
-					const segment = program.segments.find((x) => x.id === part.segment) as ProgramSegment;
-					const open = async () => {
-						const page = await take(segment);
-						mode = page.mode;
-						return {
-							// Pipe frames count from 0; the page takes program frames.
-							capture: (i: number) => page.capture(part.startFrame + i),
-							close: async () => {
-								if (abort.signal.aborted) return close(page);
-								idle.set(segment.id, [...(idle.get(segment.id) ?? []), page]);
-								wake();
-							}
-						};
-					};
-					await pipeFrames(part.frames, Math.min(pages, part.frames), open, shared, {
-						signal: abort.signal
-					});
-					const rest = left.get(part.segment)! - 1;
-					left.set(part.segment, rest);
-					if (!rest) await closeIdle(part.segment);
-				}
-			} catch (error) {
-				sink.kill();
-				throw error;
+				await concatCopy(files, joined, ['-map', '0:v']);
+				await fs.rename(joined, c.file);
+			} finally {
+				await fs.rm(joined, { force: true });
+				done();
 			}
-			await sink.end();
-			await fs.rename(partial, c.file);
-		} finally {
-			await fs.rm(partial, { force: true });
-			untrack();
+			for (const f of files) await fs.rm(f, { force: true });
 		}
-		c.seconds = (Date.now() - t0) / 1000;
+		c.seconds = (Date.now() - started.get(c.id)!) / 1000;
 		opts.log(
 			`${c.id}: frames ${span(c)} rendered in ${c.seconds.toFixed(1)} s (${(c.frames / c.seconds).toFixed(1)} fps)`
 		);
+	};
+	const one = async (u: Unit, pages: number) => {
+		const { chunk: c, part } = u;
+		if (!started.has(c.id)) started.set(c.id, Date.now());
+		const segment = program.segments.find((x) => x.id === part.segment) as ProgramSegment;
+		const sink = ffmpegFramePipe([
+			'-y',
+			'-f',
+			'image2pipe',
+			'-framerate',
+			String(program.fps),
+			'-c:v',
+			'png',
+			'-i',
+			'pipe:0',
+			...CHUNK_ENCODE,
+			u.file
+		]);
+		const open = async () => {
+			const page = await take(segment);
+			mode = page.mode;
+			return {
+				// Pipe frames count from 0; the page takes program frames.
+				capture: (i: number) => page.capture(part.startFrame + i),
+				close: async () => {
+					if (abort.signal.aborted) return close(page);
+					idle.set(segment.id, [...(idle.get(segment.id) ?? []), page]);
+					wake();
+				}
+			};
+		};
+		await pipeFrames(part.frames, Math.min(pages, part.frames), open, sink, {
+			signal: abort.signal
+		});
+		const rest = left.get(part.segment)! - 1;
+		left.set(part.segment, rest);
+		if (!rest) await closeIdle(part.segment);
+		const parts = pending.get(c.id)! - 1;
+		pending.set(c.id, parts);
+		if (!parts) await finish(c);
 	};
 	let failed: unknown = null;
 	const guard = (work: Promise<void>) =>
@@ -448,29 +468,31 @@ async function renderChunks(
 			failed ??= error;
 			abort.abort(error);
 		});
-	// Whole chunks per page only pay off when they balance: one long chunk on one page while
-	// the others idle is slower than sharing its frames (measured: 22.6 s against 15.9 s).
-	const total = todo.reduce((sum, s) => sum + s.frames, 0);
-	const balanced = Math.max(...todo.map((s) => s.frames)) <= (1.5 * total) / opts.jobs;
+	// Whole parts per page only pay off when they balance: one long part on one page while the
+	// others idle is slower than sharing its frames (measured: 22.6 s against 15.9 s).
+	const total = units.reduce((sum, u) => sum + u.part.frames, 0);
+	const balanced = Math.max(...units.map((u) => u.part.frames)) <= (1.5 * total) / opts.jobs;
 	const whole =
 		opts.schedule === 'segments' ||
-		(opts.schedule === 'auto' && todo.length >= opts.jobs && balanced);
+		(opts.schedule === 'auto' && units.length >= opts.jobs && balanced);
 	try {
 		if (whole) {
-			const queue = [...todo];
+			const queue = [...units];
 			const worker = async () => {
-				for (let s = queue.shift(); s && !failed; s = queue.shift()) await one(s, 1);
+				for (let u = queue.shift(); u && !failed; u = queue.shift()) await one(u, 1);
 			};
-			const workers = Math.min(opts.jobs, todo.length);
+			const workers = Math.min(opts.jobs, units.length);
 			await Promise.all(Array.from({ length: workers }, () => guard(worker())));
 		} else {
-			for (const s of todo) {
-				await guard(one(s, opts.jobs));
+			for (const u of units) {
+				await guard(one(u, opts.jobs));
 				if (failed) break;
 			}
 		}
 	} finally {
 		await Promise.all([...idle.keys()].map(closeIdle));
+		for (const u of units) await fs.rm(u.file, { force: true });
+		for (const done of untrack) done();
 	}
 	if (failed) throw failed;
 	return mode;
@@ -487,42 +509,51 @@ async function join(
 	file: string,
 	audio: string | null
 ): Promise<void> {
-	const list = path.join(path.dirname(chunks[0].file), `.concat-${process.pid}-${Date.now()}.txt`);
 	const partial = path.join(
 		path.dirname(file),
 		`.${path.basename(file, '.mp4')}.partial-${process.pid}.mp4`
 	);
-	const untrack = [trackPartial(list), trackPartial(partial)];
-	await fs.writeFile(
-		list,
-		chunks.map((s) => `file '${s.file.replace(/'/g, "'\\''")}'`).join('\n') + '\n'
-	);
-	const seconds = program.frames / program.fps;
+	const untrack = trackPartial(partial);
 	try {
-		await run([
-			'-y',
-			'-f',
-			'concat',
-			'-safe',
-			'0',
-			'-i',
-			list,
-			// The audio as encoded and measured before: copied, never encoded twice.
-			...(audio ? ['-i', audio, '-map', '0:v', '-map', '1:a'] : ['-map', '0:v']),
-			'-c',
-			'copy',
-			// A hard end: the sound must never run past the picture.
-			'-t',
-			seconds.toFixed(6),
-			'-movflags',
-			'+faststart',
-			partial
-		]);
+		await concatCopy(
+			chunks.map((c) => c.file),
+			partial,
+			[
+				// The audio as encoded and measured before: copied, never encoded twice.
+				...(audio ? ['-i', audio, '-map', '0:v', '-map', '1:a'] : ['-map', '0:v']),
+				// A hard end: the sound must never run past the picture.
+				'-t',
+				(program.frames / program.fps).toFixed(6),
+				'-movflags',
+				'+faststart'
+			]
+		);
 		await fs.rename(partial, file);
 	} finally {
-		await fs.rm(list, { force: true });
 		await fs.rm(partial, { force: true });
-		for (const done of untrack) done();
+		untrack();
+	}
+}
+
+/**
+ * Joins encoded files in order into `output` by stream copy (the concat demuxer: no decode, no
+ * encode); `args` go between the input and the output (more inputs, mapping, muxer options).
+ */
+async function concatCopy(files: string[], output: string, args: string[]) {
+	const list = path.join(
+		path.dirname(files[0]),
+		`.concat-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.txt`
+	);
+	const untrack = trackPartial(list);
+	try {
+		await fs.writeFile(
+			list,
+			files.map((f) => `file '${f.replace(/'/g, "'\\''")}'`).join('\n') + '\n'
+		);
+		await run(['-y', '-f', 'concat', '-safe', '0', '-i', list, ...args, '-c', 'copy', output]);
+	} finally {
+		await fs.rm(list, { force: true });
+		untrack();
 	}
 }
 
@@ -564,7 +595,7 @@ async function pruneChunks(
 	}
 	await Promise.all(
 		names
-			// Chunks of earlier versions were lossless .mkv files: no record names them any more.
+			// Chunks of earlier versions were lossless .mkv files; they go once no record names them.
 			.filter((n) => /^[0-9a-f]{40}-[0-9a-f]{12}\.(?:mkv|mp4)$/.test(n) && !used.has(n))
 			.map(async (n) => {
 				const st = await fs.stat(path.join(cacheDir, n)).catch(() => null);
@@ -574,19 +605,26 @@ async function pruneChunks(
 	);
 }
 
-let ffmpegId: Promise<string> | null = null;
-/** The first line of `ffmpeg -version`: another build may encode the same frames differently. */
+const ffmpegIds = new Map<string, Promise<string>>();
+/**
+ * The ffmpeg that encodes, by path and the first line of `ffmpeg -version`: another build may
+ * encode the same frames differently.
+ */
 function ffmpegVersion(): Promise<string> {
-	ffmpegId ??= new Promise((resolve) => {
-		const p = spawn(process.env.FFMPEG_PATH || 'ffmpeg', ['-version'], {
+	const bin = process.env.FFMPEG_PATH || 'ffmpeg';
+	const known = ffmpegIds.get(bin);
+	if (known) return known;
+	const id = new Promise<string>((resolve) => {
+		const p = spawn(bin, ['-version'], {
 			stdio: ['ignore', 'pipe', 'ignore']
 		});
 		let out = '';
 		p.stdout.on('data', (d) => (out += d));
-		p.on('error', () => resolve('ffmpeg:-'));
-		p.on('close', () => resolve(out.split('\n')[0] || 'ffmpeg:-'));
+		p.on('error', () => resolve(`${bin}:-`));
+		p.on('close', () => resolve(`${bin}:${out.split('\n')[0] || '-'}`));
 	});
-	return ffmpegId;
+	ffmpegIds.set(bin, id);
+	return id;
 }
 
 function run(args: string[]): Promise<void> {

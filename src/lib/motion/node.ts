@@ -434,6 +434,121 @@ async function probeSource(file: string, fps: number, audio?: string): Promise<S
 	};
 }
 
+/** Short hash of everything about the music that changes where beats fall; null without beats. */
+function musicTimingHash(music: LoadedMusic[]): string | null {
+	const timing = music
+		.filter((m) => m.beatsHash)
+		.map(({ music: m, beatsHash }) => [
+			beatsHash,
+			m.id ?? null,
+			m.src,
+			m.from ?? null,
+			m.until ?? null,
+			m.shift ?? null,
+			m.downbeat ?? null,
+			m.tempo ?? null,
+			...(m.in !== undefined ? [m.in] : [])
+		]);
+	return timing.length
+		? createHash('sha256').update(JSON.stringify(timing)).digest('hex').slice(0, 12)
+		: null;
+}
+
+/** Probes one footage file of a program project; the footage's own `audio` setting wins. */
+async function probeFootage(
+	footage: NonNullable<MotionProject['footage']>[string],
+	file: string,
+	dir: string,
+	fps: number
+): Promise<SourceInfo> {
+	const audio = typeof footage.audio === 'string' ? path.resolve(dir, footage.audio) : null;
+	const info = await probeSource(file, fps, audio ?? undefined);
+	if (footage.audio === false) {
+		info.audio = false;
+		delete info.audioDuration;
+	} else if (audio) info.audio = true;
+	return info;
+}
+
+/** Transcripts, probed sources and the hashes of every footage the project lists. */
+async function loadFootageInputs(
+	project: MotionProject,
+	dir: string,
+	abs: string,
+	words: MotionWord[] | null
+) {
+	const transcripts: Record<string, MotionWord[]> = {};
+	const sources: Record<string, SourceInfo> = {};
+	const hashes: LoadedMotionProject['hashes'] = {
+		project: shortHash(await fs.readFile(abs)),
+		transcript: words ? wordsHash(words) : null,
+		transcripts: {},
+		sources: {}
+	};
+	for (const [name, footage] of Object.entries(project.footage ?? {})) {
+		if (footage.transcript) {
+			const file = path.resolve(dir, footage.transcript);
+			transcripts[name] = parseTranscriptWords(JSON.parse(await fs.readFile(file, 'utf8')));
+			hashes.transcripts[name] = wordsHash(transcripts[name]);
+		}
+		const files = [footage.src, footage.matte]
+			.filter((f): f is string => !!f)
+			.map((f) => path.resolve(dir, f));
+		const stats = await Promise.all(files.map((f) => fs.stat(f).catch(() => null)));
+		const listed = stats.map((st, i) => [path.relative(dir, files[i]), st?.size, st?.mtimeMs]);
+		// A clean plate draws pixels too: its settings and image join the hash (only when set,
+		// so footage without one keeps its hash).
+		const clean = footage.clean === undefined ? null : await cleanHashInput(footage.clean, dir);
+		hashes.sources[name] = shortHash(JSON.stringify(clean ? [...listed, clean] : listed));
+		if (isProgramProject(project) && stats[0])
+			sources[name] = await probeFootage(footage, files[0], dir, project.fps);
+	}
+	return { transcripts, sources, hashes };
+}
+
+/** Why an excerpt end card's block cannot be used; null when it can. */
+function endBlockProblem(dir: string, block: string): string | null {
+	if (existsSync(blockFile(dir, block))) return null;
+	if (!block.startsWith(BUILTIN_PREFIX)) return `Block file not found: ${block}`;
+	return `Unknown built-in block "${block}". Built-in blocks: ${Object.keys(BUILTIN_BLOCKS)
+		.map((b) => BUILTIN_PREFIX + b)
+		.join(', ')}.`;
+}
+
+/** Adds what the clips' blocks declare (sounds, animatable props, events, end cards) to the inputs. */
+async function addBlockInputs(
+	project: MotionProject,
+	dir: string,
+	inputs: ProgramInputs
+): Promise<void> {
+	const program = isProgramProject(project);
+	if (program) {
+		inputs.sounds = await loadSounds(project, dir);
+		// Keyed props are checked against what each block marks animatable.
+		inputs.animatable = {};
+		for (const block of new Set(project.clips.map((c) => c.block)))
+			inputs.animatable[block] = await readBlockAnimatable(blockFile(dir, block));
+	}
+	const cards = endCards(project);
+	if (program && cards.length) {
+		// Excerpt end cards are clips the project does not list: their blocks are checked here.
+		inputs.endBlocks = {};
+		for (const { block } of cards) inputs.endBlocks[block] = endBlockProblem(dir, block);
+	}
+	if (program || project.sfx?.length) {
+		// Events the blocks declare, for `{ event, clip }` anchors.
+		inputs.blockEvents = {};
+		for (const block of new Set(project.clips.map((c) => c.block)))
+			inputs.blockEvents[block] = await readBlockEvents(blockFile(dir, block));
+	}
+}
+
+/** Errors and warnings of a placement or cut list, as project diagnostics (infos are dropped). */
+const problemDiagnostics = (list: { level: string; field: string; message: string }[]) =>
+	list
+		.filter((d) => d.level !== 'info')
+		.map((d) => ({ level: d.level as 'error' | 'warning', field: d.field, message: d.message }));
+
 /** `transcript` overrides the project's transcript (e.g. a re-recorded voiceover); relative to cwd. */
 export async function loadMotionProject(
 	file: string,
@@ -466,87 +581,15 @@ export async function loadMotionProject(
 		: null;
 	const music = await loadMusic(project, dir);
 	const tracks = music.flatMap((m) => (m.track ? [m.track] : []));
-	const timing = music
-		.filter((m) => m.beatsHash)
-		.map(({ music: m, beatsHash }) => [
-			beatsHash,
-			m.id ?? null,
-			m.src,
-			m.from ?? null,
-			m.until ?? null,
-			m.shift ?? null,
-			m.downbeat ?? null,
-			m.tempo ?? null,
-			...(m.in !== undefined ? [m.in] : [])
-		]);
-	const musicHash = timing.length
-		? createHash('sha256').update(JSON.stringify(timing)).digest('hex').slice(0, 12)
-		: null;
+	const musicHash = musicTimingHash(music);
 	const brand = await loadBrand(project, dir);
 	const style = loadStyle(project, dir);
-	const transcripts: Record<string, MotionWord[]> = {};
-	const sources: Record<string, SourceInfo> = {};
-	const hashes: LoadedMotionProject['hashes'] = {
-		project: shortHash(await fs.readFile(abs)),
-		transcript: words ? wordsHash(words) : null,
-		transcripts: {},
-		sources: {}
-	};
-	for (const [name, footage] of Object.entries(project.footage ?? {})) {
-		if (footage.transcript) {
-			const file = path.resolve(dir, footage.transcript);
-			transcripts[name] = parseTranscriptWords(JSON.parse(await fs.readFile(file, 'utf8')));
-			hashes.transcripts[name] = wordsHash(transcripts[name]);
-		}
-		const files = [footage.src, footage.matte]
-			.filter((f): f is string => !!f)
-			.map((f) => path.resolve(dir, f));
-		const stats = await Promise.all(files.map((f) => fs.stat(f).catch(() => null)));
-		const listed = stats.map((st, i) => [path.relative(dir, files[i]), st?.size, st?.mtimeMs]);
-		// A clean plate draws pixels too: its settings and image join the hash (only when set,
-		// so footage without one keeps its hash).
-		const clean = footage.clean === undefined ? null : await cleanHashInput(footage.clean, dir);
-		hashes.sources[name] = shortHash(JSON.stringify(clean ? [...listed, clean] : listed));
-		if (isProgramProject(project) && stats[0]) {
-			const audio = typeof footage.audio === 'string' ? path.resolve(dir, footage.audio) : null;
-			const info = await probeSource(files[0], project.fps, audio ?? undefined);
-			if (footage.audio === false) {
-				info.audio = false;
-				delete info.audioDuration;
-			} else if (audio) info.audio = true;
-			sources[name] = info;
-		}
-	}
+	const { transcripts, sources, hashes } = await loadFootageInputs(project, dir, abs, words);
 	const look = { brand: brand.resolved, style: style.resolved };
 	const inputs: ProgramInputs = { words, transcripts, sources, tracks, look };
 	const checked = propFilesOf(project, dir);
 	if (checked) inputs.files = checked;
-	if (isProgramProject(project)) {
-		inputs.sounds = await loadSounds(project, dir);
-		// Keyed props are checked against what each block marks animatable.
-		inputs.animatable = {};
-		for (const block of new Set(project.clips.map((c) => c.block)))
-			inputs.animatable[block] = await readBlockAnimatable(blockFile(dir, block));
-	}
-	const cards = endCards(project);
-	if (isProgramProject(project) && cards.length) {
-		// Excerpt end cards are clips the project does not list: their blocks are checked here.
-		inputs.endBlocks = {};
-		for (const { block } of cards)
-			inputs.endBlocks[block] = existsSync(blockFile(dir, block))
-				? null
-				: block.startsWith(BUILTIN_PREFIX)
-					? `Unknown built-in block "${block}". Built-in blocks: ${Object.keys(BUILTIN_BLOCKS)
-							.map((b) => BUILTIN_PREFIX + b)
-							.join(', ')}.`
-					: `Block file not found: ${block}`;
-	}
-	if (isProgramProject(project) || project.sfx?.length) {
-		// Events the blocks declare, for `{ event, clip }` anchors.
-		inputs.blockEvents = {};
-		for (const block of new Set(project.clips.map((c) => c.block)))
-			inputs.blockEvents[block] = await readBlockEvents(blockFile(dir, block));
-	}
+	await addBlockInputs(project, dir, inputs);
 	const common = { file: abs, dir, project, music, musicHash, brand, style, inputs, hashes };
 	let cutList = resolveCutList(project, inputs);
 	// The speech at each audio edit point decides whether a word is cut through there.
@@ -564,9 +607,7 @@ export async function loadMotionProject(
 	);
 	const musicBeats = placement.beats;
 	// A music item that cannot be placed is an error of the project, as in the program.
-	const musicDiagnostics = placement.diagnostics
-		.filter((d) => d.level !== 'info')
-		.map((d) => ({ level: d.level as 'error' | 'warning', field: d.field, message: d.message }));
+	const musicDiagnostics = problemDiagnostics(placement.diagnostics);
 	if (cutList.mode === 'inserts') {
 		const resolved = resolveMotionProject(project, words, musicBeats, { ...look, files: checked });
 		resolved.diagnostics.unshift(...musicDiagnostics);
@@ -591,9 +632,7 @@ export async function loadMotionProject(
 		files: checked
 	});
 	resolved.diagnostics.unshift(
-		...cutList.diagnostics
-			.filter((d) => d.level !== 'info')
-			.map((d) => ({ level: d.level as 'error' | 'warning', field: d.field, message: d.message })),
+		...problemDiagnostics(cutList.diagnostics),
 		...musicDiagnostics
 	);
 	return {
@@ -1684,6 +1723,60 @@ type FootageSource = {
 	clean: CleanSpec | null;
 };
 
+/** Frames kept around what the clips show: `"all"` keeps every frame, otherwise seconds. */
+const footageMargin = (margin: number | 'all' | undefined, total: number, fps: number) =>
+	margin === 'all' ? total : Math.round((margin ?? FOOTAGE_MARGIN_SECONDS) * fps);
+
+/** How a footage's `clean` setting builds its plates; null without one. */
+function cleanSpecOf(
+	name: string,
+	spec: NonNullable<MotionProject['footage']>[string],
+	hasMatte: boolean,
+	dir: string
+): CleanSpec | null {
+	if (spec.clean === undefined) return null;
+	if (!hasMatte)
+		throw new Error(
+			`Footage "${name}": "clean" needs a matte to know where the subject is. Add "matte" (visualfries matte).`
+		);
+	const options = spec.clean === true ? {} : spec.clean;
+	return {
+		...(options.image ? { image: path.resolve(dir, options.image) } : {}),
+		...(options.grow !== undefined ? { grow: options.grow } : {})
+	};
+}
+
+/** Checks and probes one footage of the project: files, matte length, frame count, cache sizes. */
+async function openFootageSource(
+	name: string,
+	spec: NonNullable<MotionProject['footage']>[string],
+	dir: string,
+	fps: number
+): Promise<FootageSource> {
+	const src = path.resolve(dir, spec.src);
+	const matte = spec.matte ? path.resolve(dir, spec.matte) : null;
+	for (const file of [src, matte])
+		if (file && !existsSync(file)) throw new Error(`Footage "${name}": file not found: ${file}`);
+	const info = await probeVideo(src);
+	if (matte) {
+		const m = await probeVideo(matte);
+		// Two frames of difference are allowed; the epsilon absorbs float rounding.
+		if (Math.abs(m.duration - info.duration) > 2 / info.fps + 1e-6)
+			throw new Error(
+				`Footage "${name}": the matte is ${m.duration.toFixed(2)} s long, the video ${info.duration.toFixed(2)} s. Make the matte from this video (visualfries matte).`
+			);
+	}
+	// Same constant frame rate as the project: footage frames are program frames and a fast
+	// input seek is exact. Otherwise decode from the start so the rate conversion keeps one
+	// phase whatever range is extracted.
+	const direct = info.constant && Math.abs(info.fps - fps) < 0.01;
+	const total = direct ? info.frames : Math.round(info.duration * fps);
+	const stats = await Promise.all([src, matte].map((f) => (f ? fs.stat(f) : null)));
+	const sizes = stats.map((st) => (st ? ([st.size, st.mtimeMs] as [number, number]) : null));
+	const clean = cleanSpecOf(name, spec, !!matte, dir);
+	return { name, src, matte, info, sizes, direct, total, clean };
+}
+
 /**
  * Extracts the footage frames the given clips need (with a margin) into
  * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
@@ -1715,41 +1808,8 @@ async function extractFootage(
 	const footage = loaded.project.footage ?? {};
 	const fps = loaded.project.fps;
 	const sources: FootageSource[] = [];
-	for (const [name, spec] of Object.entries(footage)) {
-		const src = path.resolve(loaded.dir, spec.src);
-		const matte = spec.matte ? path.resolve(loaded.dir, spec.matte) : null;
-		for (const file of [src, matte])
-			if (file && !existsSync(file)) throw new Error(`Footage "${name}": file not found: ${file}`);
-		const info = await probeVideo(src);
-		if (matte) {
-			const m = await probeVideo(matte);
-			// Two frames of difference are allowed; the epsilon absorbs float rounding.
-			if (Math.abs(m.duration - info.duration) > 2 / info.fps + 1e-6)
-				throw new Error(
-					`Footage "${name}": the matte is ${m.duration.toFixed(2)} s long, the video ${info.duration.toFixed(2)} s. Make the matte from this video (visualfries matte).`
-				);
-		}
-		// Same constant frame rate as the project: footage frames are program frames and a fast
-		// input seek is exact. Otherwise decode from the start so the rate conversion keeps one
-		// phase whatever range is extracted.
-		const direct = info.constant && Math.abs(info.fps - fps) < 0.01;
-		const total = direct ? info.frames : Math.round(info.duration * fps);
-		const stats = await Promise.all([src, matte].map((f) => (f ? fs.stat(f) : null)));
-		const sizes = stats.map((st) => (st ? ([st.size, st.mtimeMs] as [number, number]) : null));
-		let clean: CleanSpec | null = null;
-		if (spec.clean !== undefined) {
-			if (!matte)
-				throw new Error(
-					`Footage "${name}": "clean" needs a matte to know where the subject is. Add "matte" (visualfries matte).`
-				);
-			const options = spec.clean === true ? {} : spec.clean;
-			clean = {
-				...(options.image ? { image: path.resolve(loaded.dir, options.image) } : {}),
-				...(options.grow !== undefined ? { grow: options.grow } : {})
-			};
-		}
-		sources.push({ name, src, matte, info, sizes, direct, total, clean });
-	}
+	for (const [name, spec] of Object.entries(footage))
+		sources.push(await openFootageSource(name, spec, loaded.dir, fps));
 
 	const roots: string[] = [];
 	const frames: Record<string, FootageFrames> = {};
@@ -1781,10 +1841,7 @@ async function extractFootage(
 		for (const source of sources) {
 			const spec = footage[source.name];
 			const startFrame = Math.round((spec.start ?? 0) * fps);
-			const margin =
-				spec.margin === 'all'
-					? source.total
-					: Math.round((spec.margin ?? FOOTAGE_MARGIN_SECONDS) * fps);
+			const margin = footageMargin(spec.margin, source.total, fps);
 			// Clips that never overlap the footage hold its nearest edge frame; "all" extracts every frame.
 			const range =
 				spec.margin === 'all'

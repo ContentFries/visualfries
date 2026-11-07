@@ -201,4 +201,161 @@ describe('MediaHook', () => {
 			'video'
 		);
 	});
+	describe('handleUpdate branches', () => {
+		beforeEach(() => {
+			(mediaElement as any).requestVideoFrameCallback = vi.fn((callback: Function) => {
+				callback(0, { mediaTime: mediaElement.currentTime });
+				return 1;
+			});
+		});
+
+		it('pauses and hands the controller back when the clip is inactive but warm', async () => {
+			(mediaElement as any).paused = false;
+			mediaManager.getMediaController.mockReturnValue('video-1');
+
+			await hook.handle('update', createContext(9.5));
+
+			expect(mediaElement.pause).toHaveBeenCalledTimes(1);
+			expect(mediaManager.setMediaController).toHaveBeenCalledWith(
+				'https://example.com/video.mp4',
+				undefined,
+				'video'
+			);
+		});
+
+		it('leaves seeking to another hook on the server', async () => {
+			stateManager.environment = 'server';
+			const context = createContext(10.5);
+			context.sceneState.state = 'playing';
+
+			await hook.handle('update', context);
+
+			expect(mediaManager.setMediaController).not.toHaveBeenCalled();
+			expect(mediaElement.play).not.toHaveBeenCalled();
+		});
+
+		it('does not take over media that another component controls', async () => {
+			mediaManager.getMediaController.mockReturnValue('someone-else');
+			const context = createContext(10.5);
+			context.sceneState.state = 'playing';
+
+			await hook.handle('update', context);
+
+			expect(mediaManager.setMediaController).not.toHaveBeenCalled();
+		});
+
+		it('restores audio state when taking over an unowned element', async () => {
+			mediaManager.getMediaController.mockReturnValue(undefined);
+			mediaElement.muted = true;
+			mediaElement.volume = 0.2;
+			const context = createContext(10.5);
+			context.contextData.volume = 0.6;
+
+			await hook.handle('update', context);
+
+			expect(mediaElement.muted).toBe(false);
+			expect(mediaElement.volume).toBe(0.6);
+		});
+
+		it('keeps the element paused while a loading component has no data yet', async () => {
+			mediaManager.getMediaController.mockReturnValue('video-1');
+			stateManager.isLoadingComponent.mockReturnValue(true);
+			(mediaElement as any).readyState = 1;
+			(mediaElement as any).paused = false;
+			const context = createContext(10.5);
+			context.sceneState.state = 'playing';
+
+			await hook.handle('update', context);
+
+			expect(mediaElement.pause).toHaveBeenCalledTimes(1);
+			expect(stateManager.removeLoadingComponent).not.toHaveBeenCalled();
+		});
+
+		it('clears the loading flag once the element has data', async () => {
+			mediaManager.getMediaController.mockReturnValue('video-1');
+			stateManager.isLoadingComponent.mockReturnValue(true);
+			const context = createContext(10.5);
+			context.sceneState.state = 'playing';
+
+			await hook.handle('update', context);
+
+			expect(stateManager.removeLoadingComponent).toHaveBeenCalledWith('video-1');
+			expect(mediaElement.play).toHaveBeenCalledTimes(1);
+		});
+
+		it('mirrors the component mute and volume onto the element', async () => {
+			mediaManager.getMediaController.mockReturnValue('video-1');
+			mediaElement.muted = false;
+			mediaElement.volume = 1;
+			const context = createContext(10.5);
+			context.contextData.muted = true;
+			context.contextData.volume = 0.4;
+
+			await hook.handle('update', context);
+
+			expect(mediaElement.muted).toBe(true);
+			expect(mediaElement.volume).toBe(0.4);
+		});
+
+		it('pauses and seeks instead of playing when the scene is paused', async () => {
+			mediaManager.getMediaController.mockReturnValue('video-1');
+			(mediaElement as any).paused = false;
+			mediaElement.currentTime = 50;
+			const context = createContext(10.5);
+
+			await hook.handle('update', context);
+
+			expect(mediaElement.pause).toHaveBeenCalledTimes(1);
+			expect(mediaElement.play).not.toHaveBeenCalled();
+			expect(mediaElement.currentTime).not.toBe(50);
+		});
+
+		it('does not restart an element that is already playing', async () => {
+			mediaManager.getMediaController.mockReturnValue('video-1');
+			(mediaElement as any).paused = false;
+			mediaElement.currentTime = 0.5;
+			const nowSpy = vi.spyOn(performance, 'now').mockReturnValue(0);
+			const context = createContext(10.5);
+			context.sceneState.state = 'playing';
+
+			await hook.handle('update', context);
+			nowSpy.mockRestore();
+
+			expect(mediaElement.play).not.toHaveBeenCalled();
+		});
+
+		it('seeks when playback drifts away from the timeline', async () => {
+			mediaManager.getMediaController.mockReturnValue('video-1');
+			(mediaElement as any).paused = false;
+			mediaElement.currentTime = 80;
+			const nowSpy = vi.spyOn(performance, 'now').mockReturnValue(1_000_000);
+			const context = createContext(10.5);
+			context.sceneState.state = 'playing';
+
+			await hook.handle('update', context);
+			nowSpy.mockRestore();
+
+			expect(mediaElement.currentTime).not.toBe(80);
+		});
+
+		it('retries the update after a failure', async () => {
+			vi.useFakeTimers();
+			try {
+				mediaManager.getMediaController.mockReturnValue('video-1');
+				(mediaElement as any).paused = false;
+				(mediaElement.pause as any).mockImplementationOnce(() => {
+					throw new Error('boom');
+				});
+				const context = createContext(10.5);
+
+				const update = hook.handle('update', context);
+				await vi.advanceTimersByTimeAsync(150);
+				await update;
+
+				expect(mediaElement.pause).toHaveBeenCalledTimes(2);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+	});
 });

@@ -342,17 +342,19 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 	};
 	const cuts: ResolvedCut[] = [];
 	let at = 0;
-	written.forEach((cut, index) => {
-		const id = cut.id ?? defaultCutId(index);
-		const fail = (field: string, message: string) =>
-			diagnostics.push({ level: 'error', item: id, field: `cuts[${index}].${field}`, message });
+	/** Source frames of one written cut, or null once an error diagnostic says why it has none. */
+	const sourceRange = (
+		cut: (typeof written)[number],
+		index: number,
+		fail: (field: string, message: string) => void
+	): { srcIn: number; srcOut: number } | null => {
 		const footage = project.footage?.[cut.source];
 		if (!footage) {
 			fail(
 				'source',
 				`${cutName(index)}: unknown footage "${cut.source}". Footage: ${Object.keys(project.footage ?? {}).join(', ') || 'none'}`
 			);
-			return;
+			return null;
 		}
 		const info = inputs.sources?.[cut.source];
 		const ctx: AnchorContext = {
@@ -368,7 +370,7 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 				'in',
 				`${cutName(index)}: "in" is a point in the source; a cut starts where the one before it ends. Put the beat on the "out" of ${index ? cutName(index - 1) : 'the cut before'}.`
 			);
-			return;
+			return null;
 		}
 		let inSec: number;
 		let outSec: number;
@@ -376,7 +378,7 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 			inSec = resolveAnchor(cut.in ?? 0, ctx, 'start').time;
 		} catch (error) {
 			fail('in', `${cutName(index)}: ${(error as Error).message}`);
-			return;
+			return null;
 		}
 		const srcIn = Math.round(inSec * fps);
 		/** Source frame after the last, when the cut ends on a beat. */
@@ -389,7 +391,7 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 						'out',
 						`${cutName(index)}: "out" on the music lands at ${(frame / fps).toFixed(2)} s, not after the cut starts (${(at / fps).toFixed(2)} s).`
 					);
-					return;
+					return null;
 				}
 				beatOut = srcIn + frame - at;
 				outSec = beatOut / fps;
@@ -405,11 +407,11 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 					'out',
 					`${cutName(index)}: no "out" and the length of "${footage.src}" is unknown (file not found or not probed). Give "out".`
 				);
-				return;
+				return null;
 			}
 		} catch (error) {
 			fail('out', `${cutName(index)}: ${(error as Error).message}`);
-			return;
+			return null;
 		}
 		// The end edge rounds up, so the frame holding the last word's end stays in the cut; a
 		// word ending inside the source's last frame keeps the source end. A beat is a frame.
@@ -421,22 +423,31 @@ export function resolveCutList(project: MotionProject, inputs: ProgramInputs): C
 			);
 		if (srcIn < 0) {
 			fail('in', `${cutName(index)}: "in" lands before the source starts (${inSec.toFixed(2)} s).`);
-			return;
+			return null;
 		}
 		if (info && srcOut > info.frames) {
 			fail(
 				'out',
 				`${cutName(index)}: "out" (${outSec.toFixed(2)} s) is after the end of "${footage.src}" (${(info.frames / fps).toFixed(2)} s).`
 			);
-			return;
+			return null;
 		}
 		if (srcOut <= srcIn) {
 			fail(
 				'out',
 				`${cutName(index)}: "out" (${outSec.toFixed(2)} s) is not after "in" (${inSec.toFixed(2)} s).`
 			);
-			return;
+			return null;
 		}
+		return { srcIn, srcOut };
+	};
+	written.forEach((cut, index) => {
+		const id = cut.id ?? defaultCutId(index);
+		const fail = (field: string, message: string) =>
+			diagnostics.push({ level: 'error', item: id, field: `cuts[${index}].${field}`, message });
+		const range = sourceRange(cut, index, fail);
+		if (!range) return;
+		const { srcIn, srcOut } = range;
 		const split = cut.audio?.split ?? 0;
 		if (split && !cuts.length)
 			diagnostics.push({

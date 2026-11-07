@@ -327,7 +327,12 @@ const MotionProjectFields = z.object({
     /** Ranges of the program rendered as videos of their own (`render --excerpt <id>`). */
     excerpts: timeline(() => z.array(ExcerptShape)).optional(),
     /** Program seconds when there is no cut list. Default: the latest end of clips or music. */
-    duration: z.number().positive().optional()
+    duration: z.number().positive().optional(),
+    /**
+     * Seconds of a render chunk (default 15): a program video is drawn, encoded and cached in
+     * chunks of this length. Shorter chunks redraw less after a small edit of a slow program.
+     */
+    chunkSeconds: z.number().positive().optional()
 });
 /**
  * The project file: clips (inserts mode), or a whole program described by a cut list or a shots

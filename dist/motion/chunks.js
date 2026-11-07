@@ -1,20 +1,47 @@
-/** Seconds of a chunk: long enough that opening a page is a small share of drawing it. */
-export const CHUNK_SECONDS = 4;
+import { sha1 } from './sha1.js';
 /**
- * The chunks of `span`: cut at every multiple of `CHUNK_SECONDS` in program frames, so the grid
- * stays put when the segment's edges move. A piece shorter than half a chunk at either edge
- * joins its neighbour.
+ * Seconds of a chunk unless the project (`chunkSeconds`) or the render says otherwise: short
+ * enough that a small fix draws little again, long enough that each chunk's first frame, a
+ * keyframe of the encoded video, costs little.
  */
-export function chunkSpans(span, fps) {
-    const size = Math.max(1, Math.round(CHUNK_SECONDS * fps));
+export const CHUNK_SECONDS = 15;
+/** Frames of a chunk at `fps`. */
+export const chunkFrames = (fps, seconds = CHUNK_SECONDS) => Math.max(1, Math.round(seconds * fps));
+/**
+ * The parts of `span` (a segment): cut at every multiple of the chunk length in program frames,
+ * so the grid stays put when the segment's edges move.
+ */
+export function chunkSpans(span, fps, seconds = CHUNK_SECONDS) {
+    const size = chunkFrames(fps, seconds);
     const from = span.startFrame;
     const to = span.startFrame + span.frames;
     const edges = [from];
-    for (let f = Math.ceil((from + 1) / size) * size; f < to; f += size)
-        if (f - from >= size / 2 && to - f >= size / 2)
-            edges.push(f);
+    for (let f = Math.floor(from / size) * size + size; f < to; f += size)
+        edges.push(f);
     edges.push(to);
     return edges.slice(0, -1).map((f, i) => ({ startFrame: f, frames: edges[i + 1] - f }));
+}
+/**
+ * The chunks of a program of `frames` frames from the parts of its segments (see `chunkSpans`
+ * with the same grid).
+ */
+export function programChunks(segments, frames, fps, seconds = CHUNK_SECONDS) {
+    const size = chunkFrames(fps, seconds);
+    const chunks = [];
+    for (let from = 0; from < frames; from += size) {
+        const span = { startFrame: from, frames: Math.min(size, frames - from) };
+        const parts = segments.flatMap((seg) => seg.parts
+            .filter((p) => p.startFrame >= from && p.startFrame < from + size)
+            .map((p) => ({ ...p, segment: seg.id })));
+        parts.sort((a, b) => a.startFrame - b.startFrame);
+        chunks.push({
+            id: `chunk${chunks.length + 1}`,
+            ...span,
+            hash: sha1(JSON.stringify({ span, parts: parts.map((p) => [p.startFrame, p.frames, p.hash]) })),
+            parts
+        });
+    }
+    return chunks;
 }
 /**
  * What keys make of program frames `[from, to)`, as runs of equal states: per keyed property,

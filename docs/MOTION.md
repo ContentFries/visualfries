@@ -1726,11 +1726,15 @@ With `cuts` or `shots`, `render` makes the whole program one video (`--export vi
 default there; `--export inserts` renders each clip as its own file, see
 [Inserts from a program](#inserts-from-a-program)).
 `--format WxH` renders another frame size from the same project; `--output` is an `.mp4` or a
-directory that gets `<project>[.<format>].mp4`. Each segment (the range between two hard cuts)
-is drawn in chunks of about 4 s (cut at every 4 s of program time, so the pieces stay put when
-an edit moves a segment's edges; a piece under 2 s at an edge joins its neighbour), each on
-pages of its segment and stored losslessly in `.visualfries/segments/<hash>-<engine>.mkv`; the
-chunks are joined without re-encoding and encoded once with the clip settings. A chunk's hash
+directory that gets `<project>[.<format>].mp4`. The program is drawn and encoded in chunks of
+15 s of program time (`"chunkSeconds"` in the project or `--chunk-seconds` on `render` sets
+another length; shorter chunks redraw less after a small edit of a slow program). The grid runs
+from frame 0 whatever the cuts, so the chunks stay put when an edit moves a segment's edges. A
+chunk is drawn part by part on pages of the segments (the ranges between two hard cuts) it
+holds; each part is encoded once with the clip settings, starting on a keyframe (so a hard cut
+starts on one too), and the parts are joined into `.visualfries/segments/<hash>-<engine>.mp4`
+by stream copy. The video is the chunks joined by stream copy with the program sound:
+no frame is encoded twice, and a render that draws nothing new only joins. A chunk's hash
 covers what its page sets up and what its frames show: every clip the page of its segment
 mounts (all of it but its keys), every file their blocks import, the files project CSS points
 to and project files named in clip props, and the cuts, shots and transitions its frames show.
@@ -1745,13 +1749,13 @@ block draws a frame from its program frame alone: a page goes on from chunk to c
 chunks it draws depends on the cache, so a block that carries state over from earlier frames
 gives a video mixed from different histories (`check --determinism` finds such blocks). After
 a render the folder
-keeps only the intermediates the latest render of each project and format there uses; an
+keeps only the chunks the latest render of each project and format there uses; an
 interrupted render removes its partial files, and the next render removes those of a render
-that was killed. With at least as many chunks to draw as `--jobs` and none much longer than its
-share, each page takes whole chunks, going on to the next chunk of the same segment; otherwise a
-chunk's frames are spread over the pages. At most `--jobs` pages are open at once: an idle page
-of another segment closes before a new one opens. The resolved program, with every segment's `chunks`,
-is saved beside the video as `<name>.program.json`.
+that was killed. With at least as many parts to draw as `--jobs` and none much longer than its
+share, each page takes whole parts, going on to the next part of the same segment; otherwise a
+part's frames are spread over the pages. At most `--jobs` pages are open at once: an idle page
+of another segment closes before a new one opens. The resolved program, with its `chunks` and
+every segment's `parts`, is saved beside the video as `<name>.program.json`.
 
 A re-take that changes words (not just timing) makes the affected cues fail with a suggestion,
 e.g. `"extra" not found … Did you mean "spare" at 59.80s?`. Update the phrase in the JSON;

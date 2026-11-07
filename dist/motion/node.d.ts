@@ -107,6 +107,7 @@ export declare function describeMusicGrid(loaded: LoadedMotionProject): string;
 export declare function motionProgram(loaded: LoadedMotionProject, opts?: {
     format?: string;
     excerpt?: string;
+    chunkSeconds?: number;
     write?: boolean;
 }): Promise<{
     program: ResolvedProgram;

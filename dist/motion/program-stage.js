@@ -15,6 +15,7 @@ import { cssAlpha, opaqueGradient } from './color.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import { BEHIND_TEXT_SECONDS, BEHIND_TEXT_SHARE, FACE_TEXT_SECONDS, FACE_TEXT_SHARE, TEXT_OPACITY, clearOfSpeaker, faceCovered, facePoints, headOnStage, intersect, textBehindMessage, textOverFaceMessage } from './text-over-face.js';
 import { CUT_SHARE, FIT_SECONDS, SAFE_TEXT_SHARE, addReach, contentReach, cutShare, emptyPart, frameFitMessage, newReach, outsideSafe, reachBox, safeBoxes } from './frame-fit.js';
+import { backdropLook, behindMeasurable, coveredShare, extendRun, measuredRecently, roomShown, runLongEnough, subjectDrawn } from './stage-decisions.js';
 import { PANEL_TEXT_SHARE, captionsInMoveMessage, moveAtStart, shotMoves } from './shot-moves.js';
 /**
  * The fill around a framed shot: the brand's surface; without a brand, the project background
@@ -854,6 +855,17 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             over.drawImage(rimSheet.canvas, 0, 0);
         }
     }
+    /** The blurred copy under footage that leaves the camera window open (see `backdrop`). */
+    function drawBackdrop(s, layout, backdrop, url, pending) {
+        const back = s.plate.back;
+        const { camera } = backdrop;
+        const { clip } = layout;
+        place(back, { ...camera, x: px(camera.x - clip.x), y: px(camera.y - clip.y) });
+        back.style.filter = filters.plate(`${s.name}-back`, backdropLook(backdrop, layout.room), layout.motionBlur);
+        const copy = show(back, url);
+        if (copy)
+            pending.push(copy);
+    }
     function drawSide(s, view, behind, pending, holes = []) {
         const { layout } = view;
         s.fill.style.background = layout.fill ? surface(seg) : '';
@@ -862,7 +874,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         frameBox(s.plate, layout);
         frameBox(s.subject, layout);
         s.plate.box.style.boxShadow = windowShadow(layout, seg.size);
-        const room = !!layout.room && (layout.room.dim > 0 || layout.room.blur >= BLUR_MIN);
+        const room = roomShown(layout.room, BLUR_MIN);
         s.plate.img.style.filter = filters.plate(s.name, layout.room, layout.motionBlur);
         s.subject.img.style.filter = filters.subject(s.name, layout.room?.dim ?? 0, layout.motionBlur);
         s.behind.style.filter = filters.streak(`behind-${s.name}`, layout.motionBlur);
@@ -881,27 +893,16 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         const plate = seg.insert ? null : show(s.plate.img, url);
         if (plate)
             pending.push(plate);
-        if (layout.backdrop && !seg.insert) {
-            // The blurred copy under footage that leaves the camera window open (see `backdrop`).
-            const { camera, blur, dim } = layout.backdrop;
-            const { clip } = layout;
-            place(back, { ...camera, x: px(camera.x - clip.x), y: px(camera.y - clip.y) });
-            // Under a dimmed room the copy is part of the room: dimmed and blurred with it too.
-            const roomDim = layout.room?.dim ?? 0;
-            const look = {
-                dim: px(1 - (1 - dim) * (1 - roomDim)),
-                blur: px(Math.hypot(blur, layout.room?.blur ?? 0))
-            };
-            back.style.filter = filters.plate(`${s.name}-back`, look, layout.motionBlur);
-            const copy = show(back, url);
-            if (copy)
-                pending.push(copy);
-        }
+        if (layout.backdrop && !seg.insert)
+            drawBackdrop(s, layout, layout.backdrop, url, pending);
         else
             hide(back);
-        // The subject covers behind clips only while one is on screen, or a dimmed room; in an
-        // insert it is only what a holdout cuts out.
-        const subjectOn = (seg.insert ? seg.insert.holdout && behind : behind || room) && frames.subject;
+        const subjectOn = subjectDrawn({
+            insert: seg.insert,
+            behind,
+            room,
+            hasSubject: !!frames.subject
+        });
         if (holes.length) {
             // The holes' layers draw the subject (cut) instead of its picture.
             hide(s.subject.img);
@@ -1211,7 +1212,14 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         const frames = framesOf(view);
         const holes = !!a.cut && a.cut.box.style.display !== 'none';
         const faded = (now?.a.layout.opacity ?? 1) < TEXT_OPACITY;
-        if (!now || !view || !frames?.subject || holes || faded) {
+        if (!now ||
+            !behindMeasurable({
+                planned: true,
+                hasView: !!view,
+                hasSubject: !!frames?.subject,
+                holes,
+                faded
+            })) {
             behindRun.clear();
             behindAt.clear();
             return [];
@@ -1230,38 +1238,22 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                 continue;
             }
             const at = behindAt.get(id);
-            if (at !== undefined && f - at < BEHIND_STRIDE)
+            if (measuredRecently(at, f, BEHIND_STRIDE))
                 continue;
             behindAt.set(id, f);
-            let boxes = [];
-            let sample = null;
-            if (behind) {
-                boxes = read().boxes(root, undefined, false);
-                if (boxes.length)
-                    sample = subjectSampler(now.a.layout);
-            }
-            else {
-                layers ??= subjectLayers(read());
-                const after = layers.filter((l) => root.contains(l) ||
-                    !!(root.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING));
-                if (after.length) {
-                    const under = (node) => after.some((l) => node.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING);
-                    boxes = read().boxes(root, (node) => !under(node), false);
-                    if (boxes.length)
-                        sample = layersSampler(after);
-                }
-            }
+            const { boxes, sample } = behind
+                ? behindCoverage(root, now.a.layout, read)
+                : frontCoverage(root, read, () => (layers ??= subjectLayers(read())));
             const points = boxes.length ? textPoints(boxes) : [];
             const hits = sample && points.length ? sample(points) : null;
-            const share = hits ? hits.filter(Boolean).length / points.length : 0;
+            const share = coveredShare(hits, points.length);
             if (share <= BEHIND_TEXT_SHARE) {
                 behindRun.delete(id);
                 continue;
             }
-            const run = behindRun.get(id) ?? { from: f, share };
-            run.share = Math.max(run.share, share);
+            const run = extendRun(behindRun.get(id), f, share);
             behindRun.set(id, run);
-            if (f - run.from < BEHIND_TEXT_SECONDS * seg.fps)
+            if (!runLongEnough(run, f, BEHIND_TEXT_SECONDS, seg.fps))
                 continue;
             behindRun.delete(id);
             toldBehind.add(id);
@@ -1269,6 +1261,20 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             out.push(textBehindMessage({ clip: m.data.id, block: m.data.block, frame: run.from, share: run.share, clear }, seg.size, seg.fps));
         }
         return out;
+    }
+    /** The text boxes of a behind clip and how to tell where the speaker's picture covers them. */
+    function behindCoverage(root, layout, read) {
+        const boxes = read().boxes(root, undefined, false);
+        return { boxes, sample: boxes.length ? subjectSampler(layout) : null };
+    }
+    /** The same for front text: the boxes not under a subject layer, against the layers after it. */
+    function frontCoverage(root, read, layersOnScreen) {
+        const after = layersOnScreen().filter((l) => root.contains(l) || !!(root.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING));
+        if (!after.length)
+            return { boxes: [], sample: null };
+        const under = (node) => after.some((l) => node.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING);
+        const boxes = read().boxes(root, (node) => !under(node), false);
+        return { boxes, sample: boxes.length ? layersSampler(after) : null };
     }
     /** The subject layers of front clips on screen that draw the speaker, at least half opaque. */
     function subjectLayers(page) {

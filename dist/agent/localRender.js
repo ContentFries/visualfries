@@ -12,6 +12,7 @@ import { resolveEffectiveRenderRanges } from './renderRanges.js';
 import { resolveAgentRenderPlan } from './renderPlan.js';
 import { discoverSceneFonts } from './sceneFonts.js';
 import { muxAudioWithVideo, PipeFrameEncoder } from './streamingEncoder.js';
+import { attachPageDiagnostics, buildEmptyRangeResult, buildRenderDiagnostic, buildRendererOptions, buildResolveAliases, createFrameWriter, renderFrameRanges, renderSparseFrames, resolveFrameRanges, resolveMediaDiagnosticsPath, resolveTmpParent, resolveTransport } from './localRenderSteps.js';
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = path.dirname(currentFile);
 const defaultPackageRoot = path.resolve(currentDir, '..', '..');
@@ -51,24 +52,6 @@ export const normalizeImageQuality = (value, fallback = 0.92) => {
     if (value <= 100)
         return value / 100;
     throw new Error('imageQuality must be in 0..1 or 0..100 percent form.');
-};
-const contiguousFrameRange = (frameIndices) => {
-    if (!frameIndices.length)
-        return null;
-    const fromFrame = frameIndices[0];
-    for (let index = 1; index < frameIndices.length; index += 1) {
-        if (frameIndices[index] !== fromFrame + index)
-            return null;
-    }
-    return { fromFrame, toFrame: fromFrame + frameIndices.length };
-};
-const dataUrlToBuffer = (dataUrl) => {
-    const commaIndex = dataUrl.indexOf(',');
-    const base64 = commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl;
-    return Buffer.from(base64, 'base64');
-};
-const writeDataUrlFrame = async (dataUrl, framePath) => {
-    await fs.writeFile(framePath, dataUrlToBuffer(dataUrl));
 };
 const framePattern = (framesDir, imageFormat) => path.join(framesDir, `frame-%06d.${imageFormat}`);
 const runCommand = async (command, args) => {
@@ -324,14 +307,154 @@ const resolveRenderAudioInput = async (input) => {
         }
     };
 };
+const prepareSceneForRender = async (input) => {
+    const payloadPath = path.join(input.tempRoot, 'deterministic-media.json');
+    if (input.renderPlan.engine !== 'deterministic-local') {
+        await fs.writeFile(payloadPath, 'null\n');
+        return { sceneForRender: input.scene, deterministicMediaDiagnostics: [] };
+    }
+    if (!input.mediaPreparationRange)
+        throw new Error('Local deterministic media render requires at least one frame.');
+    const deterministicMedia = await prepareLocalDeterministicMedia({
+        scene: input.scene,
+        workDir: input.tempRoot,
+        fromFrame: input.mediaPreparationRange.fromFrame,
+        toFrame: input.mediaPreparationRange.toFrame,
+        strict: true,
+        diagnostics: input.mediaDiagnostics
+    });
+    await fs.writeFile(payloadPath, `${JSON.stringify(deterministicMedia.payload, null, 2)}\n`);
+    return {
+        sceneForRender: deterministicMedia.preparedScene,
+        deterministicMediaDiagnostics: deterministicMedia.media.map((media) => ({
+            kind: 'predecoded-media',
+            componentId: media.componentId,
+            type: media.type,
+            sourceUrl: media.sourceUrl,
+            framesPrepared: media.framesPrepared,
+            strategy: deterministicMedia.strategyUsed
+        }))
+    };
+};
+// Prefers the source tree when it is present (a checkout) and falls back to the built
+// package, so the same renderer runs from both.
+const resolveRuntimeEntries = (packageRoot, modulePaths) => {
+    const sourceLib = path.join(packageRoot, 'src/lib');
+    const packagedLib = path.join(packageRoot, 'dist');
+    const libRoot = existsSync(path.join(sourceLib, 'index.ts')) ? sourceLib : packagedLib;
+    const runtimeEntry = existsSync(path.join(sourceLib, 'factories/SceneBuilderFactory.ts'))
+        ? path.join(sourceLib, 'factories/SceneBuilderFactory.ts')
+        : path.join(packageRoot, 'dist/factories/SceneBuilderFactory.js');
+    const resolveEntry = (moduleName, fallbackInPackage) => resolveModulePathFromOptionalPaths(moduleName, 'VISUALFRIES_NODE_MODULES', modulePaths, path.join(packageRoot, fallbackInPackage));
+    return {
+        libRoot,
+        runtimeEntry,
+        svelteClientEntry: resolveEntry('svelte/internal/client', 'node_modules/svelte/src/internal/client/index.js'),
+        svelteServerEntry: resolveEntry('svelte/internal/server', 'node_modules/svelte/src/internal/server/index.js'),
+        earcutEntry: resolveEntry('earcut', 'node_modules/earcut/src/earcut.js')
+    };
+};
+// Starts the dev server that serves the render client. If it fails after it was created,
+// it is closed here because the caller never receives it.
+const startRenderServer = async (input) => {
+    const { createServer } = await importFromOptionalPaths('vite', 'VISUALFRIES_VITE_MODULES', input.modulePaths);
+    const sveltePluginModule = await importFromOptionalPaths('@sveltejs/vite-plugin-svelte', 'VISUALFRIES_SVELTE_VITE_MODULES', input.modulePaths);
+    const { libRoot, runtimeEntry, svelteClientEntry, svelteServerEntry, earcutEntry } = resolveRuntimeEntries(input.packageRoot, input.modulePaths);
+    await writeEarcutShim(input.tempRoot, earcutEntry);
+    const resolveAliases = buildResolveAliases({
+        runtimeEntry,
+        libRoot,
+        tempRoot: input.tempRoot,
+        svelteClientEntry,
+        svelteServerEntry,
+        deterministic: input.renderPlan.engine === 'deterministic-local'
+    });
+    const server = await createServer({
+        root: input.tempRoot,
+        logLevel: 'error',
+        plugins: [sveltePluginModule.svelte()],
+        server: { host: '127.0.0.1', port: 0, fs: { allow: [input.tempRoot, input.packageRoot] } },
+        resolve: {
+            alias: resolveAliases,
+            conditions: ['browser', 'svelte']
+        },
+        optimizeDeps: { exclude: ['visualfries-runtime'], include: ['earcut'] }
+    });
+    try {
+        await server.listen();
+        const url = server.resolvedUrls?.local?.[0];
+        if (!url)
+            throw new Error('Vite renderer did not expose a local URL.');
+        return { server, url };
+    }
+    catch (error) {
+        await server.close?.();
+        throw error;
+    }
+};
+// Launches Chromium and opens a page sized to the scene. A browser that fails to open a
+// page is closed here because the caller never receives it.
+const launchRenderPage = async (input) => {
+    const playwright = await importFromOptionalPaths('playwright', 'VISUALFRIES_PLAYWRIGHT_MODULES', input.modulePaths);
+    const chromium = playwright.chromium ?? playwright.default?.chromium;
+    if (!chromium)
+        throw new Error('playwright was found, but chromium is not available.');
+    const executablePath = findBrowserExecutable(input.chromiumPath);
+    const browser = await chromium.launch({
+        headless: true,
+        ...(executablePath ? { executablePath } : {})
+    });
+    try {
+        const page = await browser.newPage({
+            viewport: { width: input.width, height: input.height },
+            deviceScaleFactor: 1
+        });
+        return { browser, page };
+    }
+    catch (error) {
+        await browser.close?.();
+        throw error;
+    }
+};
+const explainFrames = async (page, requests, fps) => {
+    const explanations = [];
+    for (const request of requests) {
+        explanations.push(await page.evaluate((payload) => window.__VISUALFRIES_RENDER__.explainFrame(payload), { componentId: request.componentId, time: request.frame / fps }));
+    }
+    return explanations;
+};
+// A contiguous request streams its frames through the writer binding; anything else comes
+// back frame by frame and is returned for the caller to record.
+const renderRequestedFrames = async (page, input) => {
+    if (input.activeRange) {
+        const { framesSkipped } = await renderFrameRanges(page, input.effectiveRanges, {
+            imageFormat: input.imageFormat,
+            imageQuality: input.imageQuality,
+            skipDuplicates: input.options.skipDuplicates ?? false
+        });
+        return { framesSkipped, sparseFrames: [] };
+    }
+    const sparseFrames = await renderSparseFrames(page, {
+        frameIndices: input.options.frameIndices,
+        fps: input.options.fps,
+        framesDir: input.framesDir,
+        imageFormat: input.imageFormat,
+        imageQuality: input.imageQuality,
+        environment: input.options.environment
+    });
+    return { framesSkipped: 0, sparseFrames };
+};
+const writeMediaDiagnostics = async (filePath, diagnostics) => {
+    if (!filePath)
+        return;
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, `${JSON.stringify(diagnostics, null, 2)}\n`, 'utf8');
+};
 export async function renderSceneLocally(options) {
     const parsed = SceneShape.parse(options.scene);
     const normalizedImageFormat = normalizeImageFormat(options.imageFormat);
     const imageQuality = normalizeImageQuality(options.imageQuality);
-    const tmpParent = options.tmpDir ||
-        process.env.VISUALFRIES_TMPDIR ||
-        (existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir());
-    const tempRoot = await fs.mkdtemp(path.join(tmpParent, 'visualfries-render-'));
+    const tempRoot = await fs.mkdtemp(path.join(resolveTmpParent(options.tmpDir), 'visualfries-render-'));
     const framesOnly = options.framesOnly ?? false;
     const framesDir = framesOnly ? path.resolve(options.output) : path.join(tempRoot, 'frames');
     await fs.mkdir(framesDir, { recursive: true });
@@ -339,14 +462,7 @@ export async function renderSceneLocally(options) {
     let browser;
     let activeStreamEncoder;
     try {
-        const activeRange = options.environment === 'client' ? null : contiguousFrameRange(options.frameIndices);
-        const mediaPreparationRange = activeRange ??
-            (options.frameIndices.length > 0
-                ? {
-                    fromFrame: Math.min(...options.frameIndices),
-                    toFrame: Math.max(...options.frameIndices) + 1
-                }
-                : null);
+        const { activeRange, mediaPreparationRange } = resolveFrameRanges(options.frameIndices, options.environment);
         const effectiveRanges = activeRange
             ? resolveEffectiveRenderRanges({
                 scene: parsed,
@@ -360,138 +476,43 @@ export async function renderSceneLocally(options) {
             if (!framesOnly) {
                 throw new Error('All requested frames are removed by trimZones; no frames to encode.');
             }
-            return {
-                ok: true,
-                scene: {
-                    id: parsed.id,
-                    width: parsed.settings.width,
-                    height: parsed.settings.height,
-                    duration: parsed.settings.duration,
-                    fps: parsed.settings.fps
-                },
-                frames: {
-                    count: 0,
-                    dir: framesDir,
-                    items: [],
-                    transport: 'range-binding',
-                    skippedDuplicates: 0
-                },
-                output: path.resolve(options.output),
-                encoded: false,
-                encoding: { mode: 'none' },
-                audio: {
-                    mode: 'none',
-                    selectedSources: 0,
-                    skippedSources: 0,
-                    plannedSources: 0
-                },
-                mediaDiagnosticsPath: null,
-                mediaDiagnostics: options.mediaDiagnostics
-                    ? [
-                        {
-                            kind: 'visualfries-local-render',
-                            engine: renderPlan.engine,
-                            frameCount: 0,
-                            requestedFrameCount: options.frameIndices.length,
-                            trimAwareRanges: effectiveRanges,
-                            serverRendererMode: options.serverRendererMode ?? 'canvas',
-                            transport: 'range-binding'
-                        }
-                    ]
-                    : []
-            };
-        }
-        let sceneForRender = parsed;
-        let deterministicMediaDiagnostics = [];
-        if (renderPlan.engine === 'deterministic-local') {
-            if (!mediaPreparationRange)
-                throw new Error('Local deterministic media render requires at least one frame.');
-            const deterministicMedia = await prepareLocalDeterministicMedia({
+            return buildEmptyRangeResult({
                 scene: parsed,
-                workDir: tempRoot,
-                fromFrame: mediaPreparationRange.fromFrame,
-                toFrame: mediaPreparationRange.toFrame,
-                strict: true,
-                diagnostics: options.mediaDiagnostics ?? false
+                framesDir,
+                options,
+                engine: renderPlan.engine,
+                effectiveRanges
             });
-            sceneForRender = deterministicMedia.preparedScene;
-            deterministicMediaDiagnostics = deterministicMedia.media.map((media) => ({
-                kind: 'predecoded-media',
-                componentId: media.componentId,
-                type: media.type,
-                sourceUrl: media.sourceUrl,
-                framesPrepared: media.framesPrepared,
-                strategy: deterministicMedia.strategyUsed
-            }));
-            await fs.writeFile(path.join(tempRoot, 'deterministic-media.json'), `${JSON.stringify(deterministicMedia.payload, null, 2)}\n`);
         }
-        else {
-            await fs.writeFile(path.join(tempRoot, 'deterministic-media.json'), 'null\n');
-        }
-        await fs.writeFile(path.join(tempRoot, 'renderer-options.json'), `${JSON.stringify({
-            serverRendererMode: options.serverRendererMode ?? 'canvas',
-            environment: options.environment ?? 'server',
-            preferWebGL2: options.preferWebGL2 ?? true,
-            powerPreference: options.powerPreference ?? 'high-performance'
-        }, null, 2)}\n`);
+        const { sceneForRender, deterministicMediaDiagnostics } = await prepareSceneForRender({
+            scene: parsed,
+            renderPlan,
+            mediaPreparationRange,
+            tempRoot,
+            mediaDiagnostics: options.mediaDiagnostics ?? false
+        });
+        await fs.writeFile(path.join(tempRoot, 'renderer-options.json'), `${JSON.stringify(buildRendererOptions(options), null, 2)}\n`);
         await writeRenderClient(tempRoot);
         const packageRoot = options.packageRoot ?? defaultPackageRoot;
-        const { createServer } = await importFromOptionalPaths('vite', 'VISUALFRIES_VITE_MODULES', options.modulePaths);
-        const sveltePluginModule = await importFromOptionalPaths('@sveltejs/vite-plugin-svelte', 'VISUALFRIES_SVELTE_VITE_MODULES', options.modulePaths);
-        const sourceLib = path.join(packageRoot, 'src/lib');
-        const packagedLib = path.join(packageRoot, 'dist');
-        const libRoot = existsSync(path.join(sourceLib, 'index.ts')) ? sourceLib : packagedLib;
-        const runtimeEntry = existsSync(path.join(sourceLib, 'factories/SceneBuilderFactory.ts'))
-            ? path.join(sourceLib, 'factories/SceneBuilderFactory.ts')
-            : path.join(packageRoot, 'dist/factories/SceneBuilderFactory.js');
-        const svelteClientEntry = resolveModulePathFromOptionalPaths('svelte/internal/client', 'VISUALFRIES_NODE_MODULES', options.modulePaths, path.join(packageRoot, 'node_modules/svelte/src/internal/client/index.js'));
-        const svelteServerEntry = resolveModulePathFromOptionalPaths('svelte/internal/server', 'VISUALFRIES_NODE_MODULES', options.modulePaths, path.join(packageRoot, 'node_modules/svelte/src/internal/server/index.js'));
-        const earcutEntry = resolveModulePathFromOptionalPaths('earcut', 'VISUALFRIES_NODE_MODULES', options.modulePaths, path.join(packageRoot, 'node_modules/earcut/src/earcut.js'));
-        await writeEarcutShim(tempRoot, earcutEntry);
-        const resolveAliases = {
-            'visualfries-runtime': runtimeEntry,
-            $lib: libRoot,
-            url: path.join(tempRoot, 'node-url-shim.js'),
-            eventemitter3: path.join(tempRoot, 'eventemitter3-shim.js'),
-            earcut: path.join(tempRoot, 'earcut-shim.js'),
-            md5: path.join(tempRoot, 'md5-shim.js'),
-            'svelte/internal/client': svelteClientEntry,
-            'svelte/internal/server': svelteServerEntry
-        };
-        if (renderPlan.engine === 'deterministic-local') {
-            resolveAliases['gifuct-js'] = path.join(tempRoot, 'gifuct-js-shim.js');
-        }
-        server = await createServer({
-            root: tempRoot,
-            logLevel: 'error',
-            plugins: [sveltePluginModule.svelte()],
-            server: { host: '127.0.0.1', port: 0, fs: { allow: [tempRoot, packageRoot] } },
-            resolve: {
-                alias: resolveAliases,
-                conditions: ['browser', 'svelte']
-            },
-            optimizeDeps: { exclude: ['visualfries-runtime'], include: ['earcut'] }
+        const started = await startRenderServer({
+            tempRoot,
+            packageRoot,
+            renderPlan,
+            modulePaths: options.modulePaths
         });
-        await server.listen();
-        const url = server.resolvedUrls?.local?.[0];
-        if (!url)
-            throw new Error('Vite renderer did not expose a local URL.');
+        server = started.server;
+        const url = started.url;
         const renderScene = await copyLocalMediaToRenderRoot(sceneForRender, tempRoot, url);
         await fs.writeFile(path.join(tempRoot, 'scene.json'), `${JSON.stringify(renderScene, null, 2)}\n`);
         await fs.writeFile(path.join(tempRoot, 'fonts.json'), `${JSON.stringify(discoverSceneFonts(renderScene))}\n`);
-        const playwright = await importFromOptionalPaths('playwright', 'VISUALFRIES_PLAYWRIGHT_MODULES', options.modulePaths);
-        const chromium = playwright.chromium ?? playwright.default?.chromium;
-        if (!chromium)
-            throw new Error('playwright was found, but chromium is not available.');
-        const executablePath = findBrowserExecutable(options.chromiumPath);
-        browser = await chromium.launch({
-            headless: true,
-            ...(executablePath ? { executablePath } : {})
+        const launched = await launchRenderPage({
+            modulePaths: options.modulePaths,
+            chromiumPath: options.chromiumPath,
+            width: parsed.settings.width,
+            height: parsed.settings.height
         });
-        const page = await browser.newPage({
-            viewport: { width: parsed.settings.width, height: parsed.settings.height },
-            deviceScaleFactor: 1
-        });
+        browser = launched.browser;
+        const page = launched.page;
         const { audioInput, audioMix } = await resolveRenderAudioInput({
             scene: parsed,
             audioOverride: options.audioOverride,
@@ -514,117 +535,33 @@ export async function renderSceneLocally(options) {
             })
             : undefined;
         const streamEncoder = activeStreamEncoder;
-        const frames = [];
-        let previousFramePath;
-        let previousFrameBuffer;
-        let outputFrameIndex = 0;
-        let streamEncodeMs = 0;
-        await page.exposeFunction('__VISUALFRIES_FRAME_WRITER__', async (payload) => {
-            if (!activeRange)
-                throw new Error('VisualFries frame writer is only available for contiguous frame ranges.');
-            outputFrameIndex += 1;
-            const outputIndex = outputFrameIndex;
-            const framePath = path.join(framesDir, `frame-${String(outputIndex).padStart(6, '0')}.${normalizedImageFormat}`);
-            if (streamEncoder) {
-                let frameBuffer;
-                if (payload.isDuplicate) {
-                    if (!previousFrameBuffer)
-                        throw new Error(`Frame ${payload.frameIndex} was marked duplicate without a previous frame.`);
-                    frameBuffer = previousFrameBuffer;
-                }
-                else if (payload.dataUrl) {
-                    frameBuffer = dataUrlToBuffer(payload.dataUrl);
-                }
-                else {
-                    throw new Error(`Frame ${payload.frameIndex} did not include frame data.`);
-                }
-                await streamEncoder.writeFrame(frameBuffer);
-                previousFrameBuffer = frameBuffer;
-            }
-            else {
-                if (payload.isDuplicate) {
-                    if (!previousFramePath)
-                        throw new Error(`Frame ${payload.frameIndex} was marked duplicate without a previous frame.`);
-                    await fs.copyFile(previousFramePath, framePath);
-                }
-                else if (payload.dataUrl) {
-                    await writeDataUrlFrame(payload.dataUrl, framePath);
-                }
-                else {
-                    throw new Error(`Frame ${payload.frameIndex} did not include frame data.`);
-                }
-                previousFramePath = framePath;
-            }
-            frames.push({
-                frame: payload.frameIndex,
-                time: payload.frameIndex / options.fps,
-                path: streamEncoder ? null : framePath,
-                isDuplicate: Boolean(payload.isDuplicate)
-            });
+        const frameWriter = createFrameWriter({
+            rangeBinding: Boolean(activeRange),
+            framesDir,
+            imageFormat: normalizedImageFormat,
+            fps: options.fps,
+            streamEncoder
         });
+        const frames = frameWriter.frames;
+        await page.exposeFunction('__VISUALFRIES_FRAME_WRITER__', frameWriter.write);
         const runtimeErrors = [];
-        page.on('console', (message) => {
-            if (message.type() === 'error') {
-                const diagnostic = `console: ${message.text()}`;
-                runtimeErrors.push(diagnostic);
-                console.error(`[browser] ${message.text()}`);
-            }
-        });
-        page.on('pageerror', (error) => {
-            runtimeErrors.push(`pageerror: ${error.message}`);
-            console.error(`[browser pageerror] ${error.message}\n${error.stack || ''}`);
-        });
-        page.on('requestfailed', (request) => {
-            runtimeErrors.push(`requestfailed: ${request.method()} ${request.url()} (${request.failure()?.errorText ?? 'unknown'})`);
-        });
-        page.on('response', (response) => {
-            if (response.status() >= 400) {
-                runtimeErrors.push(`http: ${response.status()} ${response.url()}`);
-            }
-        });
+        attachPageDiagnostics(page, runtimeErrors);
         await page.goto(url, { waitUntil: 'networkidle' });
         await page.waitForFunction(() => Boolean(window.__VISUALFRIES_RENDER__));
         const info = await page.evaluate(() => window.__VISUALFRIES_RENDER__.init());
-        const explanations = [];
-        for (const request of options.explain ?? []) {
-            explanations.push(await page.evaluate((payload) => window.__VISUALFRIES_RENDER__.explainFrame(payload), { componentId: request.componentId, time: request.frame / options.fps }));
-        }
-        let rangeSummary;
-        if (activeRange) {
-            rangeSummary = { framesSkipped: 0 };
-            for (const range of effectiveRanges) {
-                const summary = await page.evaluate((renderOptions) => window.__VISUALFRIES_RENDER__.renderFrameRange(renderOptions), {
-                    fromFrame: range.fromFrame,
-                    toFrame: range.toFrame,
-                    imageFormat: normalizedImageFormat,
-                    imageQuality,
-                    skipDuplicates: options.skipDuplicates ?? false
-                });
-                rangeSummary.framesSkipped += summary?.framesSkipped ?? 0;
-            }
-        }
-        else {
-            for (let index = 0; index < options.frameIndices.length; index += 1) {
-                const frame = options.frameIndices[index];
-                const time = frame / options.fps;
-                const framePath = path.join(framesDir, `frame-${String(index + 1).padStart(6, '0')}.${normalizedImageFormat}`);
-                if (options.environment === 'client') {
-                    await page.evaluate((payload) => window.__VISUALFRIES_RENDER__.seek(payload), { time });
-                    const screenshot = await page.locator('#vf-root').screenshot({
-                        type: normalizedImageFormat === 'png' ? 'png' : 'jpeg',
-                        ...(normalizedImageFormat === 'png' ? {} : { quality: Math.round(imageQuality * 100) })
-                    });
-                    await fs.writeFile(framePath, screenshot);
-                }
-                else {
-                    const dataUrl = await page.evaluate((renderOptions) => window.__VISUALFRIES_RENDER__.renderFrame(renderOptions), { time, imageFormat: normalizedImageFormat, imageQuality });
-                    await writeDataUrlFrame(dataUrl, framePath);
-                }
-                frames.push({ frame, time, path: framePath, isDuplicate: false });
-            }
-        }
+        const explanations = await explainFrames(page, options.explain ?? [], options.fps);
+        const { framesSkipped, sparseFrames } = await renderRequestedFrames(page, {
+            activeRange,
+            effectiveRanges,
+            options,
+            framesDir,
+            imageFormat: normalizedImageFormat,
+            imageQuality
+        });
+        frames.push(...sparseFrames);
         await page.evaluate(() => window.__VISUALFRIES_RENDER__.destroy());
         let encoded = false;
+        let streamEncodeMs = 0;
         if (!framesOnly) {
             if (streamEncoder) {
                 const streamResult = await streamEncoder.finish();
@@ -648,31 +585,27 @@ export async function renderSceneLocally(options) {
             }
             encoded = true;
         }
+        const transport = resolveTransport(Boolean(streamEncoder), activeRange);
         const mediaDiagnostics = options.mediaDiagnostics
             ? [
-                {
-                    kind: 'visualfries-local-render',
+                buildRenderDiagnostic({
                     engine: renderPlan.engine,
                     frameCount: frames.length,
                     requestedFrameCount: options.frameIndices.length,
-                    trimAwareRanges: effectiveRanges,
-                    serverRendererMode: options.serverRendererMode ?? 'canvas',
-                    transport: streamEncoder
-                        ? 'range-binding-stream-encode'
-                        : activeRange
-                            ? 'range-binding'
-                            : 'sparse-evaluate'
-                },
+                    effectiveRanges,
+                    serverRendererMode: options.serverRendererMode,
+                    transport
+                }),
                 ...deterministicMediaDiagnostics
             ]
             : [];
-        const mediaDiagnosticsPath = options.mediaDiagnostics
-            ? path.join(framesOnly ? path.resolve(options.output) : path.dirname(outputPath), 'media-diagnostics.json')
-            : null;
-        if (mediaDiagnosticsPath) {
-            await fs.mkdir(path.dirname(mediaDiagnosticsPath), { recursive: true });
-            await fs.writeFile(mediaDiagnosticsPath, `${JSON.stringify(mediaDiagnostics, null, 2)}\n`, 'utf8');
-        }
+        const mediaDiagnosticsPath = resolveMediaDiagnosticsPath({
+            enabled: options.mediaDiagnostics,
+            framesOnly,
+            output: options.output,
+            outputPath
+        });
+        await writeMediaDiagnostics(mediaDiagnosticsPath, mediaDiagnostics);
         return {
             ok: true,
             scene: info,
@@ -680,12 +613,8 @@ export async function renderSceneLocally(options) {
                 count: frames.length,
                 dir: framesDir,
                 items: frames,
-                transport: streamEncoder
-                    ? 'range-binding-stream-encode'
-                    : activeRange
-                        ? 'range-binding'
-                        : 'sparse-evaluate',
-                skippedDuplicates: rangeSummary?.framesSkipped ?? 0
+                transport,
+                skippedDuplicates: framesSkipped
             },
             output: outputPath,
             encoded,

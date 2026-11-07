@@ -89,6 +89,30 @@ function applyOffset(time, offset, beats, id) {
     const music = musicFor(beats, id);
     return shiftByBeats(music.grid, time, Number(m[1]), music.name);
 }
+/** Resolves `bar`, `beat` and `downbeat` anchors against the music's beat grid. */
+function resolveBeatAnchor(anchor, ctx, defaultEdge, beats) {
+    if ('bar' in anchor &&
+        ('at' in anchor || 'downbeat' in anchor || typeof anchor.beat === 'string'))
+        throw new AnchorError(AMBIGUOUS_BAR_ANCHOR);
+    // Beats are absolute: bar 5 is bar 5 wherever the item is.
+    const music = musicFor(beats, anchor.music);
+    let base;
+    let said;
+    if ('bar' in anchor)
+        base = findBarBeat(music.grid, anchor.bar, anchor.beat ?? 1, music.name).time;
+    else if ('downbeat' in anchor || typeof anchor.beat === 'string') {
+        const direction = 'downbeat' in anchor ? anchor.downbeat : anchor.beat;
+        // `at` keeps the caller's edge: in `until` a phrase means its end, so the downbeat after
+        // it never cuts the phrase short. `{ say, edge }` still picks another edge.
+        const inner = resolveAnchor(anchor.at, ctx, defaultEdge);
+        said = inner.said;
+        base = nearBeat(music.grid, inner.time, 'downbeat' in anchor ? 'downbeat' : 'beat', direction, music.name).time;
+    }
+    else
+        base = findBeat(music.grid, anchor.beat, music.name).time;
+    const time = applyOffset(base, anchor.offset, beats, anchor.music);
+    return said === undefined ? { time, end: time, words: [] } : { time, end: time, words: [], said };
+}
 /** Returns seconds: absolute, or relative to `ctx.localBase` for numeric anchors when it is set. */
 export function resolveAnchor(anchor, ctx, defaultEdge) {
     const { fps, localBase } = ctx;
@@ -121,31 +145,8 @@ export function resolveAnchor(anchor, ctx, defaultEdge) {
         const time = applyOffset((localBase ?? 0) + anchor.frame / fps, anchor.offset, beats);
         return { time, end: time, words: [] };
     }
-    if ('bar' in anchor || 'downbeat' in anchor || 'beat' in anchor) {
-        if ('bar' in anchor &&
-            ('at' in anchor || 'downbeat' in anchor || typeof anchor.beat === 'string'))
-            throw new AnchorError(AMBIGUOUS_BAR_ANCHOR);
-        // Beats are absolute: bar 5 is bar 5 wherever the item is.
-        const music = musicFor(beats, anchor.music);
-        let base;
-        let said;
-        if ('bar' in anchor)
-            base = findBarBeat(music.grid, anchor.bar, anchor.beat ?? 1, music.name).time;
-        else if ('downbeat' in anchor || typeof anchor.beat === 'string') {
-            const direction = 'downbeat' in anchor ? anchor.downbeat : anchor.beat;
-            // `at` keeps the caller's edge: in `until` a phrase means its end, so the downbeat after
-            // it never cuts the phrase short. `{ say, edge }` still picks another edge.
-            const inner = resolveAnchor(anchor.at, ctx, defaultEdge);
-            said = inner.said;
-            base = nearBeat(music.grid, inner.time, 'downbeat' in anchor ? 'downbeat' : 'beat', direction, music.name).time;
-        }
-        else
-            base = findBeat(music.grid, anchor.beat, music.name).time;
-        const time = applyOffset(base, anchor.offset, beats, anchor.music);
-        return said === undefined
-            ? { time, end: time, words: [] }
-            : { time, end: time, words: [], said };
-    }
+    if ('bar' in anchor || 'downbeat' in anchor || 'beat' in anchor)
+        return resolveBeatAnchor(anchor, ctx, defaultEdge, beats);
     const edge = anchor.edge ?? defaultEdge;
     const base = (h) => edge === 'start' ? h.start : edge === 'last' ? h.words[h.words.length - 1].start : h.end;
     const { offset } = anchor;

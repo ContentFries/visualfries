@@ -485,7 +485,7 @@ export function resolveProgram(
 		fps,
 		frames,
 		background: project.background ?? null,
-		hashes: programHashes(inputs.hashes),
+		hashes: programHashes(given.hashes),
 		sources,
 		cuts,
 		shots,

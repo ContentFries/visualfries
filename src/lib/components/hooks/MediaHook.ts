@@ -325,10 +325,7 @@ export class MediaHook implements IComponentHook {
 	}
 
 	// An existing owner is never taken over; unowned media is claimed immediately.
-	async #claimControllerIfFree(
-		url: string,
-		mediaType: 'video' | 'audio'
-	): Promise<void> {
+	async #claimControllerIfFree(url: string, mediaType: 'video' | 'audio'): Promise<void> {
 		if (this.mediaManager.getMediaController(url, mediaType)) return;
 		this.mediaManager.setMediaController(url, this.#context.contextData.id, mediaType);
 		await this.#autoSeek();

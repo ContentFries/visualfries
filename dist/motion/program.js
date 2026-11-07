@@ -735,18 +735,18 @@ function checkShotKind(shot, id, i, diagnostics, fail) {
     return true;
 }
 /**
- * The frames a shot covers, or null after reporting why it has none. `previous` is where the
- * shot before it starts; the result carries the new one.
+ * The frames a shot covers, or null after reporting why it has none. `cursor.previous` is where
+ * the shot before it starts (as written); it moves to this shot's start as soon as `from`
+ * resolves, also when the shot then fails, so the next shot searches its phrase after it.
  */
 function resolveShotRange(shot, id, i, ctx, fail) {
-    const { at, frames, fps, diagnostics, order } = ctx;
-    let previous = ctx.previous;
+    const { at, frames, fps, diagnostics, order, cursor } = ctx;
     let start;
     let end;
     try {
-        const hit = at(shot.from, undefined, order('from', previous, 'the previous shot'));
+        const hit = at(shot.from, undefined, order('from', cursor.previous, 'the previous shot'));
         start = hit.time;
-        previous = orderPoint(hit);
+        cursor.previous = orderPoint(hit);
     }
     catch (error) {
         fail('from', error.message);
@@ -778,7 +778,7 @@ function resolveShotRange(shot, id, i, ctx, fail) {
         fail('until', `Shot ends (${end.toFixed(2)} s) before it starts (${start.toFixed(2)} s).`);
         return null;
     }
-    return { startFrame, endFrame, previous };
+    return { startFrame, endFrame };
 }
 /** The footage a shot shows, null for the cut list's own; undefined after reporting a problem. */
 function resolveShotSource(project, inputs, shot, fail) {
@@ -814,7 +814,7 @@ function resolveShots(project, inputs, words, cuts, frames, at, diagnostics, siz
     const fps = project.fps;
     const written = [];
     /** Where the previous shot (as written) starts, for repeated phrases (see `PhraseOrder`). */
-    let previous = null;
+    const cursor = { previous: null };
     /** What each written shot says about its morph: seconds, and whether a transition replaces it. */
     const asked = new Map();
     (project.shots ?? []).forEach((shot, i) => {
@@ -823,10 +823,9 @@ function resolveShots(project, inputs, words, cuts, frames, at, diagnostics, siz
         if (!checkShotKind(shot, id, i, diagnostics, fail))
             return;
         const order = (field, after, what) => itemOrder(diagnostics, id, `shots[${i}].${field}`, after, what);
-        const range = resolveShotRange(shot, id, i, { at, frames, fps, diagnostics, order, previous }, fail);
+        const range = resolveShotRange(shot, id, i, { at, frames, fps, diagnostics, order, cursor }, fail);
         if (!range)
             return;
-        previous = range.previous;
         const source = resolveShotSource(project, inputs, shot, fail);
         if (source === undefined)
             return;

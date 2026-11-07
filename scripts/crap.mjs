@@ -21,15 +21,40 @@ import { pathToFileURL } from 'node:url';
 /** The CRAP score of a function of complexity `c` with `covered` of its statements run (0–1). */
 export const crapScore = (c, covered) => c * c * (1 - covered) ** 3 + c;
 
+/**
+ * A path as git writes it in a diff header: plain, or C-quoted (`"b/caf\303\251.ts"`) when it
+ * holds special characters, with octal escapes for the UTF-8 bytes.
+ */
+function headerPath(raw) {
+	if (!raw.startsWith('"')) return raw;
+	const bytes = [];
+	const escapes = { n: 10, t: 9, r: 13, b: 8, f: 12, v: 11, a: 7, '"': 34, '\\': 92 };
+	for (let i = 1; i < raw.length - 1; i++) {
+		const c = raw[i];
+		if (c !== '\\') {
+			bytes.push(...Buffer.from(c, 'utf8'));
+			continue;
+		}
+		const next = raw[++i];
+		if (/[0-7]/.test(next)) {
+			bytes.push(parseInt(raw.slice(i, i + 3), 8));
+			i += 2;
+		} else bytes.push(escapes[next] ?? next.charCodeAt(0));
+	}
+	return Buffer.from(bytes).toString('utf8');
+}
+
 /** New-side line numbers each file of a unified diff (`git diff -U0`) adds or changes. */
 export function changedLines(diff) {
 	const files = new Map();
 	let lines = null;
 	for (const line of diff.split('\n')) {
-		const target = /^\+\+\+ (?:b\/(.+)|\/dev\/null)$/.exec(line);
-		if (target) {
-			lines = target[1] ? new Set() : null;
-			if (lines) files.set(target[1], lines);
+		if (line.startsWith('+++ ')) {
+			// Any header ends the file before it: a deleted file (/dev/null) has no new lines.
+			const target = headerPath(line.slice(4));
+			const name = /^b\/(.+)$/s.exec(target)?.[1];
+			lines = name ? new Set() : null;
+			if (name) files.set(name, lines);
 			continue;
 		}
 		const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);
@@ -66,8 +91,15 @@ export function scoreFunctions({ file, functions, touched, coverage, unmeasured,
 	for (const f of functions) {
 		if (touched && !lineIn(touched, f.line, f.endLine)) continue;
 		const covered = unmeasured ? null : (functionCoverage(coverage, f.line, f.endLine) ?? 0);
-		const crap = Math.round(crapScore(f.complexity, covered ?? 1) * 10) / 10;
-		rows.push({ file, ...f, coverage: covered, crap, over: crap > max });
+		const score = crapScore(f.complexity, covered ?? 1);
+		// Rounded for the table only: a score just over the limit still fails.
+		rows.push({
+			file,
+			...f,
+			coverage: covered,
+			crap: Math.round(score * 10) / 10,
+			over: score > max
+		});
 	}
 	return rows;
 }
@@ -176,10 +208,14 @@ async function main() {
 		: new Map(
 				[
 					...changedLines(
-						execFileSync('git', ['diff', '-U0', `${args.base}`, 'HEAD'], {
-							encoding: 'utf8',
-							maxBuffer: 1 << 28
-						})
+						execFileSync(
+							'git',
+							['-c', 'core.quotePath=false', 'diff', '-U0', `${args.base}`, 'HEAD'],
+							{
+								encoding: 'utf8',
+								maxBuffer: 1 << 28
+							}
+						)
 					)
 				].filter(([f]) => inScope(f) && fs.existsSync(f))
 			);

@@ -294,14 +294,16 @@ export class MediaHook {
         }
     }
     /** Returns true when the update must stop because the element has no data yet. */
-    async #waitForLoadingComponent() {
+    /**
+     * True while the component is loading and its element has no data yet (it should stay
+     * paused); a loading component whose element has data stops counting as loading.
+     */
+    #loadingWithoutData() {
         const id = this.#context.contextData.id;
         if (!this.state.isLoadingComponent(id))
             return false;
-        if (this.#mediaElement && this.#mediaElement.readyState < 2) {
-            await this.#pause('readyState < 2');
+        if (this.#mediaElement && this.#mediaElement.readyState < 2)
             return true;
-        }
         this.state.removeLoadingComponent(id);
         return false;
     }
@@ -347,11 +349,15 @@ export class MediaHook {
         // On server, seeking is handled by MediaSeekingHook. Avoid duplicate logic/races.
         if (this.state.environment === 'server')
             return;
-        if (!isController) {
+        // Await only when there is work to wait for: clips sharing an element update together, and
+        // an extra turn here changes which clip sets the shared sound last.
+        if (!isController && !this.mediaManager.getMediaController(source.url, mediaType)) {
             await this.#claimControllerIfFree(source.url, mediaType);
         }
-        if (await this.#waitForLoadingComponent())
+        if (this.#loadingWithoutData()) {
+            await this.#pause('readyState < 2');
             return;
+        }
         this.#syncAudioState(isMuted, componentVolume);
         const isScenePlaying = this.#context.sceneState.state === 'playing' || this.#context.sceneState.state === 'loading';
         try {

@@ -33,6 +33,22 @@ describe('changed lines of a diff', () => {
 		expect([...lines.get('src/b.svelte')!]).toEqual([1]);
 	});
 
+	it('reads paths git quotes (spaces, accents) and never gives their lines to another file', () => {
+		const diff = [
+			'+++ b/src/a.ts',
+			'@@ -1 +1 @@',
+			'+++ "b/src/caf\\303\\251.ts"',
+			'@@ -0,0 +1,2 @@',
+			'+++ "b/src/with \\"quote\\".ts"',
+			'@@ -0,0 +7 @@'
+		].join('\n');
+		const lines = changedLines(diff);
+		expect([...lines.keys()]).toEqual(['src/a.ts', 'src/café.ts', 'src/with "quote".ts']);
+		expect([...lines.get('src/a.ts')!]).toEqual([1]);
+		expect([...lines.get('src/café.ts')!]).toEqual([1, 2]);
+		expect([...lines.get('src/with "quote".ts')!]).toEqual([7]);
+	});
+
 	it('counts a pure deletion as touching the line after it', () => {
 		const lines = changedLines('+++ b/src/a.ts\n@@ -5,2 +4,0 @@');
 		expect([...lines.get('src/a.ts')!]).toEqual([5]);
@@ -88,6 +104,25 @@ describe('scored functions', () => {
 			['fn1', 0, 72, true],
 			['fn10', 1, 8, false]
 		]);
+	});
+
+	it('flags a score over the limit even when it rounds to the limit', () => {
+		// Complexity 20 with 29 of 41 statements run scores 30.03.
+		const statements = Object.fromEntries(
+			Array.from({ length: 41 }, (_, i) => [String(i), { start: { line: 2 }, end: { line: 2 } }])
+		);
+		const hits = Object.fromEntries(
+			Array.from({ length: 41 }, (_, i) => [String(i), i < 29 ? 1 : 0])
+		);
+		const rows = scoreFunctions({
+			file: 'src/lib/a.ts',
+			functions: [fn(1, 5, 20)],
+			touched: null,
+			coverage: { statementMap: statements, s: hits },
+			unmeasured: false,
+			max: 30
+		});
+		expect(rows[0].over).toBe(true);
 	});
 
 	it('scores code coverage cannot see by its complexity alone', () => {

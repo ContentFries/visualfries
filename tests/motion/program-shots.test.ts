@@ -191,3 +191,34 @@ describe('shots as written in a program', () => {
 		]);
 	});
 });
+
+describe('phrase order across shots that fail', () => {
+	// The whole of take1 (0–12.5 s). "the" is said at 3.85 s and again at 6.65 s.
+	const whole = { ...base, cuts: [{ source: 'talk', in: 0, out: 12.5 }] };
+	const shotsOf = (shots: object[]) =>
+		resolveProgram(parseMotionProject({ ...whole, shots }), inputs)
+			.shots.filter((s) => !s.implicit)
+			.map((s) => [s.id, s.startFrame, s.frames]);
+
+	it('searches a phrase after the start of a shot whose "until" fails', () => {
+		expect(
+			shotsOf([
+				{ id: 'a', shot: 'full', from: 0, until: 1 },
+				{ id: 'b', shot: 'full', from: 'First open', until: 'zzz nothing' },
+				{ id: 'c', shot: 'full', from: 'the', until: 'settings.' }
+			])
+		).toEqual([
+			['a', 0, 30],
+			['c', 200, 22]
+		]);
+	});
+
+	it('searches a phrase after the start of a shot that ends before it starts', () => {
+		expect(
+			shotsOf([
+				{ id: 'b', shot: 'full', from: 5, until: 4 },
+				{ id: 'c', shot: 'full', from: 'the', until: 'settings.' }
+			])
+		).toEqual([['c', 200, 22]]);
+	});
+});

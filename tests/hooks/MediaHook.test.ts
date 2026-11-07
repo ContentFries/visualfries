@@ -244,6 +244,28 @@ describe('MediaHook', () => {
 			expect(mediaManager.setMediaController).not.toHaveBeenCalled();
 		});
 
+		it('lets the controlling clip set the sound of a shared element when clips update together', async () => {
+			// Two clips play one shared element; the controller (b) is not muted and loud, the
+			// other (a) is muted and quiet. Updates run concurrently: the controller's sound stays.
+			const other = new MediaHook({ mediaManager, stateManager });
+			mediaManager.getMediaController.mockReturnValue('b');
+			const at = (id: string, muted: boolean, volume: number) => {
+				const context = createContext(10.5);
+				context.contextData.id = id;
+				context.contextData.muted = muted;
+				context.contextData.volume = volume;
+				context.sceneState.state = 'playing';
+				return context;
+			};
+			const a = at('a', true, 0.2);
+			const b = at('b', false, 0.8);
+			await hook.handle('setup', a);
+			await other.handle('setup', b);
+			await Promise.all([hook.handle('update', a), other.handle('update', b)]);
+			expect(mediaElement.muted).toBe(false);
+			expect(mediaElement.volume).toBe(0.8);
+		});
+
 		it('restores audio state when taking over an unowned element', async () => {
 			mediaManager.getMediaController.mockReturnValue(undefined);
 			mediaElement.muted = true;

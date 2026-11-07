@@ -103,9 +103,9 @@ export type ProgramRenderOptions = {
 	 */
 	stems?: boolean;
 	/**
-	 * How pages share the work: `auto` (whole chunks per page when there are at least as many
-	 * chunks to draw as jobs, none much longer than its share), or always `segments` (whole
-	 * chunks) or always `frames`. For measurements.
+	 * How pages share the work: `auto` (whole parts of chunks per page when there are at least
+	 * as many parts to draw as jobs, none much longer than its share), or always `segments`
+	 * (whole parts) or always `frames`. For measurements.
 	 */
 	schedule?: 'auto' | 'segments' | 'frames';
 	onProgress?: (msg: string) => void;
@@ -313,12 +313,12 @@ async function engineHash(invalidate?: string): Promise<string> {
 }
 
 /**
- * Draws and encodes chunks. With at least as many chunks as jobs and none much longer than its
- * share, each page takes whole chunks (no reorder buffer across pages, every page encodes its
- * own file); otherwise the chunks go one after another with their frames spread over `jobs`
- * pages. A chunk's parts are drawn in order on pages of their segments into the one encode of
- * the chunk. The first failure, a crashed page included, stops every other page at its next
- * frame.
+ * Draws and encodes chunks, part by part (a part: the frames of one segment in one chunk). With
+ * at least as many parts as jobs and none much longer than its share, each page takes whole
+ * parts (no reorder buffer across pages, every page encodes its own file); otherwise the parts
+ * go one after another with their frames spread over `jobs` pages. Each part is encoded on its
+ * own, starting on a keyframe, and a chunk's parts are joined into it by stream copy. The first
+ * failure, a crashed page included, stops every other page at its next frame.
  */
 async function renderChunks(
 	browser: BrowserLike,
@@ -403,13 +403,19 @@ async function renderChunks(
 	const started = new Map<string, number>();
 	const untrack = units.map((u) => trackPartial(u.file));
 	const finish = async (c: RenderedChunk) => {
-		const files = units.filter((u) => u.chunk === c).map((u) => u.file);
+		const own = units.filter((u) => u.chunk === c);
+		const files = own.map((u) => u.file);
 		if (files.length === 1) await fs.rename(files[0], c.file);
 		else {
 			const joined = c.file.replace(/\.mp4$/, `.partial-${process.pid}-${c.id}.mp4`);
 			const done = trackPartial(joined);
 			try {
-				await concatCopy(files, joined, ['-map', '0:v']);
+				await concatCopy(
+					own.map((u) => ({ file: u.file, frames: u.part.frames })),
+					program.fps,
+					joined,
+					['-map', '0:v']
+				);
 				await fs.rename(joined, c.file);
 			} finally {
 				await fs.rm(joined, { force: true });
@@ -516,7 +522,8 @@ async function join(
 	const untrack = trackPartial(partial);
 	try {
 		await concatCopy(
-			chunks.map((c) => c.file),
+			chunks.map((c) => ({ file: c.file, frames: c.frames })),
+			program.fps,
 			partial,
 			[
 				// The audio as encoded and measured before: copied, never encoded twice.
@@ -538,17 +545,29 @@ async function join(
 /**
  * Joins encoded files in order into `output` by stream copy (the concat demuxer: no decode, no
  * encode); `args` go between the input and the output (more inputs, mapping, muxer options).
+ * Each file's length is given as its frames at `fps`: the length an MP4 states is rounded to
+ * the millisecond, and over many short files the rounding would move later frames off their
+ * time.
  */
-async function concatCopy(files: string[], output: string, args: string[]) {
+async function concatCopy(
+	files: { file: string; frames: number }[],
+	fps: number,
+	output: string,
+	args: string[]
+) {
 	const list = path.join(
-		path.dirname(files[0]),
+		path.dirname(files[0].file),
 		`.concat-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.txt`
 	);
 	const untrack = trackPartial(list);
 	try {
 		await fs.writeFile(
 			list,
-			files.map((f) => `file '${f.replace(/'/g, "'\\''")}'`).join('\n') + '\n'
+			files
+				.map(
+					(f) => `file '${f.file.replace(/'/g, "'\\''")}'\nduration ${(f.frames / fps).toFixed(9)}`
+				)
+				.join('\n') + '\n'
 		);
 		await run(['-y', '-f', 'concat', '-safe', '0', '-i', list, ...args, '-c', 'copy', output]);
 	} finally {

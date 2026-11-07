@@ -59,9 +59,9 @@ export type ProgramRenderOptions = {
      */
     stems?: boolean;
     /**
-     * How pages share the work: `auto` (whole chunks per page when there are at least as many
-     * chunks to draw as jobs, none much longer than its share), or always `segments` (whole
-     * chunks) or always `frames`. For measurements.
+     * How pages share the work: `auto` (whole parts of chunks per page when there are at least
+     * as many parts to draw as jobs, none much longer than its share), or always `segments`
+     * (whole parts) or always `frames`. For measurements.
      */
     schedule?: 'auto' | 'segments' | 'frames';
     onProgress?: (msg: string) => void;

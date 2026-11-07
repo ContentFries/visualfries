@@ -1731,8 +1731,9 @@ directory that gets `<project>[.<format>].mp4`. The program is drawn and encoded
 another length; shorter chunks redraw less after a small edit of a slow program). The grid runs
 from frame 0 whatever the cuts, so the chunks stay put when an edit moves a segment's edges. A
 chunk is drawn part by part on pages of the segments (the ranges between two hard cuts) it
-holds, and encoded once with the clip settings into `.visualfries/segments/<hash>-<engine>.mp4`,
-starting on a keyframe. The video is the chunks joined by stream copy with the program sound:
+holds; each part is encoded once with the clip settings, starting on a keyframe (so a hard cut
+starts on one too), and the parts are joined into `.visualfries/segments/<hash>-<engine>.mp4`
+by stream copy. The video is the chunks joined by stream copy with the program sound:
 no frame is encoded twice, and a render that draws nothing new only joins. A chunk's hash
 covers what its page sets up and what its frames show: every clip the page of its segment
 mounts (all of it but its keys), every file their blocks import, the files project CSS points
@@ -1750,9 +1751,9 @@ gives a video mixed from different histories (`check --determinism` finds such b
 a render the folder
 keeps only the chunks the latest render of each project and format there uses; an
 interrupted render removes its partial files, and the next render removes those of a render
-that was killed. With at least as many chunks to draw as `--jobs` and none much longer than its
-share, each page takes whole chunks, going on to the next part of the same segment; otherwise a
-chunk's frames are spread over the pages. At most `--jobs` pages are open at once: an idle page
+that was killed. With at least as many parts to draw as `--jobs` and none much longer than its
+share, each page takes whole parts, going on to the next part of the same segment; otherwise a
+part's frames are spread over the pages. At most `--jobs` pages are open at once: an idle page
 of another segment closes before a new one opens. The resolved program, with its `chunks` and
 every segment's `parts`, is saved beside the video as `<name>.program.json`.
 

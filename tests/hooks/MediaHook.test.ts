@@ -266,6 +266,35 @@ describe('MediaHook', () => {
 			expect(mediaElement.volume).toBe(0.8);
 		});
 
+		it('keeps the sound of the clip that updates last when one clip takes over released media', async () => {
+			// Clip a (muted, quiet) waits under another controller, then the media is released and
+			// both clips update one turn apart: b (audible, loud) updates last and its sound stays.
+			let owner: string | undefined = 'someone-else';
+			mediaManager.getMediaController.mockImplementation(() => owner);
+			mediaManager.setMediaController.mockImplementation((_u: string, id: string | undefined) => {
+				owner = id;
+			});
+			const other = new MediaHook({ mediaManager, stateManager });
+			const at = (id: string, muted: boolean, volume: number, state: string) => {
+				const context = createContext(10.5);
+				context.contextData.id = id;
+				context.contextData.muted = muted;
+				context.contextData.volume = volume;
+				context.sceneState.state = state;
+				return context;
+			};
+			await hook.handle('setup', at('a', true, 0.2, 'paused'));
+			await other.handle('setup', at('b', false, 0.8, 'paused'));
+			await hook.handle('update', at('a', true, 0.2, 'paused'));
+			owner = undefined;
+			const first = hook.handle('update', at('a', true, 0.2, 'playing'));
+			await Promise.resolve();
+			const second = other.handle('update', at('b', false, 0.8, 'playing'));
+			await Promise.all([first, second]);
+			expect(mediaElement.muted).toBe(false);
+			expect(mediaElement.volume).toBe(0.8);
+		});
+
 		it('restores audio state when taking over an unowned element', async () => {
 			mediaManager.getMediaController.mockReturnValue(undefined);
 			mediaElement.muted = true;

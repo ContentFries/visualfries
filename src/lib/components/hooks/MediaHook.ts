@@ -324,21 +324,14 @@ export class MediaHook implements IComponentHook {
 		}
 	}
 
-	// An existing owner is never taken over; unowned media is claimed immediately.
-	async #claimControllerIfFree(url: string, mediaType: 'video' | 'audio'): Promise<void> {
-		if (this.mediaManager.getMediaController(url, mediaType)) return;
-		this.mediaManager.setMediaController(url, this.#context.contextData.id, mediaType);
-		await this.#autoSeek();
-
-		// Safari-specific: Ensure audio is properly restored when taking control
-		const contextData = this.#context.contextData as any;
-		if (this.#mediaElement && !(contextData.muted ?? false)) {
+	// Safari-specific: ensure audio is properly restored when taking control.
+	#restoreSoundOnClaim(isMuted: boolean, componentVolume: number): void {
+		if (this.#mediaElement && !isMuted) {
 			this.#mediaElement.muted = false;
-			this.#mediaElement.volume = contextData.volume ?? 1;
+			this.#mediaElement.volume = componentVolume;
 		}
 	}
 
-	/** Returns true when the update must stop because the element has no data yet. */
 	/**
 	 * True while the component is loading and its element has no data yet (it should stay
 	 * paused); a loading component whose element has data stops counting as loading.
@@ -399,10 +392,13 @@ export class MediaHook implements IComponentHook {
 		// On server, seeking is handled by MediaSeekingHook. Avoid duplicate logic/races.
 		if (this.state.environment === 'server') return;
 
-		// Await only when there is work to wait for: clips sharing an element update together, and
-		// an extra turn here changes which clip sets the shared sound last.
+		// An existing owner is never taken over; unowned media is claimed immediately. Clips that
+		// share an element update together, so the awaits here stay exactly these: an extra turn
+		// changes which clip sets the shared sound last.
 		if (!isController && !this.mediaManager.getMediaController(source.url, mediaType)) {
-			await this.#claimControllerIfFree(source.url, mediaType);
+			this.mediaManager.setMediaController(source.url, this.#context.contextData.id, mediaType);
+			await this.#autoSeek();
+			this.#restoreSoundOnClaim(isMuted, componentVolume);
 		}
 
 		if (this.#loadingWithoutData()) {

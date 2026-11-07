@@ -17,15 +17,25 @@ describe('changed lines of a diff', () => {
 			'--- a/src/a.ts',
 			'+++ b/src/a.ts',
 			'@@ -10,2 +10,3 @@ function a() {',
+			'-p',
+			'-q',
 			'+x',
-			'@@ -40 +41 @@',
 			'+y',
+			'+z',
+			'@@ -40 +41 @@',
+			'-r',
+			'+s',
 			'diff --git a/src/gone.ts b/src/gone.ts',
 			'+++ /dev/null',
 			'@@ -1,3 +0,0 @@',
+			'-a',
+			'-b',
+			'-c',
 			'diff --git a/src/b.svelte b/src/b.svelte',
 			'+++ b/src/b.svelte',
-			'@@ -1 +1 @@'
+			'@@ -1 +1 @@',
+			'-old',
+			'+new'
 		].join('\n');
 		const lines = changedLines(diff);
 		expect([...lines.keys()]).toEqual(['src/a.ts', 'src/b.svelte']);
@@ -37,16 +47,50 @@ describe('changed lines of a diff', () => {
 		const diff = [
 			'+++ b/src/a.ts',
 			'@@ -1 +1 @@',
+			'-a',
+			'+b',
 			'+++ "b/src/caf\\303\\251.ts"',
 			'@@ -0,0 +1,2 @@',
+			'+c',
+			'+d',
 			'+++ "b/src/with \\"quote\\".ts"',
-			'@@ -0,0 +7 @@'
+			'@@ -0,0 +7 @@',
+			'+e'
 		].join('\n');
 		const lines = changedLines(diff);
 		expect([...lines.keys()]).toEqual(['src/a.ts', 'src/café.ts', 'src/with "quote".ts']);
 		expect([...lines.get('src/a.ts')!]).toEqual([1]);
 		expect([...lines.get('src/café.ts')!]).toEqual([1, 2]);
 		expect([...lines.get('src/with "quote".ts')!]).toEqual([7]);
+	});
+
+	it('reads added or removed code that looks like a file header as code', () => {
+		const diff = [
+			'+++ b/src/a.ts',
+			'@@ -1,2 +1,3 @@',
+			'--- removed;',
+			'-x',
+			'+++ count;',
+			'+y',
+			'+z',
+			'@@ -10 +11 @@',
+			'+w'
+		].join('\n');
+		const lines = changedLines(diff);
+		expect([...lines.keys()]).toEqual(['src/a.ts']);
+		expect([...lines.get('src/a.ts')!]).toEqual([1, 2, 3, 11]);
+	});
+
+	it('reads paths with spaces (git ends their header with a tab) and emoji', () => {
+		const diff = [
+			'+++ b/src/sp ace.ts\t',
+			'@@ -0,0 +1 @@',
+			'+a',
+			'+++ "b/src/😀.ts"',
+			'@@ -0,0 +4 @@',
+			'+b'
+		].join('\n');
+		expect([...changedLines(diff).keys()]).toEqual(['src/sp ace.ts', 'src/😀.ts']);
 	});
 
 	it('counts a pure deletion as touching the line after it', () => {
@@ -123,6 +167,22 @@ describe('scored functions', () => {
 			max: 30
 		});
 		expect(rows[0].over).toBe(true);
+	});
+
+	it('passes a score exactly at the limit despite floating point', () => {
+		// Complexity 18 with two thirds run is CRAP 30 exactly; doubles give 30.000000000000004.
+		const statements = Object.fromEntries(
+			Array.from({ length: 3 }, (_, i) => [String(i), { start: { line: 2 }, end: { line: 2 } }])
+		);
+		const rows = scoreFunctions({
+			file: 'src/lib/a.ts',
+			functions: [fn(1, 5, 18)],
+			touched: null,
+			coverage: { statementMap: statements, s: { '0': 1, '1': 1, '2': 0 } },
+			unmeasured: false,
+			max: 30
+		});
+		expect(rows[0]).toMatchObject({ crap: 30, over: false });
 	});
 
 	it('scores code coverage cannot see by its complexity alone', () => {

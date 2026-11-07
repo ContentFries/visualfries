@@ -26,29 +26,42 @@ export const crapScore = (c, covered) => c * c * (1 - covered) ** 3 + c;
  * holds special characters, with octal escapes for the UTF-8 bytes.
  */
 function headerPath(raw) {
-	if (!raw.startsWith('"')) return raw;
+	// Git ends the header of a path with a space in it with a tab.
+	const text = raw.replace(/\t$/, '');
+	if (!text.startsWith('"')) return text;
 	const bytes = [];
 	const escapes = { n: 10, t: 9, r: 13, b: 8, f: 12, v: 11, a: 7, '"': 34, '\\': 92 };
-	for (let i = 1; i < raw.length - 1; i++) {
-		const c = raw[i];
-		if (c !== '\\') {
-			bytes.push(...Buffer.from(c, 'utf8'));
-			continue;
-		}
-		const next = raw[++i];
-		if (/[0-7]/.test(next)) {
-			bytes.push(parseInt(raw.slice(i, i + 3), 8));
-			i += 2;
-		} else bytes.push(escapes[next] ?? next.charCodeAt(0));
+	// Code points, not UTF-16 units: an emoji written as is must not split.
+	for (const [, octal, escaped, plain] of text
+		.slice(1, -1)
+		.matchAll(/\\([0-7]{3})|\\(.)|([^\\])/gsu)) {
+		if (octal) bytes.push(parseInt(octal, 8));
+		else if (escaped) bytes.push(escapes[escaped] ?? escaped.charCodeAt(0));
+		else bytes.push(...Buffer.from(plain, 'utf8'));
 	}
 	return Buffer.from(bytes).toString('utf8');
 }
 
-/** New-side line numbers each file of a unified diff (`git diff -U0`) adds or changes. */
+/**
+ * New-side line numbers each file of a unified diff (`git diff -U0`) adds or changes. Inside a
+ * hunk, the counts in its `@@` line say how many lines are code: an added `++ x;` reads as
+ * `+++ x;` there, and only outside a hunk is that a file header.
+ */
 export function changedLines(diff) {
 	const files = new Map();
 	let lines = null;
+	let oldLeft = 0;
+	let newLeft = 0;
 	for (const line of diff.split('\n')) {
+		if (oldLeft > 0 || newLeft > 0) {
+			if (line.startsWith('-')) oldLeft--;
+			else if (line.startsWith('+')) newLeft--;
+			else if (!line.startsWith('\\')) {
+				oldLeft--;
+				newLeft--;
+			}
+			continue;
+		}
 		if (line.startsWith('+++ ')) {
 			// Any header ends the file before it: a deleted file (/dev/null) has no new lines.
 			const target = headerPath(line.slice(4));
@@ -57,13 +70,15 @@ export function changedLines(diff) {
 			if (name) files.set(name, lines);
 			continue;
 		}
-		const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);
-		if (!hunk || !lines) continue;
-		const start = Number(hunk[1]);
-		const count = hunk[2] === undefined ? 1 : Number(hunk[2]);
+		const hunk = /^@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line);
+		if (!hunk) continue;
+		oldLeft = hunk[1] === undefined ? 1 : Number(hunk[1]);
+		newLeft = hunk[3] === undefined ? 1 : Number(hunk[3]);
+		if (!lines) continue;
+		const start = Number(hunk[2]);
 		// A deletion adds no line: it touches the function around the line after it.
-		if (!count) lines.add(start + 1);
-		for (let i = 0; i < count; i++) lines.add(start + i);
+		if (!newLeft) lines.add(start + 1);
+		for (let i = 0; i < newLeft; i++) lines.add(start + i);
 	}
 	return files;
 }
@@ -92,13 +107,14 @@ export function scoreFunctions({ file, functions, touched, coverage, unmeasured,
 		if (touched && !lineIn(touched, f.line, f.endLine)) continue;
 		const covered = unmeasured ? null : (functionCoverage(coverage, f.line, f.endLine) ?? 0);
 		const score = crapScore(f.complexity, covered ?? 1);
-		// Rounded for the table only: a score just over the limit still fails.
+		// Rounded for the table only: a score just over the limit still fails (with room for the
+		// last bits of floating point, so one exactly at the limit passes).
 		rows.push({
 			file,
 			...f,
 			coverage: covered,
 			crap: Math.round(score * 10) / 10,
-			over: score > max
+			over: score > max + 1e-9
 		});
 	}
 	return rows;

@@ -148,7 +148,7 @@ export function wholeProgram(program: Pick<ResolvedProgram, 'frames'>): ProgramS
 		...span,
 		items: [],
 		hash: '',
-		chunks: [{ id: 'program', ...span, hash: '' }]
+		parts: [{ id: 'program', ...span, hash: '' }]
 	};
 }
 

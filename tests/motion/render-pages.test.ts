@@ -93,7 +93,7 @@ describe.skipIf(!hasFfmpeg)('render pages', () => {
 	});
 
 	it('keeps no more pages open than --jobs, closing an idle page before opening another', async () => {
-		// Two hard cuts, two segments of 80 frames, each two chunks of 40. Chunk two of the first
+		// Two hard cuts, two segments of 80 frames, each two chunks of 40 on a 4 s grid. Chunk two of the first
 		// segment is slow: the page done with chunk one waits idle for it while its worker goes
 		// on to the second segment.
 		const file = path.join(dir, 'pages.vf.json');
@@ -102,6 +102,7 @@ describe.skipIf(!hasFfmpeg)('render pages', () => {
 			JSON.stringify({
 				size: [64, 36],
 				fps: 10,
+				chunkSeconds: 4,
 				background: '#000000',
 				footage: { num: { src: 'num.mp4' } },
 				cuts: [
@@ -116,11 +117,11 @@ describe.skipIf(!hasFfmpeg)('render pages', () => {
 			jobs: 2,
 			schedule: 'segments'
 		});
-		expect(r.segments.map((s) => [s.id, s.startFrame, s.frames])).toEqual([
-			['seg1.1', 0, 40],
-			['seg1.2', 40, 40],
-			['seg2.1', 80, 40],
-			['seg2.2', 120, 40]
+		expect(r.chunks.map((s) => [s.id, s.parts[0].segment, s.startFrame, s.frames])).toEqual([
+			['chunk1', 'seg1', 0, 40],
+			['chunk2', 'seg1', 40, 40],
+			['chunk3', 'seg2', 80, 40],
+			['chunk4', 'seg2', 120, 40]
 		]);
 		expect(pages.peak).toBeLessThanOrEqual(2);
 		expect(pages.live).toBe(0);
@@ -136,6 +137,7 @@ describe.skipIf(!hasFfmpeg)('render pages', () => {
 			JSON.stringify({
 				size: [64, 36],
 				fps: 10,
+				chunkSeconds: 4,
 				background: '#000000',
 				footage: { num: { src: 'num.mp4' } },
 				cuts: [
@@ -155,11 +157,11 @@ describe.skipIf(!hasFfmpeg)('render pages', () => {
 			jobs: 3,
 			schedule: 'segments'
 		});
-		expect(r.segments.map((s) => [s.id, s.startFrame, s.frames])).toEqual([
-			['seg1', 0, 40],
-			['seg2.1', 40, 40],
-			['seg2.2', 80, 40],
-			['seg3', 120, 40]
+		expect(r.chunks.map((s) => [s.id, s.parts[0].segment, s.startFrame, s.frames])).toEqual([
+			['chunk1', 'seg1', 0, 40],
+			['chunk2', 'seg2', 40, 40],
+			['chunk3', 'seg2', 80, 40],
+			['chunk4', 'seg3', 120, 40]
 		]);
 		expect(pages.peak).toBeLessThanOrEqual(3);
 		expect(pages.live).toBe(0);

@@ -851,7 +851,7 @@ async function bundleInputs(
  */
 export async function motionProgram(
 	loaded: LoadedMotionProject,
-	opts: { format?: string; excerpt?: string; write?: boolean } = {}
+	opts: { format?: string; excerpt?: string; chunkSeconds?: number; write?: boolean } = {}
 ): Promise<{ program: ResolvedProgram; file: string | null }> {
 	const hashes: ProgramHashes = {
 		...loaded.hashes,

@@ -4,6 +4,7 @@ import { type FormatClass, type ResolvedFormat } from './format.js';
 import { type ResolvedClip } from './resolve.js';
 import { type ProgramExcerpt } from './excerpt.js';
 import { type ProgramDiagnostic, type ProgramInputs, type ProgramWord } from './cutlist.js';
+import { type ProgramChunk, type SegmentPart } from './chunks.js';
 export type { BlockAnimatable, ProgramDiagnostic, ProgramInputs, ProgramWord, SourceInfo } from './cutlist.js';
 /** Hashes the node tooling computes from files; they go into the program and its segments. */
 export type ProgramHashes = {
@@ -175,15 +176,10 @@ export type ProgramSegment = {
     items: string[];
     hash: string;
     /**
-     * The pieces a render draws and caches on their own (see `chunkSpans`), in order; a short
-     * segment is one chunk with the segment's id. Each hash covers only what its frames show.
+     * The segment cut on the chunk grid (see `chunkSpans`), in order; a segment inside one chunk
+     * is one part with the segment's id. Each hash covers only what its frames show.
      */
-    chunks: {
-        id: string;
-        startFrame: number;
-        frames: number;
-        hash: string;
-    }[];
+    parts: SegmentPart[];
 };
 export type ResolvedProgram = {
     version: 1;
@@ -225,6 +221,8 @@ export type ResolvedProgram = {
         };
     };
     segments: ProgramSegment[];
+    /** The program on the chunk grid: what a render draws, encodes and caches (see `chunks.ts`). */
+    chunks: ProgramChunk[];
     diagnostics: ProgramDiagnostic[];
     /** The project's excerpts as ranges of this program; absent when it has none. */
     excerpts?: ProgramExcerpt[];
@@ -269,6 +267,8 @@ export declare function resolveProgram(project: MotionProject, given: ProgramInp
 }, opts?: {
     format?: string;
     excerpt?: string;
+    /** Seconds of a chunk; the project's `chunkSeconds` (or `CHUNK_SECONDS`) when omitted. */
+    chunkSeconds?: number;
 }): ResolvedProgram;
 /**
  * Strings in clip props that may name a project file (no URLs, data or colours), and every

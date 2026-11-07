@@ -46,6 +46,12 @@ const FRAME = W * H * 3;
 const frameOf = (raw: Buffer, i: number) => raw.subarray(i * FRAME, (i + 1) * FRAME);
 /** The upper half of a frame, where the label and the test's end card never draw. */
 const upper = (frame: Buffer) => frame.subarray(0, (H / 2) * W * 3);
+/** Mean absolute difference of two frames, per channel value: the encode is not lossless. */
+function meanDiff(a: Buffer, b: Buffer) {
+	let sum = 0;
+	for (let i = 0; i < a.length; i++) sum += Math.abs(a[i] - b[i]);
+	return sum / a.length;
+}
 
 /** A label that moves with clip time, so a clip cut by the excerpt shows where it is. */
 const LABEL = `<script>
@@ -187,7 +193,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('excerpt render', () => {
 		expect(Number(String(sound.stdout))).toBeCloseTo((N + E) / FPS, 1);
 	});
 
-	it('draws each frame of the slice exactly as the whole program draws it', async () => {
+	it('draws each frame of the slice as the whole program draws it', async () => {
 		const loaded = await loadMotionProject(file);
 		// Inside the punch-in's move, across the hard cut, the label's last frames, the last frame.
 		const sample = [0, 1, 3, 5, 6, 10, 20, 35, 45, N - 1];
@@ -195,20 +201,33 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('excerpt render', () => {
 			loaded,
 			sample.map((i) => A + i)
 		);
-		const frames = Buffer.concat(rendered.segments.map((s) => rgb(s.file)));
+		const frames = rgb(rendered.file);
 		expect(frames.length).toBe((N + E) * FRAME);
-		for (const i of sample)
-			expect(frameOf(frames, i).equals(rgb(whole.get(A + i)!)), `excerpt frame ${i}`).toBe(true);
+		// Exactly the same pictures (stills of the excerpt), and close to them once encoded.
+		const ex = await captureProgramFrames(loaded, sample, { excerpt: 'tease' });
+		for (const i of sample) {
+			const still = rgb(whole.get(A + i)!);
+			expect(rgb(ex.get(i)!).equals(still), `excerpt still ${i}`).toBe(true);
+			expect(meanDiff(frameOf(frames, i), still), `excerpt frame ${i}`).toBeLessThan(1.5);
+		}
 	}, 150_000);
 
-	it('holds the last frame under the end card while the card plays', () => {
-		const frames = Buffer.concat(rendered.segments.map((s) => rgb(s.file)));
-		const last = upper(frameOf(frames, N - 1));
+	it('holds the last frame under the end card while the card plays', async () => {
+		const ex = await captureProgramFrames(
+			await loadMotionProject(file),
+			[N - 1, N, N + 4, N + E - 1],
+			{ excerpt: 'tease' }
+		);
+		const last = upper(rgb(ex.get(N - 1)!));
 		for (const i of [N, N + 4, N + E - 1])
-			expect(upper(frameOf(frames, i)).equals(last), `end card frame ${i}`).toBe(true);
+			expect(upper(rgb(ex.get(i)!)).equals(last), `end card frame ${i}`).toBe(true);
 		// The card itself moves: its bar grows.
-		expect(frameOf(frames, N).equals(frameOf(frames, N + E - 1))).toBe(false);
-	});
+		expect(rgb(ex.get(N)!).equals(rgb(ex.get(N + E - 1)!))).toBe(false);
+		// The video shows the same.
+		const frames = rgb(rendered.file);
+		for (const i of [N, N + 4, N + E - 1])
+			expect(meanDiff(upper(frameOf(frames, i)), last), `end card frame ${i}`).toBeLessThan(1);
+	}, 150_000);
 
 	it('draws a shot transition across `until` with both its shots, held under the card', async () => {
 		const loaded = await loadMotionProject(file);
@@ -231,10 +250,10 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('excerpt render', () => {
 			output: path.join(dir, 'out'),
 			excerpt: 'tease'
 		});
-		expect(again.segments.every((s) => s.cached)).toBe(true);
-		// The whole program's render keeps the excerpt's intermediates (each records its own).
+		expect(again.chunks.every((s) => s.cached)).toBe(true);
+		// The whole program's render keeps the excerpt's chunks (each records its own).
 		await renderProgramVideo(await loadMotionProject(file), { output: path.join(dir, 'out') });
-		for (const s of again.segments) expect(existsSync(s.file)).toBe(true);
+		for (const s of again.chunks) expect(existsSync(s.file)).toBe(true);
 	}, 150_000);
 
 	it('checks an excerpt with the built-in end card in its own format', async () => {

@@ -11,27 +11,30 @@ import { removeOrphans, trackPartial } from './partials.js';
 import { STEMS, encodeProgramMix, writeWav } from './audio.js';
 import { assertProgramRenders, openSegment } from './program-node.js';
 /**
- * `render --export video`: the whole program as one video. Each chunk of a segment (see
- * `chunkSpans`) is drawn on pages of its segment and encoded losslessly to
- * `.visualfries/segments/`, where it stays as a cache: a later render draws only chunks whose
- * hash changed. The chunks are then joined without re-encoding and go through one final encode
- * with the settings of every other render.
+ * `render --export video`: the whole program as one video. Each chunk of the grid (see
+ * `programChunks`) is drawn part by part on pages of its segments and encoded once, with the
+ * settings of every other render, to `.visualfries/segments/`, where it stays as a cache: a
+ * later render draws and encodes only chunks whose hash changed. The video is the chunks
+ * joined as they are (stream copy) with the program audio: no frame is encoded twice.
  */
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 /**
- * Lossless intermediate: H.264 in RGB with quantiser 0, so decoded frames are the captured
- * pixels exactly (no colour conversion).
+ * A chunk's encode: the final video settings, each chunk a file of its own that starts on a
+ * keyframe, so chunks join by stream copy. No `+faststart` here: the joined video gets it.
  */
-const INTERMEDIATE = ['-c:v', 'libx264rgb', '-qp', '0', '-preset', 'veryfast', '-pix_fmt', 'rgb24'];
+const CHUNK_ENCODE = H264_FINAL.filter((a, i, all) => a !== '-movflags' && all[i - 1] !== '-movflags');
 /** Renders the program of a project with `cuts` or `shots` into one video. */
 export async function renderProgramVideo(loaded, opts) {
     if (opts.jobs !== undefined && !(Number.isInteger(opts.jobs) && opts.jobs > 0))
         throw new Error(`--jobs must be a positive integer, got ${opts.jobs}.`);
     const t0 = Date.now();
+    if (opts.chunkSeconds !== undefined && !(opts.chunkSeconds > 0))
+        throw new Error(`--chunk-seconds must be a positive number, got ${opts.chunkSeconds}.`);
     const { program } = await motionProgram(loaded, {
         format: opts.format,
         excerpt: opts.excerpt,
+        chunkSeconds: opts.chunkSeconds,
         write: true
     });
     assertProgramRenders(program);
@@ -46,23 +49,23 @@ export async function renderProgramVideo(loaded, opts) {
     const cacheDir = path.join(loaded.dir, '.visualfries', 'segments');
     await fs.mkdir(cacheDir, { recursive: true });
     // Left by a render that was killed before it could clean up.
-    await removeOrphans(cacheDir, /\.(?:partial|concat)-(\d+)-[^/]*\.(?:mkv|txt)$/);
+    await removeOrphans(cacheDir, /\.(?:partial|concat)-(\d+)-[^/]*\.(?:mkv|mp4|txt)$/);
     await removeOrphans(path.dirname(file), /^\..+\.partial-(\d+)\.(?:mp4|m4a|wav|(?:speech|sfx|music)\.wav)$/);
     const engine = await engineHash(opts.invalidate);
-    const segments = program.segments.flatMap((seg) => seg.chunks.map((s) => {
-        const cached = path.join(cacheDir, `${s.hash}-${engine}.mkv`);
+    const chunks = program.chunks.map((c) => {
+        const cached = path.join(cacheDir, `${c.hash}-${engine}.mp4`);
         return {
-            id: s.id,
-            segment: seg.id,
-            startFrame: s.startFrame,
-            frames: s.frames,
-            hash: s.hash,
+            id: c.id,
+            startFrame: c.startFrame,
+            frames: c.frames,
+            hash: c.hash,
+            parts: c.parts,
             file: cached,
             cached: !opts.fresh && existsSync(cached),
             seconds: 0
         };
-    }));
-    const todo = segments.filter((s) => !s.cached);
+    });
+    const todo = chunks.filter((s) => !s.cached);
     const log = opts.onProgress ?? (() => { });
     // Sound first: a missing or unreadable sound file fails the render before any picture is
     // drawn. The encoded audio and the stems wait in partial files beside the target.
@@ -98,7 +101,7 @@ export async function renderProgramVideo(loaded, opts) {
             done();
     }
     async function renderPictures(mix) {
-        for (const s of segments.filter((x) => x.cached))
+        for (const s of chunks.filter((x) => x.cached))
             log(`${s.id}: frames ${span(s)} cached (${s.hash.slice(0, 12)})`);
         let mode = 'cached';
         if (todo.length) {
@@ -107,7 +110,7 @@ export async function renderProgramVideo(loaded, opts) {
                 log(`warning: ${message}`);
             const browser = await launch();
             try {
-                mode = await renderSegments(browser, bundle, program, todo, {
+                mode = await renderChunks(browser, bundle, program, todo, {
                     jobs: opts.jobs ?? Math.min(6, os.cpus().length),
                     invalidate: opts.invalidate,
                     schedule: opts.schedule ?? 'auto',
@@ -120,7 +123,7 @@ export async function renderProgramVideo(loaded, opts) {
             }
         }
         const t1 = Date.now();
-        await joinAndEncode(program, segments, file, mix ? audioFile : null);
+        await join(program, chunks, file, mix ? audioFile : null);
         const encodeSeconds = (Date.now() - t1) / 1000;
         // Stems beside the video replace earlier ones; without --stems earlier ones are removed, as
         // they no longer match the video.
@@ -137,8 +140,8 @@ export async function renderProgramVideo(loaded, opts) {
                 await fs.rm(target, { force: true });
         }
         await fs.writeFile(sidecar, resolved);
-        await pruneSegments(cacheDir, recordName(loaded, opts.excerpt), program.format.name, segments, t0);
-        log(`final encode: ${program.frames} frames in ${encodeSeconds.toFixed(1)} s${mix ? '' : ' (silent)'}`);
+        await pruneChunks(cacheDir, recordName(loaded, opts.excerpt), program.format.name, chunks, t0);
+        log(`joined ${chunks.length} chunks (${program.frames} frames) in ${encodeSeconds.toFixed(1)} s${mix ? '' : ' (silent)'}`);
         return {
             file,
             program: sidecar,
@@ -149,7 +152,7 @@ export async function renderProgramVideo(loaded, opts) {
             mix,
             stems,
             mode,
-            segments,
+            chunks,
             seconds: (Date.now() - t0) / 1000,
             encodeSeconds
         };
@@ -166,9 +169,9 @@ function outputFile(loaded, opts) {
 /** The project's name, and the excerpt's id after it: `<project>[.<excerpt>]`. */
 const recordName = (loaded, excerpt) => `${path.basename(loaded.file).replace(/(\.vf)?\.json$/i, '')}${excerpt ? `.${excerpt}` : ''}`;
 /**
- * What the pixels of a segment depend on besides its own hash: the VisualFries runtime that
- * draws it (stage, shots, transitions, built-in blocks), the Svelte and GSAP it is bundled with,
- * the bundler, the browser binary, the stage invalidation and the intermediate encoding.
+ * What a chunk depends on besides its own hash: the VisualFries runtime that draws it (stage,
+ * shots, transitions, built-in blocks), the Svelte and GSAP it is bundled with, the bundler, the
+ * browser binary, the stage invalidation, the encoder settings and the ffmpeg that encodes.
  */
 async function engineHash(invalidate) {
     const hash = createHash('sha1');
@@ -193,17 +196,22 @@ async function engineHash(invalidate) {
     }
     else
         hash.update('chromium:-');
-    hash.update(JSON.stringify({ invalidate: invalidate ?? null, intermediate: INTERMEDIATE }));
+    hash.update(JSON.stringify({
+        invalidate: invalidate ?? null,
+        encode: CHUNK_ENCODE,
+        ffmpeg: await ffmpegVersion()
+    }));
     return hash.digest('hex').slice(0, 12);
 }
 /**
- * Draws chunks into their intermediates. With at least as many chunks as jobs and none much
- * longer than its share, each page takes whole chunks (no reorder buffer across pages, every
- * page encodes its own file);
- * otherwise the chunks go one after another with their frames spread over `jobs` pages. The
- * first failure, a crashed page included, stops every other page at its next frame.
+ * Draws and encodes chunks. With at least as many chunks as jobs and none much longer than its
+ * share, each page takes whole chunks (no reorder buffer across pages, every page encodes its
+ * own file); otherwise the chunks go one after another with their frames spread over `jobs`
+ * pages. A chunk's parts are drawn in order on pages of their segments into the one encode of
+ * the chunk. The first failure, a crashed page included, stops every other page at its next
+ * frame.
  */
-async function renderSegments(browser, bundle, program, todo, opts) {
+async function renderChunks(browser, bundle, program, todo, opts) {
     const abort = new AbortController();
     let mode = '';
     const idle = new Map();
@@ -215,8 +223,9 @@ async function renderSegments(browser, bundle, program, todo, opts) {
         w.forEach((f) => f());
     };
     const left = new Map();
-    for (const s of todo)
-        left.set(s.segment, (left.get(s.segment) ?? 0) + 1);
+    for (const c of todo)
+        for (const p of c.parts)
+            left.set(p.segment, (left.get(p.segment) ?? 0) + 1);
     const close = async (page) => {
         try {
             await page.close();
@@ -257,10 +266,9 @@ async function renderSegments(browser, bundle, program, todo, opts) {
             throw error;
         }
     };
-    const one = async (s, pages) => {
+    const one = async (c, pages) => {
         const t0 = Date.now();
-        const segment = program.segments.find((x) => x.id === s.segment);
-        const partial = s.file.replace(/\.mkv$/, `.partial-${process.pid}-${s.id}.mkv`);
+        const partial = c.file.replace(/\.mp4$/, `.partial-${process.pid}-${c.id}.mp4`);
         const untrack = trackPartial(partial);
         try {
             const sink = ffmpegFramePipe([
@@ -273,38 +281,50 @@ async function renderSegments(browser, bundle, program, todo, opts) {
                 'png',
                 '-i',
                 'pipe:0',
-                ...INTERMEDIATE,
+                ...CHUNK_ENCODE,
                 partial
             ]);
-            const open = async () => {
-                const page = await take(segment);
-                mode = page.mode;
-                return {
-                    // Pipe frames count from 0; the page takes program frames.
-                    capture: (i) => page.capture(s.startFrame + i),
-                    close: async () => {
-                        if (abort.signal.aborted)
-                            return close(page);
-                        idle.set(segment.id, [...(idle.get(segment.id) ?? []), page]);
-                        wake();
-                    }
-                };
-            };
-            await pipeFrames(s.frames, Math.min(pages, s.frames), open, sink, {
-                signal: abort.signal
-            });
-            await fs.rename(partial, s.file);
+            // Every part writes into the chunk's one encode; the last one ends it.
+            const shared = { write: sink.write, end: async () => { }, kill: sink.kill };
+            try {
+                for (const part of c.parts) {
+                    const segment = program.segments.find((x) => x.id === part.segment);
+                    const open = async () => {
+                        const page = await take(segment);
+                        mode = page.mode;
+                        return {
+                            // Pipe frames count from 0; the page takes program frames.
+                            capture: (i) => page.capture(part.startFrame + i),
+                            close: async () => {
+                                if (abort.signal.aborted)
+                                    return close(page);
+                                idle.set(segment.id, [...(idle.get(segment.id) ?? []), page]);
+                                wake();
+                            }
+                        };
+                    };
+                    await pipeFrames(part.frames, Math.min(pages, part.frames), open, shared, {
+                        signal: abort.signal
+                    });
+                    const rest = left.get(part.segment) - 1;
+                    left.set(part.segment, rest);
+                    if (!rest)
+                        await closeIdle(part.segment);
+                }
+            }
+            catch (error) {
+                sink.kill();
+                throw error;
+            }
+            await sink.end();
+            await fs.rename(partial, c.file);
         }
         finally {
             await fs.rm(partial, { force: true });
             untrack();
         }
-        s.seconds = (Date.now() - t0) / 1000;
-        const rest = left.get(s.segment) - 1;
-        left.set(s.segment, rest);
-        if (!rest)
-            await closeIdle(s.segment);
-        opts.log(`${s.id}: frames ${span(s)} rendered in ${s.seconds.toFixed(1)} s (${(s.frames / s.seconds).toFixed(1)} fps)`);
+        c.seconds = (Date.now() - t0) / 1000;
+        opts.log(`${c.id}: frames ${span(c)} rendered in ${c.seconds.toFixed(1)} s (${(c.frames / c.seconds).toFixed(1)} fps)`);
     };
     let failed = null;
     const guard = (work) => work.catch((error) => {
@@ -343,15 +363,15 @@ async function renderSegments(browser, bundle, program, todo, opts) {
     return mode;
 }
 /**
- * Joins the intermediates in order (stream copy through the concat demuxer, no decode between
- * segments) and encodes the result once, with the encoded program audio when there is one
- * (copied as it is). Encodes beside the target and replaces it only on success.
+ * Joins the encoded chunks in order by stream copy (the concat demuxer: no decode, no encode)
+ * and muxes the encoded program audio (copied as it is). Writes beside the target and replaces
+ * it only on success.
  */
-async function joinAndEncode(program, segments, file, audio) {
-    const list = path.join(path.dirname(segments[0].file), `.concat-${process.pid}-${Date.now()}.txt`);
+async function join(program, chunks, file, audio) {
+    const list = path.join(path.dirname(chunks[0].file), `.concat-${process.pid}-${Date.now()}.txt`);
     const partial = path.join(path.dirname(file), `.${path.basename(file, '.mp4')}.partial-${process.pid}.mp4`);
     const untrack = [trackPartial(list), trackPartial(partial)];
-    await fs.writeFile(list, segments.map((s) => `file '${s.file.replace(/'/g, "'\\''")}'`).join('\n') + '\n');
+    await fs.writeFile(list, chunks.map((s) => `file '${s.file.replace(/'/g, "'\\''")}'`).join('\n') + '\n');
     const seconds = program.frames / program.fps;
     try {
         await run([
@@ -363,16 +383,14 @@ async function joinAndEncode(program, segments, file, audio) {
             '-i',
             list,
             // The audio as encoded and measured before: copied, never encoded twice.
-            ...(audio ? ['-i', audio, '-map', '0:v', '-map', '1:a', '-c:a', 'copy'] : ['-map', '0:v']),
-            // Number frames by count: timestamps of joined files must not drop or repeat a frame.
-            '-vf',
-            `setpts=N/(${program.fps}*TB)`,
-            '-r',
-            String(program.fps),
-            // A hard end: the sound must never keep the encode running past the picture.
+            ...(audio ? ['-i', audio, '-map', '0:v', '-map', '1:a'] : ['-map', '0:v']),
+            '-c',
+            'copy',
+            // A hard end: the sound must never run past the picture.
             '-t',
             seconds.toFixed(6),
-            ...H264_FINAL,
+            '-movflags',
+            '+faststart',
             partial
         ]);
         await fs.rename(partial, file);
@@ -396,8 +414,8 @@ const MTIME_SLACK = 100;
  * come from a coarse kernel clock, up to a few milliseconds behind `Date.now()`: a file written
  * right after the start can look older than it, so "newer" allows `MTIME_SLACK` of that.
  */
-async function pruneSegments(cacheDir, name, format, segments, since) {
-    await fs.writeFile(path.join(cacheDir, `${name}.${format}.json`), JSON.stringify({ files: segments.map((s) => path.basename(s.file)) }, null, 2) + '\n');
+async function pruneChunks(cacheDir, name, format, chunks, since) {
+    await fs.writeFile(path.join(cacheDir, `${name}.${format}.json`), JSON.stringify({ files: chunks.map((s) => path.basename(s.file)) }, null, 2) + '\n');
     const names = await fs.readdir(cacheDir);
     const used = new Set();
     for (const record of names.filter((n) => n.endsWith('.json'))) {
@@ -412,12 +430,27 @@ async function pruneSegments(cacheDir, name, format, segments, since) {
         }
     }
     await Promise.all(names
-        .filter((n) => /^[0-9a-f]{40}-[0-9a-f]{12}\.mkv$/.test(n) && !used.has(n))
+        // Chunks of earlier versions were lossless .mkv files: no record names them any more.
+        .filter((n) => /^[0-9a-f]{40}-[0-9a-f]{12}\.(?:mkv|mp4)$/.test(n) && !used.has(n))
         .map(async (n) => {
         const st = await fs.stat(path.join(cacheDir, n)).catch(() => null);
         if (st && st.mtimeMs < since - MTIME_SLACK)
             await fs.rm(path.join(cacheDir, n), { force: true });
     }));
+}
+let ffmpegId = null;
+/** The first line of `ffmpeg -version`: another build may encode the same frames differently. */
+function ffmpegVersion() {
+    ffmpegId ??= new Promise((resolve) => {
+        const p = spawn(process.env.FFMPEG_PATH || 'ffmpeg', ['-version'], {
+            stdio: ['ignore', 'pipe', 'ignore']
+        });
+        let out = '';
+        p.stdout.on('data', (d) => (out += d));
+        p.on('error', () => resolve('ffmpeg:-'));
+        p.on('close', () => resolve(out.split('\n')[0] || 'ffmpeg:-'));
+    });
+    return ffmpegId;
 }
 function run(args) {
     return new Promise((resolve, reject) => {

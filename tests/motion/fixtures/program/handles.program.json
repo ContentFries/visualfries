@@ -837,7 +837,7 @@
 			"frames": 96,
 			"items": ["cut1", "broll", "full-0", "broll.transition"],
 			"hash": "a5507e16665424e17f60c8fe2d3e030e3af4b02a",
-			"chunks": [
+			"parts": [
 				{
 					"id": "seg1",
 					"startFrame": 0,
@@ -862,12 +862,36 @@
 				"cut5.transition"
 			],
 			"hash": "d6bc9f8cb679d6e3be29301d16799b54a41d9e5f",
-			"chunks": [
+			"parts": [
 				{
 					"id": "seg2",
 					"startFrame": 96,
 					"frames": 150,
 					"hash": "f7613e4f0f1fe4816fb9ad76d8d7474cce117676"
+				}
+			]
+		}
+	],
+	"chunks": [
+		{
+			"id": "chunk1",
+			"startFrame": 0,
+			"frames": 246,
+			"hash": "0d8d949de5468a7a169c95103174986ede011b0d",
+			"parts": [
+				{
+					"id": "seg1",
+					"startFrame": 0,
+					"frames": 96,
+					"hash": "28578ad35a22c9d81917056dd1d4ac48216937f8",
+					"segment": "seg1"
+				},
+				{
+					"id": "seg2",
+					"startFrame": 96,
+					"frames": 150,
+					"hash": "f7613e4f0f1fe4816fb9ad76d8d7474cce117676",
+					"segment": "seg2"
 				}
 			]
 		}

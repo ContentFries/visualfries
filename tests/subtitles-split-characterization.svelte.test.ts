@@ -8,7 +8,9 @@ const timeManager = {
 	transformTime: vi.fn((t: number) => t),
 	duration: 100
 } as unknown as TimeManager;
-const scene = { assets: [{ id: 'asset1', type: 'VIDEO', url: 'https://example.com/v.mp4' }] } as Scene;
+const scene = {
+	assets: [{ id: 'asset1', type: 'VIDEO', url: 'https://example.com/v.mp4' }]
+} as Scene;
 
 const withManager = (
 	subs: Subtitle[],
@@ -67,30 +69,44 @@ describe('SubtitlesManager.splitSubtitle characterization', () => {
 	});
 
 	it('splits at a word boundary, distributing whole words and timing proportionally', () => {
-		withManager(base([['Hello', 0, 3], ['world', 3, 6], ['test', 6, 10]]), (m, result) => {
-			m.splitSubtitle('s', 6);
-			const [a, b] = result();
-			expect(a.text).toBe('Hello');
-			expect(a.words).toEqual([['Hello', 0, 3.75]]);
-			expect(a.end_at).toBeCloseTo(3.75);
-			expect(b.text).toBe('world test');
-			expect(b.words?.map((w) => w[0])).toEqual(['world', 'test']);
-			expect(b.start_at).toBeCloseTo(3.75);
-			expect(b.end_at).toBe(10);
-		});
+		withManager(
+			base([
+				['Hello', 0, 3],
+				['world', 3, 6],
+				['test', 6, 10]
+			]),
+			(m, result) => {
+				m.splitSubtitle('s', 6);
+				const [a, b] = result();
+				expect(a.text).toBe('Hello');
+				expect(a.words).toEqual([['Hello', 0, 3.75]]);
+				expect(a.end_at).toBeCloseTo(3.75);
+				expect(b.text).toBe('world test');
+				expect(b.words?.map((w) => w[0])).toEqual(['world', 'test']);
+				expect(b.start_at).toBeCloseTo(3.75);
+				expect(b.end_at).toBe(10);
+			}
+		);
 	});
 
 	it('splits inside a word, dividing its timing and copying its metadata', () => {
-		withManager(base([['Hello', 0, 4, { k: 1 }], ['world', 4, 6], ['test', 6, 10]]), (m, result) => {
-			m.splitSubtitle('s', 2);
-			const [a, b] = result();
-			expect(a.words).toEqual([['He', 0, 1.25, { k: 1 }]]);
-			expect(b.words).toEqual([
-				['llo', 1.6, 4, { k: 1 }],
+		withManager(
+			base([
+				['Hello', 0, 4, { k: 1 }],
 				['world', 4, 6],
 				['test', 6, 10]
-			]);
-		});
+			]),
+			(m, result) => {
+				m.splitSubtitle('s', 2);
+				const [a, b] = result();
+				expect(a.words).toEqual([['He', 0, 1.25, { k: 1 }]]);
+				expect(b.words).toEqual([
+					['llo', 1.6, 4, { k: 1 }],
+					['world', 4, 6],
+					['test', 6, 10]
+				]);
+			}
+		);
 	});
 
 	it('ignores malformed word tuples when finding the split word', () => {
@@ -106,25 +122,39 @@ describe('SubtitlesManager.splitSubtitle characterization', () => {
 	});
 
 	it('warns when the word to split has non-numeric timings', () => {
-		withManager(base([['Hello', 'a', 'b'], ['world', 3, 6], ['test', 6, 10]]), (m, result) => {
-			m.splitSubtitle('s', 3);
-			expect(result()).toHaveLength(1);
-			expect(warn).toHaveBeenCalledWith(expect.stringContaining('Invalid word tuple data types'));
-		});
+		withManager(
+			base([
+				['Hello', 'a', 'b'],
+				['world', 3, 6],
+				['test', 6, 10]
+			]),
+			(m, result) => {
+				m.splitSubtitle('s', 3);
+				expect(result()).toHaveLength(1);
+				expect(warn).toHaveBeenCalledWith(expect.stringContaining('Invalid word tuple data types'));
+			}
+		);
 	});
 
 	it('emits subtitlesplit with both parts', () => {
-		withManager(base([['Hello', 0, 3], ['world', 3, 6], ['test', 6, 10]]), (m, _r, emit) => {
-			m.splitSubtitle('s', 6);
-			expect(emit).toHaveBeenCalledWith('subtitleschange');
-			expect(emit).toHaveBeenCalledWith(
-				'subtitlesplit',
-				expect.objectContaining({
-					subtitleId: 's',
-					newSubtitle: expect.objectContaining({ text: 'world test' })
-				})
-			);
-		});
+		withManager(
+			base([
+				['Hello', 0, 3],
+				['world', 3, 6],
+				['test', 6, 10]
+			]),
+			(m, _r, emit) => {
+				m.splitSubtitle('s', 6);
+				expect(emit).toHaveBeenCalledWith('subtitleschange');
+				expect(emit).toHaveBeenCalledWith(
+					'subtitlesplit',
+					expect.objectContaining({
+						subtitleId: 's',
+						newSubtitle: expect.objectContaining({ text: 'world test' })
+					})
+				);
+			}
+		);
 	});
 });
 

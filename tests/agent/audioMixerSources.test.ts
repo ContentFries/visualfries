@@ -41,7 +41,13 @@ describe('collectAudioSourcesForRanges per source kind', () => {
 					id: 'l1',
 					components: [
 						audio({ source: { assetId: 'missing' } }),
-						{ id: 'img', type: 'IMAGE', source: { url: 'https://example.com/i.png' }, timeline: { startAt: 0, endAt: 10 }, appearance: { x: 0, y: 0, width: 10, height: 10 } }
+						{
+							id: 'img',
+							type: 'IMAGE',
+							source: { url: 'https://example.com/i.png' },
+							timeline: { startAt: 0, endAt: 10 },
+							appearance: { x: 0, y: 0, width: 10, height: 10 }
+						}
 					]
 				}
 			]
@@ -142,18 +148,19 @@ describe('collectAudioSourcesForRanges per source kind', () => {
 			baseScene({
 				settings: { ...baseScene().settings, audio: audioSettings }
 			});
-		expect(plan(withAudio({ src: 'https://example.com/bg.mp3', volume: 0.3 }), { start: 1, end: 3 }))
-			.toEqual([
-				{
-					id: 'scene-audio',
-					kind: 'scene',
-					url: 'https://example.com/bg.mp3',
-					startInChunkSec: 0,
-					durationSec: 2,
-					sourceOffsetSec: 1,
-					volume: 0.3
-				}
-			]);
+		expect(
+			plan(withAudio({ src: 'https://example.com/bg.mp3', volume: 0.3 }), { start: 1, end: 3 })
+		).toEqual([
+			{
+				id: 'scene-audio',
+				kind: 'scene',
+				url: 'https://example.com/bg.mp3',
+				startInChunkSec: 0,
+				durationSec: 2,
+				sourceOffsetSec: 1,
+				volume: 0.3
+			}
+		]);
 		expect(plan(withAudio({ src: 'https://example.com/bg.mp3', muted: true }))).toEqual([]);
 		expect(plan(withAudio({ src: 'https://example.com/bg.mp3', volume: 0 }))).toEqual([]);
 		expect(plan(withAudio({ volume: 1 }))).toEqual([]);

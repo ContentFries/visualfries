@@ -237,7 +237,11 @@ describe('font discovery', () => {
 
 	it('merges duplicate variants, preferring custom and keeping any file url', () => {
 		const scene = sceneWith([
-			textComponent('a', { fontFamily: 'Brand', fontWeight: '700', fontSource: { source: 'google' } }),
+			textComponent('a', {
+				fontFamily: 'Brand',
+				fontWeight: '700',
+				fontSource: { source: 'google' }
+			}),
 			textComponent('b', {
 				fontFamily: 'brand',
 				fontWeight: '700',

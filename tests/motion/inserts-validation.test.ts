@@ -63,9 +63,9 @@ describe.skipIf(!hasFfmpeg)('render --export inserts: checks before rendering', 
 
 	it('rejects one file name for several inserts', async () => {
 		const loaded = await write('many', [320, 180], CLIPS);
-		await expect(
-			renderProgramInserts(loaded, { output: path.join(dir, 'x.mov') })
-		).rejects.toThrow('names one file, but 2 inserts would render. Pick one with --clip <id>');
+		await expect(renderProgramInserts(loaded, { output: path.join(dir, 'x.mov') })).rejects.toThrow(
+			'names one file, but 2 inserts would render. Pick one with --clip <id>'
+		);
 	});
 
 	it('rejects a file extension that does not fit the insert', async () => {

@@ -15,7 +15,6 @@ export class MediaHook implements IComponentHook {
 	private state: StateManager;
 	#destroyed = false;
 	#playRequested = false;
-	#lastControllerCheck = 0;
 	#seekVersion = 0;
 	#cleanupPendingSeek: (() => void) | undefined;
 
@@ -328,13 +327,11 @@ export class MediaHook implements IComponentHook {
 	// An existing owner is never taken over; unowned media is claimed immediately.
 	async #claimControllerIfFree(
 		url: string,
-		mediaType: 'video' | 'audio',
-		now: number
+		mediaType: 'video' | 'audio'
 	): Promise<void> {
 		if (this.mediaManager.getMediaController(url, mediaType)) return;
 		this.mediaManager.setMediaController(url, this.#context.contextData.id, mediaType);
 		await this.#autoSeek();
-		this.#lastControllerCheck = now;
 
 		// Safari-specific: Ensure audio is properly restored when taking control
 		const contextData = this.#context.contextData as any;
@@ -375,7 +372,6 @@ export class MediaHook implements IComponentHook {
 		const componentVolume = (this.#context.contextData as any).volume ?? 1;
 		const source = (this.#context.contextData as any).source;
 		if (!source || !source.url) return;
-		const now = performance.now();
 
 		const isController =
 			this.mediaManager.getMediaController(source.url, mediaType) === this.#context.contextData.id;
@@ -406,7 +402,7 @@ export class MediaHook implements IComponentHook {
 		if (this.state.environment === 'server') return;
 
 		if (!isController) {
-			await this.#claimControllerIfFree(source.url, mediaType, now);
+			await this.#claimControllerIfFree(source.url, mediaType);
 		}
 
 		if (await this.#waitForLoadingComponent()) return;

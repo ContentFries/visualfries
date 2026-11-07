@@ -273,10 +273,20 @@ function parseRadialPrelude(
 	const fail = (why: string) =>
 		new Error(`Gradient "${gradient}": ${why}. Use e.g. "circle farthest-corner at 50% 50%".`);
 
+	const { shape, size } = parseRadialShapeAndSize(ending, fail);
+	if (at >= 0 && (place.length < 1 || place.length > 2)) throw fail('"at" takes one or two values');
+	return { shape, size, position: parseRadialPosition(place, fail) };
+}
+
+/** The shape and size terms before `at`, in any order; the shape follows the lengths if unnamed. */
+function parseRadialShapeAndSize(
+	terms: string[],
+	fail: (why: string) => Error
+): Pick<RadialGradient, 'shape' | 'size'> {
 	let shape: RadialGradient['shape'] | undefined;
 	let keyword: string | undefined;
 	const lengths: Length[] = [];
-	for (const token of ending) {
+	for (const token of terms) {
 		if (token === 'circle' || token === 'ellipse') {
 			if (shape) throw fail('the shape is given twice');
 			shape = token;
@@ -301,8 +311,11 @@ function parseRadialPrelude(
 	const size: RadialSize = lengths.length
 		? { lengths }
 		: { keyword: (keyword ?? 'farthest-corner') as 'farthest-corner' };
+	return { shape, size };
+}
 
-	if (at >= 0 && (place.length < 1 || place.length > 2)) throw fail('"at" takes one or two values');
+/** The one or two terms after `at` as an x, y pair; a lone or vertical-first keyword is reordered. */
+function parseRadialPosition(place: string[], fail: (why: string) => Error): [Length, Length] {
 	const value = (token: string) => {
 		if (token in POSITION_KEYWORDS) return { value: POSITION_KEYWORDS[token], unit: '%' } as Length;
 		try {
@@ -316,7 +329,7 @@ function parseRadialPrelude(
 	let [x = 'center', y = 'center'] = place;
 	if (place.length === 1 && isY(x)) [x, y] = ['center', x];
 	else if (isY(x) || isX(y)) [x, y] = [y, x];
-	return { shape, size, position: [value(x), value(y)] };
+	return [value(x), value(y)];
 }
 
 /** CSS text for a gradient, colours as `rgb(r g b / a)` and every stop position written out. */

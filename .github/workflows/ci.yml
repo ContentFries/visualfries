@@ -41,7 +41,15 @@ jobs:
         run: pnpm check
 
       - name: Unit tests
-        run: pnpm exec vitest run
+        run: pnpm exec vitest run --coverage.enabled --coverage.provider=v8 --coverage.reporter=json --coverage.include='src/lib/**' --coverage.reportsDirectory=coverage
+
+      # Functions this change touches must stay at CRAP 30 or below (crap.config.json): split
+      # complex functions, or test them.
+      - name: CRAP score of changed functions
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --depth=1 origin ${{ github.event.pull_request.base.sha }}
+          node scripts/crap.mjs --coverage coverage/coverage-final.json --base ${{ github.event.pull_request.base.sha }}
 
       # Projects without a cut list must render exactly as on main: render both builds here, on
       # the same Chromium and ffmpeg, and compare file bytes and manifests.

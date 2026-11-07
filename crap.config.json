@@ -1,0 +1,12 @@
+{
+	"max": 30,
+	"include": ["src/lib/", "bin/"],
+	"exclude": ["src/lib/stories/"],
+	"unmeasured": [
+		"bin/",
+		"src/lib/motion/program-stage.ts",
+		"src/lib/motion/stage.ts",
+		"src/lib/motion/subject-canvas.ts"
+	],
+	"unmeasuredExtensions": [".svelte"]
+}

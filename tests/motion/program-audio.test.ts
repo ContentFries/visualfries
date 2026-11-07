@@ -559,7 +559,7 @@ describe.skipIf(!hasFfmpeg)('program audio mix: review fixes', () => {
 			{ dir }
 		);
 		expect(sparse!.report.warnings).toEqual([expect.stringMatching(/LU off the -3 LUFS target/)]);
-	});
+	}, 60_000);
 
 	it('encodes the mix with its true peak under the ceiling, as measured on the encoded file', async () => {
 		const { encodeProgramMix } = await import('../../src/lib/motion/audio.js');

@@ -267,35 +267,38 @@ const mixRect = (a: Rect, b: Rect, t: number): Rect => ({
 	height: mix(a.height, b.height, t)
 });
 
+const rides = (l: ShotLayout, name: string) => !!l.riding?.includes(name);
+
 /**
- * The layout `t` of the way from `a` to `b`. Rectangles move straight, so the face moves in a
- * line between its two marks. A slot only one side frees slides between its open and closed
- * rectangles; the fill shows while either side has it.
+ * Fills `slots` and `closed` with the blend of every slot either side has. Written into the
+ * caller's objects because this runs for every frame of a render.
  */
-export function mixLayouts(a: ShotLayout, b: ShotLayout, t: number): ShotLayout {
-	const slots: Record<string, Rect> = {};
-	const closed: Record<string, Rect> = {};
+function mixSlots(
+	a: ShotLayout,
+	b: ShotLayout,
+	t: number,
+	slots: Record<string, Rect>,
+	closed: Record<string, Rect>
+) {
 	for (const name of new Set([...Object.keys(a.slots), ...Object.keys(b.slots)])) {
-		const rides = (l: ShotLayout) => !!l.riding?.includes(name);
 		const from =
 			a.slots[name] ??
-			(rides(b) ? ride(b.slots[name], b.camera, a.camera) : (b.closed[name] ?? b.slots[name]));
+			(rides(b, name)
+				? ride(b.slots[name], b.camera, a.camera)
+				: (b.closed[name] ?? b.slots[name]));
 		const to =
 			b.slots[name] ??
-			(rides(a) ? ride(a.slots[name], a.camera, b.camera) : (a.closed[name] ?? a.slots[name]));
+			(rides(a, name)
+				? ride(a.slots[name], a.camera, b.camera)
+				: (a.closed[name] ?? a.slots[name]));
 		slots[name] = mixRect(from, to, t);
 		const shut = b.closed[name] ?? a.closed[name];
 		if (shut) closed[name] = shut;
 	}
-	const out: ShotLayout = {
-		camera: mixRect(a.camera, b.camera, t),
-		clip: mixRect(a.clip, b.clip, t),
-		radius: mix(a.radius, b.radius, t),
-		slots,
-		closed,
-		fill: a.fill ?? b.fill
-	};
-	// Keyed turns and fades blend like the rectangles; an unkeyed side counts as still.
+}
+
+/** Keyed turns and fades blend like the rectangles; an unkeyed side counts as still. */
+function mixTurnAndOpacity(out: ShotLayout, a: ShotLayout, b: ShotLayout, t: number) {
 	if (a.turn || b.turn) {
 		const pivot = (l: ShotLayout) => l.turn?.pivot ?? (a.turn ?? b.turn)!.pivot;
 		out.turn = {
@@ -305,7 +308,10 @@ export function mixLayouts(a: ShotLayout, b: ShotLayout, t: number): ShotLayout 
 	}
 	if (a.opacity !== undefined || b.opacity !== undefined)
 		out.opacity = mix(a.opacity ?? 1, b.opacity ?? 1, t);
-	// A window's ring and shadow, and a dimmed room, fade in and out with the move.
+}
+
+/** A window's ring and shadow, and a dimmed room, fade in and out with the move. */
+function mixWindowEffects(out: ShotLayout, a: ShotLayout, b: ShotLayout, t: number) {
 	if (a.ring || b.ring) out.ring = mix(a.ring ?? 0, b.ring ?? 0, t);
 	if (a.lift || b.lift) out.lift = mix(a.lift ?? 0, b.lift ?? 0, t);
 	if (a.room || b.room)
@@ -313,16 +319,42 @@ export function mixLayouts(a: ShotLayout, b: ShotLayout, t: number): ShotLayout 
 			dim: mix(a.room?.dim ?? 0, b.room?.dim ?? 0, t),
 			blur: mix(a.room?.blur ?? 0, b.room?.blur ?? 0, t)
 		};
-	// The blurred copy under footage that leaves its window open moves with it; a side without
-	// one counts as a copy covering its window, so the open edge never shows the fill mid-move.
-	if (a.backdrop || b.backdrop) {
-		const copy = (l: ShotLayout) => l.backdrop?.camera ?? backdropCamera(l.camera, l.clip);
-		const look = (a.backdrop ?? b.backdrop)!;
-		out.backdrop = {
-			camera: mixRect(copy(a), copy(b), t),
-			blur: a.backdrop && b.backdrop ? mix(a.backdrop.blur, b.backdrop.blur, t) : look.blur,
-			dim: a.backdrop && b.backdrop ? mix(a.backdrop.dim, b.backdrop.dim, t) : look.dim
-		};
-	}
+}
+
+/**
+ * The blurred copy under footage that leaves its window open moves with it; a side without
+ * one counts as a copy covering its window, so the open edge never shows the fill mid-move.
+ */
+function mixBackdrop(out: ShotLayout, a: ShotLayout, b: ShotLayout, t: number) {
+	if (!a.backdrop && !b.backdrop) return;
+	const copy = (l: ShotLayout) => l.backdrop?.camera ?? backdropCamera(l.camera, l.clip);
+	const look = (a.backdrop ?? b.backdrop)!;
+	out.backdrop = {
+		camera: mixRect(copy(a), copy(b), t),
+		blur: a.backdrop && b.backdrop ? mix(a.backdrop.blur, b.backdrop.blur, t) : look.blur,
+		dim: a.backdrop && b.backdrop ? mix(a.backdrop.dim, b.backdrop.dim, t) : look.dim
+	};
+}
+
+/**
+ * The layout `t` of the way from `a` to `b`. Rectangles move straight, so the face moves in a
+ * line between its two marks. A slot only one side frees slides between its open and closed
+ * rectangles; the fill shows while either side has it.
+ */
+export function mixLayouts(a: ShotLayout, b: ShotLayout, t: number): ShotLayout {
+	const slots: Record<string, Rect> = {};
+	const closed: Record<string, Rect> = {};
+	mixSlots(a, b, t, slots, closed);
+	const out: ShotLayout = {
+		camera: mixRect(a.camera, b.camera, t),
+		clip: mixRect(a.clip, b.clip, t),
+		radius: mix(a.radius, b.radius, t),
+		slots,
+		closed,
+		fill: a.fill ?? b.fill
+	};
+	mixTurnAndOpacity(out, a, b, t);
+	mixWindowEffects(out, a, b, t);
+	mixBackdrop(out, a, b, t);
 	return out;
 }

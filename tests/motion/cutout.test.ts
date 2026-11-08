@@ -127,6 +127,22 @@ describe('cutout edge check', () => {
 			expect(cutoutEdges(data([span({ anchor })], still())), anchor).toEqual([]);
 	});
 
+	it('lets the speaker leave the frame where the shot sends them away', () => {
+		// Away from 1 to 1.4 s with a 0.5 s exit and return: the slide past the left edge is meant.
+		const away = [
+			{
+				from: 30,
+				until: 42,
+				side: 'left' as const,
+				exit: { frames: 15, ease: 'none' },
+				enter: { frames: 15, ease: 'none' }
+			}
+		];
+		expect(
+			cutoutEdges(data([span({ anchor: 'bottom' }, { frames: 90, away })], still(90)))
+		).toEqual([]);
+	});
+
 	it('finds the speaker cut by an edge it is not anchored to, and lets the anchored one be', () => {
 		// A head 30 % of the frame: the shoulders run past the right edge (and the left one,
 		// which the speaker sits against).

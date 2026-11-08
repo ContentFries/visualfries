@@ -78,6 +78,27 @@ Shots add events to the program for sounds to land on:
 
 `program --json` lists them under `events`. Shots carry no sound of their own yet: put an `sfx` item on the shot's anchor plus half its move (a whip 0.21 s, a strip or window 0.35 s).
 
+**The speaker away.** In a `behind` or `cutout` shot, `away` takes the speaker off the frame and back, so they are on screen only while they talk to the camera and a behind clip (a scene, a world) carries the rest:
+
+```json
+{
+	"id": "speaker",
+	"shot": "behind",
+	"from": 0,
+	"until": "end",
+	"away": [
+		{
+			"from": { "say": "the answer", "edge": "end" },
+			"until": { "say": "Now", "edge": "start" },
+			"side": "left"
+		},
+		{ "from": { "say": "harness", "occurrence": 2, "edge": "end" }, "until": "end" }
+	]
+}
+```
+
+The speaker is wholly gone from `from` (the exit ends there) until `until` (the way back starts there). Both are program moments, and a phrase in `until` is the end of its last word, so write `"edge": "start"` to be back for a word; a repeated phrase resolves in program order. `until` at the shot's own end keeps them away to it (`"until": "end"` is the program end, so it does that in a shot that runs to the end of the program); a range from the shot's first frame has them away from the start, through a shot transition into it too. `exit` and `enter` take seconds or `{ "seconds", "ease" }` (default 0.16 s `power2.in` and 0.22 s `expo.out`); `side` is `left`, `right` or `bottom` (default: the nearest edge where each move starts, the same in an excerpt). The slide is as long as the matte says the speaker reaches, so they just clear the frame in any format, on top of the shot's keys and morph. The footage picture moves (the room with the speaker, subject layers of clips); clips behind and in front of the speaker and the `word` slot stay put. `cutout` takes `away` too; other shots reject it. Errors name inverted, overlapping and out-of-shot ranges; `program` warns where the speaker is gone mid-word or comes back after a word began, and `check` warns where a piece of the speaker (an arm, hair) is still in the frame inside a range.
+
 **Keeping the head in.** Shots frame the face a third from the top of their camera window. A close handheld selfie, where the head fills half the frame, can lose the top of the head in a strip or a small window. `params.headroom` (off by default; 0.06 is a good start) keeps the whole head in the camera window, from the matte. Where the footage then leaves the window open, the same footage fills it, blurred and dimmed.
 
 `check` warns wherever a shot's camera window cuts the speaker's head for more than a few frames, keys included. The warning names the shot, the time range, how much is cut and what to try: `headroom`, a taller window `aspect`, a larger strip `size`, a lower `zoom` or `scale`. It stays a warning: look at a still and decide, since a tight crop can be the creator's choice.

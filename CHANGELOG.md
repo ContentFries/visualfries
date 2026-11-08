@@ -7,8 +7,8 @@ All notable changes to this project will be documented in this file. See [Conven
 
 ### Upgrading from 0.9.0
 
-* **Render JSON:** `render --export video` prints `chunks` instead of `segments`. Each chunk is a 15 s piece of the program with the segment `parts` it is drawn from. `encodeSeconds` is now the time of the final join alone, since chunks are encoded as they are drawn and the join does not encode again.
-* **Cache:** the cache in `.visualfries/segments/` now holds encoded `.mp4` chunks. A project's first render on 0.10.0 draws everything again. The old lossless `.mkv` files go once no render record in the folder names them; run `visualfries cache <project> --clear` once to remove them right away.
+* **Render JSON:** `render --export video` prints `chunks` instead of `segments`. Each chunk is a piece of the program (15 s by default; `--chunk-seconds` or `"chunkSeconds"` sets another length) with the segment `parts` it is drawn from. `encodeSeconds` is now the time of the final join alone, since chunks are encoded as they are drawn and the join does not encode again.
+* **Cache:** the cache in `.visualfries/segments/` now holds encoded `.mp4` chunks. A project's first render on 0.10.0 draws everything again. The old lossless `.mkv` files go once no render record in the folder names them; run `visualfries cache <project> --clear` once, before the first render on 0.10.0, to remove them right away (it also drops the extracted footage frames, which that render then extracts again).
 
 
 ### Features

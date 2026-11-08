@@ -199,8 +199,8 @@ describe('chunk hashes of a program', () => {
 		const a = resolve(two(4));
 		const b = resolve(two(8));
 		expect(a.segments).toHaveLength(2);
-		expect(b.segments[0].chunks.map((c) => c.hash)).not.toEqual(
-			a.segments[0].chunks.map((c) => c.hash)
+		expect(b.segments[0].parts.map((c) => c.hash)).not.toEqual(
+			a.segments[0].parts.map((c) => c.hash)
 		);
 	});
 

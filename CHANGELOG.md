@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file. See [Conven
 ## [0.10.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.9.0...visualfries-v0.10.0) (2026-11-08)
 
 
+### Upgrading from 0.9.0
+
+* **Render JSON:** `render --export video` prints `chunks` instead of `segments`. Each chunk is a 15 s piece of the program with the segment `parts` it is drawn from. `encodeSeconds` is now the time of the final join alone, since chunks are encoded as they are drawn and the join does not encode again.
+* **Cache:** the cache in `.visualfries/segments/` now holds encoded `.mp4` chunks. A project's first render on 0.10.0 draws everything again. The old lossless `.mkv` files go once no render record in the folder names them; run `visualfries cache <project> --clear` once to remove them right away.
+
+
 ### Features
 
 * **motion:** &lt;Front&gt; draws part of a clip in front of the speaker ([#123](https://github.com/ContentFries/visualfries/issues/123)) ([aa8be5d](https://github.com/ContentFries/visualfries/commit/aa8be5d73e97fcedcdc96cc90b32a4925719e15b))

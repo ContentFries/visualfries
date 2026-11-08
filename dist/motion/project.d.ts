@@ -743,6 +743,7 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         }, z.core.$strict>>;
     }, z.core.$strict>>>>;
     duration: z.ZodOptional<z.ZodNumber>;
+    chunkSeconds: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>, z.ZodTransform<{
     size: [number, number];
     fps: number;
@@ -1095,6 +1096,7 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         } | undefined;
     }[] | undefined;
     duration?: number | undefined;
+    chunkSeconds?: number | undefined;
 }, {
     size: [number, number];
     fps: number;
@@ -1448,6 +1450,7 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         } | undefined;
     }[] | undefined;
     duration?: number | undefined;
+    chunkSeconds?: number | undefined;
 }>>;
 export type MotionProject = z.output<typeof MotionProjectShape>;
 export declare function isMotionProject(value: unknown): boolean;

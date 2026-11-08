@@ -52,8 +52,9 @@ export type ExcerptFootage = {
      */
     around: Record<string, FrameRange[]>;
     /**
-     * The picture over the whole shot, in the whole program, of each shot with `headroom` that
-     * runs across an edge: its one head size is measured over it (`headOfRuns`).
+     * The picture over the whole shot, in the whole program, of each shot with `headroom` (or one
+     * that always reads its head, see `ShotModule.measuresHead`) that runs across an edge: its
+     * one head size and how high its head gets are measured over it (`headOfRuns`, `topOfRuns`).
      */
     heads: Record<string, FootageRun[]>;
 };
@@ -64,7 +65,7 @@ export type ExcerptFootage = {
  * excerpt exactly when its hit lands inside it. `field` names the excerpt in diagnostics
  * (`excerpts[0]`).
  */
-export declare function sliceProgram(full: Omit<ResolvedProgram, 'segments'>, excerpt: ProgramExcerpt, end: {
+export declare function sliceProgram(full: Omit<ResolvedProgram, 'segments' | 'chunks'>, excerpt: ProgramExcerpt, end: {
     clip: ProgramClip | null;
     sound: AudioPiece | null;
-}, sounds?: Record<string, SoundInfo | null>, field?: string): Omit<ResolvedProgram, 'segments'>;
+}, sounds?: Record<string, SoundInfo | null>, field?: string): Omit<ResolvedProgram, 'segments' | 'chunks'>;

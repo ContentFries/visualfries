@@ -93,6 +93,24 @@ describe('a speaker away from the frame', () => {
 		expect(moved(portrait, PORTRAIT)).not.toBeCloseTo(moved(landscape, LANDSCAPE), 0);
 	});
 
+	it('slides a cutout off the frame too, framed by how high its head gets over the shot', () => {
+		const cutout = (away: ShotAway[]) => ({ ...behind(away), shot: 'cutout' });
+		const tops: unknown[] = [];
+		const withTop = input(PORTRAIT, {
+			topOf: (shot) => {
+				tops.push(shot.id);
+				return 0.1;
+			}
+		});
+		const plain = shotLayout(cutout([]), withTop, 20);
+		const away = shotLayout(cutout([range(10, 40, { side: 'left' })]), withTop, 20);
+		// The cutout measures its head over the shot in both, and only the picture moves.
+		expect(tops).toEqual(['talk', 'talk']);
+		expect(away.camera.y).toBe(plain.camera.y);
+		expect(away.camera.width).toBe(plain.camera.width);
+		expect(onStage(away).right).toBeLessThan(0);
+	});
+
 	it('leaves by the nearest edge unless the range says which', () => {
 		// Cropped into a portrait frame the speaker overflows it: sideways is the shortest way out.
 		expect(onStage(shotLayout(behind([range(10, 40)]), input(PORTRAIT), 20)).right).toBeLessThan(0);
@@ -592,9 +610,12 @@ const TWO: ProgramInputs = {
 	}
 };
 const hashes = (sources: Record<string, string>) => ({ sources }) as ProgramInputs['hashes'];
-/** The hash of the chunk that draws program frame `f`. */
+/**
+ * The hash of the segment part that draws program frame `f`: a whole 8 s program is one chunk,
+ * and a part hashes only its own segment's frames.
+ */
 const chunkAt = (p: ResolvedProgram, f: number) =>
-	p.segments.flatMap((s) => s.chunks).find((c) => f >= c.startFrame && f < c.startFrame + c.frames)!
+	p.segments.flatMap((s) => s.parts).find((c) => f >= c.startFrame && f < c.startFrame + c.frames)!
 		.hash;
 
 describe('where an away move decides its side', () => {

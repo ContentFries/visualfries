@@ -1,16 +1,17 @@
 import { type LoadedMotionProject } from './node.js';
+import type { ProgramChunk } from './chunks.js';
 import { type MixReport, type StemName } from './audio.js';
-/** A chunk of a segment as the render drew or found it (`id` is the chunk's). */
-export type RenderedSegment = {
+/** A chunk of the grid as the render drew or found it. */
+export type RenderedChunk = {
     id: string;
-    /** The segment it belongs to: the page that draws it. */
-    segment: string;
     startFrame: number;
     frames: number;
     hash: string;
-    /** The lossless intermediate in the segment cache. */
+    /** The parts of segments it is drawn from, in order: each on a page of its segment. */
+    parts: ProgramChunk['parts'];
+    /** The encoded chunk in the cache. */
     file: string;
-    /** True when the intermediate came from an earlier render. */
+    /** True when the chunk came from an earlier render. */
     cached: boolean;
     /** Seconds spent drawing and encoding it (0 when cached). */
     seconds: number;
@@ -29,9 +30,9 @@ export type RenderedProgram = {
     /** With `stems`: the WAV file of each stem beside the video. */
     stems: Record<StemName, string> | null;
     mode: string;
-    /** Every chunk of every segment, in program order. */
-    segments: RenderedSegment[];
-    /** Seconds for the whole render, and for the final join and encode alone. */
+    /** Every chunk of the program, in order. */
+    chunks: RenderedChunk[];
+    /** Seconds for the whole render, and for the final join alone. */
     seconds: number;
     encodeSeconds: number;
 };
@@ -46,6 +47,8 @@ export type ProgramRenderOptions = {
     /** An excerpt's id: that range of the program, sliced from the whole (see `excerpt.ts`). */
     excerpt?: string;
     jobs?: number;
+    /** Seconds of a chunk; the project's `chunkSeconds` (15 by default) when omitted. */
+    chunkSeconds?: number;
     invalidate?: string;
     /** Draw every segment again, replacing what the cache holds. */
     fresh?: boolean;
@@ -56,9 +59,9 @@ export type ProgramRenderOptions = {
      */
     stems?: boolean;
     /**
-     * How pages share the work: `auto` (whole chunks per page when there are at least as many
-     * chunks to draw as jobs, none much longer than its share), or always `segments` (whole
-     * chunks) or always `frames`. For measurements.
+     * How pages share the work: `auto` (whole parts of chunks per page when there are at least
+     * as many parts to draw as jobs, none much longer than its share), or always `segments`
+     * (whole parts) or always `frames`. For measurements.
      */
     schedule?: 'auto' | 'segments' | 'frames';
     onProgress?: (msg: string) => void;

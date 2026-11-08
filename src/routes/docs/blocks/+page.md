@@ -117,6 +117,39 @@ Install `three` in the project folder (`npm install three`) and import it in the
 
 Without a GPU, Chromium renders WebGL on the CPU: roughly 0.5 s per 1080×1920 frame per job (a 1 395-frame 3D program took about 700 s with `--jobs 2`), as much as or more than local matting (about 0.36 s per 1920×1080 frame on four CPU threads).
 
+## Behind and in front from one clip
+
+A clip draws in one layer: in front of the speaker, or behind them with `"layer": "behind"`. When one block needs both, say a 3D scene behind the speaker with labels pinned to points of it in front, keep it one clip with `"layer": "behind"` and wrap the front part of its markup in `<Front>`:
+
+```svelte
+<script>
+	import { Front, useClip, useFrame } from 'visualfries/motion';
+	const clip = useClip();
+	let canvas;
+	let pin = $state({ x: 0, y: 0 });
+	useFrame(() => {
+		pin = engine.render(clip.t); // draw the scene, project a 3D point to the screen
+	});
+</script>
+
+<canvas bind:this={canvas}></canvas>
+<Front>
+	<div class="label" style:left="{pin.x}px" style:top="{pin.y}px">HARNESS</div>
+</Front>
+```
+
+The canvas stays behind the speaker; `<Front>`'s children are drawn in the clip's front part, a second root of the same clip among the front clips. It is the same block instance: one state, one time, one `useFrame`, and `useTimeline`'s `q` finds elements inside `<Front>` too.
+
+- The front part stacks where the clip stands in project order: over the clips listed before it, under those after it.
+- It shows and hides with the clip and follows its placement keys, its slot and the transitions it rides or owns, like a front clip would.
+- `check` reads its text as front text (text over the face), and the clip's own text as text behind the speaker.
+- In `render --export inserts` the holdout cuts the speaker out of the clip's own layer only; the front part is drawn over it, so one file still lays over the rough cut.
+- In a clip rendered alone the front part is drawn over the rest of the block, `z-index` in the block's own markup included.
+- A style selector from an element outside `<Front>` to one inside it (`.world .label`) does not match: the front part is elsewhere in the page. `<Front>` adds no element of its own; like the root, the front part of a keyed or slotted clip has the engine's own boxes around its children, which a broad `q('div')` also finds.
+- Several `<Front>`s stack in markup order, also those inside `{#if}` or `{#each}` that mount later; a keyed `{#each}` that reorders its items keeps their `<Front>`s in the order they mounted. A `<Front>` inside another one draws in place.
+
+There is no `<Behind>`: put what a front clip needs behind the speaker in a clip of its own.
+
 ## Data and styling
 
 - **Props** come from the clip's `props` in the project file: read them as `clip.props` or as component props.
@@ -124,7 +157,7 @@ Without a GPU, Chromium renders WebGL on the CPU: roughly 0.5 s per 1080×1920 f
 - **Transcript words** come from `words` bindings: `clip.words.row`, or the words of a cue: `clip.cue.duplicate.words`.
 - **Shared components and CSS** live in your project (for example `theme/`). Import components with relative paths; list global CSS under `css`.
 - **Fonts** are loaded before a block mounts, so measuring text in `onMount` is safe.
-- **Packages**: a block imports npm packages installed for the project (`node_modules` in the project folder or a folder above it), with the subpaths they export. A missing one fails the bundle with the importing file and the `npm install` command. `svelte`, `gsap` and `visualfries/motion` need no install and are always VisualFries's own copies. The package files a block imports are part of its hash, so a new version renders again.
+- **Packages**: a block imports npm packages installed for the project (`node_modules` in the project folder or a folder above it), with the subpaths they export. A missing one fails the bundle with the importing files and the `npm install` command. A block file outside the project folder looks for packages from its own folder up and may not find the project's; if it doesn't, the message says where to install them. `svelte`, `gsap` and `visualfries/motion` need no install and are always VisualFries's own copies. The package files a block imports are part of its hash, so a new version renders again.
 
 ## Two Svelte details
 

@@ -176,8 +176,11 @@ A block imports npm packages like any module, subpaths a package exports include
 `import * as THREE from 'three'`, `import { RoomEnvironment } from
 'three/addons/environments/RoomEnvironment.js'`. They are found as Node finds them from the
 block's file: in `node_modules` of the project folder or of any folder above it, so install
-them there (`npm install three` in the project folder). A package that is not installed fails
-the bundle with the file that imports it and the command that installs it. `svelte` and `gsap`
+them there (`npm install three` in the project folder). A block file outside the project
+folder (`../../shared/World3D.svelte`) may not find the project's packages: it looks from its own
+folder up, and the project's `node_modules` is not always on that way. A package that is not installed fails the bundle with one line per package: the
+files that import it and the command that installs it where they find it. A Node built-in
+(`fs`, `path`) cannot run in a block; it fails with the bundler's own message. `svelte` and `gsap`
 are always VisualFries's own copies, even when the project has others installed (the page runs
 one Svelte and one GSAP), and `visualfries/motion` needs no install. Every file a block
 imports, the packages' files included, is part of its hash, so a new version of a package
@@ -272,9 +275,80 @@ In the block, `clip.at('skill2')` (or `clip.cue.skill2.start`) is the moment in 
 which is program seconds for a clip that starts at 0. A phrase is searched inside the clip, so
 in a clip that spans the program `occurrence` counts through the whole program; a repeated
 phrase without `occurrence` is an error that lists every occurrence. `visualfries clips`
-prints where each cue landed. A second instance of the block (the labels in front, without
-`layer`) declares the same cues. `clip.programTime` is the program's clock for a world clip
+prints where each cue landed. Labels in front of the speaker go in the same clip, inside
+`<Front>` (next section), so they read the same cues. `clip.programTime` is the program's clock for a world clip
 that starts later than 0 and still has to run on program seconds.
+
+### Behind and in front from one clip
+
+A clip draws in one layer: in front of the speaker, or behind them with `"layer": "behind"`. A
+block that needs both, a 3D scene behind the speaker with labels pinned to points of it in
+front, wraps the front part of its markup in `<Front>`:
+
+```svelte
+<script>
+	import { Front, useClip, useFrame } from 'visualfries/motion';
+	const clip = useClip();
+	let canvas;
+	let pin = $state({ x: 0, y: 0 });
+	useFrame(() => {
+		// render the scene into `canvas`, project a 3D point to the screen
+		pin = engine.render(clip.t);
+	});
+</script>
+
+<canvas bind:this={canvas}></canvas>
+<Front>
+	<div class="label" style:left="{pin.x}px" style:top="{pin.y}px">HARNESS</div>
+</Front>
+```
+
+```json
+{ "id": "world", "block": "blocks/World.svelte", "from": 0, "until": "end", "layer": "behind" }
+```
+
+The canvas stays in the clip's layer (behind the speaker), and `<Front>`'s children are drawn in
+the clip's **front part**: a second root of the same clip in the layer of the front clips. It is
+one block instance with one state, one time, one `useFrame` and one timeline (`useTimeline`'s
+`q` finds elements inside `<Front>` too), so nothing is built twice to know where a label goes.
+
+- **Stacking:** the front part stands among the front clips where its clip stands in project
+  order: over the clips listed before it, under the ones after it. In a front clip it sits
+  right over the clip's own root, so `<Front>` there means "over the rest of the block".
+- **On screen:** it shows and hides with the clip, holds the clip's edge frames inside a
+  transition window, and follows the clip's placement keys (`x`, `y`, `scale`, `rotation`,
+  `opacity`), its slot and the slot's safe insets (`--slot-safe-*`).
+- **Transitions:** it goes as a front clip of the clip would. In a cut or shot transition it
+  rides the outgoing or incoming side when the clip ends or starts on that cut, and otherwise
+  stays where it is, above both sides (the clip's behind root lives in a side and moves with
+  it); in the clip's own transition it arrives with the clip. Motion blur reaches it only in a
+  slot, as for front clips.
+- **`check`** reads the text in the front part as front text of the clip (text over the face,
+  captions in a shot move) and the text in the clip's own layer as before: a behind clip's own
+  text is text behind the speaker, its front part is not. Content that does not fit the frame
+  counts both.
+- **Inserts:** a holdout insert (`--export inserts`) draws the front part last, over what the
+  holdout left: the speaker is cut out of the clip's own layer and never out of its labels, so
+  one file lays over the rough cut as the program draws it.
+- **A clip rendered alone** (stills and renders of a project without a program) draws the front
+  part over the rest of the block, `z-index` in the block's own markup included. The encoder's
+  holdout of such a clip (`"layer": "behind"` without `cuts` or `shots`, see Footage and
+  mattes) cuts the speaker out of the whole picture, front part included: render the program's
+  inserts for labels in front of the speaker.
+- **Styles:** the block's scoped styles apply inside `<Front>`, but a selector that passes from
+  an element outside it to one inside it (`.world .label`) does not match: the front part is
+  elsewhere in the page. Give the front elements their own positioning; the front part covers
+  the frame like the clip's root. `<Front>` adds no element to the block or around its
+  children; like the root, the front part of a keyed or slotted clip has the engine's own boxes
+  around them, which a broad `q('div')` also finds.
+- **Several `<Front>`s** stack in markup order, also those inside `{#if}` or `{#each}` that mount
+  later: a later one draws over an earlier one, whatever frames were seeked before. A keyed
+  `{#each}` that reorders its items keeps their `<Front>`s in the order they mounted. A
+  `<Front>` inside another one draws its children in place, in front already.
+
+There is no `<Behind>`: a front clip cannot put part of itself behind the speaker. Draw that
+part in a clip of its own with `"layer": "behind"`, or make the clip a behind clip and put the
+rest in `<Front>`.
 
 ## Motion primitives
 
@@ -439,8 +513,8 @@ the program frame by that footage's `start`: wherever the speaker is, the clip i
 and the real footage shows through. No plate is drawn, so nothing is resampled; before and
 after the footage nothing is cut. The matte is scaled to the clip's size, so it lines up when
 the footage has the clip's aspect ratio; `check` and `render` warn when it does not. The alpha is straight:
-set the editor's alpha mode to straight. Everything in such a clip is held out; put what must
-stay in front of the speaker in a second clip on a higher track.
+set the editor's alpha mode to straight. Everything in such a clip is held out, `<Front>`
+included; put what must stay in front of the speaker in a second clip on a higher track.
 
 ```json
 "footage": { "talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "start": 0 } },
@@ -496,7 +570,8 @@ cached on its own.
 
 In program mode `still` and `check` draw the whole program on one stage: the footage the cut
 list shows, clips with `"layer": "behind"` between the footage and the speaker cut out by the
-matte, then the other clips in project order. Each page holds one segment of the program (a
+matte, then the other clips in project order (with the front part of any clip that uses
+`<Front>`, see Blocks). Each page holds one segment of the program (a
 range between hard cuts) with every clip on screen in it; a clip is hidden and not run outside
 its window, and inside a transition window it holds its first or last frame. `still` takes
 program moments (`--at 2.5s`, `--at f120`) or, with `--clip`, that clip's moments, and
@@ -546,6 +621,37 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
   Inside a transition window there is no motion blur (the transition owns the move). Without a
   clip in the slot the style's surface shows. A whip right after a whip does not move, so it
   has no event and `check` warns.
+- `cutout`: only the speaker, cut out by the matte, over the style's surface: no room, no
+  plate. Clips with `"layer": "behind"` go between the surface and the speaker (a 3D world, a
+  colour field). It places a speaker recorded wider than the format anywhere in the frame, such
+  as a seated landscape recording in the lower left of a 9:16 frame. `params.anchor` is where
+  the speaker sits: `bottom-left`, `bottom` (default), `bottom-right` put the body on the
+  frame's bottom edge; `left`, `center`, `right` centre the speaker's box (head top to the
+  matte's bottom) on the frame's height. `params.size` is how tall the head is, top to chin, as
+  a share of the frame height (default 0.2 landscape, 0.15 square, 0.11 portrait). It is
+  measured from the matte over the whole shot, so the speaker comes out the same size whatever
+  the recording's framing: a close take and a wide one at the same `size` look alike, which a
+  share of the matte's box (it grows with every gesture and with how much body the recording
+  shows) would not give. `params.margin` is the space to the side edges the anchor names, as a
+  share of the frame's shorter side (default 0.05; negative moves the speaker past them). Across,
+  the head's centre sits 1.2 head heights in from the margin, so the shoulders stay in and the
+  speaker holds still while the hands move, but at most 0.35 of the frame width, so a speaker
+  too big for both shoulders runs off the anchored edge instead of drifting to the middle. Down, a matte that reaches the recording's bottom edge (a seated speaker, a medium
+  shot) puts that edge on the frame's whatever the margin, so the cut body runs out of the
+  frame; a matte that ends above it (feet) stands a margin above the frame's edge (on it with a
+  negative margin). A `panel` slot takes the empty part
+  of the frame: above the speaker for `bottom`, and in portrait and square for `bottom-left`
+  and `bottom-right` too (from the top of the safe area down to a margin above how high the
+  head gets over the shot, so it holds still while the head moves); beside the speaker
+  otherwise (the other side of the frame, full height; in portrait inside the safe area);
+  `center` has none. Shot keys (`x`, `y`, `scale`, `rotation`, `opacity`) move the speaker on
+  top, the panel stays. In a morph into or out of the shot the room fades out or in while the
+  camera moves. `check` warns when a frame edge the anchor does not name cuts the speaker off,
+  and when the speaker runs into an edge of the recording that sits inside the frame (a body
+  cut by the recording ending in mid-frame, as with `left` on a seated recording or a `y` key
+  lifting it). Both warnings follow the shot's keys, `rotation` included. It also warns when a
+  clip fills a `panel` the speaker leaves no room for (a head that reaches the top of the safe
+  area), since the clip then does not show. Needs a matte (`check` reports footage without one).
 
 **The speaker away.** A shot that cuts the speaker out by the matte (`behind`) takes `away`:
 stretches where the speaker is off the frame, so they are on screen only while they talk to the
@@ -614,7 +720,8 @@ camera and the world behind them carries the rest.
   ranges and their moves.
 
 **Keeping the head in.** Shots frame the face a third from the top of their camera window
-(`full`, `punch`, `strip`, `window`, `behind`, `whip`). That suits most footage, but a close
+(`full`, `punch`, `strip`, `window`, `behind`, `whip`; `cutout` sizes the speaker by the head
+instead). That suits most footage, but a close
 handheld selfie, where the head fills half the frame, can lose the top of the head in a strip or
 a small window. `params.headroom` (off by default; 0.06 is a good start) keeps the whole head in
 the shot's camera window, from the matte: the footage moves down until that share of the window
@@ -653,7 +760,7 @@ is clear of the head`). Left out:
 - text under 0.1 opacity (its own times its ancestors'), hidden text, and text with a
   transparent fill and no stroke or `background-clip: text` (letters a typewriter has not typed
   yet);
-- clips with `"layer": "behind"`;
+- clips with `"layer": "behind"`, apart from their `<Front>` part;
 - text under a subject layer that draws the speaker (`<Subject>` with `layer` `"subject"`, in
   the same clip after the text or in a later clip) over at least half of the face, read from
   the layer's pixels; a `"clean"` or `"plate"` layer, or one whose region misses the face, hides
@@ -674,7 +781,7 @@ drawn, a half-opaque chip that hugs the chin counts as its whole box, and inside
 order of its elements decides what is over what (a `z-index` there is not followed).
 
 `check` warns, the other way round, where the speaker covers text placed behind them: the text
-of a `"layer": "behind"` clip (a word slot behind the head), against the speaker as the matte
+of a `"layer": "behind"` clip (a word slot behind the head; not what it puts in `<Front>`), against the speaker as the matte
 cuts them out that frame, and text under a subject layer (`<Subject>` with `layer` `"subject"`,
 after the text in the same clip or in a later one), against that layer's pixels. A clip warns
 once, when the head or body has covered more than half of its text (sampled over its line
@@ -743,14 +850,14 @@ second: a ticker or marquee, a card with text that bleeds off the frame by desig
 `--safe-*`, its own layout for `clip.format.class`), after a look at a still.
 
 The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full`,
-`strip` and `window`, 0.3 s into `behind` from `full` (0.7 s from a framed shot), 0.16 s into
+`strip`, `window` and `cutout`, 0.3 s into `behind` from `full` (0.7 s from a framed shot), 0.16 s into
 `punch`, 0.45 s out of a punch, 0.42 s
 into and out of a whip; none under a shot `transition`). A window's ring and shadow and a dimmed
-room fade with the move. A clip with `"slot": "panel"` fills that slot and moves with it; while
+room fade with the move, and so does a room cut away by `cutout`. A clip with `"slot": "panel"` fills that slot and moves with it; while
 no shot frees its slot it is hidden and `check` warns. Its root also says how much of the slot
 platform UI covers at that frame ([safe insets of a slot](#safe-insets-of-a-slot)). Shots add
-events to the program for sounds to land on: `shot` halfway through a move into `strip` or
-`window` and back out of them, `punch` on a punch-in's first frame, and `whip` halfway through the
+events to the program for sounds to land on: `shot` halfway through a move into `strip`,
+`window` or `cutout` and back out of them, `punch` on a punch-in's first frame, and `whip` halfway through the
 whip out and the whip back (a punch after a whip hits when the camera lands). Nothing moves on the program's first frame,
 so a shot there has no event. A shot may run across hard cuts (the jump cuts of a talking head);
 `check` warns only when its morph, a change between two of its keys or its transition window is
@@ -1717,23 +1824,36 @@ With `cuts` or `shots`, `render` makes the whole program one video (`--export vi
 default there; `--export inserts` renders each clip as its own file, see
 [Inserts from a program](#inserts-from-a-program)).
 `--format WxH` renders another frame size from the same project; `--output` is an `.mp4` or a
-directory that gets `<project>[.<format>].mp4`. Each segment (the range between two hard cuts)
-is drawn in chunks of about 4 s (cut at every 4 s of program time, so the pieces stay put when
-an edit moves a segment's edges; a piece under 2 s at an edge joins its neighbour), each on
-pages of its segment and stored losslessly in `.visualfries/segments/<hash>-<engine>.mkv`; the
-chunks are joined without re-encoding and encoded once with the clip settings. A chunk's hash
-covers what its frames show, including every file its blocks import, the files project CSS
-points to and project files named in clip props, so editing one clip or one helper draws only
-the chunks it is on screen in (`--no-cache` draws everything again). Keys count by what they
-draw in the chunk's own frames: moving the speaker's exit by a tenth of a second draws again
-the chunks around the exit, not every chunk of the shot. A clip's other fields count whole: new
-props of a block that runs across the program draw all of it again. After a render the folder
-keeps only the intermediates the latest render of each project and format there uses; an
+directory that gets `<project>[.<format>].mp4`. The program is drawn and encoded in chunks of
+15 s of program time (`"chunkSeconds"` in the project or `--chunk-seconds` on `render` sets
+another length; shorter chunks redraw less after a small edit of a slow program). The grid runs
+from frame 0 whatever the cuts, so the chunks stay put when an edit moves a segment's edges. A
+chunk is drawn part by part on pages of the segments (the ranges between two hard cuts) it
+holds; each part is encoded once with the clip settings, starting on a keyframe (so a hard cut
+starts on one too), and the parts are joined into `.visualfries/segments/<hash>-<engine>.mp4`
+by stream copy. The video is the chunks joined by stream copy with the program sound:
+no frame is encoded twice, and a render that draws nothing new only joins. A chunk's hash
+covers what its page sets up and what its frames show: every clip the page of its segment
+mounts (all of it but its keys), every file their blocks import, the files project CSS points
+to and project files named in clip props, and the cuts, shots and transitions its frames show.
+So editing one clip's props, timing or block, or one helper, draws again the chunks of the
+segments it is on screen in, and leaves the other segments alone (`--no-cache` draws everything
+again). Keys count by what they draw in the frames the chunk shows: moving the speaker's exit by
+a tenth of a second draws again the chunks around the exit, not every chunk of the shot. A clip
+held at its edge frame inside a transition window, and the frame an excerpt's end card holds,
+count at the frame they hold; a keyed prop also counts with the value its block mounts with (on
+the clip's first frame). A cached render gives the same frames as `--no-cache` only when every
+block draws a frame from its program frame alone: a page goes on from chunk to chunk, and which
+chunks it draws depends on the cache, so a block that carries state over from earlier frames
+gives a video mixed from different histories (`check --determinism` finds such blocks). After
+a render the folder
+keeps only the chunks the latest render of each project and format there uses; an
 interrupted render removes its partial files, and the next render removes those of a render
-that was killed. With at least as many chunks to draw as `--jobs` and none much longer than its
-share, each page takes whole chunks, going on to the next chunk of the same segment; otherwise a
-chunk's frames are spread over the pages. The resolved program, with every segment's `chunks`,
-is saved beside the video as `<name>.program.json`.
+that was killed. With at least as many parts to draw as `--jobs` and none much longer than its
+share, each page takes whole parts, going on to the next part of the same segment; otherwise a
+part's frames are spread over the pages. At most `--jobs` pages are open at once: an idle page
+of another segment closes before a new one opens. The resolved program, with its `chunks` and
+every segment's `parts`, is saved beside the video as `<name>.program.json`.
 
 A re-take that changes words (not just timing) makes the affected cues fail with a suggestion,
 e.g. `"extra" not found … Did you mean "spare" at 59.80s?`. Update the phrase in the JSON;
@@ -1833,7 +1953,8 @@ as the program draws it, alone:
   which is erased from the first (alpha × (1 − subject alpha), colours kept). Laid over the
   footage, the clip sits behind the speaker exactly as in the program render. The cut list maps
   every frame, handles included, to its source frame, so the holdout follows the speaker across
-  cuts.
+  cuts. A clip with a `<Front>` part is drawn a third time, its front part alone over the
+  result: the labels stay whole over the speaker, as in the program.
 
 Each manifest entry adds to the fields of a clip render: `handles` (`before`, `after`), `clip`
 (the clip's own `startFrame` and `frames`), `layer`, `slot`, `holdout`, `sources` (the cut list

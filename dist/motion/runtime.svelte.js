@@ -340,6 +340,11 @@ const roots = new WeakMap();
 export function registerClipRoot(c) {
     roots.set(c.root, c);
 }
+/** Called by the stage for a second root of a clip (its front part, see `<Front>`). */
+export function registerClipPart(c, part) {
+    roots.set(part, c);
+    (c.parts ??= []).push(part);
+}
 /** The clip an element of a mounted block belongs to. */
 export function controllerOf(node) {
     for (let el = node; el; el = el.parentElement) {
@@ -361,13 +366,15 @@ export function useClip() {
 }
 /**
  * Build a paused GSAP timeline in clip seconds. VisualFries seeks it to every frame,
- * so there is no wall-clock playback. Selectors via `q` are scoped to this clip.
+ * so there is no wall-clock playback. Selectors via `q` are scoped to this clip, its front
+ * part (`<Front>`) included.
  */
 export function useTimeline(build) {
     const c = controller();
     onMount(() => {
         const tl = gsap.timeline({ paused: true });
-        const q = (selector) => Array.from(c.root.querySelectorAll(selector));
+        // The clip's front part too: one block, one timeline.
+        const q = (selector) => [c.root, ...(c.parts ?? [])].flatMap((root) => Array.from(root.querySelectorAll(selector)));
         build({ tl, at: (a) => c.clip.at(a), q, clip: c.clip });
         // Pad to the clip end, then record every tween's start values once so any seek order is equal.
         if (tl.duration() < c.clip.duration)

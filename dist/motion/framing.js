@@ -2,7 +2,8 @@ import { programFootageAt } from './footage-map.js';
 import { sourceSubjectBox } from './footage.js';
 import { HEADROOM, SUBJECT_SMOOTH } from './shots/layout.js';
 import { aspectParam } from './shots/window.js';
-import { awayAt, shotLayout, shotLayoutAt } from './shots/index.js';
+import { anchorParam, anchoredEdges } from './shots/cutout.js';
+import { shotLayout, shotLayoutAt } from './shots/index.js';
 /**
  * Framing a program's footage: what the shot engine gets at each frame (the subject, smoothed,
  * and each shot's one head size), shared by the stage that draws it and the `check` that warns
@@ -59,10 +60,50 @@ export function headOfRuns(runs, footage, source) {
     return headPercentile(heights);
 }
 function headPercentile(heights) {
-    if (!heights.length)
+    return percentile(heights, HEAD_PERCENTILE);
+}
+function percentile(values, share) {
+    if (!values.length)
         return null;
-    heights.sort((a, b) => a - b);
-    return heights[Math.min(heights.length - 1, Math.floor(heights.length * HEAD_PERCENTILE))];
+    values.sort((a, b) => a - b);
+    return values[Math.min(values.length - 1, Math.floor(values.length * share))];
+}
+/**
+ * How high the top of the head gets over a shot showing `source` (see `ShotInput.shotTop`): a
+ * low percentile of the matte's raw head tops over the shot's program frames, so a stray speck
+ * of matte does not count and a lean held for a while does. Null without a matte.
+ */
+export function shotTop(shot, map, footage, source) {
+    if (!map)
+        return null;
+    const tops = [];
+    const from = Math.max(0, shot.startFrame);
+    const to = Math.min(map.frames, shot.startFrame + shot.frames);
+    for (let f = from; f < to; f++) {
+        const view = programFootageAt(map, f);
+        if (view?.source !== source)
+            continue;
+        const frames = footage[view.source];
+        const box = frames ? sourceSubjectBox(frames, view.frame) : null;
+        if (box)
+            tops.push(box.headY);
+    }
+    return percentile(tops, PEAK_TOP);
+}
+/** `shotTop` over the picture `runs` give (see `headOfRuns`). */
+export function topOfRuns(runs, footage, source) {
+    const frames = footage[source];
+    const tops = [];
+    for (const run of runs) {
+        if (run.source !== source || !frames)
+            continue;
+        for (let k = 0; k < run.frames; k++) {
+            const box = sourceSubjectBox(frames, run.held ? run.frame : run.frame + k);
+            if (box)
+                tops.push(box.headY);
+        }
+    }
+    return percentile(tops, PEAK_TOP);
 }
 /**
  * The framing of a program (or a segment of it): the layout of a side showing `view` at
@@ -84,16 +125,21 @@ export function programFraming(data) {
             heads.set(key, shotHead(span, data.footageMap, data.footage, source));
         return heads.get(key);
     };
-    /**
-     * The matte of an away decision's picture, only the frames its look names (see `AwayLook`),
-     * under a name of its own so nothing it measures mixes with the footage's own.
-     */
-    const looked = new Map();
-    const framesOf = (view) => view
-        ? looked.has(view.source)
-            ? looked.get(view.source).frames
-            : (data.footage[view.source] ?? null)
-        : null;
+    const tops = new Map();
+    /** How high the head gets over `shot` showing `source` (see `shotTop`). */
+    const topOf = (shot, source) => {
+        const span = shot.id ? data.shots.find((s) => s.id === shot.id) : undefined;
+        if (!span || source === null)
+            return null;
+        const key = `${span.id}\u0000${source}`;
+        const given = data.tops?.[span.id];
+        if (given && source in given)
+            return given[source];
+        if (!tops.has(key))
+            tops.set(key, shotTop(span, data.footageMap, data.footage, source));
+        return tops.get(key);
+    };
+    const framesOf = (view) => view ? (data.footage[view.source] ?? null) : null;
     // How high the head gets is only worth working out when a shot keeps the head in.
     const keepsHeads = data.shots.some((s) => typeof s.params.headroom === 'number');
     const raw = new Map();
@@ -140,33 +186,6 @@ export function programFraming(data) {
         }
         return n ? sum / n : null;
     }
-    // How far the matte reaches is only worth working out when a shot sends the speaker away.
-    const sendsAway = data.shots.some((s) => !!s.away?.length);
-    /**
-     * How far the subject reaches around a view (see `LayoutInput.reach`): the matte's boxes of
-     * every frame within `SUBJECT_SMOOTH` seconds of it, joined, so an arm raised for a moment
-     * stays out of the frame with the rest of him. Null without boxes there.
-     */
-    function reachOf(view) {
-        const frames = framesOf(view);
-        if (!frames || !view)
-            return null;
-        const w = Math.round(SUBJECT_SMOOTH * data.fps);
-        let x0 = Infinity;
-        let y0 = Infinity;
-        let x1 = -Infinity;
-        let y1 = -Infinity;
-        for (let g = view.frame - w; g <= view.frame + w; g++) {
-            const box = sourceSubjectBox(frames, g);
-            if (!box)
-                continue;
-            x0 = Math.min(x0, box.x);
-            y0 = Math.min(y0, box.y);
-            x1 = Math.max(x1, box.x + box.width);
-            y1 = Math.max(y1, box.y + box.height);
-        }
-        return x1 < x0 ? null : { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
-    }
     /** The subject in a view, averaged over `SUBJECT_SMOOTH` seconds on each side. */
     function subjectOf(view) {
         const frames = framesOf(view);
@@ -174,45 +193,18 @@ export function programFraming(data) {
             ? sourceSubjectBox(frames, view.frame, Math.round(SUBJECT_SMOOTH * data.fps))
             : null;
     }
-    /** What the shot engine gets of `view`. */
-    function inputOf(view) {
+    function layoutFor(f, view, shot) {
         const frames = framesOf(view);
-        return {
+        const input = {
             cls: data.cls,
             size: data.size,
             footage: frames ? [frames.width, frames.height] : null,
             safe: data.format.safe,
             subject: subjectOf(view),
             headTop: headTopOf(view),
-            headOf: (s) => headOf(s, view ? (looked.get(view.source)?.source ?? view.source) : null),
-            ...(sendsAway ? { reach: reachOf(view), at: inputAt } : {})
+            headOf: (s) => headOf(s, view?.source ?? null),
+            topOf: (s) => topOf(s, view?.source ?? null)
         };
-    }
-    /**
-     * The input of the picture where an away move decides its side (see `LayoutInput.at`): the
-     * source frame the range carries, else what this program shows at frame `g`.
-     */
-    function inputAt(g, look) {
-        if (!look)
-            return inputOf(data.footageMap ? programFootageAt(data.footageMap, g) : null);
-        const name = `${look.source}\u0000${look.first}-${look.last}`;
-        if (!looked.has(name)) {
-            const own = data.footage[look.source];
-            const frames = own
-                ? {
-                    ...own,
-                    ranges: undefined,
-                    first: look.first,
-                    last: look.last,
-                    boxes: Array.from({ length: look.last - look.first + 1 }, (_, k) => sourceSubjectBox(own, look.first + k))
-                }
-                : null;
-            looked.set(name, { source: look.source, frames });
-        }
-        return inputOf({ source: name, frame: look.frame, owner: '', held: false });
-    }
-    function layoutFor(f, view, shot) {
-        const input = inputOf(view);
         return shot ? shotLayout(shot, input, f) : shotLayoutAt(data.shots, f, input);
     }
     return { layoutFor, subjectOf, headOf };
@@ -236,8 +228,7 @@ const BARE = 0.01;
  * row, its keys included: the top of the head less than `TOP_ROOM` of the window below its top
  * edge (or past it), or more than `FACE_CUT` of the head below its bottom edge. The head is
  * where each frame's matte puts it (not smoothed: a lean that the calm framing lags behind
- * counts). Morphs, cut or shot transition windows and the speaker's `away` moves and stretches
- * are skipped (the head is in motion or meant to be off the frame there).
+ * counts). Morphs and cut or shot transition windows are skipped (the head is in motion there).
  * The stretches of one shot at one edge make one crop. `range` limits the frames looked at.
  */
 export function headCrops(data, range = { startFrame: 0, frames: Infinity }) {
@@ -267,9 +258,7 @@ export function headCrops(data, range = { startFrame: 0, frames: Infinity }) {
         };
         for (let f = from; f < to; f++) {
             const view = programFootageAt(map, f);
-            // While the speaker is (partly) away his head is meant to leave the window.
-            const away = !!awayAt(shot.away, f);
-            const frames = view && !inWindow(f) && !away ? data.footage[view.source] : undefined;
+            const frames = view && !inWindow(f) ? data.footage[view.source] : undefined;
             const box = frames && view ? sourceSubjectBox(frames, view.frame) : null;
             if (!box || !view) {
                 close('top');
@@ -337,7 +326,12 @@ export function headCropMessage(crop, shot, fps) {
         return `${head} The recording itself has the head at its top edge there, so no framing param adds room above it: keep it, or use another take.`;
     const keyed = (k) => shot.keys?.some((key) => k in key.values) ?? false;
     const tries = [];
-    if (typeof shot.params.headroom !== 'number')
+    // A cutout sizes the speaker by the head instead (it takes no "headroom").
+    if (shot.shot === 'cutout') {
+        if (crop.edge === 'top')
+            tries.push('a smaller "size"');
+    }
+    else if (typeof shot.params.headroom !== 'number')
         tries.push(`set "headroom": ${HEADROOM} (keeps the whole head in, backing off over a blurred copy when it must)`);
     if (shot.shot === 'window') {
         const aspect = aspectParam(shot.params.aspect);
@@ -360,4 +354,272 @@ export function headCropMessage(crop, shot, fps) {
         tries.push('framing the speaker in a "window" or a "strip", where the camera can back off; the footage has no more room around the head in this shot');
     const unless = crop.edge === 'top' && crop.pixels === 0 ? 'If that is not meant' : 'If the crop is not meant';
     return `${head} ${unless}, try: ${tries.join('; ')}. Look at a still of the shot before deciding.`;
+}
+/** Pixels of the speaker past an edge, of the frame's shorter side, before `check` counts it. */
+const EDGE_CUT = 0.01;
+/** A matte this close to an edge of the recording (of its size) runs into that edge. */
+const RECORDING_EDGE = 0.005;
+/** Points along a turned recording edge where `cutoutEdges` looks for frame beyond it. */
+const EDGE_SAMPLES = 16;
+/**
+ * Where a `cutout` shot shows the speaker cut, for at least `CROP_FRAMES` frames in a row, its
+ * keys included: the matte's box past a frame edge the anchor does not sit the speaker against
+ * (the top is `headCrops`'), or the matte running into an edge of the recording that sits inside
+ * the frame. Each frame's own matte box counts; frames with nothing of the speaker in the frame
+ * (sent away by a key), morphs and cut or shot transition windows are skipped. A `rotation`
+ * key turns the matte's box and the recording's edges about its pivot, as the stage draws them.
+ */
+export function cutoutEdges(data, range = { startFrame: 0, frames: Infinity }) {
+    const map = data.footageMap;
+    if (!map)
+        return [];
+    const framing = programFraming(data);
+    const [W, H] = data.size;
+    const min = EDGE_CUT * Math.min(W, H);
+    const out = [];
+    const inWindow = (f) => data.transitions.some((t) => t.kind !== 'clip' && f >= t.startFrame && f < t.startFrame + t.frames);
+    for (const shot of data.shots) {
+        if (shot.shot !== 'cutout')
+            continue;
+        const anchored = anchoredEdges(anchorParam(shot.params));
+        const from = Math.max(shot.startFrame + shot.morphFrames, range.startFrame);
+        const to = Math.min(shot.startFrame + shot.frames, range.startFrame + range.frames);
+        const runs = new Map();
+        const done = new Map();
+        const close = (key) => {
+            const run = runs.get(key);
+            if (run && run.to - run.from + 1 >= CROP_FRAMES)
+                done.set(key, [...(done.get(key) ?? []), run]);
+            runs.delete(key);
+        };
+        for (let f = from; f < to; f++) {
+            const view = programFootageAt(map, f);
+            const frames = view && !inWindow(f) ? data.footage[view.source] : undefined;
+            const box = frames && view ? sourceSubjectBox(frames, view.frame) : null;
+            const found = new Map();
+            if (box && view) {
+                const { camera, turn } = framing.layoutFor(f, view);
+                // A point of the recording (0–1) on the stage, turned with a rotation key.
+                const cos = turn ? Math.cos((turn.rotation * Math.PI) / 180) : 1;
+                const sin = turn ? Math.sin((turn.rotation * Math.PI) / 180) : 0;
+                const at = (u, v) => {
+                    const x = camera.x + u * camera.width;
+                    const y = camera.y + v * camera.height;
+                    if (!turn)
+                        return [x, y];
+                    const dx = x - turn.pivot.x;
+                    const dy = y - turn.pivot.y;
+                    return [turn.pivot.x + dx * cos - dy * sin, turn.pivot.y + dx * sin + dy * cos];
+                };
+                const corners = [
+                    at(box.x, box.y),
+                    at(box.x + box.width, box.y),
+                    at(box.x, box.y + box.height),
+                    at(box.x + box.width, box.y + box.height)
+                ];
+                const x0 = Math.min(...corners.map((c) => c[0]));
+                const x1 = Math.max(...corners.map((c) => c[0]));
+                const y0 = Math.min(...corners.map((c) => c[1]));
+                const y1 = Math.max(...corners.map((c) => c[1]));
+                // Turned, the box's bounds can reach into the frame while the box does not: its own
+                // sides are axes that may part it from the frame too.
+                const frame = [
+                    [0, 0],
+                    [W, 0],
+                    [0, H],
+                    [W, H]
+                ];
+                const parted = (ax, ay) => {
+                    const on = (list) => list.map(([x, y]) => x * ax + y * ay);
+                    const a = on(corners);
+                    const b = on(frame);
+                    return Math.max(...a) <= Math.min(...b) || Math.min(...a) >= Math.max(...b);
+                };
+                const sides = [corners[1], corners[2]].map(([x, y]) => [
+                    x - corners[0][0],
+                    y - corners[0][1]
+                ]);
+                const seen = x1 > 0 &&
+                    x0 < W &&
+                    y1 > 0 &&
+                    y0 < H &&
+                    !(turn && sides.some(([dx, dy]) => parted(-dy, dx)));
+                if (seen) {
+                    const past = { left: -x0, right: x1 - W, top: 0, bottom: y1 - H };
+                    for (const edge of ['left', 'right', 'bottom'])
+                        if (!anchored.includes(edge) && past[edge] > min)
+                            found.set(`frame:${edge}`, past[edge]);
+                    // How much frame lies beyond each edge of the recording along the matte, out from
+                    // the recording (turned with it): the body would go on there. Unturned, that is
+                    // how far inside the frame the edge is.
+                    const beyond = ([u0, v0], [u1, v1], [nx, ny]) => {
+                        const d = [nx * cos - ny * sin, nx * sin + ny * cos];
+                        const size = [W, H];
+                        const exit = (p) => Math.min(...[0, 1]
+                            .filter((i) => Math.abs(d[i]) > 1e-9)
+                            .map((i) => ((d[i] > 0 ? size[i] : 0) - p[i]) / d[i]));
+                        if (!turn)
+                            return exit(at(u0, v0));
+                        // Turned, only where the edge itself is on the frame: off it, no line shows.
+                        const steps = Array.from({ length: EDGE_SAMPLES + 1 }, (_, k) => k / EDGE_SAMPLES);
+                        const on = steps
+                            .map((t) => at(u0 + (u1 - u0) * t, v0 + (v1 - v0) * t))
+                            .filter(([x, y]) => x >= 0 && x <= W && y >= 0 && y <= H);
+                        return Math.max(-Infinity, ...on.map(exit));
+                    };
+                    const { x: bx, y: by, width: bw, height: bh } = box;
+                    const inside = {
+                        left: beyond([0, by], [0, by + bh], [-1, 0]),
+                        right: beyond([1, by], [1, by + bh], [1, 0]),
+                        top: beyond([bx, 0], [bx + bw, 0], [0, -1]),
+                        bottom: beyond([bx, 1], [bx + bw, 1], [0, 1])
+                    };
+                    const touches = {
+                        left: box.x <= RECORDING_EDGE,
+                        right: box.x + box.width >= 1 - RECORDING_EDGE,
+                        top: box.y <= RECORDING_EDGE,
+                        bottom: box.y + box.height >= 1 - RECORDING_EDGE
+                    };
+                    for (const edge of ['left', 'right', 'top', 'bottom'])
+                        if (touches[edge] && inside[edge] > min)
+                            found.set(`recording:${edge}`, inside[edge]);
+                }
+            }
+            for (const key of [...runs.keys()])
+                if (!found.has(key))
+                    close(key);
+            for (const [key, pixels] of found) {
+                const run = runs.get(key) ?? { from: f, to: f, pixels };
+                run.to = f;
+                run.pixels = Math.max(run.pixels, pixels);
+                runs.set(key, run);
+            }
+        }
+        for (const key of [...runs.keys()])
+            close(key);
+        for (const [key, list] of done) {
+            const [kind, edge] = key.split(':');
+            out.push({
+                shot: shot.id,
+                kind,
+                edge,
+                from: list[0].from,
+                to: list[list.length - 1].to,
+                ranges: list.map((r) => [r.from, r.to]),
+                pixels: Math.round(Math.max(...list.map((r) => r.pixels)))
+            });
+        }
+    }
+    return out.sort((a, b) => a.from - b.from);
+}
+/** A `check` warning for a cutout edge, worded so an agent knows what it can change. */
+export function cutoutEdgeMessage(cut, shot, fps) {
+    const s = (f) => `${(f / fps).toFixed(2)} s`;
+    const when = cut.ranges.map(([a, b]) => `${s(a)} to ${s(b + 1)}`);
+    const span = when.length === 1
+        ? `from ${when[0]}`
+        : `from ${when.slice(0, -1).join(', ')} and ${when[when.length - 1]}`;
+    const anchor = anchorParam(shot.params);
+    const keyed = (k) => shot.keys?.some((key) => k in key.values) ?? false;
+    const tries = [];
+    let head;
+    if (cut.kind === 'frame') {
+        head = `Shot "${cut.shot}" (cutout) cuts the speaker off at the frame's ${cut.edge} edge (up to ${cut.pixels} px of the speaker past it) ${span}, its keys included; the "${anchor}" anchor sits the speaker against ${listEdges(anchoredEdges(anchor))}.`;
+        tries.push('a smaller "size"');
+        if (cut.edge !== 'bottom')
+            tries.push(`an anchor on that side ("${cut.edge === 'left' ? 'bottom-left' : 'bottom-right'}" or "${cut.edge}")`);
+        if (keyed('scale'))
+            tries.push('a lower "scale" key');
+        if (keyed(cut.edge === 'bottom' ? 'y' : 'x'))
+            tries.push(`a "${cut.edge === 'bottom' ? 'y' : 'x'}" key closer to 0`);
+    }
+    else {
+        head = `Shot "${cut.shot}" (cutout) shows where the recording ends: the speaker runs into the recording's ${cut.edge} edge, which sits up to ${cut.pixels} px inside the frame, so the speaker ends in a hard line in mid-frame ${span}, its keys included.`;
+        if (cut.edge === 'bottom')
+            tries.push(anchor.startsWith('bottom')
+                ? 'no key lifting the speaker'
+                : 'a bottom anchor ("bottom-left", "bottom" or "bottom-right"): the cut body then runs out of the frame\'s bottom edge');
+        else if (cut.edge === 'top')
+            tries.push('another take: the recording itself has the head at its top edge');
+        else
+            tries.push(`an anchor on that side ("${cut.edge === 'left' ? 'bottom-left' : 'bottom-right'}" or "${cut.edge}") with "margin": 0`);
+        if (keyed('scale'))
+            tries.push('a "scale" key closer to 1');
+        if (keyed('x') && (cut.edge === 'left' || cut.edge === 'right'))
+            tries.push('an "x" key closer to 0');
+        if (keyed('y') && (cut.edge === 'top' || cut.edge === 'bottom'))
+            tries.push('a "y" key closer to 0');
+    }
+    if (keyed('rotation'))
+        tries.push('a "rotation" key closer to 0');
+    return `${head} If that is not meant, try: ${tries.join('; ')}. Look at a still of the shot before deciding.`;
+}
+const listEdges = (edges) => edges.length ? `the ${edges.join(' and ')} edge${edges.length > 1 ? 's' : ''}` : 'no edge';
+/**
+ * Where a clip fills a slot of a `cutout` shot that the speaker leaves no room for (less than
+ * `EDGE_CUT` of the frame's shorter side across or down), for at least `CROP_FRAMES` frames in
+ * a row: a head that gets close to the top of the safe area takes the panel above it, and the
+ * clip in it does not show. Morphs and cut or shot transition windows are skipped.
+ */
+export function cutoutPanels(data) {
+    const map = data.footageMap;
+    if (!map)
+        return [];
+    const framing = programFraming(data);
+    const min = EDGE_CUT * Math.min(...data.size);
+    const out = [];
+    const inWindow = (f) => data.transitions.some((t) => t.kind !== 'clip' && f >= t.startFrame && f < t.startFrame + t.frames);
+    for (const shot of data.shots) {
+        if (shot.shot !== 'cutout')
+            continue;
+        for (const clip of data.clips) {
+            if (!clip.slot)
+                continue;
+            const from = Math.max(shot.startFrame + shot.morphFrames, clip.show.from);
+            const to = Math.min(shot.startFrame + shot.frames, clip.show.until);
+            const ranges = [];
+            let run = null;
+            const close = () => {
+                if (run && run[1] - run[0] + 1 >= CROP_FRAMES)
+                    ranges.push(run);
+                run = null;
+            };
+            for (let f = from; f < to; f++) {
+                const view = inWindow(f) ? null : programFootageAt(map, f);
+                const rect = view ? framing.layoutFor(f, view).slots[clip.slot] : undefined;
+                if (rect && (rect.width < min || rect.height < min)) {
+                    if (run)
+                        run[1] = f;
+                    else
+                        run = [f, f];
+                }
+                else
+                    close();
+            }
+            close();
+            if (ranges.length)
+                out.push({
+                    clip: clip.id,
+                    shot: shot.id,
+                    slot: clip.slot,
+                    from: ranges[0][0],
+                    to: ranges[ranges.length - 1][1],
+                    ranges
+                });
+        }
+    }
+    return out.sort((a, b) => a.from - b.from);
+}
+/** A `check` warning for a cutout slot without room, worded so an agent knows what to change. */
+export function cutoutPanelMessage(panel, shot, fps) {
+    const s = (f) => `${(f / fps).toFixed(2)} s`;
+    const when = panel.ranges.map(([a, b]) => `${s(a)} to ${s(b + 1)}`);
+    const span = when.length === 1
+        ? `from ${when[0]}`
+        : `from ${when.slice(0, -1).join(', ')} and ${when[when.length - 1]}`;
+    const tries = ['a smaller "size"'];
+    const anchor = anchorParam(shot.params);
+    if (anchor !== 'left' && anchor !== 'right')
+        tries.push('a "left" or "right" anchor, which puts the panel beside the speaker');
+    return `Clip "${panel.clip}" fills the "${panel.slot}" slot of shot "${panel.shot}" (cutout), but the speaker leaves the slot no room ${span}, so the clip does not show there. If that is not meant, try: ${tries.join('; ')}.`;
 }

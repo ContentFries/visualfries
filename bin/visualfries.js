@@ -71,10 +71,12 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     size, transparent, 10 frames of handle each side, "layer": "behind" as a
                     holdout, manifest.json with the cut list under each insert; check
                     --export inserts lists what inserts leave to the program render.
-                    Video: [--format <WxH>] [--excerpt <id>] [--no-cache] [--stems]; --excerpt renders
-                    one of the project's "excerpts" as <name>.<id>.mp4; segments are cached losslessly in
-                    .visualfries/segments/ in chunks of about 4 s and only changed chunks are drawn again;
-                    <name>.program.json is saved beside the video. The sound is speech, sfx
+                    Video: [--format <WxH>] [--excerpt <id>] [--no-cache] [--stems]
+                    [--chunk-seconds <s>]; --excerpt renders one of the project's "excerpts" as
+                    <name>.<id>.mp4; the program is drawn and encoded in chunks of 15 s
+                    (--chunk-seconds or "chunkSeconds" in the project), cached in
+                    .visualfries/segments/; only changed chunks are drawn again and the video is
+                    the chunks joined without encoding again; <name>.program.json is saved beside the video. The sound is speech, sfx
                     and music mixed and normalised (-14 LUFS, -1 dBTP; "mix" in the project);
                     --stems also writes <name>.speech|sfx|music.wav
   visualfries cache <project.vf.json> [--clear]
@@ -1865,7 +1867,7 @@ async function motionProgramCommand(args) {
 			);
 		for (const seg of program.segments)
 			console.log(
-				`segment ${seg.id}  frames ${seg.startFrame}–${seg.startFrame + seg.frames - 1}  ${seg.hash.slice(0, 12)}  ${seg.items.join(', ')}${seg.chunks.length > 1 ? `  (${seg.chunks.length} chunks)` : ''}`
+				`segment ${seg.id}  frames ${seg.startFrame}–${seg.startFrame + seg.frames - 1}  ${seg.hash.slice(0, 12)}  ${seg.items.join(', ')}${seg.parts.length > 1 ? `  (${seg.parts.length} parts)` : ''}`
 			);
 		for (const d of program.diagnostics)
 			console.log(`${d.level.toUpperCase()} ${d.item ?? d.clip ?? '-'} ${d.field}: ${d.message}`);
@@ -1975,7 +1977,7 @@ async function cacheCommand(args) {
 	const segmentsDir = path.join(dir, 'segments');
 	const list = async (p) => fs.readdir(p).catch(() => []);
 	const folders = await list(footage);
-	const segments = (await list(segmentsDir)).filter((n) => n.endsWith('.mkv'));
+	const segments = (await list(segmentsDir)).filter((n) => /\.(?:mkv|mp4)$/.test(n));
 	const before = await size(dir);
 	if (hasFlag(args, '--clear')) {
 		await fs.rm(footage, { recursive: true, force: true });
@@ -2084,7 +2086,7 @@ async function motionRenderCommand(args) {
 	if (!output)
 		throw new Error(
 			'Usage: visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]\n' +
-				'       visualfries render <program.vf.json> --output <dir|video.mp4> [--export video] [--format <WxH>] [--excerpt <id>] [--jobs <n>] [--no-cache] [--stems]\n' +
+				'       visualfries render <program.vf.json> --output <dir|video.mp4> [--export video] [--format <WxH>] [--excerpt <id>] [--jobs <n>] [--chunk-seconds <s>] [--no-cache] [--stems]\n' +
 				'       visualfries render <program.vf.json> --export inserts --output <dir|clip.mov> [--handles <frames>] [--clip <id>]... [--jobs <n>]'
 		);
 	const { loadMotionProject, renderMotionClips } = await motionModule();
@@ -2114,6 +2116,7 @@ async function motionRenderCommand(args) {
 			format: readFlag(args, '--format'),
 			excerpt,
 			jobs: numberFlag(args, '--jobs'),
+			chunkSeconds: numberFlag(args, '--chunk-seconds'),
 			invalidate: readFlag(args, '--invalidate'),
 			fresh: hasFlag(args, '--no-cache'),
 			stems: hasFlag(args, '--stems'),

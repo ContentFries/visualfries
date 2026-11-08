@@ -151,15 +151,16 @@ segment seg1  frames 0–152  3c9aad249c2b  hook, take, open, hook-behind, list-
 
 `--json` prints the whole resolved program, including the `events` that shots and transitions add for sounds to land on.
 
-**`still` and `check`** draw the whole program on one stage: the footage the cut list shows, clips with `"layer": "behind"` between the footage and the speaker, then the other clips in project order. Each page holds one segment (a range between hard cuts). `still` takes program moments (`--at 2.5s`, `--at f120`, `--at end`); with `--clip` it takes that clip's moments. `check --determinism` compares every segment forward, backward, scrambled and against a page holding the whole program, and prints the mix's loudness.
+**`still` and `check`** draw the whole program on one stage: the footage the cut list shows, clips with `"layer": "behind"` between the footage and the speaker, then the other clips in project order (with the `<Front>` part of a clip, see [Blocks](/docs/blocks)). Each page holds one segment (a range between hard cuts). `still` takes program moments (`--at 2.5s`, `--at f120`, `--at end`); with `--clip` it takes that clip's moments. `check --determinism` compares every segment forward, backward, scrambled and against a page holding the whole program, and prints the mix's loudness.
 
 `still` and `check` draw the project's own size. To look at another format, copy the project with another `size`.
 
 **`render`** makes the whole program one video. The output is an `.mp4`, or a directory that gets `<project>[.<format>].mp4`.
 
-- **Segments and chunks.** Each segment is drawn in chunks of about 4 s on its own pages and stored losslessly in `.visualfries/segments/`. The chunks are joined without re-encoding and encoded once, and the resolved program is saved beside the video as `<name>.program.json`.
-- **Cache.** A chunk's hash covers what its frames show, including every file its blocks import. Editing one clip draws only the chunks it is on screen in; `--no-cache` draws everything again.
-- **What makes a chunk redraw.** Keys count by what they draw in the chunk: moving the speaker's exit by 0.1 s redraws the chunks around the exit only. A clip's other fields count whole, so a clip across the whole program (captions, a 3D world) puts every chunk in play when its props change. A cut that gets longer or shorter moves everything after it.
+- **Chunks.** The program is drawn in chunks of 15 s (`"chunkSeconds"` in the project or `--chunk-seconds` sets another length), each encoded once into `.visualfries/segments/`. The video is the chunks joined by stream copy with the program sound, so no frame is encoded twice, and the resolved program is saved beside the video as `<name>.program.json`.
+- **Cache.** A chunk's hash covers what its segment's page sets up (every clip it mounts, keys aside, and every file their blocks import) and what the chunk's own frames show. Editing one clip's props, timing or block redraws the chunks of the segments it is on screen in; `--no-cache` draws everything again.
+- **What makes a chunk redraw.** Keys count by what they draw in the chunk: moving the speaker's exit by 0.1 s redraws the chunks around the exit only. A clip held at its edge inside a transition window, and the frame an excerpt's end card holds, count at the frame they hold. A clip's other fields count across its segment, so a clip across the whole program (captions, a 3D world) puts every chunk in play when its props change. A cut that gets longer or shorter moves everything after it.
+- **Same frames as `--no-cache`.** Only when every block draws a frame from its program frame alone. A page goes on from chunk to chunk, and which chunks it draws depends on the cache, so a block that carries state over from earlier frames mixes histories; `check --determinism` finds such blocks.
 - **Housekeeping.** `visualfries cache reel.vf.json` shows the cache's size, and `--clear` drops it.
 
 ## Excerpts: teasers from the same program
@@ -222,6 +223,6 @@ An insert is the clip exactly as the program draws it, alone:
 - **Size and position.** Every insert has the program's frame size, and the clip sits where the program draws it, slots and keys included.
 - **Handles.** `--handles` frames before and after (default 10), in which the clip holds its first or last frame.
 - **Alpha.** Inserts are transparent ProRes 4444 `.mov` files with straight alpha, unless the clip says `"alpha": false`.
-- **Behind clips.** A clip with `"layer": "behind"` becomes a holdout: the speaker is erased from it frame by frame, across cuts.
+- **Behind clips.** A clip with `"layer": "behind"` becomes a holdout: the speaker is erased from it frame by frame, across cuts. What it draws in `<Front>` is drawn over the holdout and never erased.
 
 `manifest.json` lists each insert's program start frame, handles and the cut list under it (`sources`). The cut list, shots, transitions and the program's sound stay in the program render; `check --export inserts` lists every place where the program relies on them.

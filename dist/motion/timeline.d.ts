@@ -94,7 +94,7 @@ export type ItemAnchor = z.infer<typeof ItemAnchorShape>;
 /** Built-in transitions; a path ("transitions/My.svelte") names a custom one. */
 export declare const TRANSITIONS: readonly ["wipe", "push", "zoom-through", "shape-mask", "blinds", "card"];
 /** Built-in shots; a path ("shots/My.ts") names a custom one. */
-export declare const SHOTS: readonly ["full", "punch", "strip", "window", "behind", "whip"];
+export declare const SHOTS: readonly ["full", "punch", "strip", "window", "behind", "whip", "cutout"];
 /**
  * The handoff into the item that carries it. A name ("push") or the full form. It never changes
  * program time and never touches audio.

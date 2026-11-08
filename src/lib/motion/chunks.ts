@@ -1,30 +1,82 @@
 import type { ResolvedKey } from './program.js';
+import { sha1 } from './sha1.js';
 
 /**
- * Chunks: the pieces a render draws and caches on their own. A segment is the range one page
- * draws; a long one (a block across the whole program) is cut into chunks, each hashed by what
- * its own frames show, so an edit draws again only the chunks it changes.
+ * Chunks: the pieces of the program a render draws, encodes and caches on their own. The
+ * program is cut on a fixed grid of program frames, whatever its segments (the ranges one page
+ * draws): a chunk holds the parts of every segment inside it, each hashed by what its page sets
+ * up for the segment and by the key states of the frames it draws. An edit draws and encodes
+ * again only the chunks it changes; the video is the chunks joined as they are.
  */
 
 type Span = { startFrame: number; frames: number };
 
-/** Seconds of a chunk: long enough that opening a page is a small share of drawing it. */
-export const CHUNK_SECONDS = 4;
+/**
+ * Seconds of a chunk unless the project (`chunkSeconds`) or the render says otherwise: short
+ * enough that a small fix draws little again, long enough that each chunk's first frame, a
+ * keyframe of the encoded video, costs little.
+ */
+export const CHUNK_SECONDS = 15;
+
+/** Frames of a chunk at `fps`. */
+export const chunkFrames = (fps: number, seconds = CHUNK_SECONDS) =>
+	Math.max(1, Math.round(seconds * fps));
 
 /**
- * The chunks of `span`: cut at every multiple of `CHUNK_SECONDS` in program frames, so the grid
- * stays put when the segment's edges move. A piece shorter than half a chunk at either edge
- * joins its neighbour.
+ * The parts of `span` (a segment): cut at every multiple of the chunk length in program frames,
+ * so the grid stays put when the segment's edges move.
  */
-export function chunkSpans(span: Span, fps: number): Span[] {
-	const size = Math.max(1, Math.round(CHUNK_SECONDS * fps));
+export function chunkSpans(span: Span, fps: number, seconds = CHUNK_SECONDS): Span[] {
+	const size = chunkFrames(fps, seconds);
 	const from = span.startFrame;
 	const to = span.startFrame + span.frames;
 	const edges = [from];
-	for (let f = Math.ceil((from + 1) / size) * size; f < to; f += size)
-		if (f - from >= size / 2 && to - f >= size / 2) edges.push(f);
+	for (let f = Math.floor(from / size) * size + size; f < to; f += size) edges.push(f);
 	edges.push(to);
 	return edges.slice(0, -1).map((f, i) => ({ startFrame: f, frames: edges[i + 1] - f }));
+}
+
+/** A part of a segment: the frames of one segment inside one chunk. */
+export type SegmentPart = Span & { id: string; hash: string };
+
+/** A chunk of the grid and the segment parts it is drawn from, in program order. */
+export type ProgramChunk = Span & {
+	id: string;
+	/** Covers the chunk's frames and the hash of every part: it changes when one of them does. */
+	hash: string;
+	parts: (SegmentPart & { segment: string })[];
+};
+
+/**
+ * The chunks of a program of `frames` frames from the parts of its segments (see `chunkSpans`
+ * with the same grid).
+ */
+export function programChunks(
+	segments: readonly { id: string; parts: readonly SegmentPart[] }[],
+	frames: number,
+	fps: number,
+	seconds = CHUNK_SECONDS
+): ProgramChunk[] {
+	const size = chunkFrames(fps, seconds);
+	const chunks: ProgramChunk[] = [];
+	for (let from = 0; from < frames; from += size) {
+		const span = { startFrame: from, frames: Math.min(size, frames - from) };
+		const parts = segments.flatMap((seg) =>
+			seg.parts
+				.filter((p) => p.startFrame >= from && p.startFrame < from + size)
+				.map((p) => ({ ...p, segment: seg.id }))
+		);
+		parts.sort((a, b) => a.startFrame - b.startFrame);
+		chunks.push({
+			id: `chunk${chunks.length + 1}`,
+			...span,
+			hash: sha1(
+				JSON.stringify({ span, parts: parts.map((p) => [p.startFrame, p.frames, p.hash]) })
+			),
+			parts
+		});
+	}
+	return chunks;
 }
 
 /**

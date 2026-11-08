@@ -797,7 +797,7 @@
 			"frames": 39,
 			"items": ["cut1", "full-0"],
 			"hash": "1a9c60fbd4592989404e389656c028092f784d43",
-			"chunks": [
+			"parts": [
 				{
 					"id": "seg1",
 					"startFrame": 0,
@@ -821,12 +821,12 @@
 				"codec.transition"
 			],
 			"hash": "3083b67145a4de7dc5c10faf8e1129e88730928a",
-			"chunks": [
+			"parts": [
 				{
 					"id": "seg2",
 					"startFrame": 39,
 					"frames": 108,
-					"hash": "7a0e8e03cca8b1b3a4d4d4ad49f8df42a12dfa33"
+					"hash": "87e145ff179cf42d4f297ed9936be984df3c2de3"
 				}
 			]
 		},
@@ -836,12 +836,43 @@
 			"frames": 42,
 			"items": ["cut4", "full-99", "codec"],
 			"hash": "5f2b450292daaeffe474d4439c7151a32c77a498",
-			"chunks": [
+			"parts": [
 				{
 					"id": "seg3",
 					"startFrame": 147,
 					"frames": 42,
-					"hash": "e73874bb5fbc6475b35d67163ee2ce66140a821e"
+					"hash": "6b77b91ad02aea8031b763afe310238c83b99b0e"
+				}
+			]
+		}
+	],
+	"chunks": [
+		{
+			"id": "chunk1",
+			"startFrame": 0,
+			"frames": 189,
+			"hash": "802dd940abbf10c685996309665f64ea69f7b998",
+			"parts": [
+				{
+					"id": "seg1",
+					"startFrame": 0,
+					"frames": 39,
+					"hash": "d1823fd4c5e1aedcb93d4fcbd0239a5159a61ae0",
+					"segment": "seg1"
+				},
+				{
+					"id": "seg2",
+					"startFrame": 39,
+					"frames": 108,
+					"hash": "87e145ff179cf42d4f297ed9936be984df3c2de3",
+					"segment": "seg2"
+				},
+				{
+					"id": "seg3",
+					"startFrame": 147,
+					"frames": 42,
+					"hash": "6b77b91ad02aea8031b763afe310238c83b99b0e",
+					"segment": "seg3"
 				}
 			]
 		}
@@ -851,7 +882,7 @@
 			"level": "warning",
 			"clip": "codec",
 			"field": "slot",
-			"message": "No shot frees the \"panel\" slot for 90 of the clip's 90 frames (first at 3.30 s); the clip is hidden there. Shots with a \"panel\" slot: strip, window."
+			"message": "No shot frees the \"panel\" slot for 90 of the clip's 90 frames (first at 3.30 s); the clip is hidden there. Shots with a \"panel\" slot: strip, window, cutout."
 		}
 	]
 }

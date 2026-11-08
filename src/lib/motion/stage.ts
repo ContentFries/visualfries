@@ -3,6 +3,7 @@ import { flushSync, mount, unmount, type Component } from 'svelte';
 import {
 	Clip,
 	MOTION_CONTEXT_KEY,
+	registerClipPart,
 	registerClipRoot,
 	type ClipController
 } from './runtime.svelte.js';
@@ -168,12 +169,29 @@ export function createMotionStage(options: StageOptions) {
 		}))
 			root.style.setProperty(name, value);
 		stage!.appendChild(root);
+		/** The clip's front part (see `<Front>`): over the rest of the block, made on first use. */
+		let part: HTMLDivElement | null = null;
 		const controller: ClipController = {
 			clip: new Clip(data),
 			root,
 			timelines: [],
 			frameFns: [],
-			ready: []
+			ready: [],
+			front() {
+				if (part) return part;
+				part = document.createElement('div');
+				part.className = 'vf-clip';
+				part.dataset.part = 'front';
+				part.dataset.format = root.dataset.format;
+				part.style.cssText = root.style.cssText;
+				// The root forms no stacking context (that would change how its blend modes and
+				// negative z-indexes draw), so a `z-index` in it competes with the front part:
+				// the part stacks above every one.
+				part.style.zIndex = String(2 ** 31 - 1);
+				root.after(part);
+				registerClipPart(controller, part);
+				return part;
+			}
 		};
 		registerClipRoot(controller);
 		const instance = mount(Block, {
@@ -310,6 +328,7 @@ export function createMotionStage(options: StageOptions) {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			ctx.drawElementImage!(stage!, 0, 0);
 			await holdoutPass(ctx);
+			await frontPass(ctx);
 			if (capture) image = canvas.toDataURL('image/png');
 		}
 		return { frame: n, t, image, paintMs, mode };
@@ -332,6 +351,23 @@ export function createMotionStage(options: StageOptions) {
 		} finally {
 			c.globalCompositeOperation = 'source-over';
 			scene.holdout(false);
+		}
+	}
+
+	/**
+	 * A holdout insert whose clip has a front part (see `<Front>`): the front part, left out of
+	 * the first two passes, is drawn alone over what they left, so the holdout never cuts it.
+	 */
+	async function frontPass(c: Ctx2DWithElements) {
+		const scene = segment;
+		if (!scene?.frontPass(true)) return;
+		try {
+			if ((options.invalidate ?? 'filters') === 'filters' && nested.length === 0)
+				stage!.style.filter = ++seeks % 2 ? 'saturate(1)' : 'contrast(1)';
+			await nextPaint();
+			c.drawElementImage!(stage!, 0, 0);
+		} finally {
+			scene.frontPass(false);
 		}
 	}
 

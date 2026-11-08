@@ -98,6 +98,70 @@ describe('packages a block imports', () => {
 		expect(message.match(/npm install pkg/g)).toHaveLength(1);
 	});
 
+	it('never call a Node built-in or a # import a missing package, and keep the bundler notes', async () => {
+		const root = tree({
+			'p.vf.json': project(),
+			'blocks/Uses.svelte': `<script>
+	import fs from 'fs';
+	import x from '#internal';
+	import { NAME } from 'pkg';
+</script>
+<b>{NAME} {fs} {x}</b>`
+		});
+		const message = ((await bundle(path.join(root, 'p.vf.json')).catch((e) => e)) as Error).message;
+		expect(message).toMatch(/imports "pkg", which is not installed/);
+		expect(message).not.toMatch(/npm install fs|npm install #internal/);
+		expect(message).not.toMatch(/imports "(fs|#internal)"/);
+		expect(message).toMatch(/Could not resolve "fs"/);
+		expect(message).toMatch(/built into node/);
+		expect(message).toMatch(/Could not resolve "#internal"/);
+	});
+
+	it('keep the bundler note for a Node built-in imported alone', async () => {
+		const root = tree({
+			'p.vf.json': project(),
+			'blocks/Uses.svelte': `<script>import fs from 'fs';</script><b>{fs}</b>`
+		});
+		const message = ((await bundle(path.join(root, 'p.vf.json')).catch((e) => e)) as Error).message;
+		expect(message).toMatch(/Could not resolve "fs"/);
+		expect(message).toMatch(/built into node/);
+		expect(message).not.toMatch(/not installed/);
+	});
+
+	it('say where to install a package for a block outside the project', async () => {
+		// The project has `pkg`, but the shared block above it does not find it there.
+		const root = tree({
+			'videos/teaser/p.vf.json': project('../../shared/Uses.svelte'),
+			'shared/Uses.svelte': USES,
+			...fakePackage('videos/teaser/node_modules')
+		});
+		const message = (
+			(await bundle(path.join(root, 'videos/teaser/p.vf.json')).catch((e) => e)) as Error
+		).message;
+		expect(message).toMatch(/\.\.\/\.\.\/shared\/Uses\.svelte imports "pkg"/);
+		expect(message).not.toMatch(/in the project folder/);
+		expect(message).toMatch(/cd \.\.\/\.\.\/shared && npm install pkg/);
+	});
+
+	it('say once per package which blocks import a missing one', async () => {
+		const root = tree({
+			'p.vf.json': JSON.stringify({
+				size: [64, 64],
+				fps: 30,
+				clips: [
+					{ id: 'a', block: 'blocks/A.svelte', from: 0, until: 1 },
+					{ id: 'b', block: 'blocks/B.svelte', from: 0, until: 1 }
+				]
+			}),
+			'blocks/A.svelte': USES,
+			'blocks/B.svelte': USES
+		});
+		const message = ((await bundle(path.join(root, 'p.vf.json')).catch((e) => e)) as Error).message;
+		expect(message.split('\n')).toHaveLength(1);
+		expect(message).toMatch(/blocks\/A\.svelte and blocks\/B\.svelte import "pkg"/);
+		expect(message).toMatch(/Install it in the project folder: npm install pkg/);
+	});
+
 	it('keep the bundler error for a subpath an installed package does not export', async () => {
 		const root = tree({
 			'p.vf.json': project(),

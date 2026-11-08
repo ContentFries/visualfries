@@ -21,7 +21,7 @@ The same guides are on the site: https://visualfries.com/docs/programs.md, https
 
 Use a **program** (a motion project with `cuts` and `shots`) when the input is a raw recording
 and the output is the finished video: the cut list removes pauses and retakes, shots frame the
-speaker (punch, strip, window, behind, whip), clips fill the shots' slots, transitions and sound
+speaker (punch, strip, window, behind, whip, cutout), clips fill the shots' slots, transitions and sound
 effects land on words, music ends on a bar, all in one `.vf.json`. Guide: `docs/MOTION.md` →
 "Programs" (read it before building). Worked example: [`static/demo/reel`](https://github.com/ContentFries/visualfries/tree/main/static/demo/reel) in the
 VisualFries repository (README, project, blocks, fonts, sample transcript); it is not in the npm
@@ -32,6 +32,16 @@ placement against the face, caption size) are made per video by looking at still
 shot. Defaults are a starting point and `check` warnings are hints; you decide. Example: a close
 handheld selfie whose face fills half the frame needs `"headroom": 0.06`, a taller window
 (`"aspect": "4:5"`) or a bigger strip `size`; footage where the face is small needs none of it.
+
+To place the speaker in part of the frame without the room (a seated landscape recording in the
+lower left of a 9:16 frame, a 3D world or colour field around them), use the `cutout` shot, not
+`behind` with `scale`/`x`/`y` keys and a clip covering the room: `"params": { "anchor":
+"bottom-left", "size": 0.14 }` (`size` is the head's height as a share of the frame height,
+measured from the matte, so it does not depend on the recording's framing). Clips with `"layer":
+"behind"` sit between the style's surface and the speaker, and its `panel` slot takes the empty
+part of the frame (above the speaker in portrait). A body cut by the recording's bottom edge
+belongs on a bottom anchor; `check` warns when that cut shows in mid-frame or a frame edge the
+anchor does not name cuts the speaker off. Needs a matte.
 
 Work like an editor, in this order; each step ends on its criterion:
 
@@ -87,9 +97,12 @@ Work like an editor, in this order; each step ends on its criterion:
 8. **Render.** `visualfries render <project> --output out/` (and `--format WxH` for other
    formats). Done when the video plays to its last frame, a contact sheet of it shows what the
    stills showed, and the hand-over names the render time, the chunks drawn and cached, the
-   delivered loudness and the cut points the creator should listen to. A render after a small
-   edit draws only the ~4 s chunks whose frames changed (keys count by what they draw), so
-   iterate on a long 3D or world clip by editing and rendering again.
+   delivered loudness and the cut points the creator should listen to. A render after moving
+   keys draws and encodes only the 15 s chunks whose frames changed (keys count by what they
+   draw) and joins the rest as they are, so iterate on a long video or a 3D world clip by
+   editing and rendering again; new props, timing or code of a clip draw every chunk of its
+   segment. For a slow program (3D, heavy blocks) set `"chunkSeconds": 10` or less. The cached video matches `--no-cache` only when
+   `check --determinism` passes (no block carries state over from earlier frames).
    When the creator finishes the edit in an editor, add `--export inserts` (one transparent file
    per clip, 10-frame handles, `manifest.json` with program and source frames; `check
 --export inserts` lists what stays in the program render).
@@ -159,6 +172,12 @@ YouTube"], "handle": "@channel" }, "sound": "sfx/slam.wav" } }]`. The whole prog
   cues by phrase (`{ "say": "skill", "occurrence": 2 }` counts inside the clip, so through the
   whole program), not seconds precomputed into `props`. `clip.programTime` / `programFrame`
   (also on the `useFrame` context) are the program's clock.
+- One block behind the speaker with parts in front of them (a 3D scene with labels pinned to
+  it): make it one clip with `"layer": "behind"` and wrap the front markup in `<Front>` from
+  `visualfries/motion`. Same block, state and time; the front part stacks where the clip stands
+  in project order, follows its keys, slot and transitions, and `check` reads its text as front
+  text. Never mount the same block twice to split it into layers. Guide: `docs/MOTION.md` →
+  "Behind and in front from one clip".
 - Images in blocks: keep every picture mounted and switch with `opacity`; never swap `src` per
   frame (it decodes late and fails `check --determinism`).
 - A picture per clip (a screenshot, a photo) goes in `props` as a project file, not as an import:

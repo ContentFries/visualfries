@@ -5,6 +5,7 @@ import { strip } from './strip.js';
 import { windowShot } from './window.js';
 import { behind } from './behind.js';
 import { whip } from './whip.js';
+import { cutout } from './cutout.js';
 import { easeOf } from '../ease.js';
 import { keyTracks, type Placement } from '../keys.js';
 import {
@@ -70,7 +71,8 @@ export const SHOT_MODULES: Readonly<Record<string, ShotModule>> = {
 	strip,
 	window: windowShot,
 	behind,
-	whip
+	whip,
+	cutout
 };
 
 /** The module drawing `name`; null for a shot not built yet or a custom file. */
@@ -125,16 +127,18 @@ export function shotEvents(shot: ShotSpan, prev: string | null): ShotEvent[] {
 type Framed = Pick<ShotSpan, 'shot' | 'params' | 'keys' | 'away'> & { id?: string };
 
 /**
- * What the engine needs to lay out shots at a frame: a shot's input without its params, and
- * `headOf`, the head size over a whole shot (see `ShotInput.head`; absent: each frame's own).
+ * What the engine needs to lay out shots at a frame: a shot's input without its params,
+ * `headOf`, the head size over a whole shot (see `ShotInput.head`; absent: each frame's own),
+ * and `topOf`, how high the head gets over a whole shot (see `ShotInput.shotTop`).
  * Shots with `away` ranges also read `reach`, how far the matte reaches around this frame (the
  * boxes of the frames `subject` is smoothed over, joined; absent: the subject's box), and `at`,
  * the input of the program's picture at another program frame, where a range decides its side:
  * `look` when the range carries it (see `ShotAway.looks`), else the picture at that frame
  * (absent: this frame's input).
  */
-export type LayoutInput = Omit<ShotInput, 'params' | 'head'> & {
+export type LayoutInput = Omit<ShotInput, 'params' | 'head' | 'shotTop'> & {
 	headOf?: (shot: Framed) => number | null;
+	topOf?: (shot: Framed) => number | null;
 	reach?: Box | null;
 	at?: (f: number, look?: AwayLook | null) => LayoutInput;
 };
@@ -188,10 +192,13 @@ export function shotLayout(shot: Framed, input: LayoutInput, f?: number): ShotLa
 
 /** `shotLayout` without the `away` slide: the shot, its keys at `f` and its backdrop. */
 function keyedLayout(shot: Framed, input: LayoutInput, f?: number): ShotLayout {
-	const { headOf, ...rest } = input;
-	let layout = (shotModule(shot.shot) ?? full).layout({
+	const { headOf, topOf, ...rest } = input;
+	const module = shotModule(shot.shot) ?? full;
+	let layout = module.layout({
 		...rest,
 		head: headOf?.(shot) ?? null,
+		// Measured only for a shot that reads it.
+		...(module.measuresHead ? { shotTop: topOf?.(shot) ?? null } : {}),
 		params: shot.params
 	});
 	if (f !== undefined && shot.keys?.length) {
@@ -383,6 +390,9 @@ export function mixLayouts(a: ShotLayout, b: ShotLayout, t: number): ShotLayout 
 	// A window's ring and shadow, and a dimmed room, fade in and out with the move.
 	if (a.ring || b.ring) out.ring = mix(a.ring ?? 0, b.ring ?? 0, t);
 	if (a.lift || b.lift) out.lift = mix(a.lift ?? 0, b.lift ?? 0, t);
+	// A room cut away fades out and in with the move.
+	if (a.cutout !== undefined || b.cutout !== undefined)
+		out.cutout = mix(a.cutout ?? 0, b.cutout ?? 0, t);
 	if (a.room || b.room)
 		out.room = {
 			dim: mix(a.room?.dim ?? 0, b.room?.dim ?? 0, t),

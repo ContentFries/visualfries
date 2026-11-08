@@ -8,9 +8,8 @@ import { propFileRefs, resolveMotionClip, resolveMotionProject } from './resolve
 import { END_CARD_BLOCK, sliceProgram } from './excerpt.js';
 import { micro, programEnd, resolveCutList, soundEnd, soundLength } from './cutlist.js';
 import { sha1 } from './sha1.js';
-import { footageMap } from './footage-map.js';
-import { chunkSpans, keyStates } from './chunks.js';
-import { AWAY_ENTER, AWAY_EXIT, awayDecisions, awayLooks, defaultMorph, SHOT_MODULES, shotAt, shotEvents, shotLayout, shotModule } from './shots/index.js';
+import { CHUNK_SECONDS, chunkSpans, keyStates, programChunks } from './chunks.js';
+import { defaultMorph, SHOT_MODULES, shotAt, shotEvents, shotLayout, shotModule } from './shots/index.js';
 import { clipShowRange, stagedCuts, stagedShots } from './segments.js';
 import { parseEase } from './ease.js';
 import { NEUTRAL_BRAND } from './brand.js';
@@ -75,6 +74,9 @@ const overlaps = (a, b) => a.startFrame < endOf(b) && b.startFrame < endOf(a);
  * Pure: the same project and inputs give the same JSON, in Node and in the browser.
  */
 export function resolveProgram(project, given, opts = {}) {
+    const chunkSeconds = opts.chunkSeconds ?? project.chunkSeconds ?? CHUNK_SECONDS;
+    if (!(chunkSeconds > 0 && Number.isFinite(chunkSeconds)))
+        throw new Error(`chunkSeconds must be a positive number, got ${chunkSeconds}.`);
     const fps = project.fps;
     // An excerpt resolves the whole program in its own format, then slices it.
     const spec = opts.excerpt === undefined ? null : excerptSpec(project, opts.excerpt);
@@ -206,9 +208,6 @@ export function resolveProgram(project, given, opts = {}) {
     const transitions = program
         ? resolveTransitions(project, cutList.cuts, cuts, shots, clips, fps, format.class, warn)
         : [];
-    // Where an away move decides its side, the picture the whole program shows there.
-    if (program && shots.some((s) => s.away?.some((r) => !r.side)))
-        awayLooks(shots, footageMap({ frames, sources, cuts, shots, transitions }), fps);
     if (program && cuts.length)
         checkHardCuts(shots, cutList.cuts, transitions, diagnostics);
     const events = resolveEvents(shots, transitions);
@@ -263,7 +262,7 @@ export function resolveProgram(project, given, opts = {}) {
         words: cutList.words ?? [],
         events,
         audio,
-        segments: resolveSegments(base, project),
+        ...withChunks(resolveSegments(base, project, undefined, chunkSeconds), frames, fps, chunkSeconds),
         diagnostics,
         ...(excerpts ? { excerpts } : {})
     };
@@ -289,9 +288,14 @@ export function resolveProgram(project, given, opts = {}) {
     const hold = range.end ? { from: range.frames, clips: [range.end.clip] } : undefined;
     return {
         ...sliced,
-        segments: resolveSegments(sliced, project, { hold, footage: sliced.excerpt?.footage })
+        ...withChunks(resolveSegments(sliced, project, { hold, footage: sliced.excerpt?.footage }, chunkSeconds), sliced.frames, fps, chunkSeconds)
     };
 }
+/** Segments and the chunks of the grid made of their parts. */
+const withChunks = (segments, frames, fps, seconds) => ({
+    segments,
+    chunks: programChunks(segments, frames, fps, seconds)
+});
 /** The excerpt `id` of the project; an unknown id or a project without a program throws. */
 function excerptSpec(project, id) {
     if (!isProgramProject(project))
@@ -757,11 +761,6 @@ function resolveShots(project, inputs, words, cuts, frames, at, diagnostics, siz
             }),
             native: shot.native ?? null
         };
-        if (shot.away !== undefined) {
-            const away = resolveAway(shot, i, id, span, { at, fps, words, diagnostics });
-            if (away)
-                resolved.away = away;
-        }
         written.push(resolved);
         asked.set(resolved, { morph: shot.morph, transition: shot.transition !== undefined });
     });
@@ -804,123 +803,6 @@ function resolveShots(project, inputs, words, cuts, frames, at, diagnostics, siz
     }
     gap(frames);
     return morphs(out, asked, fps);
-}
-/**
- * A word said this many seconds or more on one side of an away edge counts: transcripts are a
- * few hundredths off, and a speaker gone in the last breath of a word reads as gone after it.
- */
-const AWAY_WORD_SLACK = 0.1;
-/**
- * The `away` ranges of a written shot in program frames, or null when one is broken (errors of
- * the shot). Phrases resolve in program order: `from` at or after the previous range's `until`
- * (the shot's start for the first), `until` at or after `from`. Each range must lie inside the
- * shot with its moves (a range from the shot's first frame has no exit, one to its last frame
- * no way back), after the one before it, on a shot that cuts the speaker out. Warns where the
- * speaker is gone while still saying a word, or comes back after he started one.
- */
-function resolveAway(shot, i, id, span, ctx) {
-    const { at, fps, words, diagnostics } = ctx;
-    const field = (j, name = '') => `shots[${i}].away${j === null ? '' : `[${j}]`}${name ? `.${name}` : ''}`;
-    const report = (level, f, message) => diagnostics.push({ level, item: id, field: f, message });
-    if (!shotModule(shot.shot)?.needsMatte) {
-        report('error', field(null), `"away" needs a shot that draws the speaker cut out by the matte ("behind"): in a "${shot.shot}" shot the speaker is the whole picture, so nothing would stay in the frame when he leaves. Use "behind" (with a clip behind him for the world he leaves), or move the picture with shot keys.`);
-        return null;
-    }
-    const s = (frame) => `${(frame / fps).toFixed(2)} s`;
-    const end = endOf(span);
-    const out = [];
-    let after = span.startFrame / fps;
-    let broken = false;
-    for (const [j, spec] of (shot.away ?? []).entries()) {
-        const move = (given, fallback, name) => {
-            const seconds = typeof given === 'number' ? given : (given?.seconds ?? fallback.seconds);
-            const ease = (typeof given === 'object' ? given.ease : undefined) ?? fallback.ease;
-            if (!parseEase(ease)) {
-                report('error', field(j, name), `Unknown ease "${ease}".`);
-                return null;
-            }
-            return { frames: Math.round(seconds * fps), ease };
-        };
-        const exit = move(spec.exit, AWAY_EXIT, 'exit');
-        const enter = move(spec.enter, AWAY_ENTER, 'enter');
-        let from;
-        let until;
-        try {
-            const hit = at(spec.from, undefined, itemOrder(diagnostics, id, field(j, 'from'), after, j ? `the previous range's "until"` : "the shot's start"));
-            from = Math.round(hit.time * fps);
-        }
-        catch (error) {
-            report('error', field(j, 'from'), error.message);
-            broken = true;
-            continue;
-        }
-        try {
-            const hit = at(spec.until, from / fps, itemOrder(diagnostics, id, field(j, 'until'), from / fps, `the range's "from"`));
-            until = Math.round(hit.time * fps);
-            after = orderPoint(hit);
-        }
-        catch (error) {
-            report('error', field(j, 'until'), error.message);
-            broken = true;
-            continue;
-        }
-        if (!exit || !enter) {
-            broken = true;
-            continue;
-        }
-        const fail = (name, message) => {
-            report('error', field(j, name), message);
-            broken = true;
-        };
-        if (until <= from) {
-            fail('until', `The speaker would be back (${s(until)}) before he is gone (${s(from)}): "until" must come after "from".`);
-            continue;
-        }
-        if (from < span.startFrame) {
-            fail('from', `"from" (${s(from)}) is before the shot starts (${s(span.startFrame)}).`);
-            continue;
-        }
-        if (until > end) {
-            fail('until', `"until" (${s(until)}) is after the shot ends (${s(end)}). Write the shot's own end, or "end" in a shot that runs to the program end, to keep the speaker away to its end.`);
-            continue;
-        }
-        const leaves = from - exit.frames;
-        if (from > span.startFrame && leaves < span.startFrame) {
-            fail('from', `The exit (${s(exit.frames)}) would start at ${s(leaves)}, before the shot starts (${s(span.startFrame)}). Start the range at the shot's start to have the speaker away from its first frame, or shorten "exit".`);
-            continue;
-        }
-        if (until < end && until + enter.frames > end) {
-            fail('until', `The speaker would still be coming back (${(until / fps).toFixed(2)}–${s(until + enter.frames)}) when the shot ends (${s(end)}). End the range at the shot's end to keep him away to it, or shorten "enter".`);
-            continue;
-        }
-        const prev = out[out.length - 1];
-        if (prev) {
-            const back = prev.until === null ? end : prev.until + prev.enter.frames;
-            if (leaves < back) {
-                fail('from', `Away range ${j + 1} starts leaving at ${s(leaves)} (its exit takes ${s(exit.frames)}), before range ${j} is back (${s(back)}). Start it later, or join the two ranges.`);
-                continue;
-            }
-        }
-        for (const w of words ?? []) {
-            const gone = from / fps;
-            if (w.start < gone && w.end - gone >= AWAY_WORD_SLACK)
-                report('warning', field(j, 'from'), `The speaker is wholly off the frame at ${s(from)}, ${(w.end - gone).toFixed(2)} s before he finishes "${w.text}" (${w.start.toFixed(2)}–${w.end.toFixed(2)} s): he leaves mid-word. Anchor "from" on the end of the word ({ "say": …, "edge": "end" }) unless that is meant.`);
-            const back = until / fps;
-            if (until < end && w.end > back && back - w.start >= AWAY_WORD_SLACK)
-                report('warning', field(j, 'until'), `The speaker starts coming back at ${s(until)}, ${(back - w.start).toFixed(2)} s after he starts "${w.text}" (${w.start.toFixed(2)}–${w.end.toFixed(2)} s): he says its start off the frame. Anchor "until" on the start of the word ({ "say": …, "edge": "start" }) unless that is meant.`);
-        }
-        out.push({
-            from,
-            until: until >= end ? null : until,
-            side: spec.side ?? null,
-            // From the shot's first frame he is away from the start (and before it, in a shot
-            // transition's window): no exit, and a side decided by the shot's own first frame.
-            exit: from === span.startFrame ? { ...exit, frames: 0 } : exit,
-            enter,
-            ...(from === span.startFrame ? { atStart: true } : {})
-        });
-    }
-    return broken ? null : out;
 }
 /** The shot before shot `i`: the one ending where it starts, `full` across a gap, else null. */
 function previousShot(shots, i) {
@@ -1565,7 +1447,7 @@ export function propFiles(props) {
  * shots and transitions, fonts, styles), so it changes exactly when its pixels may. An
  * excerpt's `hold` (its end card over the held last frame) is hashed with the segment it is in.
  */
-function resolveSegments(program, project, excerpt) {
+function resolveSegments(program, project, excerpt, chunkSeconds) {
     const hold = excerpt?.hold;
     const inWindow = (frame) => program.transitions.some((t) => t.startFrame < frame && frame < endOf(t));
     // Inside the frames, and before an end card (whose page holds the frame before it): an
@@ -1575,41 +1457,78 @@ function resolveSegments(program, project, excerpt) {
         .map((c) => c.startFrame)
         .filter((f) => f > 0 && f < (hold?.from ?? program.frames));
     const edges = [0, ...bounds, program.frames];
+    /** Clips that play on under the end card while the rest holds the frame before it. */
+    const live = new Set(hold?.clips ?? []);
     /**
-     * What a range of frames shows, hashed. A segment hashes its items whole; a chunk (`keyed`)
-     * hashes the states its own frames take of every key (see `keyStates`) instead of the keys,
-     * and the cuts every shot it shows measures its head over.
+     * The frames a range draws of everything but the end card: under the card, the frame it
+     * holds (`hold.from − 1`).
      */
-    const contentOf = (span, keyed) => {
-        const on = (list) => list.filter((x) => overlaps(x, span));
+    const drawn = (span) => !hold || endOf(span) <= hold.from
+        ? span
+        : span.startFrame < hold.from
+            ? { startFrame: span.startFrame, frames: hold.from - span.startFrame }
+            : { startFrame: hold.from - 1, frames: 1 };
+    /**
+     * The key states of the frames a clip draws in a range (null: not on screen in it). Under
+     * the end card and inside a transition window a clip holds a frame: its keys count there.
+     */
+    const drawnKeys = (clip, span) => {
+        const d = live.has(clip.id) ? span : drawn(span);
+        const show = clipShowRange(clip, program.transitions);
+        const from = Math.max(d.startFrame, show.from);
+        const to = Math.min(endOf(d), show.until);
+        if (from >= to)
+            return null;
+        const at = (f) => Math.max(clip.startFrame, Math.min(endOf(clip) - 1, f));
+        return keyStates(clip.keys, at(from), at(to - 1) + 1);
+    };
+    /**
+     * What a range of frames shows, hashed. A segment hashes its items whole. A chunk (with its
+     * `segment`) hashes what its page sets up for the whole segment (every clip it mounts, keys
+     * aside, with the value its keyed props mount with; the code of its blocks, shots and
+     * transitions), and of what its own frames draw, the states they take of every key (see
+     * `keyStates`) instead of the keys and the cuts every shot it shows measures its head over.
+     */
+    const contentOf = (span, segment) => {
+        const keyed = !!segment;
+        const view = keyed ? drawn(span) : span;
+        const on = (list) => list.filter((x) => overlaps(x, view));
         const transitions = on(program.transitions);
         // What the range shows: the sides of its transition windows and every clip it holds
         // (in an excerpt, a window or a held clip may reach past the range's items).
-        const shown = stagedShots(program.shots, transitions, span);
-        const cuts = stagedCuts(program.cuts, transitions, span);
+        const shown = stagedShots(program.shots, transitions, view);
+        const cuts = stagedCuts(program.cuts, transitions, view);
         // A shot frames the head it measures over all of its frames (see `shotHead`).
         const measured = keyed
             ? program.cuts.filter((c) => !cuts.includes(c) && shown.some((s) => overlaps(c, s)))
             : [];
-        const shots = shown.filter((s) => overlaps(s, span) ||
+        const shots = shown.filter((s) => overlaps(s, view) ||
             transitions.some((t) => t.kind === 'shot' && (t.owner === s.id || t.outgoing === s.id)));
-        const clips = program.clips.filter((c) => {
+        const showing = (range) => program.clips.filter((c) => {
             const show = clipShowRange(c, program.transitions);
-            return show.from < endOf(span) && show.until > span.startFrame;
+            return show.from < endOf(range) && show.until > range.startFrame;
         });
+        const clips = keyed ? showing(segment) : showing(span);
+        // What the page sets up for the whole segment: custom shots and transitions run there too.
+        const setUp = keyed
+            ? {
+                shots: stagedShots(program.shots, program.transitions, segment).map((s) => s.shot),
+                transitions: program.transitions.filter((t) => overlaps(t, segment)).map((t) => t.type)
+            }
+            : { shots: shots.map((s) => s.shot), transitions: transitions.map((t) => t.type) };
+        // A shot that blurs its moves gives every slotted clip of the segment a streak box.
+        const streaks = keyed && setUp.shots.some((s) => shotModule(s)?.blur);
         const sourceNames = [
             ...new Set([
                 ...[...cuts, ...measured].map((c) => c.source),
-                ...shots.flatMap((s) => (s.source ? [s.source.name] : [])),
-                // Where an away move decides its side: footage the range may not show (see `ShotAway.looks`).
-                ...shown.flatMap((s) => (s.away ?? []).flatMap((r) => [r.looks?.exit, r.looks?.enter].flatMap((l) => (l ? [l.source] : []))))
+                ...shots.flatMap((s) => (s.source ? [s.source.name] : []))
             ])
         ].sort();
         const assets = [
             ...new Set([
                 ...clips.map((c) => c.block),
-                ...shots.map((s) => s.shot).filter((s) => isCustom(s, CUSTOM_SHOT)),
-                ...transitions.map((t) => t.type).filter((t) => isCustom(t, CUSTOM_TRANSITION)),
+                ...setUp.shots.filter((s) => isCustom(s, CUSTOM_SHOT)),
+                ...setUp.transitions.filter((t) => isCustom(t, CUSTOM_TRANSITION)),
                 ...(project.fonts ?? []).map((f) => f.src),
                 ...(project.css ?? []),
                 // Project files a clip names in its props (hashed when they exist).
@@ -1620,12 +1539,24 @@ function resolveSegments(program, project, excerpt) {
             if (!keyed)
                 return item;
             const { keys, ...rest } = item;
-            // An away move decides its side by the shot where it starts, maybe outside the range.
-            const decided = awayDecisions(item.away, span);
+            return { ...rest, keys: keyStates(keys, view.startFrame, endOf(view)) };
+        };
+        /**
+         * A mounted clip: keys aside, with the boxes its root gets (a `.vf-keys` box for placement
+         * keys, a streak box) and its keyed props on its first frame (see `createProgramScene`).
+         */
+        const mounted = (clip) => {
+            const { keys, ...rest } = clip;
+            const props = keys.map((k) => ({ ...k, values: { props: k.values.props } }));
+            const placed = keys.some((k) => PLACEMENT.some((n) => k.values[n] !== undefined));
             return {
                 ...rest,
-                keys: keyStates(keys, span.startFrame, endOf(span)),
-                ...(decided.length ? { decided: decided.map((f) => keyStates(keys, f, f + 1)) } : {})
+                show: clipShowRange(clip, program.transitions),
+                mount: {
+                    boxes: { keys: placed, streak: !!clip.slot && streaks },
+                    props: keyStates(props, clip.startFrame, clip.startFrame + 1)
+                },
+                keys: drawnKeys(clip, span)
             };
         };
         const hash = sha1(JSON.stringify({
@@ -1644,7 +1575,7 @@ function resolveSegments(program, project, excerpt) {
             ...(measured.length ? { measured: measured.map(picture) } : {}),
             // The shot a morph starts from shapes the first frames too.
             shots: shown.map(frames),
-            clips: clips.map(frames),
+            clips: keyed ? clips.map(mounted) : clips,
             transitions: transitions.map(picture),
             // An excerpt: the end card's hold in the range it is in, and what its framing reads
             // of the whole program's footage (the head runs of the shots in this range).
@@ -1666,15 +1597,15 @@ function resolveSegments(program, project, excerpt) {
         if (span.frames <= 0)
             continue;
         const id = `seg${segments.length + 1}`;
-        const parts = chunkSpans(span, program.fps);
+        const parts = chunkSpans(span, program.fps, chunkSeconds);
         segments.push({
             id,
             ...span,
-            ...contentOf(span, false),
-            chunks: parts.map((part, k) => ({
+            ...contentOf(span),
+            parts: parts.map((part, k) => ({
                 id: parts.length > 1 ? `${id}.${k + 1}` : id,
                 ...part,
-                hash: contentOf(part, true).hash
+                hash: contentOf(part, span).hash
             }))
         });
     }

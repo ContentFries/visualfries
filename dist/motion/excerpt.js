@@ -2,7 +2,7 @@ import { micro } from './cutlist.js';
 import { clipShowRange, stagedShots } from './segments.js';
 import { footageMap, pictureRuns, shownRanges } from './footage-map.js';
 import { headroomParam, SUBJECT_SMOOTH } from './shots/layout.js';
-import { awayMovesDuring } from './shots/away.js';
+import { shotModule } from './shots/index.js';
 /**
  * Excerpts: a range of the program as a video of its own (a teaser), sliced from the whole
  * program after it resolved, so every phrase, `until` and repeated phrase lands exactly where it
@@ -67,16 +67,7 @@ export function sliceProgram(full, excerpt, end, sounds = {}, field = 'excerpt')
         ...s,
         startFrame: frame(s.startFrame),
         transition: transitionOf(s.transition),
-        keys: s.keys.map((k) => ({ ...k, frame: frame(k.frame) })),
-        ...(s.away
-            ? {
-                away: s.away.map((r) => ({
-                    ...r,
-                    from: frame(r.from),
-                    until: r.until === null ? null : frame(r.until)
-                }))
-            }
-            : {})
+        keys: s.keys.map((k) => ({ ...k, frame: frame(k.frame) }))
     }));
     const clips = full.clips
         .filter((c) => {
@@ -132,16 +123,10 @@ export function sliceProgram(full, excerpt, end, sounds = {}, field = 'excerpt')
     const margin = Math.round(2 * SUBJECT_SMOOTH * fps) + gap;
     const heads = {};
     for (const s of stagedShots(full.shots, full.transitions, range))
-        if (headroomParam(s.params) !== false && (s.startFrame < first || endOf(s) > endOf(range)))
+        if ((headroomParam(s.params) !== false || shotModule(s.shot)?.measuresHead) &&
+            (s.startFrame < first || endOf(s) > endOf(range)))
             heads[s.id] = pictureRuns(map, s.startFrame, endOf(s));
     const around = shownRanges(map, first - margin, endOf(range) + margin, gap);
-    // Where an away move drawn in the excerpt decides its side, maybe outside the range: the
-    // frames the decision reads, no more (see `AwayLook`).
-    const drawn = { startFrame: 0, frames: excerpt.frames };
-    for (const s of shots)
-        for (const { look } of awayMovesDuring(s.away, drawn))
-            if (look)
-                (around[look.source] ??= []).push({ first: look.first, last: look.last });
     return {
         ...full,
         frames: excerpt.frames + cardFrames,

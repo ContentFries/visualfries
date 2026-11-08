@@ -48,6 +48,23 @@ const rgb = (input: string | Buffer) =>
 const FRAME = W * H * 3;
 const frameOf = (raw: Buffer, i: number) => raw.subarray(i * FRAME, (i + 1) * FRAME);
 const sha1 = (b: Buffer) => createHash('sha1').update(b).digest('hex');
+/** Mean absolute difference of two frames, per channel value. */
+function meanDiff(a: Buffer, b: Buffer) {
+	let sum = 0;
+	for (let i = 0; i < a.length; i++) sum += Math.abs(a[i] - b[i]);
+	return sum / a.length;
+}
+/** The frame number bits a frame shows: the centre of each 24 px column along the top. */
+const bitsOf = (frame: Buffer) =>
+	Array.from({ length: Math.floor(W / BIT) }, (_, k) =>
+		frame[((BIT >> 1) * W + k * BIT + (BIT >> 1)) * 3] > 128 ? 1 : 0
+	).join('');
+/** The hash of every video packet of a file, in order, as stored (no decoding). */
+const packets = (file: string) =>
+	String(ffmpeg(['-i', file, '-map', '0:v', '-c', 'copy', '-f', 'framemd5', 'pipe:1']))
+		.split('\n')
+		.filter((l) => l && !l.startsWith('#'))
+		.map((l) => l.split(',').pop()!.trim());
 
 /** Loudness and true peak of a video's audio, as the program mixer measures them. */
 function deliveredOf(file: string) {
@@ -121,6 +138,8 @@ function programJson(label: string, extra: object[] = []) {
 	return JSON.stringify({
 		size: [W, H],
 		fps: FPS,
+		// Chunks of 30 frames: 0–29, 30–59, 60–89 and 90–119.
+		chunkSeconds: 1,
 		background: '#000000',
 		footage: { num: { src: 'num.mp4' } },
 		cuts: [
@@ -181,10 +200,11 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 
 	it('renders every program frame once, with the speech and the program beside it', async () => {
 		expect(first.frames).toBe(120);
-		expect(first.segments.map((s) => [s.startFrame, s.frames, s.cached])).toEqual([
+		expect(first.chunks.map((s) => [s.startFrame, s.frames, s.cached])).toEqual([
 			[0, 30, false],
 			[30, 30, false],
-			[60, 60, false]
+			[60, 30, false],
+			[90, 30, false]
 		]);
 		const video = probe(first.file, 'stream=nb_read_frames,width,height,r_frame_rate');
 		expect(video.streams[0]).toMatchObject({
@@ -237,34 +257,77 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		const resolvedFile = path.join(dir, '.visualfries', 'program', `${W}x${H}.json`);
 		expect(saved).toEqual(JSON.parse(await fs.readFile(resolvedFile, 'utf8')));
 		expect(saved.clips[0].footage).toBeUndefined();
-		expect(
-			saved.segments.flatMap((s: { chunks: { hash: string }[] }) => s.chunks.map((c) => c.hash))
-		).toEqual(first.segments.map((s) => s.hash));
+		expect(saved.chunks.map((c: { hash: string }) => c.hash)).toEqual(
+			first.chunks.map((s) => s.hash)
+		);
 	});
 
-	it('stores intermediates whose frames equal stills of the same program frames', async () => {
-		const sample = [0, 15, 29, 30, 36, 45, 54, 59, 60, 84, 90, 96, 119];
+	it('encodes every frame once: the video is its chunks joined as they are', async () => {
+		for (const c of first.chunks) {
+			expect(path.extname(c.file)).toBe('.mp4');
+			const stream = probe(c.file, 'stream=codec_name,pix_fmt,nb_read_frames').streams[0];
+			expect(stream).toMatchObject({
+				codec_name: 'h264',
+				pix_fmt: 'yuv420p',
+				nb_read_frames: String(c.frames)
+			});
+		}
+		// The same pictures, bit for bit, and the same encoded frames: a second encode would
+		// change both (the join may only add parameter sets to a chunk's first packet).
+		expect(sha1(rgb(first.file))).toBe(sha1(Buffer.concat(first.chunks.map((c) => rgb(c.file)))));
+		const joined = packets(first.file);
+		const own = first.chunks.flatMap((c) => packets(c.file).map((p, i) => (i ? p : null)));
+		expect(joined.map((p, i) => (own[i] === null ? null : p))).toEqual(own);
+		// Frames keep their place: one timestamp per frame, 1/30 s apart from 0.
+		const times = probe(first.file, 'frame=pts_time').frames.map((f: { pts_time: string }) =>
+			Number(f.pts_time)
+		);
+		expect(times).toHaveLength(120);
+		times.forEach((t: number, i: number) => expect(t).toBeCloseTo(i / FPS, 6));
+	});
+
+	it('stores chunks whose frames show stills of the same program frames, also across segments', async () => {
+		const sample = [0, 15, 29, 30, 36, 44, 45, 54, 59, 60, 84, 89, 90, 96, 119];
 		const stills = await captureProgramFrames(await loadMotionProject(file), sample);
-		for (const s of first.segments) {
-			const raw = rgb(s.file);
-			expect(raw.length).toBe(s.frames * FRAME);
-			for (const f of sample.filter((f) => f >= s.startFrame && f < s.startFrame + s.frames))
-				expect(
-					frameOf(raw, f - s.startFrame).equals(rgb(stills.get(f)!)),
-					`program frame ${f}`
-				).toBe(true);
+		// On a 1.5 s grid, chunks hold parts of two segments: 0–29 and 30–44, 45–59 and 60–89.
+		// Another grid is another set of chunks: rendered in a copy, so the first render's chunks
+		// stay in this cache.
+		const acrossDir = path.join(dir, 'across');
+		await fs.mkdir(acrossDir);
+		for (const name of ['num.mp4', 'Label.svelte', 'program.vf.json'])
+			await fs.copyFile(path.join(dir, name), path.join(acrossDir, name));
+		const across = await renderProgramVideo(
+			await loadMotionProject(path.join(acrossDir, 'program.vf.json')),
+			{ output: path.join(acrossDir, 'across.mp4'), chunkSeconds: 1.5 }
+		);
+		expect(across.chunks.map((c) => [c.startFrame, c.frames, c.parts.length])).toEqual([
+			[0, 45, 2],
+			[45, 45, 2],
+			[90, 30, 1]
+		]);
+		for (const r of [first, across]) {
+			for (const c of r.chunks) {
+				const raw = rgb(c.file);
+				expect(raw.length).toBe(c.frames * FRAME);
+				for (const f of sample.filter((f) => f >= c.startFrame && f < c.startFrame + c.frames)) {
+					const still = rgb(stills.get(f)!);
+					const frame = frameOf(raw, f - c.startFrame);
+					expect(bitsOf(frame), `program frame ${f}`).toBe(bitsOf(still));
+					expect(meanDiff(frame, still), `program frame ${f}`).toBeLessThan(1.5);
+				}
+			}
 		}
 	}, 150_000);
 
 	it('gives the same frames whether pages take whole segments or share one', async () => {
 		const loaded = await loadMotionProject(file);
 		const decoded = (r: RenderedProgram) => ({
-			segments: r.segments.map((s) => sha1(rgb(s.file))),
+			chunks: r.chunks.map((s) => sha1(rgb(s.file))),
 			video: sha1(rgb(r.file))
 		});
 		const want = decoded(first);
-		// Three segments: one page for all (1), a page per segment (2), pages sharing a segment's
-		// frames (6, the first render), and three pages sharing frames on purpose.
+		// Four chunks: one page for all (1), two pages (2), pages sharing a chunk's frames (6, the
+		// first render), and three pages sharing frames on purpose.
 		const runs = [{ jobs: 1 }, { jobs: 2 }, { jobs: 3, schedule: 'frames' as const }];
 		for (const run of runs) {
 			const { jobs } = run;
@@ -273,28 +336,28 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 				fresh: true,
 				...run
 			});
-			expect(again.segments.every((s) => !s.cached)).toBe(true);
+			expect(again.chunks.every((s) => !s.cached)).toBe(true);
 			expect(decoded(again), `--jobs ${jobs}`).toEqual(want);
 		}
 	}, 150_000);
 
-	it('draws again only the segment of an edited clip', async () => {
+	it('draws again only the chunk of an edited clip', async () => {
 		// The baseline is drawn here, not taken from the first render: the segment files carry
 		// the engine hash (the VisualFries sources), and an edit to them while the suite runs
 		// would make every earlier intermediate stale and prune it (seen as a missing file).
 		const base = await renderProgramVideo(await loadMotionProject(file), {
 			output: out('base.mp4')
 		});
-		const before = await Promise.all(base.segments.map((s) => fs.stat(s.file)));
+		const before = await Promise.all(base.chunks.map((s) => fs.stat(s.file)));
 		await fs.writeFile(file, programJson('TWO'));
 		const edited = await renderProgramVideo(await loadMotionProject(file), {
 			output: out('edited.mp4')
 		});
-		expect(edited.segments.map((s) => s.cached)).toEqual([true, false, true]);
-		expect(edited.segments[1].hash).not.toBe(base.segments[1].hash);
-		for (const i of [0, 2]) {
-			expect(edited.segments[i].file).toBe(base.segments[i].file);
-			expect((await fs.stat(edited.segments[i].file)).mtimeMs).toBe(before[i].mtimeMs);
+		expect(edited.chunks.map((s) => s.cached)).toEqual([true, false, true, true]);
+		expect(edited.chunks[1].hash).not.toBe(base.chunks[1].hash);
+		for (const i of [0, 2, 3]) {
+			expect(edited.chunks[i].file).toBe(base.chunks[i].file);
+			expect((await fs.stat(edited.chunks[i].file)).mtimeMs).toBe(before[i].mtimeMs);
 		}
 		// The picture changed only where the label is.
 		const a = rgb(base.file);
@@ -304,12 +367,12 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		expect(differ.every((f) => f >= 30 && f < 60)).toBe(true);
 		// The sound does not depend on segments or the cache: the same encoded audio.
 		expect(audioHash(edited.file)).toBe(audioHash(base.file));
-		// The intermediate of the replaced segment is gone; the cache keeps what the render used.
-		expect(existsSync(base.segments[1].file)).toBe(false);
+		// The chunk it replaced is gone; the cache keeps what the render used.
+		expect(existsSync(base.chunks[1].file)).toBe(false);
 		const kept = (await fs.readdir(path.join(dir, '.visualfries', 'segments'))).filter((f) =>
-			f.endsWith('.mkv')
+			f.endsWith('.mp4')
 		);
-		expect(kept.sort()).toEqual(edited.segments.map((s) => path.basename(s.file)).sort());
+		expect(kept.sort()).toEqual(edited.chunks.map((s) => path.basename(s.file)).sort());
 		await fs.writeFile(file, programJson('ONE'));
 	}, 150_000);
 
@@ -319,12 +382,14 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		for (const name of ['num.mp4', 'Label.svelte'])
 			await fs.copyFile(path.join(dir, name), path.join(longDir, name));
 		const project = path.join(longDir, 'long.vf.json');
-		// One cut, one segment of 300 frames: chunks 0–119, 120–239 and 240–299. The label is on
-		// screen in the second; the shot's keys move the picture in the third.
+		// One cut, one segment of 300 frames: on a 4 s grid, chunks 0–119, 120–239 and 240–299. The label is on
+		// screen in the second, but its page mounts it for every chunk; the shot's keys move the
+		// picture in the third.
 		const json = (label: string, at: number) =>
 			JSON.stringify({
 				size: [W, H],
 				fps: FPS,
+				chunkSeconds: 4,
 				background: '#000000',
 				footage: { num: { src: 'num.mp4' } },
 				cuts: [{ id: 'a', source: 'num', in: 0, out: 10 }],
@@ -351,26 +416,30 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 			});
 		await fs.writeFile(project, json('ONE', 8.5));
 		const base = await render('base.mp4');
-		expect(base.segments.map((s) => [s.id, s.segment, s.startFrame, s.frames])).toEqual([
-			['seg1.1', 'seg1', 0, 120],
-			['seg1.2', 'seg1', 120, 120],
-			['seg1.3', 'seg1', 240, 60]
+		expect(
+			base.chunks.map((s) => [s.id, s.parts.map((p) => p.segment), s.startFrame, s.frames])
+		).toEqual([
+			['chunk1', ['seg1'], 0, 120],
+			['chunk2', ['seg1'], 120, 120],
+			['chunk3', ['seg1'], 240, 60]
 		]);
+		// New props of a clip draw every chunk of its segment: a block runs on its segment's page
+		// in chunks it is not on screen in too.
 		await fs.writeFile(project, json('TWO', 8.5));
 		const label = await render('label.mp4');
-		expect(label.segments.map((s) => s.cached)).toEqual([true, false, true]);
+		expect(label.chunks.map((s) => s.cached)).toEqual([false, false, false]);
 		await fs.writeFile(project, json('TWO', 9));
 		const moved = await render('moved.mp4');
-		expect(moved.segments.map((s) => s.cached)).toEqual([true, true, false]);
+		expect(moved.chunks.map((s) => s.cached)).toEqual([true, true, false]);
 		// Drawn from the cache, the video is the one a render from scratch gives.
 		const fresh = await render('fresh.mp4', true);
-		expect(fresh.segments.every((s) => !s.cached)).toBe(true);
-		expect(sha1(rgb(moved.file))).toBe(sha1(rgb(fresh.file)));
+		expect(fresh.chunks.every((s) => !s.cached)).toBe(true);
+		expect(packets(moved.file)).toEqual(packets(fresh.file));
 	}, 300_000);
 
-	it('keeps an unused intermediate written as a render starts, as file times lag the clock', async () => {
+	it('keeps an unused chunk written as a render starts, as file times lag the clock', async () => {
 		const cacheDir = path.join(dir, '.visualfries', 'segments');
-		const name = (c: string) => path.join(cacheDir, `${c.repeat(40)}-${c.repeat(12)}.mkv`);
+		const name = (c: string) => path.join(cacheDir, `${c.repeat(40)}-${c.repeat(12)}.mp4`);
 		// Another render's fresh intermediate (its record not written yet), stamped by the coarse
 		// kernel clock a few milliseconds before this render's start; and a stale one.
 		await fs.writeFile(name('a'), 'x');
@@ -409,9 +478,9 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		const blue = await renderProgramVideo(await loadMotionProject(file), {
 			output: out('blue.mp4')
 		});
-		// Only the third segment (frames 60–119) shows the block.
-		expect(blue.segments.map((s) => s.cached)).toEqual([true, true, false]);
-		expect(blue.segments[2].hash).not.toBe(red.segments[2].hash);
+		// Only the third segment (frames 60–119, chunks 3 and 4) mounts the block.
+		expect(blue.chunks.map((s) => s.cached)).toEqual([true, true, false, false]);
+		expect(blue.chunks[2].hash).not.toBe(red.chunks[2].hash);
 		const a = rgb(red.file);
 		const b = rgb(blue.file);
 		const px = (raw: Buffer, f: number) => [
@@ -471,6 +540,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 		await fs.mkdir(segmentsDir, { recursive: true });
 		const orphans = [
 			path.join(segmentsDir, `${'0'.repeat(40)}-${'0'.repeat(12)}.partial-${deadPid}-seg1.mkv`),
+			path.join(segmentsDir, `${'0'.repeat(40)}-${'0'.repeat(12)}.partial-${deadPid}-chunk1.mp4`),
 			path.join(segmentsDir, `.concat-${deadPid}-1.txt`),
 			path.join(runDir, `.out.partial-${deadPid}.mp4`)
 		];
@@ -563,7 +633,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 			renderProgramVideo(await loadMotionProject(project), { output: path.join(bad, 'bad.mp4') })
 		).rejects.toThrow(/gone\.wav/);
 		const segments = await fs.readdir(path.join(bad, '.visualfries', 'segments')).catch(() => []);
-		expect(segments.filter((f) => f.endsWith('.mkv'))).toEqual([]);
+		expect(segments.filter((f) => f.endsWith('.mp4'))).toEqual([]);
 		expect((await fs.readdir(bad)).filter((f) => f.includes('partial'))).toEqual([]);
 	}, 150_000);
 

@@ -85,7 +85,7 @@ export const TRANSITIONS = [
     'card'
 ];
 /** Built-in shots; a path ("shots/My.ts") names a custom one. */
-export const SHOTS = ['full', 'punch', 'strip', 'window', 'behind', 'whip'];
+export const SHOTS = ['full', 'punch', 'strip', 'window', 'behind', 'whip', 'cutout'];
 /**
  * The handoff into the item that carries it. A name ("push") or the full form. It never changes
  * program time and never touches audio.

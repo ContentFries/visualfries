@@ -25,7 +25,7 @@ import { BeatsFileShape, barRows, formatBarGrid } from './beat-grid.js';
 import { musicEnds, musicTrack, placeMusic } from './music.js';
 import { fileSha256 } from './beats.js';
 import { footageMap, footageRanges, mergeRanges } from './footage-map.js';
-import { headOfRuns } from './framing.js';
+import { headOfRuns, topOfRuns } from './framing.js';
 import { holdoutFootage } from './inserts.js';
 import { END_CARD_BLOCK } from './excerpt.js';
 import { removeOrphans, trackPartial } from './partials.js';
@@ -947,7 +947,8 @@ export async function bundleMotionProject(loaded, clips, program) {
             frames: footage.frames,
             map: footage.map,
             warnings: footage.warnings,
-            ...(footage.heads ? { heads: footage.heads } : {})
+            ...(footage.heads ? { heads: footage.heads } : {}),
+            ...(footage.tops ? { tops: footage.tops } : {})
         },
         brand: loaded.brand.resolved,
         props
@@ -1427,7 +1428,13 @@ async function extractFootage(loaded, clips, drawn) {
         clip.footage = frames;
         clip.footageMap = map;
     }
-    return { roots, frames, map, warnings, ...(whole ? { heads: whole.heads(frames) } : {}) };
+    return {
+        roots,
+        frames,
+        map,
+        warnings,
+        ...(whole ? { heads: whole.heads(frames), tops: whole.tops(frames) } : {})
+    };
 }
 /** Ranges of both lists per source (not merged). */
 const unite = (a, b) => {
@@ -1439,8 +1446,9 @@ const unite = (a, b) => {
 };
 /**
  * What an excerpt's framing reads of the whole program's footage (see `ExcerptFootage`): the
- * frames to extract besides its own, and `heads`, the head size of each `headroom` shot across
- * an edge over its whole shot, once they are extracted.
+ * frames to extract besides its own, and `heads` and `tops`, the head size and how high the
+ * head gets of each shot across an edge that reads them, over its whole shot, once they are
+ * extracted.
  */
 function excerptFootage(footage) {
     const runs = Object.values(footage.heads).flat();
@@ -1452,11 +1460,16 @@ function excerptFootage(footage) {
         });
     return {
         wanted: unite(footage.around, ranges),
-        heads: (frames) => Object.fromEntries(Object.entries(footage.heads).map(([shot, list]) => [
-            shot,
-            Object.fromEntries(Object.keys(frames).map((name) => [name, headOfRuns(list, frames, name)]))
-        ]))
+        heads: (frames) => byShot(footage, frames, headOfRuns),
+        tops: (frames) => byShot(footage, frames, topOfRuns)
     };
+}
+/** A measure of each shot's runs (see `ExcerptFootage.heads`), by shot and source. */
+function byShot(footage, frames, measure) {
+    return Object.fromEntries(Object.entries(footage.heads).map(([shot, list]) => [
+        shot,
+        Object.fromEntries(Object.keys(frames).map((name) => [name, measure(list, frames, name)]))
+    ]));
 }
 /**
  * The warning about frames of a footage whose matte covers the whole picture, which keep the

@@ -4,6 +4,7 @@ import { strip } from './strip.js';
 import { windowShot } from './window.js';
 import { behind } from './behind.js';
 import { whip } from './whip.js';
+import { cutout } from './cutout.js';
 import { easeOf } from '../ease.js';
 import { keyTracks } from '../keys.js';
 import { BACKDROP, backdropCamera, coversClip, facePoint, headroomParam, roundRect } from './layout.js';
@@ -21,7 +22,8 @@ export const SHOT_MODULES = {
     strip,
     window: windowShot,
     behind,
-    whip
+    whip,
+    cutout
 };
 /** The module drawing `name`; null for a shot not built yet or a custom file. */
 export function shotModule(name) {
@@ -97,10 +99,13 @@ export function shotsDuring(shots, span) {
  * key) gets a blurred copy under it (`backdrop`).
  */
 export function shotLayout(shot, input, f) {
-    const { headOf, ...rest } = input;
-    let layout = (shotModule(shot.shot) ?? full).layout({
+    const { headOf, topOf, ...rest } = input;
+    const module = shotModule(shot.shot) ?? full;
+    let layout = module.layout({
         ...rest,
         head: headOf?.(shot) ?? null,
+        // Measured only for a shot that reads it.
+        ...(module.measuresHead ? { shotTop: topOf?.(shot) ?? null } : {}),
         params: shot.params
     });
     if (f !== undefined && shot.keys?.length) {
@@ -245,6 +250,9 @@ export function mixLayouts(a, b, t) {
         out.ring = mix(a.ring ?? 0, b.ring ?? 0, t);
     if (a.lift || b.lift)
         out.lift = mix(a.lift ?? 0, b.lift ?? 0, t);
+    // A room cut away fades out and in with the move.
+    if (a.cutout !== undefined || b.cutout !== undefined)
+        out.cutout = mix(a.cutout ?? 0, b.cutout ?? 0, t);
     if (a.room || b.room)
         out.room = {
             dim: mix(a.room?.dim ?? 0, b.room?.dim ?? 0, t),

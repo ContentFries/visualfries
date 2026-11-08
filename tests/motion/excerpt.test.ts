@@ -368,6 +368,13 @@ describe('excerpts', () => {
 		expect(q.segments[0].hash).not.toBe(p.segments[0].hash);
 	});
 
+	it('measures a cutout across an edge over the whole shot, headroom or not', () => {
+		const shots = [{ id: 'alone', shot: 'cutout', from: 0, until: 'the slow export' }];
+		const ex = [{ id: 'x', from: 'today we fix', until: 'faster codec' }];
+		const p = excerpt('x', project({ shots, excerpts: ex }));
+		expect(p.excerpt!.footage!.heads.alone[0]).toMatchObject({ source: 'talk', held: false });
+	});
+
 	it('rejects unknown fields', () => {
 		expect(() => project({ excerpts: [{ id: 'x', from: 0, untill: 2 }] })).toThrow(/untill/);
 	});

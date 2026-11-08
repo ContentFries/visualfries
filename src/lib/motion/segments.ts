@@ -69,6 +69,8 @@ export type StageSegment = {
 	 * video. Other shots measure their own frames.
 	 */
 	heads?: Record<string, Record<string, number | null>>;
+	/** How high the head gets (see `shotTop`) over the same shots, like `heads`. */
+	tops?: Record<string, Record<string, number | null>>;
 };
 
 type Span = { startFrame: number; frames: number };
@@ -171,6 +173,7 @@ export function segmentStage(
 		frames: Record<string, FootageFrames>;
 		map: FootageMap | null;
 		heads?: StageSegment['heads'];
+		tops?: StageSegment['tops'];
 	},
 	brand: ResolvedBrand = NEUTRAL_BRAND
 ): StageSegment {
@@ -216,7 +219,8 @@ export function segmentStage(
 		...(program.excerpt?.end
 			? { hold: { from: program.excerpt.frames, clips: [program.excerpt.end.clip] } }
 			: {}),
-		...(footage.heads ? { heads: footage.heads } : {})
+		...(footage.heads ? { heads: footage.heads } : {}),
+		...(footage.tops ? { tops: footage.tops } : {})
 	};
 }
 

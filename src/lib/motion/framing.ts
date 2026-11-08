@@ -566,7 +566,9 @@ export function cutoutEdges(
 		};
 		for (let f = from; f < to; f++) {
 			const view = programFootageAt(map, f);
-			const frames = view && !inWindow(f) ? data.footage[view.source] : undefined;
+			// While the speaker is (partly) away the shot means them to leave the frame.
+			const away = !!awayAt(shot.away, f);
+			const frames = view && !inWindow(f) && !away ? data.footage[view.source] : undefined;
 			const box = frames && view ? sourceSubjectBox(frames, view.frame) : null;
 			const found = new Map<string, number>();
 			if (box && view) {

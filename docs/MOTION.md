@@ -653,7 +653,7 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
   clip fills a `panel` the speaker leaves no room for (a head that reaches the top of the safe
   area), since the clip then does not show. Needs a matte (`check` reports footage without one).
 
-**The speaker away.** A shot that cuts the speaker out by the matte (`behind`) takes `away`:
+**The speaker away.** A shot that cuts the speaker out by the matte (`behind`, `cutout`) takes `away`:
 stretches where the speaker is off the frame, so they are on screen only while they talk to the
 camera and the world behind them carries the rest.
 
@@ -706,9 +706,10 @@ camera and the world behind them carries the rest.
   slot too, also through a morph into or out of the shot) stay where they are: the room leaves with the speaker, so give the shot a behind clip
   that covers the frame (a scene, a colour) for the world they leave, or the background shows.
   A word in the `word` slot stays put; end its clip at the exit if it should go.
-- `full`, `punch`, `strip`, `window`, `whip` and custom shots reject `away`: there the speaker
-  is the whole picture, and sliding it off leaves an empty frame. Move the picture with shot keys
-  there, or use `behind`.
+- `away` works on the shots that cut the speaker out, `behind` and `cutout`. `full`, `punch`,
+  `strip`, `window`, `whip` and custom shots reject it: there the speaker is the whole picture,
+  and sliding it off leaves an empty frame. Move the picture with shot keys there, or use
+  `behind`.
 - Errors: `until` not after `from`, a range outside the shot, an exit that would start before
   the shot (unless `from` is its first frame), a way back that would outlast it, and a range
   that starts leaving before the one before it is back. `program` warns where the speaker is

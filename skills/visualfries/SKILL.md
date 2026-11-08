@@ -134,7 +134,7 @@ YouTube"], "handle": "@channel" }, "sound": "sfx/slam.wav" } }]`. The whole prog
   `still --excerpt` (blocks written in fixed 16:9 pixels show here), `render --excerpt` →
   `<project>.teaser1.mp4`. One excerpt is one range. Guide: `docs/MOTION.md` → "Excerpts".
 - The speaker on screen only while they talk to the camera (a scene behind them carries the
-  rest): `"away"` ranges on a `behind` shot, never hand-timed `x` keys. `{ "from": { "say": "…",
+  rest): `"away"` ranges on a `behind` (or `cutout`) shot, never hand-timed `x` keys. `{ "from": { "say": "…",
 "edge": "end" }, "until": { "say": "…", "edge": "start" } }` has the speaker wholly gone from
   `from` until `until` (`until` at the shot's own end keeps them away to it; `"until": "end"`
   is the program end, so only in a shot that runs there); `side` (`left`, `right`, `bottom`)

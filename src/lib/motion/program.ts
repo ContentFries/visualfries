@@ -1351,7 +1351,7 @@ function resolveAway(
 		report(
 			'error',
 			field(null),
-			`"away" needs a shot that draws the speaker cut out by the matte ("behind"): in a "${shot.shot}" shot the speaker is the whole picture, so nothing would stay in the frame when he leaves. Use "behind" (with a clip behind him for the world he leaves), or move the picture with shot keys.`
+			`"away" needs a shot that draws the speaker cut out by the matte ("behind" or "cutout"): in a "${shot.shot}" shot the speaker is the whole picture, so nothing would stay in the frame when they leave. Use "behind" or "cutout" (with a clip behind them for the world they leave), or move the picture with shot keys.`
 		);
 		return null;
 	}

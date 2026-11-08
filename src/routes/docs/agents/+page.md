@@ -13,7 +13,7 @@ When the input is a raw recording and the output is the finished video, write a 
 1. **`program`** after every edit, until it prints no error. Read every warning: edit points that cut a word, shots that cut the head, slots that show empty.
 2. **`check --determinism`**: every segment must pass. It also prints the mix's loudness.
 3. **`still`** at every cut, the first, middle and last frame of every transition window, and every shot move. Look at each frame before rendering.
-4. **`render`**, then `--format 1920x1080` for 16:9 from the same project. Report the render time, the segments drawn and cached, and the delivered loudness.
+4. **`render`**, then `--format 1920x1080` for 16:9 from the same project. Report the render time, the chunks drawn and cached, and the delivered loudness.
 
 ```bash
 npx visualfries program reel.vf.json

@@ -248,7 +248,8 @@ running on its own; set the poses from `t` or `clip.map`, then render).
 - Behind the speaker: in a program, give the clip `"layer": "behind"`. It is drawn between the
   footage and the speaker cut out by the matte, so give the block its own background (an opaque
   element under the canvas) when the world should replace the footage, and put labels that
-  must stay in front of the speaker in a second clip without `layer`.
+  must stay in front of the speaker inside `<Front>` in the same clip (see "Behind and in front
+  from one clip"), so they read the same state and the world runs once.
 - Nothing may carry over from the frames drawn before: pages draw frames in any order. A
   geometry whose vertices you move every frame (a water surface, a cloth) needs
   `geometry.computeBoundingSphere()` after the move, as Three.js culls and sorts transparent
@@ -1672,11 +1673,12 @@ project renders, run `check --format 1080x1920` (any `WxH`): the program is chec
 `render --format` draws it, with the format's safe zone, and `still --format` draws its stills.
 
 **8. Render.** `visualfries render reel.vf.json --output out/`, and `--format 1920x1080` for
-16:9 from the same project. The render reports each segment as drawn or cached, the mix and the
-time; the resolved program is saved beside the video. The cache works per segment (the range
-between two hard cuts): an edit redraws the segments whose content changed. A clip that spans
-several segments (a captions clip over the whole program) puts every one of them in play, and a
-cut that gets longer or shorter moves everything after it, so those segments are drawn again. To
+16:9 from the same project. The render reports each 15 s chunk as drawn or cached, the mix and
+the time; the resolved program is saved beside the video. An edit redraws only the chunks whose
+frames it changes (see [Programs](#programs) for what counts). New props or code of a clip that
+spans several segments (a captions clip over the whole program) put every chunk of those
+segments in play, and a cut that gets longer or shorter moves everything after it, so those
+chunks are drawn again. To
 finish the edit in an editor instead, `--export inserts` renders each clip as its own file to lay over
 the rough cut (see [Inserts from a program](#inserts-from-a-program)).
 
@@ -1757,10 +1759,10 @@ visualfries render video.vf.json --excerpt teaser1 --output out/   # out/video.t
   sound, a `{ "file" }` that is not there), is an error when it is asked for (`--excerpt`) and a
   warning in the whole program, so a typo in one teaser never stops the full video. The
   whole program has to resolve without errors, since the excerpt is its slice.
-- **Cache.** An excerpt is drawn as a program of its own: its segments are cached in
+- **Cache.** An excerpt is drawn as a program of its own: its chunks are cached in
   `.visualfries/segments/` under their own hashes, and each excerpt and format records its own
   files, so rendering one never prunes another's or the full video's. Rendering it again draws
-  only what changed in it. It does not take segments from the full video's render: a teaser is
+  only what changed in it. It does not take chunks from the full video's render: a teaser is
   usually another format, its edges rarely fall on the hard cuts between segments, and its
   hashes cover excerpt frames, so an edit that moves the range inside the program (a cut before
   it gets longer) draws the excerpt again.

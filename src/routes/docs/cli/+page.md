@@ -86,11 +86,11 @@ A render refuses to start when any requested clip has errors, and verifies that 
 ### Rendering a program
 
 ```bash
-npx visualfries render reel.vf.json --output out/ [--format <WxH>] [--excerpt <id>] [--jobs <n>] [--no-cache] [--stems]
+npx visualfries render reel.vf.json --output out/ [--format <WxH>] [--excerpt <id>] [--jobs <n>] [--chunk-seconds <s>] [--no-cache] [--stems]
 npx visualfries render reel.vf.json --export inserts --output inserts/ [--handles <frames>] [--clip <id>]... [--jobs <n>]
 ```
 
-With `cuts` or `shots`, `render` makes the whole program one video (`--export video`, the default there). `--output` is an `.mp4`, or a directory that gets `<project>[.<format>].mp4`; `--format 1920x1080` renders another frame size from the same project, and `--excerpt <id>` one of its excerpts as `<project>.<id>.mp4` (`check` and `still` take `--excerpt` too). The sound is mixed first (speech, effects and music, normalised to −14 LUFS and −1 dBTP; see [Program sound](/docs/program-sound)), then each segment is drawn or taken from the cache in `.visualfries/segments/`, and the segments are joined and encoded once. `--no-cache` draws every segment again; `--stems` also writes `<name>.speech.wav`, `<name>.sfx.wav` and `<name>.music.wav`. The resolved program is saved beside the video as `<name>.program.json`, and the result is printed as JSON.
+With `cuts` or `shots`, `render` makes the whole program one video (`--export video`, the default there). `--output` is an `.mp4`, or a directory that gets `<project>[.<format>].mp4`; `--format 1920x1080` renders another frame size from the same project, and `--excerpt <id>` one of its excerpts as `<project>.<id>.mp4` (`check` and `still` take `--excerpt` too). The sound is mixed first (speech, effects and music, normalised to −14 LUFS and −1 dBTP; see [Program sound](/docs/program-sound)), then the program is drawn in chunks of 15 s (`--chunk-seconds` or `"chunkSeconds"` in the project sets another length), each encoded once or taken from the cache in `.visualfries/segments/`, and the chunks are joined without encoding again. `--no-cache` draws every chunk again; `--stems` also writes `<name>.speech.wav`, `<name>.sfx.wav` and `<name>.music.wav`. The resolved program is saved beside the video as `<name>.program.json`, and the result is printed as JSON.
 
 `--export inserts` renders every clip of the program as its own frame-sized file instead, with `--handles` frames before and after (default 10), transparent unless the clip says `"alpha": false`, and `manifest.json` with the cut list under each insert. See [Inserts for an editor](/docs/programs#inserts-for-an-editor).
 

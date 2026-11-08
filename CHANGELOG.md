@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.10.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.9.0...visualfries-v0.10.0) (2026-11-08)
+
+
+### Features
+
+* **motion:** &lt;Front&gt; draws part of a clip in front of the speaker ([#123](https://github.com/ContentFries/visualfries/issues/123)) ([aa8be5d](https://github.com/ContentFries/visualfries/commit/aa8be5d73e97fcedcdc96cc90b32a4925719e15b))
+* **motion:** cutout shot, the speaker alone in part of the frame ([#124](https://github.com/ContentFries/visualfries/issues/124)) ([c03eaa4](https://github.com/ContentFries/visualfries/commit/c03eaa4adc5f6fe6d4c5b9a3427982a9d8939656))
+* **motion:** npm packages in blocks, a 3D blocks guide, and program time in a block ([#121](https://github.com/ContentFries/visualfries/issues/121)) ([f6f0d3e](https://github.com/ContentFries/visualfries/commit/f6f0d3e8b677f7a9a78db2cbf94a3fcd4b07c38a))
+* **motion:** take the speaker off the frame and back with shot away ranges ([#125](https://github.com/ContentFries/visualfries/issues/125)) ([87d5a22](https://github.com/ContentFries/visualfries/commit/87d5a2240381b5739965c70466d76fdf286ef869))
+* **render:** cache long segments in 4 s chunks ([#122](https://github.com/ContentFries/visualfries/issues/122)) ([bfb8dad](https://github.com/ContentFries/visualfries/commit/bfb8dadc19683bfb01678188c62d04e6455f73b4))
+* **render:** encode each 15 s chunk once and join the video by stream copy ([#129](https://github.com/ContentFries/visualfries/issues/129)) ([a1e825c](https://github.com/ContentFries/visualfries/commit/a1e825c80157c936c071401b5f472c3cbfa49cb3))
+
+
+### Bug Fixes
+
+* **motion:** the missing-package message skips built-ins and says where to install ([#128](https://github.com/ContentFries/visualfries/issues/128)) ([7ad1753](https://github.com/ContentFries/visualfries/commit/7ad17536a37d9f0c2a3f8ef80dc8dab7527bc9e8))
+* **render:** chunk hashes cover the frames a chunk draws and what its page mounts ([#127](https://github.com/ContentFries/visualfries/issues/127)) ([90b389e](https://github.com/ContentFries/visualfries/commit/90b389ef925a7ab61657b2dcf0f04cff6c7c2c24))
+
+
+### Documentation
+
+* describe the 15 s chunk cache everywhere, and &lt;Front&gt; for labels in front of a 3D world ([#131](https://github.com/ContentFries/visualfries/issues/131)) ([b7eec31](https://github.com/ContentFries/visualfries/commit/b7eec31036bef7ee529b79844a13b8b3dff18bde))
+
 ## [0.9.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.8.0...visualfries-v0.9.0) (2026-10-26)
 
 

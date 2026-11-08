@@ -8,7 +8,7 @@ import { propFileRefs, resolveMotionClip, resolveMotionProject } from './resolve
 import { END_CARD_BLOCK, sliceProgram } from './excerpt.js';
 import { micro, programEnd, resolveCutList, soundEnd, soundLength } from './cutlist.js';
 import { sha1 } from './sha1.js';
-import { chunkSpans, keyStates } from './chunks.js';
+import { CHUNK_SECONDS, chunkSpans, keyStates, programChunks } from './chunks.js';
 import { defaultMorph, SHOT_MODULES, shotAt, shotEvents, shotLayout, shotModule } from './shots/index.js';
 import { clipShowRange, stagedCuts, stagedShots } from './segments.js';
 import { parseEase } from './ease.js';
@@ -74,6 +74,9 @@ const overlaps = (a, b) => a.startFrame < endOf(b) && b.startFrame < endOf(a);
  * Pure: the same project and inputs give the same JSON, in Node and in the browser.
  */
 export function resolveProgram(project, given, opts = {}) {
+    const chunkSeconds = opts.chunkSeconds ?? project.chunkSeconds ?? CHUNK_SECONDS;
+    if (!(chunkSeconds > 0 && Number.isFinite(chunkSeconds)))
+        throw new Error(`chunkSeconds must be a positive number, got ${chunkSeconds}.`);
     const fps = project.fps;
     // An excerpt resolves the whole program in its own format, then slices it.
     const spec = opts.excerpt === undefined ? null : excerptSpec(project, opts.excerpt);
@@ -259,7 +262,7 @@ export function resolveProgram(project, given, opts = {}) {
         words: cutList.words ?? [],
         events,
         audio,
-        segments: resolveSegments(base, project),
+        ...withChunks(resolveSegments(base, project, undefined, chunkSeconds), frames, fps, chunkSeconds),
         diagnostics,
         ...(excerpts ? { excerpts } : {})
     };
@@ -285,9 +288,14 @@ export function resolveProgram(project, given, opts = {}) {
     const hold = range.end ? { from: range.frames, clips: [range.end.clip] } : undefined;
     return {
         ...sliced,
-        segments: resolveSegments(sliced, project, { hold, footage: sliced.excerpt?.footage })
+        ...withChunks(resolveSegments(sliced, project, { hold, footage: sliced.excerpt?.footage }, chunkSeconds), sliced.frames, fps, chunkSeconds)
     };
 }
+/** Segments and the chunks of the grid made of their parts. */
+const withChunks = (segments, frames, fps, seconds) => ({
+    segments,
+    chunks: programChunks(segments, frames, fps, seconds)
+});
 /** The excerpt `id` of the project; an unknown id or a project without a program throws. */
 function excerptSpec(project, id) {
     if (!isProgramProject(project))
@@ -1439,7 +1447,7 @@ export function propFiles(props) {
  * shots and transitions, fonts, styles), so it changes exactly when its pixels may. An
  * excerpt's `hold` (its end card over the held last frame) is hashed with the segment it is in.
  */
-function resolveSegments(program, project, excerpt) {
+function resolveSegments(program, project, excerpt, chunkSeconds) {
     const hold = excerpt?.hold;
     const inWindow = (frame) => program.transitions.some((t) => t.startFrame < frame && frame < endOf(t));
     // Inside the frames, and before an end card (whose page holds the frame before it): an
@@ -1589,12 +1597,12 @@ function resolveSegments(program, project, excerpt) {
         if (span.frames <= 0)
             continue;
         const id = `seg${segments.length + 1}`;
-        const parts = chunkSpans(span, program.fps);
+        const parts = chunkSpans(span, program.fps, chunkSeconds);
         segments.push({
             id,
             ...span,
             ...contentOf(span),
-            chunks: parts.map((part, k) => ({
+            parts: parts.map((part, k) => ({
                 id: parts.length > 1 ? `${id}.${k + 1}` : id,
                 ...part,
                 hash: contentOf(part, span).hash

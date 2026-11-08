@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { chunkSpans, keyStates } from '$lib/motion/chunks.js';
+import { CHUNK_SECONDS, chunkSpans, keyStates, programChunks } from '$lib/motion/chunks.js';
 import { parseMotionProject } from '$lib/motion/timeline.js';
 import { parseTranscriptWords } from '$lib/motion/transcript.js';
 import { resolveProgram, type ProgramInputs, type ResolvedKey } from '$lib/motion/program.js';
@@ -14,29 +14,61 @@ const key = (frame: number, values: ResolvedKey['values'], ease = 'none'): Resol
 	mix: 'oklch'
 });
 
-describe('chunks of a segment', () => {
-	it('splits on a grid of program frames, so an edit elsewhere keeps the grid', () => {
-		expect(chunkSpans({ startFrame: 0, frames: 250 }, 25)).toEqual([
+describe('the chunk grid', () => {
+	it('lasts 15 s unless the project or the render says otherwise', () => {
+		expect(CHUNK_SECONDS).toBe(15);
+	});
+
+	it('cuts a segment into parts at every grid line, so an edit elsewhere keeps the grid', () => {
+		expect(chunkSpans({ startFrame: 0, frames: 250 }, 25, 4)).toEqual([
 			{ startFrame: 0, frames: 100 },
 			{ startFrame: 100, frames: 100 },
 			{ startFrame: 200, frames: 50 }
 		]);
-		expect(chunkSpans({ startFrame: 130, frames: 120 }, 25)).toEqual([
+		expect(chunkSpans({ startFrame: 130, frames: 120 }, 25, 4)).toEqual([
 			{ startFrame: 130, frames: 70 },
 			{ startFrame: 200, frames: 50 }
 		]);
+		// A part may be short: it is drawn into the same chunk file as its neighbour.
+		expect(chunkSpans({ startFrame: 190, frames: 110 }, 25, 4)).toEqual([
+			{ startFrame: 190, frames: 10 },
+			{ startFrame: 200, frames: 100 }
+		]);
+		expect(chunkSpans({ startFrame: 0, frames: 30 }, 30, 15)).toEqual([
+			{ startFrame: 0, frames: 30 }
+		]);
 	});
 
-	it('leaves no sliver at a segment edge', () => {
-		// 200 is 10 frames after the start and 290 sits 10 before the end: both merge.
-		expect(chunkSpans({ startFrame: 190, frames: 110 }, 25)).toEqual([
-			{ startFrame: 190, frames: 110 }
+	it('groups the parts of every segment into chunks of the grid, across segment edges', () => {
+		const part = (segment: string, startFrame: number, frames: number) => ({
+			id: `${segment}@${startFrame}`,
+			startFrame,
+			frames,
+			hash: `${segment}:${startFrame}:${frames}`
+		});
+		// Segments 0–29, 30–59 and 60–119 at 30 fps on a 1.5 s grid (45 frames).
+		const segments = [
+			{ id: 'seg1', parts: [part('seg1', 0, 30)] },
+			{ id: 'seg2', parts: [part('seg2', 30, 15), part('seg2', 45, 15)] },
+			{ id: 'seg3', parts: [part('seg3', 60, 30), part('seg3', 90, 30)] }
+		];
+		const chunks = programChunks(segments, 120, 30, 1.5);
+		expect(
+			chunks.map((c) => [c.id, c.startFrame, c.frames, c.parts.map((p) => p.segment)])
+		).toEqual([
+			['chunk1', 0, 45, ['seg1', 'seg2']],
+			['chunk2', 45, 45, ['seg2', 'seg3']],
+			['chunk3', 90, 30, ['seg3']]
 		]);
-		expect(chunkSpans({ startFrame: 0, frames: 210 }, 25)).toEqual([
-			{ startFrame: 0, frames: 100 },
-			{ startFrame: 100, frames: 110 }
+		expect(chunks[1].parts.map((p) => [p.id, p.startFrame, p.frames])).toEqual([
+			['seg2@45', 45, 15],
+			['seg3@60', 60, 30]
 		]);
-		expect(chunkSpans({ startFrame: 0, frames: 30 }, 30)).toEqual([{ startFrame: 0, frames: 30 }]);
+		// A chunk's hash follows the parts it holds and nothing else.
+		const edited = structuredClone(segments);
+		edited[1].parts[1].hash = 'changed';
+		const again = programChunks(edited, 120, 30, 1.5);
+		expect(again.map((c, i) => c.hash === chunks[i].hash)).toEqual([true, false, true]);
 	});
 });
 
@@ -94,9 +126,10 @@ describe('chunk hashes of a program', () => {
 		}
 	};
 	/** One cut, one long shot that leaves at `out` seconds, a world clip across the program. */
-	const json = (out: number, props = {}) => ({
+	const json = (out: number, props = {}, chunkSeconds: number | null = 4) => ({
 		size: [1080, 1920],
 		fps: 30,
+		...(chunkSeconds === null ? {} : { chunkSeconds }),
 		footage: { talk: { src: 'talk.mp4' } },
 		cuts: [{ id: 'a', source: 'talk', in: 0, out: 13 }],
 		shots: [
@@ -117,24 +150,38 @@ describe('chunk hashes of a program', () => {
 		]
 	});
 	const resolve = (j: object) => resolveProgram(parseMotionProject(j), inputs);
-	const hashes = (j: object) => resolve(j).segments.flatMap((s) => s.chunks.map((c) => c.hash));
+	const hashes = (j: object) => resolve(j).chunks.map((c) => c.hash);
 
-	it('cut every segment into chunks that cover it', () => {
+	it('cut the program into chunks of the grid that cover it', () => {
 		const p = resolve(json(5));
 		expect(p.segments).toHaveLength(1);
-		const chunks = p.segments[0].chunks;
-		expect(chunks.map((c) => [c.id, c.startFrame, c.frames])).toEqual([
+		expect(p.segments[0].parts.map((c) => [c.id, c.startFrame, c.frames])).toEqual([
 			['seg1.1', 0, 120],
 			['seg1.2', 120, 120],
-			['seg1.3', 240, 150]
+			['seg1.3', 240, 120],
+			['seg1.4', 360, 30]
 		]);
+		expect(p.chunks.map((c) => [c.id, c.startFrame, c.frames])).toEqual([
+			['chunk1', 0, 120],
+			['chunk2', 120, 120],
+			['chunk3', 240, 120],
+			['chunk4', 360, 30]
+		]);
+		// 13 s fit one chunk of the default 15 s grid; a render may choose another length.
+		expect(resolve(json(5, {}, null)).chunks.map((c) => c.frames)).toEqual([390]);
+		const two = resolveProgram(parseMotionProject(json(5)), inputs, { chunkSeconds: 2 });
+		expect(two.chunks.map((c) => c.frames)).toEqual([60, 60, 60, 60, 60, 60, 30]);
+		for (const bad of [0, -1, Number.NaN, Infinity])
+			expect(() =>
+				resolveProgram(parseMotionProject(json(5)), inputs, { chunkSeconds: bad })
+			).toThrow(/chunkSeconds must be a positive number/);
 	});
 
 	it('change only where a moved key changes the picture', () => {
 		const a = hashes(json(5));
 		const b = hashes(json(5.5));
 		// The exit moves from 5–5.2 s to 5.5–5.7 s: frames 150–171 change, inside chunk 2 only.
-		expect(b.map((h, i) => h === a[i])).toEqual([true, false, true]);
+		expect(b.map((h, i) => h === a[i])).toEqual([true, false, true, true]);
 	});
 
 	it('change in the first segment of a cutout when the footage of its second cut changes', () => {
@@ -160,7 +207,7 @@ describe('chunk hashes of a program', () => {
 	it('all change with the props of a clip on screen in all of them', () => {
 		const a = hashes(json(5));
 		const b = hashes(json(5, { tint: 'red' }));
-		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false]);
+		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false, false]);
 	});
 
 	/** `json(5)` with one more clip: `label` from 0 to 2 s, on screen in the first chunk only. */
@@ -181,16 +228,16 @@ describe('chunk hashes of a program', () => {
 				...inputs.hashes,
 				assets: { ...inputs.hashes.assets, 'blocks/Label.svelte': 'label-block', ...assets }
 			}
-		}).segments.flatMap((s) => s.chunks.map((c) => c.hash));
+		}).chunks.map((c) => c.hash);
 
 	it('all change with the props or code of a clip mounted in the segment', () => {
 		// A page mounts every clip of its segment for every chunk it draws: a block off screen in
 		// a chunk still runs there (global styles, fonts, what it does to the document).
 		const a = labelled({ props: { text: 'ONE' } });
 		const b = labelled({ props: { text: 'TWO' } });
-		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false]);
+		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false, false]);
 		const c = labelled({ props: { text: 'ONE' } }, { 'blocks/Label.svelte': 'label-block-2' });
-		expect(c.map((h, i) => h === a[i])).toEqual([false, false, false]);
+		expect(c.map((h, i) => h === a[i])).toEqual([false, false, false, false]);
 	});
 
 	it('all change with the value a keyed prop mounts with', () => {
@@ -205,7 +252,7 @@ describe('chunk hashes of a program', () => {
 		});
 		const a = labelled(keys(0));
 		const b = labelled(keys(0.5));
-		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false]);
+		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false, false]);
 	});
 
 	it('all change when a mounted clip gains placement keys', () => {
@@ -213,7 +260,7 @@ describe('chunk hashes of a program', () => {
 		// or another block may see it in every chunk.
 		const a = labelled({ props: { text: 'ONE' } });
 		const b = labelled({ props: { text: 'ONE' }, keys: [{ at: 0, x: 0 }] });
-		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false]);
+		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false, false]);
 	});
 
 	it('all change when a shot that blurs its moves joins the segment of a slotted clip', () => {
@@ -234,7 +281,7 @@ describe('chunk hashes of a program', () => {
 		};
 		const a = hashes(late('full'));
 		const b = hashes(late('whip'));
-		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false]);
+		expect(b.map((h, i) => h === a[i])).toEqual([false, false, false, false]);
 	});
 
 	it('change only where a moved placement key of a mounted clip draws', () => {
@@ -248,7 +295,7 @@ describe('chunk hashes of a program', () => {
 		});
 		const a = labelled(keys(1));
 		const b = labelled(keys(1.5));
-		expect(b.map((h, i) => h === a[i])).toEqual([false, true, true]);
+		expect(b.map((h, i) => h === a[i])).toEqual([false, true, true, true]);
 	});
 
 	it('cover what a clip held at its last frame shows inside a transition window', () => {
@@ -257,6 +304,7 @@ describe('chunk hashes of a program', () => {
 		const pushed = (fade: number) => ({
 			size: [1080, 1920],
 			fps: 30,
+			chunkSeconds: 4,
 			footage: { talk: { src: 'talk.mp4' } },
 			cuts: [
 				{ id: 'a', source: 'talk', in: 0, out: 7.9 },
@@ -278,10 +326,10 @@ describe('chunk hashes of a program', () => {
 		});
 		const p = resolve(pushed(7.2));
 		expect(p.transitions.map((t) => [t.startFrame, t.frames])).toEqual([[231, 12]]);
-		expect(p.segments[0].chunks.map((c) => c.startFrame)).toEqual([0, 120, 240]);
+		expect(p.chunks.map((c) => c.startFrame)).toEqual([0, 120, 240, 360]);
 		const a = hashes(pushed(7.2));
 		const b = hashes(pushed(7.5));
-		expect(b.map((h, i) => h === a[i])).toEqual([true, false, false]);
+		expect(b.map((h, i) => h === a[i])).toEqual([true, false, false, true]);
 	});
 });
 
@@ -304,12 +352,13 @@ describe('chunk hashes under an end card', () => {
 		}
 	});
 	/**
-	 * The excerpt of 0–6 s with a 4 s end card: chunks 0–119, 120–239 and 240–299, the last all
+	 * The excerpt of 0–6 s with a 4 s end card: chunks 0–119, 120–239 and 240–299 on a 4 s grid, the last all
 	 * under the card, which holds frame 179 (the title's last).
 	 */
 	const json = (o: { shot?: string; key?: number; text?: string } = {}) => ({
 		size: [1080, 1920],
 		fps: 30,
+		chunkSeconds: 4,
 		footage: { talk: { src: 'talk.mp4' } },
 		cuts: [{ id: 'a', source: 'talk', in: 0, out: 13 }],
 		shots: [{ id: 'speaker', shot: o.shot ?? 'full', from: 0, until: 6 }],
@@ -331,13 +380,12 @@ describe('chunk hashes under an end card', () => {
 	});
 	const resolve = (j: object, source?: string) =>
 		resolveProgram(parseMotionProject(j), inputs(source), { excerpt: 'x' });
-	const hashes = (j: object, source?: string) =>
-		resolve(j, source).segments.flatMap((s) => s.chunks.map((c) => c.hash));
+	const hashes = (j: object, source?: string) => resolve(j, source).chunks.map((c) => c.hash);
 
 	it('are cut as the excerpt runs', () => {
 		const p = resolve(json());
 		expect(p.diagnostics.filter((d) => d.level === 'error')).toEqual([]);
-		expect(p.segments.flatMap((s) => s.chunks.map((c) => [c.startFrame, c.frames]))).toEqual([
+		expect(p.chunks.map((c) => [c.startFrame, c.frames])).toEqual([
 			[0, 120],
 			[120, 120],
 			[240, 60]

@@ -59,7 +59,7 @@ export function wholeProgram(program) {
         ...span,
         items: [],
         hash: '',
-        chunks: [{ id: 'program', ...span, hash: '' }]
+        parts: [{ id: 'program', ...span, hash: '' }]
     };
 }
 /** The segment holding program frame `f`. */

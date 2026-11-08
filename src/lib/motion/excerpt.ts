@@ -85,12 +85,12 @@ const overlaps = (a: Span, b: Span) => a.startFrame < endOf(b) && b.startFrame <
  * (`excerpts[0]`).
  */
 export function sliceProgram(
-	full: Omit<ResolvedProgram, 'segments'>,
+	full: Omit<ResolvedProgram, 'segments' | 'chunks'>,
 	excerpt: ProgramExcerpt,
 	end: { clip: ProgramClip | null; sound: AudioPiece | null },
 	sounds: Record<string, SoundInfo | null> = {},
 	field = 'excerpt'
-): Omit<ResolvedProgram, 'segments'> {
+): Omit<ResolvedProgram, 'segments' | 'chunks'> {
 	const fps = full.fps;
 	const first = excerpt.startFrame;
 	const range = { startFrame: first, frames: excerpt.frames };

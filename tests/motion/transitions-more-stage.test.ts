@@ -14,6 +14,7 @@ import {
 	cardPose,
 	transitionProgress
 } from '../../src/lib/motion/transitions/index.js';
+import { rgba } from './png.js';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -51,8 +52,6 @@ function ffmpeg(args: string[], input?: Buffer): Buffer {
 	if (r.status !== 0) throw new Error(String(r.stderr));
 	return r.stdout;
 }
-const rgba = (png: Buffer) =>
-	ffmpeg(['-i', 'pipe:0', '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'], png);
 /** Whether (x, y) is inside `polygon` or within `slack` pixels of its edge. */
 function nearPolygon(x: number, y: number, polygon: [number, number][], slack: number): boolean {
 	let inside = false;

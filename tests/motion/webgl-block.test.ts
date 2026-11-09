@@ -13,6 +13,7 @@ import {
 	renderMotionClips,
 	renderStills
 } from '../../src/lib/motion/node.js';
+import { rgba } from './png.js';
 
 // A block with a nested WebGL `<canvas layoutsubtree>` that samples its own children.
 const BLOCK = path.join(
@@ -39,13 +40,9 @@ async function project(clip: object, files: Record<string, string> = {}, top: ob
 	return { dir, loaded: await loadMotionProject(path.join(dir, 'p.vf.json')) };
 }
 
-/** RGBA of one pixel of a PNG, decoded by ffmpeg. */
+/** RGBA of one pixel of a PNG. */
 function pixel(png: Buffer, x: number, y: number, width: number): number[] {
-	const raw = spawnSync(
-		'ffmpeg',
-		['-v', 'error', '-i', 'pipe:0', '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'],
-		{ input: png }
-	).stdout;
+	const raw = rgba(png);
 	const i = (y * width + x) * 4;
 	return [...raw.subarray(i, i + 4)];
 }

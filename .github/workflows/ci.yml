@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # crap-check compares with the base branch
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -41,7 +43,14 @@ jobs:
         run: pnpm check
 
       - name: Unit tests
-        run: pnpm exec vitest run
+        run: pnpm exec vitest run --coverage.enabled --coverage.provider=v8 --coverage.reporter=lcov
+
+      # Functions a pull request changes must stay at CRAP 30 or below (crap.config.json, AGENTS.md).
+      # Reads the coverage of the whole suite above instead of running the related tests again.
+      - name: CRAP score of changed functions
+        if: github.event_name == 'pull_request'
+        shell: bash -o pipefail {0}
+        run: pnpm exec crap-check --no-run --base "origin/${{ github.base_ref }}" | tee -a "$GITHUB_STEP_SUMMARY"
 
       # Projects without a cut list must render exactly as on main: render both builds here, on
       # the same Chromium and ffmpeg, and compare file bytes and manifests.
@@ -57,36 +66,3 @@ jobs:
       - name: Build package and site
         run: pnpm build
 
-  # Functions a pull request changes must stay at CRAP 30 or below (crap.config.json, AGENTS.md).
-  crap:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.17.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: pnpm
-
-      - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Sync SvelteKit
-        run: pnpm exec svelte-kit sync
-
-      - name: CRAP score of changed functions
-        shell: bash -o pipefail {0}
-        run: pnpm exec crap-check --base "origin/${{ github.base_ref }}" | tee -a "$GITHUB_STEP_SUMMARY"

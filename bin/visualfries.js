@@ -1689,16 +1689,6 @@ function printCheckFormat(program) {
 	);
 }
 
-/** `--export` of check: video or inserts, and inserts come from the whole program. */
-function readCheckExport(args, excerpt) {
-	const exportAs = readFlag(args, '--export');
-	if (exportAs !== undefined && exportAs !== 'inserts' && exportAs !== 'video')
-		throw new Error(`--export must be video or inserts, got "${exportAs}".`);
-	if (exportAs === 'inserts' && excerpt !== undefined)
-		throw new Error('--excerpt renders a video; inserts come from the whole program.');
-	return exportAs;
-}
-
 /** Program diagnostics the clip checks below do not repeat. */
 function newProgramDiagnostics(loaded, program, programMode) {
 	const key = (d) => JSON.stringify([d.clip, d.field, d.message]);
@@ -1767,27 +1757,6 @@ function printCheckJson(program, programMode, format, diagnostics, mix, results)
 	);
 }
 
-function printCheckResults(program, programMode, results) {
-	const segment = (id) => program.segments.find((s) => s.id === id);
-	for (const r of results) {
-		const seg = programMode ? segment(r.id) : null;
-		const span = seg ? `  frames ${seg.startFrame}–${seg.startFrame + seg.frames - 1}` : '';
-		console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.id}${span}${r.mode ? `  (${r.mode})` : ''}`);
-		for (const e of r.errors)
-			console.log(
-				`  error${e.frame !== undefined && e.frame >= 0 ? ` @f${e.frame}` : ''}: ${e.message}`
-			);
-		for (const w of r.warnings) console.log(`  warning: ${w.message}`);
-	}
-	const kind = programMode ? 'segments' : 'clips';
-	const failed = results.filter((r) => !r.ok).length;
-	console.log(
-		failed
-			? `${failed} of ${results.length} ${kind} need attention.`
-			: `All ${results.length} ${kind} pass.`
-	);
-}
-
 async function motionCheckCommand(args) {
 	const file = args[0];
 	if (!file)
@@ -1796,6 +1765,7 @@ async function motionCheckCommand(args) {
 		);
 	const { loadMotionProject, checkMotionProject, describeMusicGrid, motionProgram } =
 		await motionModule();
+	const { checkExport, checkResultLines } = await import('../dist/motion/check-report.js');
 	const loaded = await loadMotionProject(file, {
 		transcript: readFlag(args, '--transcript'),
 		editPoints: true
@@ -1818,7 +1788,7 @@ async function motionCheckCommand(args) {
 	if (format !== undefined && !json) printCheckFormat(program);
 	const diagnostics = newProgramDiagnostics(loaded, program, programMode);
 	// What the inserts export of a program leaves to the program render.
-	const exportAs = readCheckExport(args, excerpt);
+	const exportAs = checkExport(readFlag(args, '--export'), excerpt);
 	if (exportAs === 'inserts' && programMode) {
 		const { insertNotes } = await import('../dist/motion/inserts.js');
 		diagnostics.push(...insertNotes(program, loaded.project));
@@ -1838,7 +1808,7 @@ async function motionCheckCommand(args) {
 		? await (await programModule()).checkProgram(loaded, checkOptions)
 		: await checkMotionProject(loaded, checkOptions);
 	if (json) printCheckJson(program, programMode, format, diagnostics, mix, results);
-	else printCheckResults(program, programMode, results);
+	else console.log(checkResultLines(program, programMode, results).join('\n'));
 	if (results.some((r) => !r.ok) || diagnostics.some((d) => d.level === 'error'))
 		process.exitCode = 1;
 }
@@ -1883,7 +1853,9 @@ async function motionProgramCommand(args) {
 			);
 		for (const s of program.shots.filter((x) => !x.implicit))
 			console.log(
-				`shot ${s.id.padEnd(9)} ${frameTime(s.startFrame, fps)}  ${s.frames} frames  ${s.shot}${s.morphFrames ? `  morph ${s.morphFrames} frames ${s.morphEase}` : ''}${s.keys.length ? `  ${s.keys.length} keys` : ''}${(s.away ?? [])
+				`shot ${s.id.padEnd(9)} ${frameTime(s.startFrame, fps)}  ${s.frames} frames  ${s.shot}${s.morphFrames ? `  morph ${s.morphFrames} frames ${s.morphEase}` : ''}${s.keys.length ? `  ${s.keys.length} keys` : ''}${(
+					s.away ?? []
+				)
 					.map(
 						(r) =>
 							`  away ${frameTime(r.from, fps)}–${r.until === null ? 'end' : frameTime(r.until, fps)}${r.side ? ` ${r.side}` : ''}`

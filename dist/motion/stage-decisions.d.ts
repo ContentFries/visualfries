@@ -24,7 +24,7 @@ export declare function backdropLook(backdrop: {
 };
 /**
  * Whether the subject picture draws over the behind clips. It covers them only while one is on
- * screen, or a dimmed room; in an insert it is only what a holdout cuts out.
+ * screen, a dimmed room or a room cut away; in an insert it is only what a holdout cuts out.
  */
 export declare function subjectDrawn(o: {
     insert: {
@@ -32,6 +32,7 @@ export declare function subjectDrawn(o: {
     } | null | undefined;
     behind: boolean;
     room: boolean;
+    cutAway: boolean;
     hasSubject: boolean;
 }): boolean;
 /** Whether `textBehind` can measure this frame: one drawn side with a matte, no holes, not faded. */

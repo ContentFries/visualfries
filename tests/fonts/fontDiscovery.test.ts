@@ -178,4 +178,84 @@ describe('font discovery', () => {
 
 		expect(discoverRequiredFontVariants(scene, [])).toEqual([]);
 	});
+
+	const sceneWith = (components: any[]) => {
+		const scene = createBaseScene();
+		scene.layers = [{ id: 'l', order: 0, visible: true, muted: false, components }];
+		return scene;
+	};
+	const textComponent = (id: string, text: any) => ({
+		id,
+		type: 'TEXT',
+		text: 'Hello',
+		appearance: { text }
+	});
+
+	it('falls back to the configured weights when the component names none', () => {
+		const scene = sceneWith([textComponent('t', { fontFamily: 'Brand Sans' })]);
+		const configuredFonts: FontType[] = [
+			{
+				alias: 'Brand Sans',
+				source: 'custom',
+				src: 'https://cdn.example.com/b.woff2',
+				data: { family: 'Brand Sans:300,600' }
+			}
+		];
+
+		const weights = discoverRequiredFontVariants(scene, configuredFonts)
+			.map((variant) => variant.weight)
+			.sort((a, b) => a - b);
+
+		expect(weights).toEqual([300, 600]);
+	});
+
+	it('requests regular weight when neither the component nor the config names one', () => {
+		const scene = sceneWith([
+			textComponent('t', { fontFamily: 'Raleway', fontSource: { source: 'google' } })
+		]);
+
+		expect(discoverRequiredFontVariants(scene, [])).toEqual([
+			{ family: 'Raleway', weight: 400, source: 'google', fileUrl: undefined }
+		]);
+	});
+
+	it('takes the family from fontSource when fontFamily is missing', () => {
+		const scene = sceneWith([
+			textComponent('t', { fontWeight: '500', fontSource: { source: 'google', family: 'Inter' } })
+		]);
+
+		expect(discoverRequiredFontVariants(scene, [])).toEqual([
+			{ family: 'Inter', weight: 500, source: 'google', fileUrl: undefined }
+		]);
+	});
+
+	it('skips text without any family', () => {
+		const scene = sceneWith([textComponent('t', { fontWeight: '500' })]);
+
+		expect(discoverRequiredFontVariants(scene, [])).toEqual([]);
+	});
+
+	it('merges duplicate variants, preferring custom and keeping any file url', () => {
+		const scene = sceneWith([
+			textComponent('a', {
+				fontFamily: 'Brand',
+				fontWeight: '700',
+				fontSource: { source: 'google' }
+			}),
+			textComponent('b', {
+				fontFamily: 'brand',
+				fontWeight: '700',
+				fontSource: { source: 'custom', fileUrl: 'https://cdn.example.com/brand.woff2' }
+			})
+		]);
+
+		const variants = discoverRequiredFontVariants(scene, []);
+
+		expect(variants).toHaveLength(1);
+		expect(variants[0]).toMatchObject({
+			weight: 700,
+			source: 'custom',
+			fileUrl: 'https://cdn.example.com/brand.woff2'
+		});
+	});
 });

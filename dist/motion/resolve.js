@@ -68,13 +68,12 @@ export function withFileUrls(props, url) {
                 : value;
     return Object.fromEntries(Object.entries(props).map(([k, v]) => [k, swap(v)]));
 }
-export function resolveMotionClip(clip, project, words, diagnostics, music = [], look = {}, previous = { at: null }) {
-    const fps = project.fps;
-    const beats = { music, clip: clip.music };
-    const programEnd = look.end;
-    const fail = (field, error) => {
-        diagnostics.push({ level: 'error', clip: clip.id, field, message: error.message });
-    };
+/** Records why a clip's `field` could not be resolved. */
+function failField(diagnostics, clip, field, error) {
+    diagnostics.push({ level: 'error', clip: clip.id, field, message: error.message });
+}
+/** Where the clip starts and ends in seconds (`tail` included), or null once a diagnostic says why not. */
+function resolveClipSpan(clip, words, fps, beats, programEnd, previous, diagnostics) {
     const order = (field, after, what) => ({
         after,
         what,
@@ -96,7 +95,7 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
         previous.at = orderPoint(hit);
     }
     catch (error) {
-        fail('from', error);
+        failField(diagnostics, clip, 'from', error);
         return null;
     }
     try {
@@ -111,10 +110,13 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
         }, 'end').time;
     }
     catch (error) {
-        fail('until', error);
+        failField(diagnostics, clip, 'until', error);
         return null;
     }
-    endSec += clip.tail ?? 0;
+    return { startSec, endSec: endSec + (clip.tail ?? 0) };
+}
+/** A one-word phrase anchor easily matches the wrong spot after a re-take; say so. */
+function warnOneWordAnchors(clip, programEnd, diagnostics) {
     for (const field of ['from', 'until']) {
         const anchor = clip[field];
         const say = typeof anchor === 'string' && !isProgramEnd(anchor, { end: programEnd })
@@ -131,8 +133,9 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
             });
         }
     }
-    const startFrame = Math.round(startSec * fps);
-    let endFrame = Math.round(endSec * fps);
+}
+/** The clip's end frame, cut at the program end when it runs past it (with a diagnostic). */
+function cutAtProgramEnd(clip, startSec, endSec, startFrame, endFrame, fps, programEnd, diagnostics) {
     const programFrames = typeof programEnd === 'number' ? Math.round(programEnd * fps) : null;
     if (programFrames !== null && startFrame >= programFrames)
         diagnostics.push({
@@ -143,23 +146,18 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
         });
     // A clip that runs past the program end is cut there, its own length included.
     else if (programFrames !== null && endFrame > programFrames) {
-        endFrame = programFrames;
         diagnostics.push({
             level: 'info',
             clip: clip.id,
             field: 'until',
             message: `Clip ends at ${endSec.toFixed(2)} s, after the program (${programEnd.toFixed(2)} s); it is cut there. "until": "end" ends it with the program.`
         });
+        return programFrames;
     }
-    if (endFrame <= startFrame) {
-        fail('until', new Error(`Clip ends (${endSec.toFixed(2)}s) before it starts (${startSec.toFixed(2)}s).`));
-        return null;
-    }
-    const start = startFrame / fps;
-    const end = endFrame / fps;
-    // Search with the unrounded anchors too: a word at 1.02 s must not fall out of a clip
-    // whose first frame lands at 1.0333 s.
-    const window = { from: Math.min(start, startSec) - 1e-6, to: Math.max(end, endSec) };
+    return endFrame;
+}
+/** The clip's named cues, in clip-local time; a cue that fails or never shows says so. */
+function resolveCues(clip, words, fps, window, start, end, beats, diagnostics) {
     const cues = {};
     for (const [name, anchor] of Object.entries(clip.cues ?? {})) {
         try {
@@ -181,9 +179,13 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
             };
         }
         catch (error) {
-            fail(`cues.${name}`, error);
+            failField(diagnostics, clip, `cues.${name}`, error);
         }
     }
+    return cues;
+}
+/** The clip's named word ranges, in clip-local time. */
+function resolveBoundWords(clip, words, fps, window, start, beats, diagnostics) {
     const bound = {};
     for (const [name, spec] of Object.entries(clip.words ?? {})) {
         try {
@@ -198,9 +200,13 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
             }
         }
         catch (error) {
-            fail(`words.${name}`, error);
+            failField(diagnostics, clip, `words.${name}`, error);
         }
     }
+    return bound;
+}
+/** Warns about `file` objects the block gets as they are, and fails files the tooling cannot serve. */
+function checkPropFiles(clip, files, diagnostics) {
     for (const ref of walkProps(clip.props)) {
         if (ref.file === null)
             diagnostics.push({
@@ -209,27 +215,54 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
                 field: `props.${ref.at}`,
                 message: 'This object has "file" next to other keys, so the block gets it as it is. To name a project file, write { "file": "…" } alone (the block then gets its URL) and put the other values beside it.'
             });
-        else if (look.files?.[ref.file])
-            fail(`props.${ref.at}`, new Error(look.files[ref.file]));
+        else if (files?.[ref.file])
+            failField(diagnostics, clip, `props.${ref.at}`, new Error(files[ref.file]));
     }
+}
+/** The clip's beat grid in clip-local time, or why it has none; null without music. */
+function resolveMusicFields(clip, music, beats, start) {
     // Without music the clip gets no beat fields at all, so it resolves exactly as before.
-    let musicFields = null;
-    if (music.length) {
-        try {
-            musicFields = {
-                beats: pickMusic(beats.music, beats.clip).grid.map(({ index, time, bar, beat }) => ({
-                    index,
-                    time,
-                    local: time - start,
-                    bar,
-                    beat
-                }))
-            };
-        }
-        catch (error) {
-            musicFields = { noBeats: error.message };
-        }
+    if (!music.length)
+        return null;
+    try {
+        return {
+            beats: pickMusic(beats.music, beats.clip).grid.map(({ index, time, bar, beat }) => ({
+                index,
+                time,
+                local: time - start,
+                bar,
+                beat
+            }))
+        };
     }
+    catch (error) {
+        return { noBeats: error.message };
+    }
+}
+export function resolveMotionClip(clip, project, words, diagnostics, music = [], look = {}, previous = { at: null }) {
+    const fps = project.fps;
+    const beats = { music, clip: clip.music };
+    const programEnd = look.end;
+    const span = resolveClipSpan(clip, words, fps, beats, programEnd, previous, diagnostics);
+    if (!span)
+        return null;
+    const { startSec, endSec } = span;
+    warnOneWordAnchors(clip, programEnd, diagnostics);
+    const startFrame = Math.round(startSec * fps);
+    const endFrame = cutAtProgramEnd(clip, startSec, endSec, startFrame, Math.round(endSec * fps), fps, programEnd, diagnostics);
+    if (endFrame <= startFrame) {
+        failField(diagnostics, clip, 'until', new Error(`Clip ends (${endSec.toFixed(2)}s) before it starts (${startSec.toFixed(2)}s).`));
+        return null;
+    }
+    const start = startFrame / fps;
+    const end = endFrame / fps;
+    // Search with the unrounded anchors too: a word at 1.02 s must not fall out of a clip
+    // whose first frame lands at 1.0333 s.
+    const window = { from: Math.min(start, startSec) - 1e-6, to: Math.max(end, endSec) };
+    const cues = resolveCues(clip, words, fps, window, start, end, beats, diagnostics);
+    const bound = resolveBoundWords(clip, words, fps, window, start, beats, diagnostics);
+    checkPropFiles(clip, look.files, diagnostics);
+    const musicFields = resolveMusicFields(clip, music, beats, start);
     return {
         id: clip.id,
         block: clip.block,

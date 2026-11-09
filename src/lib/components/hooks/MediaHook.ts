@@ -15,8 +15,6 @@ export class MediaHook implements IComponentHook {
 	private state: StateManager;
 	#destroyed = false;
 	#playRequested = false;
-	#lastControllerCheck = 0;
-	#CONTROLLER_CHECK_INTERVAL = 100; // ms
 	#seekVersion = 0;
 	#cleanupPendingSeek: (() => void) | undefined;
 
@@ -326,6 +324,36 @@ export class MediaHook implements IComponentHook {
 		}
 	}
 
+	// Safari-specific: ensure audio is properly restored when taking control.
+	#restoreSoundOnClaim(isMuted: boolean, componentVolume: number): void {
+		if (this.#mediaElement && !isMuted) {
+			this.#mediaElement.muted = false;
+			this.#mediaElement.volume = componentVolume;
+		}
+	}
+
+	/**
+	 * True while the component is loading and its element has no data yet (it should stay
+	 * paused); a loading component whose element has data stops counting as loading.
+	 */
+	#loadingWithoutData(): boolean {
+		const id = this.#context.contextData.id;
+		if (!this.state.isLoadingComponent(id)) return false;
+		if (this.#mediaElement && this.#mediaElement.readyState < 2) return true;
+		this.state.removeLoadingComponent(id);
+		return false;
+	}
+
+	#syncAudioState(isMuted: boolean, componentVolume: number): void {
+		if (!this.#mediaElement) return;
+		if (this.#mediaElement.muted != isMuted) {
+			this.#mediaElement.muted = isMuted;
+		}
+		if (this.#mediaElement.volume != componentVolume) {
+			this.#mediaElement.volume = componentVolume;
+		}
+	}
+
 	async #handleUpdate(): Promise<void> {
 		if (this.#context.contextData.type !== 'VIDEO' && this.#context.contextData.type !== 'AUDIO')
 			return;
@@ -335,9 +363,6 @@ export class MediaHook implements IComponentHook {
 		const componentVolume = (this.#context.contextData as any).volume ?? 1;
 		const source = (this.#context.contextData as any).source;
 		if (!source || !source.url) return;
-		// Debounce controller checks to prevent Safari issues with rapid controller changes
-		const now = performance.now();
-		const shouldCheckController = now - this.#lastControllerCheck > this.#CONTROLLER_CHECK_INTERVAL;
 
 		const isController =
 			this.mediaManager.getMediaController(source.url, mediaType) === this.#context.contextData.id;
@@ -367,42 +392,21 @@ export class MediaHook implements IComponentHook {
 		// On server, seeking is handled by MediaSeekingHook. Avoid duplicate logic/races.
 		if (this.state.environment === 'server') return;
 
-		// Make sure we're still marked as the controller. If nobody owns the shared media,
-		// claim it immediately; otherwise keep the debounce to avoid controller thrash.
-		if (!isController) {
-			const currentController = this.mediaManager.getMediaController(source.url, mediaType);
-			if (!currentController || shouldCheckController) {
-				if (!currentController) {
-					this.mediaManager.setMediaController(source.url, this.#context.contextData.id, mediaType);
-					await this.#autoSeek();
-					this.#lastControllerCheck = now;
-
-					// Safari-specific: Ensure audio is properly restored when taking control
-					if (this.#mediaElement && !isMuted) {
-						this.#mediaElement.muted = false;
-						this.#mediaElement.volume = componentVolume;
-					}
-				}
-			}
+		// An existing owner is never taken over; unowned media is claimed immediately. Clips that
+		// share an element update together, so the awaits here stay exactly these: an extra turn
+		// changes which clip sets the shared sound last.
+		if (!isController && !this.mediaManager.getMediaController(source.url, mediaType)) {
+			this.mediaManager.setMediaController(source.url, this.#context.contextData.id, mediaType);
+			await this.#autoSeek();
+			this.#restoreSoundOnClaim(isMuted, componentVolume);
 		}
 
-		// Check if component is loading using the StateManager
-		if (this.state.isLoadingComponent(this.#context.contextData.id)) {
-			if (this.#mediaElement && this.#mediaElement.readyState < 2) {
-				await this.#pause('readyState < 2');
-				return;
-			} else {
-				this.state.removeLoadingComponent(this.#context.contextData.id);
-			}
+		if (this.#loadingWithoutData()) {
+			await this.#pause('readyState < 2');
+			return;
 		}
 
-		// Ensure the media element matches the component's mute and volume state
-		if (this.#mediaElement && this.#mediaElement.muted != isMuted) {
-			this.#mediaElement.muted = isMuted;
-		}
-		if (this.#mediaElement && this.#mediaElement.volume != componentVolume) {
-			this.#mediaElement.volume = componentVolume;
-		}
+		this.#syncAudioState(isMuted, componentVolume);
 
 		const isScenePlaying =
 			this.#context.sceneState.state === 'playing' || this.#context.sceneState.state === 'loading';

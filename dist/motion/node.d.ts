@@ -408,14 +408,15 @@ export declare function pipeFrames(frames: number, jobs: number, open: () => Pro
 }): Promise<void>;
 /** The original path, kept as the fallback and for --keep-frames: PNG files, then one encode. */
 export declare function framesThenEncode(clip: Pick<ResolvedClip, 'id' | 'frames' | 'fps'>, jobs: number, open: () => Promise<MotionPage>, encode: string[], keep?: boolean): Promise<void>;
-export declare function renderMotionClips(loaded: LoadedMotionProject, opts: {
+type RenderOptions = {
     output: string;
     clips?: string[];
     jobs?: number;
     invalidate?: string;
     keepFrames?: boolean;
     onProgress?: (msg: string) => void;
-}): Promise<RenderedClip[]>;
+};
+export declare function renderMotionClips(loaded: LoadedMotionProject, opts: RenderOptions): Promise<RenderedClip[]>;
 /**
  * Writes `manifest.json` in `output`: the rendered clips merged into the entries of an earlier
  * render that are still in the project, each marked `stale` when it was timed against another

@@ -434,6 +434,121 @@ async function probeSource(file: string, fps: number, audio?: string): Promise<S
 	};
 }
 
+/** Short hash of everything about the music that changes where beats fall; null without beats. */
+function musicTimingHash(music: LoadedMusic[]): string | null {
+	const timing = music
+		.filter((m) => m.beatsHash)
+		.map(({ music: m, beatsHash }) => [
+			beatsHash,
+			m.id ?? null,
+			m.src,
+			m.from ?? null,
+			m.until ?? null,
+			m.shift ?? null,
+			m.downbeat ?? null,
+			m.tempo ?? null,
+			...(m.in !== undefined ? [m.in] : [])
+		]);
+	return timing.length
+		? createHash('sha256').update(JSON.stringify(timing)).digest('hex').slice(0, 12)
+		: null;
+}
+
+/** Probes one footage file of a program project; the footage's own `audio` setting wins. */
+async function probeFootage(
+	footage: NonNullable<MotionProject['footage']>[string],
+	file: string,
+	dir: string,
+	fps: number
+): Promise<SourceInfo> {
+	const audio = typeof footage.audio === 'string' ? path.resolve(dir, footage.audio) : null;
+	const info = await probeSource(file, fps, audio ?? undefined);
+	if (footage.audio === false) {
+		info.audio = false;
+		delete info.audioDuration;
+	} else if (audio) info.audio = true;
+	return info;
+}
+
+/** Transcripts, probed sources and the hashes of every footage the project lists. */
+async function loadFootageInputs(
+	project: MotionProject,
+	dir: string,
+	abs: string,
+	words: MotionWord[] | null
+) {
+	const transcripts: Record<string, MotionWord[]> = {};
+	const sources: Record<string, SourceInfo> = {};
+	const hashes: LoadedMotionProject['hashes'] = {
+		project: shortHash(await fs.readFile(abs)),
+		transcript: words ? wordsHash(words) : null,
+		transcripts: {},
+		sources: {}
+	};
+	for (const [name, footage] of Object.entries(project.footage ?? {})) {
+		if (footage.transcript) {
+			const file = path.resolve(dir, footage.transcript);
+			transcripts[name] = parseTranscriptWords(JSON.parse(await fs.readFile(file, 'utf8')));
+			hashes.transcripts[name] = wordsHash(transcripts[name]);
+		}
+		const files = [footage.src, footage.matte]
+			.filter((f): f is string => !!f)
+			.map((f) => path.resolve(dir, f));
+		const stats = await Promise.all(files.map((f) => fs.stat(f).catch(() => null)));
+		const listed = stats.map((st, i) => [path.relative(dir, files[i]), st?.size, st?.mtimeMs]);
+		// A clean plate draws pixels too: its settings and image join the hash (only when set,
+		// so footage without one keeps its hash).
+		const clean = footage.clean === undefined ? null : await cleanHashInput(footage.clean, dir);
+		hashes.sources[name] = shortHash(JSON.stringify(clean ? [...listed, clean] : listed));
+		if (isProgramProject(project) && stats[0])
+			sources[name] = await probeFootage(footage, files[0], dir, project.fps);
+	}
+	return { transcripts, sources, hashes };
+}
+
+/** Why an excerpt end card's block cannot be used; null when it can. */
+function endBlockProblem(dir: string, block: string): string | null {
+	if (existsSync(blockFile(dir, block))) return null;
+	if (!block.startsWith(BUILTIN_PREFIX)) return `Block file not found: ${block}`;
+	return `Unknown built-in block "${block}". Built-in blocks: ${Object.keys(BUILTIN_BLOCKS)
+		.map((b) => BUILTIN_PREFIX + b)
+		.join(', ')}.`;
+}
+
+/** Adds what the clips' blocks declare (sounds, animatable props, events, end cards) to the inputs. */
+async function addBlockInputs(
+	project: MotionProject,
+	dir: string,
+	inputs: ProgramInputs
+): Promise<void> {
+	const program = isProgramProject(project);
+	if (program) {
+		inputs.sounds = await loadSounds(project, dir);
+		// Keyed props are checked against what each block marks animatable.
+		inputs.animatable = {};
+		for (const block of new Set(project.clips.map((c) => c.block)))
+			inputs.animatable[block] = await readBlockAnimatable(blockFile(dir, block));
+	}
+	const cards = endCards(project);
+	if (program && cards.length) {
+		// Excerpt end cards are clips the project does not list: their blocks are checked here.
+		inputs.endBlocks = {};
+		for (const { block } of cards) inputs.endBlocks[block] = endBlockProblem(dir, block);
+	}
+	if (program || project.sfx?.length) {
+		// Events the blocks declare, for `{ event, clip }` anchors.
+		inputs.blockEvents = {};
+		for (const block of new Set(project.clips.map((c) => c.block)))
+			inputs.blockEvents[block] = await readBlockEvents(blockFile(dir, block));
+	}
+}
+
+/** Errors and warnings of a placement or cut list, as project diagnostics (infos are dropped). */
+const problemDiagnostics = (list: { level: string; field: string; message: string }[]) =>
+	list
+		.filter((d) => d.level !== 'info')
+		.map((d) => ({ level: d.level as 'error' | 'warning', field: d.field, message: d.message }));
+
 /** `transcript` overrides the project's transcript (e.g. a re-recorded voiceover); relative to cwd. */
 export async function loadMotionProject(
 	file: string,
@@ -466,87 +581,15 @@ export async function loadMotionProject(
 		: null;
 	const music = await loadMusic(project, dir);
 	const tracks = music.flatMap((m) => (m.track ? [m.track] : []));
-	const timing = music
-		.filter((m) => m.beatsHash)
-		.map(({ music: m, beatsHash }) => [
-			beatsHash,
-			m.id ?? null,
-			m.src,
-			m.from ?? null,
-			m.until ?? null,
-			m.shift ?? null,
-			m.downbeat ?? null,
-			m.tempo ?? null,
-			...(m.in !== undefined ? [m.in] : [])
-		]);
-	const musicHash = timing.length
-		? createHash('sha256').update(JSON.stringify(timing)).digest('hex').slice(0, 12)
-		: null;
+	const musicHash = musicTimingHash(music);
 	const brand = await loadBrand(project, dir);
 	const style = loadStyle(project, dir);
-	const transcripts: Record<string, MotionWord[]> = {};
-	const sources: Record<string, SourceInfo> = {};
-	const hashes: LoadedMotionProject['hashes'] = {
-		project: shortHash(await fs.readFile(abs)),
-		transcript: words ? wordsHash(words) : null,
-		transcripts: {},
-		sources: {}
-	};
-	for (const [name, footage] of Object.entries(project.footage ?? {})) {
-		if (footage.transcript) {
-			const file = path.resolve(dir, footage.transcript);
-			transcripts[name] = parseTranscriptWords(JSON.parse(await fs.readFile(file, 'utf8')));
-			hashes.transcripts[name] = wordsHash(transcripts[name]);
-		}
-		const files = [footage.src, footage.matte]
-			.filter((f): f is string => !!f)
-			.map((f) => path.resolve(dir, f));
-		const stats = await Promise.all(files.map((f) => fs.stat(f).catch(() => null)));
-		const listed = stats.map((st, i) => [path.relative(dir, files[i]), st?.size, st?.mtimeMs]);
-		// A clean plate draws pixels too: its settings and image join the hash (only when set,
-		// so footage without one keeps its hash).
-		const clean = footage.clean === undefined ? null : await cleanHashInput(footage.clean, dir);
-		hashes.sources[name] = shortHash(JSON.stringify(clean ? [...listed, clean] : listed));
-		if (isProgramProject(project) && stats[0]) {
-			const audio = typeof footage.audio === 'string' ? path.resolve(dir, footage.audio) : null;
-			const info = await probeSource(files[0], project.fps, audio ?? undefined);
-			if (footage.audio === false) {
-				info.audio = false;
-				delete info.audioDuration;
-			} else if (audio) info.audio = true;
-			sources[name] = info;
-		}
-	}
+	const { transcripts, sources, hashes } = await loadFootageInputs(project, dir, abs, words);
 	const look = { brand: brand.resolved, style: style.resolved };
 	const inputs: ProgramInputs = { words, transcripts, sources, tracks, look };
 	const checked = propFilesOf(project, dir);
 	if (checked) inputs.files = checked;
-	if (isProgramProject(project)) {
-		inputs.sounds = await loadSounds(project, dir);
-		// Keyed props are checked against what each block marks animatable.
-		inputs.animatable = {};
-		for (const block of new Set(project.clips.map((c) => c.block)))
-			inputs.animatable[block] = await readBlockAnimatable(blockFile(dir, block));
-	}
-	const cards = endCards(project);
-	if (isProgramProject(project) && cards.length) {
-		// Excerpt end cards are clips the project does not list: their blocks are checked here.
-		inputs.endBlocks = {};
-		for (const { block } of cards)
-			inputs.endBlocks[block] = existsSync(blockFile(dir, block))
-				? null
-				: block.startsWith(BUILTIN_PREFIX)
-					? `Unknown built-in block "${block}". Built-in blocks: ${Object.keys(BUILTIN_BLOCKS)
-							.map((b) => BUILTIN_PREFIX + b)
-							.join(', ')}.`
-					: `Block file not found: ${block}`;
-	}
-	if (isProgramProject(project) || project.sfx?.length) {
-		// Events the blocks declare, for `{ event, clip }` anchors.
-		inputs.blockEvents = {};
-		for (const block of new Set(project.clips.map((c) => c.block)))
-			inputs.blockEvents[block] = await readBlockEvents(blockFile(dir, block));
-	}
+	await addBlockInputs(project, dir, inputs);
 	const common = { file: abs, dir, project, music, musicHash, brand, style, inputs, hashes };
 	let cutList = resolveCutList(project, inputs);
 	// The speech at each audio edit point decides whether a word is cut through there.
@@ -564,9 +607,7 @@ export async function loadMotionProject(
 	);
 	const musicBeats = placement.beats;
 	// A music item that cannot be placed is an error of the project, as in the program.
-	const musicDiagnostics = placement.diagnostics
-		.filter((d) => d.level !== 'info')
-		.map((d) => ({ level: d.level as 'error' | 'warning', field: d.field, message: d.message }));
+	const musicDiagnostics = problemDiagnostics(placement.diagnostics);
 	if (cutList.mode === 'inserts') {
 		const resolved = resolveMotionProject(project, words, musicBeats, { ...look, files: checked });
 		resolved.diagnostics.unshift(...musicDiagnostics);
@@ -590,12 +631,7 @@ export async function loadMotionProject(
 		end: programEnd(project, cutList),
 		files: checked
 	});
-	resolved.diagnostics.unshift(
-		...cutList.diagnostics
-			.filter((d) => d.level !== 'info')
-			.map((d) => ({ level: d.level as 'error' | 'warning', field: d.field, message: d.message })),
-		...musicDiagnostics
-	);
+	resolved.diagnostics.unshift(...problemDiagnostics(cutList.diagnostics), ...musicDiagnostics);
 	return {
 		...common,
 		words: cutList.words,
@@ -1686,6 +1722,60 @@ type FootageSource = {
 	clean: CleanSpec | null;
 };
 
+/** Frames kept around what the clips show: `"all"` keeps every frame, otherwise seconds. */
+const footageMargin = (margin: number | 'all' | undefined, total: number, fps: number) =>
+	margin === 'all' ? total : Math.round((margin ?? FOOTAGE_MARGIN_SECONDS) * fps);
+
+/** How a footage's `clean` setting builds its plates; null without one. */
+function cleanSpecOf(
+	name: string,
+	spec: NonNullable<MotionProject['footage']>[string],
+	hasMatte: boolean,
+	dir: string
+): CleanSpec | null {
+	if (spec.clean === undefined) return null;
+	if (!hasMatte)
+		throw new Error(
+			`Footage "${name}": "clean" needs a matte to know where the subject is. Add "matte" (visualfries matte).`
+		);
+	const options = spec.clean === true ? {} : spec.clean;
+	return {
+		...(options.image ? { image: path.resolve(dir, options.image) } : {}),
+		...(options.grow !== undefined ? { grow: options.grow } : {})
+	};
+}
+
+/** Checks and probes one footage of the project: files, matte length, frame count, cache sizes. */
+async function openFootageSource(
+	name: string,
+	spec: NonNullable<MotionProject['footage']>[string],
+	dir: string,
+	fps: number
+): Promise<FootageSource> {
+	const src = path.resolve(dir, spec.src);
+	const matte = spec.matte ? path.resolve(dir, spec.matte) : null;
+	for (const file of [src, matte])
+		if (file && !existsSync(file)) throw new Error(`Footage "${name}": file not found: ${file}`);
+	const info = await probeVideo(src);
+	if (matte) {
+		const m = await probeVideo(matte);
+		// Two frames of difference are allowed; the epsilon absorbs float rounding.
+		if (Math.abs(m.duration - info.duration) > 2 / info.fps + 1e-6)
+			throw new Error(
+				`Footage "${name}": the matte is ${m.duration.toFixed(2)} s long, the video ${info.duration.toFixed(2)} s. Make the matte from this video (visualfries matte).`
+			);
+	}
+	// Same constant frame rate as the project: footage frames are program frames and a fast
+	// input seek is exact. Otherwise decode from the start so the rate conversion keeps one
+	// phase whatever range is extracted.
+	const direct = info.constant && Math.abs(info.fps - fps) < 0.01;
+	const total = direct ? info.frames : Math.round(info.duration * fps);
+	const stats = await Promise.all([src, matte].map((f) => (f ? fs.stat(f) : null)));
+	const sizes = stats.map((st) => (st ? ([st.size, st.mtimeMs] as [number, number]) : null));
+	const clean = cleanSpecOf(name, spec, !!matte, dir);
+	return { name, src, matte, info, sizes, direct, total, clean };
+}
+
 /**
  * Extracts the footage frames the given clips need (with a margin) into
  * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
@@ -1718,41 +1808,8 @@ async function extractFootage(
 	const footage = loaded.project.footage ?? {};
 	const fps = loaded.project.fps;
 	const sources: FootageSource[] = [];
-	for (const [name, spec] of Object.entries(footage)) {
-		const src = path.resolve(loaded.dir, spec.src);
-		const matte = spec.matte ? path.resolve(loaded.dir, spec.matte) : null;
-		for (const file of [src, matte])
-			if (file && !existsSync(file)) throw new Error(`Footage "${name}": file not found: ${file}`);
-		const info = await probeVideo(src);
-		if (matte) {
-			const m = await probeVideo(matte);
-			// Two frames of difference are allowed; the epsilon absorbs float rounding.
-			if (Math.abs(m.duration - info.duration) > 2 / info.fps + 1e-6)
-				throw new Error(
-					`Footage "${name}": the matte is ${m.duration.toFixed(2)} s long, the video ${info.duration.toFixed(2)} s. Make the matte from this video (visualfries matte).`
-				);
-		}
-		// Same constant frame rate as the project: footage frames are program frames and a fast
-		// input seek is exact. Otherwise decode from the start so the rate conversion keeps one
-		// phase whatever range is extracted.
-		const direct = info.constant && Math.abs(info.fps - fps) < 0.01;
-		const total = direct ? info.frames : Math.round(info.duration * fps);
-		const stats = await Promise.all([src, matte].map((f) => (f ? fs.stat(f) : null)));
-		const sizes = stats.map((st) => (st ? ([st.size, st.mtimeMs] as [number, number]) : null));
-		let clean: CleanSpec | null = null;
-		if (spec.clean !== undefined) {
-			if (!matte)
-				throw new Error(
-					`Footage "${name}": "clean" needs a matte to know where the subject is. Add "matte" (visualfries matte).`
-				);
-			const options = spec.clean === true ? {} : spec.clean;
-			clean = {
-				...(options.image ? { image: path.resolve(loaded.dir, options.image) } : {}),
-				...(options.grow !== undefined ? { grow: options.grow } : {})
-			};
-		}
-		sources.push({ name, src, matte, info, sizes, direct, total, clean });
-	}
+	for (const [name, spec] of Object.entries(footage))
+		sources.push(await openFootageSource(name, spec, loaded.dir, fps));
 
 	const roots: string[] = [];
 	const frames: Record<string, FootageFrames> = {};
@@ -1784,10 +1841,7 @@ async function extractFootage(
 		for (const source of sources) {
 			const spec = footage[source.name];
 			const startFrame = Math.round((spec.start ?? 0) * fps);
-			const margin =
-				spec.margin === 'all'
-					? source.total
-					: Math.round((spec.margin ?? FOOTAGE_MARGIN_SECONDS) * fps);
+			const margin = footageMargin(spec.margin, source.total, fps);
 			// Clips that never overlap the footage hold its nearest edge frame; "all" extracts every frame.
 			const range =
 				spec.margin === 'all'
@@ -2263,13 +2317,9 @@ export async function holdoutAspectWarnings(
 	return out;
 }
 
-export async function checkMotionProject(
-	loaded: LoadedMotionProject,
-	opts: { clips?: string[]; determinism?: boolean } = {}
-): Promise<ClipCheck[]> {
-	assertKnownClips(loaded, opts.clips);
-	const wanted = opts.clips?.length ? opts.clips : loaded.project.clips.map((c) => c.id);
-	const results: ClipCheck[] = wanted.map((id) => {
+/** The resolver's errors and warnings per wanted clip, before anything is mounted. */
+function diagnosticResults(loaded: LoadedMotionProject, wanted: string[]): ClipCheck[] {
+	return wanted.map((id) => {
 		const diags = loaded.resolved.diagnostics.filter((d) => d.clip === id);
 		return {
 			id,
@@ -2282,22 +2332,27 @@ export async function checkMotionProject(
 				.map((d) => ({ message: `${d.field}: ${d.message}` }))
 		};
 	});
-	if (loaded.project.brand !== undefined) {
-		// A brand change reaches a block only through tokens; colours written into it stay put.
-		const found = new Map<string, string[]>();
-		for (const clip of loaded.project.clips) {
-			if (clip.block.startsWith(BUILTIN_PREFIX)) continue;
-			const file = blockFile(loaded.dir, clip.block);
-			if (!found.has(file))
-				found.set(file, existsSync(file) ? hardCodedColors(await fs.readFile(file, 'utf8')) : []);
-			const colors = found.get(file)!;
-			const result = results.find((r) => r.id === clip.id);
-			if (colors.length && result)
-				result.warnings.push({
-					message: `${clip.block} hard-codes ${colors.length} colour${colors.length > 1 ? 's' : ''} (${colors.slice(0, 4).join(', ')}${colors.length > 4 ? ', …' : ''}); a brand change will not reach ${colors.length > 1 ? 'them' : 'it'}. Use var(--brand-…) tokens or clip.brand.`
-				});
-		}
+}
+
+/** A brand change reaches a block only through tokens; colours written into it stay put. */
+async function addBrandColorWarnings(loaded: LoadedMotionProject, results: ClipCheck[]) {
+	const found = new Map<string, string[]>();
+	for (const clip of loaded.project.clips) {
+		if (clip.block.startsWith(BUILTIN_PREFIX)) continue;
+		const file = blockFile(loaded.dir, clip.block);
+		if (!found.has(file))
+			found.set(file, existsSync(file) ? hardCodedColors(await fs.readFile(file, 'utf8')) : []);
+		const colors = found.get(file)!;
+		const result = results.find((r) => r.id === clip.id);
+		if (colors.length && result)
+			result.warnings.push({
+				message: `${clip.block} hard-codes ${colors.length} colour${colors.length > 1 ? 's' : ''} (${colors.slice(0, 4).join(', ')}${colors.length > 4 ? ', …' : ''}); a brand change will not reach ${colors.length > 1 ? 'them' : 'it'}. Use var(--brand-…) tokens or clip.brand.`
+			});
 	}
+}
+
+/** Clips without errors that the resolver still left out cannot be mounted: say so. */
+function addUnresolvedErrors(loaded: LoadedMotionProject, results: ClipCheck[]) {
 	for (const r of results) {
 		if (r.errors.length || loaded.resolved.clips.some((c) => c.id === r.id)) continue;
 		r.errors.push({
@@ -2306,6 +2361,71 @@ export async function checkMotionProject(
 				: `Unknown clip "${r.id}". Clips: ${loaded.project.clips.map((c) => c.id).join(', ')}.`
 		});
 	}
+}
+
+/** Every 5th frame plus the frames around each cue. */
+function framesToCheck(clip: ResolvedClip): number[] {
+	const frames = new Set<number>();
+	for (let f = 0; f < clip.frames; f += 5) frames.add(f);
+	for (const cue of Object.values(clip.cues))
+		for (const d of [-1, 0, 1, 18]) frames.add(cue.frame + d);
+	frames.add(clip.frames - 1);
+	return [...frames].filter((f) => f >= 0 && f < clip.frames).sort((a, b) => a - b);
+}
+
+/** Captures a sample of the frames forward and backward; the frames whose pixels differ. */
+async function frameOrderDifferences(page: MotionPage, list: number[]): Promise<number[]> {
+	const sample = list.filter((_, i) => i % Math.max(1, Math.floor(list.length / 12)) === 0);
+	const hash = (b: Buffer) => createHash('sha1').update(b).digest('hex');
+	const forward = new Map<number, string>();
+	for (const f of sample) forward.set(f, hash(await page.capture(f)));
+	const differ: number[] = [];
+	for (const f of [...sample].reverse())
+		if (hash(await page.capture(f)) !== forward.get(f)) differ.push(f);
+	return differ.sort((a, b) => a - b);
+}
+
+/** Mounts one clip and records what its blocks report (and, optionally, seek-order drift). */
+async function checkClipInBrowser(
+	browser: Awaited<ReturnType<typeof launch>>,
+	bundle: Awaited<ReturnType<typeof bundleMotionProject>>,
+	clip: ResolvedClip,
+	result: ClipCheck,
+	determinism: boolean | undefined
+) {
+	let page: MotionPage | undefined;
+	try {
+		page = await openClip(browser, bundle, clip);
+		result.mode = page.mode;
+		const list = framesToCheck(clip);
+		const found = await page.check(list);
+		result.errors.push(...found.errors);
+		result.warnings.push(...found.warnings);
+		if (determinism && !found.errors.length) {
+			const differ = await frameOrderDifferences(page, list);
+			if (differ.length) {
+				result.nondeterministic = differ;
+				result.errors.push({
+					message: `Frames ${differ.join(', ')} look different depending on seek order. Something depends on history: wall-clock time, stateful random, state kept between frames, or an image that decodes after it mounts (an <img> whose src changes; preload images, see "Images" in docs/MOTION.md).`
+				});
+			}
+		}
+	} catch (error) {
+		result.errors.push({ message: (error as Error).message });
+	} finally {
+		await page?.close();
+	}
+}
+
+export async function checkMotionProject(
+	loaded: LoadedMotionProject,
+	opts: { clips?: string[]; determinism?: boolean } = {}
+): Promise<ClipCheck[]> {
+	assertKnownClips(loaded, opts.clips);
+	const wanted = opts.clips?.length ? opts.clips : loaded.project.clips.map((c) => c.id);
+	const results = diagnosticResults(loaded, wanted);
+	if (loaded.project.brand !== undefined) await addBrandColorWarnings(loaded, results);
+	addUnresolvedErrors(loaded, results);
 	const runnable = results
 		.filter((r) => !r.errors.length)
 		.map((r) => loaded.resolved.clips.find((c) => c.id === r.id))
@@ -2316,45 +2436,14 @@ export async function checkMotionProject(
 		const bundle = await bundleMotionProject(loaded, runnable);
 		const browser = await launch();
 		try {
-			for (const clip of runnable) {
-				const result = results.find((r) => r.id === clip.id)!;
-				let page: MotionPage | undefined;
-				try {
-					page = await openClip(browser, bundle, clip);
-					result.mode = page.mode;
-					// Every 5th frame plus the frames around each cue.
-					const frames = new Set<number>();
-					for (let f = 0; f < clip.frames; f += 5) frames.add(f);
-					for (const cue of Object.values(clip.cues))
-						for (const d of [-1, 0, 1, 18]) frames.add(cue.frame + d);
-					frames.add(clip.frames - 1);
-					const list = [...frames].filter((f) => f >= 0 && f < clip.frames).sort((a, b) => a - b);
-					const found = await page.check(list);
-					result.errors.push(...found.errors);
-					result.warnings.push(...found.warnings);
-					if (opts.determinism && !found.errors.length) {
-						const sample = list.filter(
-							(_, i) => i % Math.max(1, Math.floor(list.length / 12)) === 0
-						);
-						const hash = (b: Buffer) => createHash('sha1').update(b).digest('hex');
-						const forward = new Map<number, string>();
-						for (const f of sample) forward.set(f, hash(await page.capture(f)));
-						const differ: number[] = [];
-						for (const f of [...sample].reverse())
-							if (hash(await page.capture(f)) !== forward.get(f)) differ.push(f);
-						if (differ.length) {
-							result.nondeterministic = differ.sort((a, b) => a - b);
-							result.errors.push({
-								message: `Frames ${result.nondeterministic.join(', ')} look different depending on seek order. Something depends on history: wall-clock time, stateful random, state kept between frames, or an image that decodes after it mounts (an <img> whose src changes; preload images, see "Images" in docs/MOTION.md).`
-							});
-						}
-					}
-				} catch (error) {
-					result.errors.push({ message: (error as Error).message });
-				} finally {
-					await page?.close();
-				}
-			}
+			for (const clip of runnable)
+				await checkClipInBrowser(
+					browser,
+					bundle,
+					clip,
+					results.find((r) => r.id === clip.id)!,
+					opts.determinism
+				);
 		} finally {
 			await browser.close();
 			await fs.rm(bundle.dir, { recursive: true, force: true });
@@ -2821,20 +2910,17 @@ export async function framesThenEncode(
 	}
 }
 
-export async function renderMotionClips(
-	loaded: LoadedMotionProject,
-	opts: {
-		output: string;
-		clips?: string[];
-		jobs?: number;
-		invalidate?: string;
-		keepFrames?: boolean;
-		onProgress?: (msg: string) => void;
-	}
-): Promise<RenderedClip[]> {
-	if (opts.jobs !== undefined && !(Number.isInteger(opts.jobs) && opts.jobs > 0)) {
-		throw new Error(`--jobs must be a positive integer, got ${opts.jobs}.`);
-	}
+type RenderOptions = {
+	output: string;
+	clips?: string[];
+	jobs?: number;
+	invalidate?: string;
+	keepFrames?: boolean;
+	onProgress?: (msg: string) => void;
+};
+
+/** The clips to render and, when `--output` names one file, that file's path. */
+function renderTargets(loaded: LoadedMotionProject, opts: RenderOptions) {
 	assertNoErrors(loaded, opts.clips?.length ? opts.clips : undefined);
 	const clips = opts.clips?.length
 		? opts.clips.map((id) => loaded.resolved.clips.find((x) => x.id === id)!)
@@ -2852,19 +2938,112 @@ export async function renderMotionClips(
 				`Clip "${clips[0].id}" renders ${ext === '.mov' ? 'a transparent .mov' : 'an .mp4'}; use --output <name>${ext}.`
 			);
 	}
-	await fs.mkdir(single ? path.dirname(single) : opts.output, { recursive: true });
-	// Partial encodes left by a render that was killed before it could clean up.
-	await removeOrphans(single ? path.dirname(single) : opts.output, PARTIAL_CLIP);
-	for (const w of await holdoutAspectWarnings(loaded, clips))
-		opts.onProgress?.(`Warning: ${w.clip}: ${w.message}`);
-	const bundle = await bundleMotionProject(loaded, clips);
-	// libx264 with yuv420p needs even dimensions; fail before capturing, not after.
+	return { clips, single };
+}
+
+/** libx264 with yuv420p needs even dimensions; fail before capturing, not after. */
+function assertEvenSizes(clips: ResolvedClip[]) {
 	for (const clip of clips) {
 		if (!clip.alpha && clip.size.some((n) => n % 2))
 			throw new Error(
 				`Clip "${clip.id}": size ${clip.size.join('×')} must be even for H.264. Use even dimensions or "alpha": true.`
 			);
 	}
+}
+
+/** Renders one clip next to its target and replaces the target only on success. */
+async function renderOneClip(
+	loaded: LoadedMotionProject,
+	browser: Awaited<ReturnType<typeof launch>>,
+	bundle: Awaited<ReturnType<typeof bundleMotionProject>>,
+	clip: ResolvedClip,
+	file: string,
+	jobs: number,
+	opts: RenderOptions
+): Promise<RenderedClip> {
+	const t0 = Date.now();
+	const codec = clip.alpha ? PRORES_4444 : H264_FINAL;
+	// ffmpeg truncates its output as soon as it opens it, and the piped encode opens it before
+	// the first frame. Encode next to the target and replace it only on success, so a failed
+	// render keeps the last good file.
+	const partial = path.join(
+		path.dirname(file),
+		`.${path.basename(file, path.extname(file))}.partial-${process.pid}${path.extname(file)}`
+	);
+	const encode = [...encodeInputs(loaded, clip), ...codec, partial];
+	let mode = '';
+	const open = async () => {
+		const page = await openClip(browser, bundle, clip, { invalidate: opts.invalidate });
+		mode = page.mode;
+		return page;
+	};
+	let piped = !opts.keepFrames;
+	const untrack = trackPartial(partial);
+	try {
+		if (piped) {
+			try {
+				const sink = ffmpegFramePipe([
+					'-y',
+					'-f',
+					'image2pipe',
+					'-framerate',
+					String(clip.fps),
+					'-c:v',
+					'png',
+					'-i',
+					'pipe:0',
+					...encode
+				]);
+				await pipeFrames(clip.frames, Math.min(jobs, clip.frames), open, sink);
+			} catch (error) {
+				if (!(error instanceof FramePipeError)) throw error;
+				// Fallback: the slower path that writes every frame as a file first.
+				opts.onProgress?.(
+					`${clip.id}: piping frames to ffmpeg failed (${error.message.split('\n')[0]}); rendering again through frame files`
+				);
+				piped = false;
+			}
+		}
+		if (!piped) await framesThenEncode(clip, jobs, open, encode, opts.keepFrames);
+		await fs.rename(partial, file);
+	} finally {
+		await fs.rm(partial, { force: true });
+		untrack();
+	}
+	const r: RenderedClip = {
+		id: clip.id,
+		file,
+		frames: clip.frames,
+		programStartFrame: clip.startFrame,
+		programStart: clip.start,
+		programEnd: clip.end,
+		alpha: clip.alpha,
+		mode,
+		seconds: (Date.now() - t0) / 1000,
+		transcript: loaded.transcriptHash,
+		...(loaded.musicHash ? { music: loaded.musicHash } : {}),
+		brand: loaded.brand.hash,
+		style: loaded.style.hash
+	};
+	opts.onProgress?.(`${clip.id}: ${clip.frames} frames in ${r.seconds.toFixed(1)} s (${mode})`);
+	return r;
+}
+
+export async function renderMotionClips(
+	loaded: LoadedMotionProject,
+	opts: RenderOptions
+): Promise<RenderedClip[]> {
+	if (opts.jobs !== undefined && !(Number.isInteger(opts.jobs) && opts.jobs > 0)) {
+		throw new Error(`--jobs must be a positive integer, got ${opts.jobs}.`);
+	}
+	const { clips, single } = renderTargets(loaded, opts);
+	await fs.mkdir(single ? path.dirname(single) : opts.output, { recursive: true });
+	// Partial encodes left by a render that was killed before it could clean up.
+	await removeOrphans(single ? path.dirname(single) : opts.output, PARTIAL_CLIP);
+	for (const w of await holdoutAspectWarnings(loaded, clips))
+		opts.onProgress?.(`Warning: ${w.clip}: ${w.message}`);
+	const bundle = await bundleMotionProject(loaded, clips);
+	assertEvenSizes(clips);
 	if (loaded.brand.hash || loaded.style.hash)
 		opts.onProgress?.(
 			`Brand ${loaded.brand.hash ?? 'none'}${loaded.brand.file ? ` (${path.relative(process.cwd(), loaded.brand.file)})` : ''}, style ${loaded.style.hash ?? 'none'}${loaded.style.resolved.layers.length ? ` (${loaded.style.resolved.layers.join(' → ')})` : ''}`
@@ -2874,73 +3053,8 @@ export async function renderMotionClips(
 	const results: RenderedClip[] = [];
 	try {
 		for (const clip of clips) {
-			const t0 = Date.now();
 			const file = single ?? path.resolve(opts.output, `${clip.id}.${clip.alpha ? 'mov' : 'mp4'}`);
-			const codec = clip.alpha ? PRORES_4444 : H264_FINAL;
-			// ffmpeg truncates its output as soon as it opens it, and the piped encode opens it before
-			// the first frame. Encode next to the target and replace it only on success, so a failed
-			// render keeps the last good file.
-			const partial = path.join(
-				path.dirname(file),
-				`.${path.basename(file, path.extname(file))}.partial-${process.pid}${path.extname(file)}`
-			);
-			const encode = [...encodeInputs(loaded, clip), ...codec, partial];
-			let mode = '';
-			const open = async () => {
-				const page = await openClip(browser, bundle, clip, { invalidate: opts.invalidate });
-				mode = page.mode;
-				return page;
-			};
-			let piped = !opts.keepFrames;
-			const untrack = trackPartial(partial);
-			try {
-				if (piped) {
-					try {
-						const sink = ffmpegFramePipe([
-							'-y',
-							'-f',
-							'image2pipe',
-							'-framerate',
-							String(clip.fps),
-							'-c:v',
-							'png',
-							'-i',
-							'pipe:0',
-							...encode
-						]);
-						await pipeFrames(clip.frames, Math.min(jobs, clip.frames), open, sink);
-					} catch (error) {
-						if (!(error instanceof FramePipeError)) throw error;
-						// Fallback: the slower path that writes every frame as a file first.
-						opts.onProgress?.(
-							`${clip.id}: piping frames to ffmpeg failed (${error.message.split('\n')[0]}); rendering again through frame files`
-						);
-						piped = false;
-					}
-				}
-				if (!piped) await framesThenEncode(clip, jobs, open, encode, opts.keepFrames);
-				await fs.rename(partial, file);
-			} finally {
-				await fs.rm(partial, { force: true });
-				untrack();
-			}
-			const r: RenderedClip = {
-				id: clip.id,
-				file,
-				frames: clip.frames,
-				programStartFrame: clip.startFrame,
-				programStart: clip.start,
-				programEnd: clip.end,
-				alpha: clip.alpha,
-				mode,
-				seconds: (Date.now() - t0) / 1000,
-				transcript: loaded.transcriptHash,
-				...(loaded.musicHash ? { music: loaded.musicHash } : {}),
-				brand: loaded.brand.hash,
-				style: loaded.style.hash
-			};
-			results.push(r);
-			opts.onProgress?.(`${clip.id}: ${clip.frames} frames in ${r.seconds.toFixed(1)} s (${mode})`);
+			results.push(await renderOneClip(loaded, browser, bundle, clip, file, jobs, opts));
 		}
 	} finally {
 		await browser.close();

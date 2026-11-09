@@ -75,80 +75,98 @@ export function resolveAudioMixRanges(sceneInput, chunkStartSec, chunkEndSec) {
     }
     return ranges.filter((range) => range.end > range.start);
 }
+// Plans one VIDEO or AUDIO component for a boundary, or null when it is silent there.
+// `index` is the number of plans collected so far, used for the fallback id.
+function planComponentAudio(scene, component, boundary, outputOffsetSec, index) {
+    if (component.type !== 'VIDEO' && component.type !== 'AUDIO')
+        return null;
+    const muted = 'muted' in component ? component.muted === true : false;
+    const volume = safeVolume('volume' in component ? component.volume : 1);
+    if (muted || volume <= 0)
+        return null;
+    const url = sourceUrlForComponent(scene, component);
+    if (!url)
+        return null;
+    const timelineStart = component.timeline?.startAt ?? 0;
+    const timelineEnd = component.timeline?.endAt ?? scene.settings.duration;
+    const active = clampRange({ start: timelineStart, end: timelineEnd }, boundary);
+    if (!active)
+        return null;
+    const source = 'source' in component ? component.source : undefined;
+    const sourceStart = source?.startAt ?? 0;
+    const sourceEnd = source?.endAt;
+    const sourceOffsetSec = sourceStart + (active.start - timelineStart);
+    let durationSec = active.end - active.start;
+    if (typeof sourceEnd === 'number') {
+        durationSec = Math.min(durationSec, sourceEnd - sourceOffsetSec);
+    }
+    if (durationSec <= 0)
+        return null;
+    return {
+        id: component.id || `component-${index}`,
+        kind: 'component',
+        url,
+        startInChunkSec: outputOffsetSec + (active.start - boundary.start),
+        durationSec,
+        sourceOffsetSec,
+        volume
+    };
+}
+function planTrackAudio(scene, track, boundary, outputOffsetSec, index) {
+    if (!track || track.muted)
+        return null;
+    const volume = safeVolume(track.volume);
+    if (volume <= 0 || !track.url)
+        return null;
+    const startAt = track.startAt ?? 0;
+    const endAt = typeof track.endAt === 'number' ? track.endAt : scene.settings.duration;
+    const active = clampRange({ start: startAt, end: endAt }, boundary);
+    if (!active)
+        return null;
+    return {
+        id: track.id || `track-${index}`,
+        kind: 'track',
+        url: track.url,
+        startInChunkSec: outputOffsetSec + (active.start - boundary.start),
+        durationSec: active.end - active.start,
+        sourceOffsetSec: active.start - startAt,
+        volume
+    };
+}
+function planSceneAudio(scene, boundary, outputOffsetSec) {
+    const sceneAudio = scene.settings.audio;
+    if (!sceneAudio?.src || sceneAudio.muted === true || safeVolume(sceneAudio.volume) <= 0) {
+        return null;
+    }
+    return {
+        id: 'scene-audio',
+        kind: 'scene',
+        url: sceneAudio.src,
+        startInChunkSec: outputOffsetSec,
+        durationSec: boundary.end - boundary.start,
+        sourceOffsetSec: boundary.start,
+        volume: safeVolume(sceneAudio.volume)
+    };
+}
 function collectAudioSourcesForBoundary(scene, boundary, outputOffsetSec) {
     const plans = [];
     for (const layer of scene.layers ?? []) {
         if (layer.muted)
             continue;
         for (const component of layer.components ?? []) {
-            if (component.type !== 'VIDEO' && component.type !== 'AUDIO')
-                continue;
-            const muted = 'muted' in component ? component.muted === true : false;
-            const volume = safeVolume('volume' in component ? component.volume : 1);
-            if (muted || volume <= 0)
-                continue;
-            const url = sourceUrlForComponent(scene, component);
-            if (!url)
-                continue;
-            const timelineStart = component.timeline?.startAt ?? 0;
-            const timelineEnd = component.timeline?.endAt ?? scene.settings.duration;
-            const active = clampRange({ start: timelineStart, end: timelineEnd }, boundary);
-            if (!active)
-                continue;
-            const source = 'source' in component ? component.source : undefined;
-            const sourceStart = source?.startAt ?? 0;
-            const sourceEnd = source?.endAt;
-            const sourceOffsetSec = sourceStart + (active.start - timelineStart);
-            let durationSec = active.end - active.start;
-            if (typeof sourceEnd === 'number') {
-                durationSec = Math.min(durationSec, sourceEnd - sourceOffsetSec);
-            }
-            if (durationSec <= 0)
-                continue;
-            plans.push({
-                id: component.id || `component-${plans.length}`,
-                kind: 'component',
-                url,
-                startInChunkSec: outputOffsetSec + (active.start - boundary.start),
-                durationSec,
-                sourceOffsetSec,
-                volume
-            });
+            const plan = planComponentAudio(scene, component, boundary, outputOffsetSec, plans.length);
+            if (plan)
+                plans.push(plan);
         }
     }
     for (const track of scene.audioTracks ?? []) {
-        if (!track || track.muted)
-            continue;
-        const volume = safeVolume(track.volume);
-        if (volume <= 0 || !track.url)
-            continue;
-        const startAt = track.startAt ?? 0;
-        const endAt = typeof track.endAt === 'number' ? track.endAt : scene.settings.duration;
-        const active = clampRange({ start: startAt, end: endAt }, boundary);
-        if (!active)
-            continue;
-        plans.push({
-            id: track.id || `track-${plans.length}`,
-            kind: 'track',
-            url: track.url,
-            startInChunkSec: outputOffsetSec + (active.start - boundary.start),
-            durationSec: active.end - active.start,
-            sourceOffsetSec: active.start - startAt,
-            volume
-        });
+        const plan = planTrackAudio(scene, track, boundary, outputOffsetSec, plans.length);
+        if (plan)
+            plans.push(plan);
     }
-    const sceneAudio = scene.settings.audio;
-    if (sceneAudio?.src && sceneAudio.muted !== true && safeVolume(sceneAudio.volume) > 0) {
-        plans.push({
-            id: 'scene-audio',
-            kind: 'scene',
-            url: sceneAudio.src,
-            startInChunkSec: outputOffsetSec,
-            durationSec: boundary.end - boundary.start,
-            sourceOffsetSec: boundary.start,
-            volume: safeVolume(sceneAudio.volume)
-        });
-    }
+    const sceneAudioPlan = planSceneAudio(scene, boundary, outputOffsetSec);
+    if (sceneAudioPlan)
+        plans.push(sceneAudioPlan);
     return plans;
 }
 export function collectAudioSourcesForRanges(sceneInput, ranges) {

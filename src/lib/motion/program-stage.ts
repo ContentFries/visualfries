@@ -61,6 +61,16 @@ import {
 	type FitFinding,
 	type Reach
 } from './frame-fit.js';
+import {
+	backdropLook,
+	behindMeasurable,
+	coveredShare,
+	extendRun,
+	measuredRecently,
+	roomShown,
+	runLongEnough,
+	subjectDrawn
+} from './stage-decisions.js';
 import { PANEL_TEXT_SHARE, captionsInMoveMessage, moveAtStart, shotMoves } from './shot-moves.js';
 
 /**
@@ -1086,6 +1096,27 @@ export function createProgramScene(
 		}
 	}
 
+	/** The blurred copy under footage that leaves the camera window open (see `backdrop`). */
+	function drawBackdrop(
+		s: Side,
+		layout: ShotLayout,
+		backdrop: NonNullable<ShotLayout['backdrop']>,
+		url: string,
+		pending: Promise<unknown>[]
+	) {
+		const back = s.plate.back!;
+		const { camera } = backdrop;
+		const { clip } = layout;
+		place(back, { ...camera, x: px(camera.x - clip.x), y: px(camera.y - clip.y) });
+		back.style.filter = filters.plate(
+			`${s.name}-back`,
+			backdropLook(backdrop, layout.room),
+			layout.motionBlur
+		);
+		const copy = show(back, url);
+		if (copy) pending.push(copy);
+	}
+
 	function drawSide(
 		s: Side,
 		view: SideView,
@@ -1103,7 +1134,7 @@ export function createProgramScene(
 		// A room cut away (see `cutout`): the plate fades, the subject stays over the fill.
 		const gone = layout.cutout ?? 0;
 		s.plate.box.style.opacity = gone > 0 ? String(px(1 - gone)) : '';
-		const room = !!layout.room && (layout.room.dim > 0 || layout.room.blur >= BLUR_MIN);
+		const room = roomShown(layout.room, BLUR_MIN);
 		s.plate.img.style.filter = filters.plate(s.name, layout.room, layout.motionBlur);
 		s.subject.img.style.filter = filters.subject(s.name, layout.room?.dim ?? 0, layout.motionBlur);
 		s.behind.style.filter = filters.streak(`behind-${s.name}`, layout.motionBlur);
@@ -1119,25 +1150,15 @@ export function createProgramScene(
 		const url = sourceFrameUrl(frames, view.view.frame, 'plate');
 		const plate = seg.insert ? null : show(s.plate.img, url);
 		if (plate) pending.push(plate);
-		if (layout.backdrop && !seg.insert) {
-			// The blurred copy under footage that leaves the camera window open (see `backdrop`).
-			const { camera, blur, dim } = layout.backdrop;
-			const { clip } = layout;
-			place(back, { ...camera, x: px(camera.x - clip.x), y: px(camera.y - clip.y) });
-			// Under a dimmed room the copy is part of the room: dimmed and blurred with it too.
-			const roomDim = layout.room?.dim ?? 0;
-			const look = {
-				dim: px(1 - (1 - dim) * (1 - roomDim)),
-				blur: px(Math.hypot(blur, layout.room?.blur ?? 0))
-			};
-			back.style.filter = filters.plate(`${s.name}-back`, look, layout.motionBlur);
-			const copy = show(back, url);
-			if (copy) pending.push(copy);
-		} else hide(back);
-		// The subject covers behind clips only while one is on screen, a dimmed room or a room cut
-		// away; in an insert it is only what a holdout cuts out.
-		const subjectOn =
-			(seg.insert ? seg.insert.holdout && behind : behind || room || gone > 0) && frames.subject;
+		if (layout.backdrop && !seg.insert) drawBackdrop(s, layout, layout.backdrop, url, pending);
+		else hide(back);
+		const subjectOn = subjectDrawn({
+			insert: seg.insert,
+			behind,
+			room,
+			cutAway: gone > 0,
+			hasSubject: !!frames.subject
+		});
 		if (holes.length) {
 			// The holes' layers draw the subject (cut) instead of its picture.
 			hide(s.subject.img);
@@ -1458,7 +1479,16 @@ export function createProgramScene(
 		const frames = framesOf(view);
 		const holes = !!a.cut && a.cut.box.style.display !== 'none';
 		const faded = (now?.a.layout.opacity ?? 1) < TEXT_OPACITY;
-		if (!now || !view || !frames?.subject || holes || faded) {
+		if (
+			!now ||
+			!behindMeasurable({
+				planned: true,
+				hasView: !!view,
+				hasSubject: !!frames?.subject,
+				holes,
+				faded
+			})
+		) {
 			behindRun.clear();
 			behindAt.clear();
 			return [];
@@ -1477,38 +1507,21 @@ export function createProgramScene(
 				continue;
 			}
 			const at = behindAt.get(id);
-			if (at !== undefined && f - at < BEHIND_STRIDE) continue;
+			if (measuredRecently(at, f, BEHIND_STRIDE)) continue;
 			behindAt.set(id, f);
-			let boxes: Rect[] = [];
-			let sample: Sampler | null = null;
-			if (behind) {
-				boxes = read().boxes(root, undefined, false);
-				if (boxes.length) sample = subjectSampler(now.a.layout);
-			} else {
-				layers ??= subjectLayers(read());
-				const after = layers.filter(
-					(l) =>
-						root.contains(l) ||
-						!!(root.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING)
-				);
-				if (after.length) {
-					const under = (node: Node) =>
-						after.some((l) => node.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING);
-					boxes = read().boxes(root, (node) => !under(node), false);
-					if (boxes.length) sample = layersSampler(after);
-				}
-			}
+			const { boxes, sample } = behind
+				? behindCoverage(root, now.a.layout, read)
+				: frontCoverage(root, read, () => (layers ??= subjectLayers(read())));
 			const points = boxes.length ? textPoints(boxes) : [];
 			const hits = sample && points.length ? sample(points) : null;
-			const share = hits ? hits.filter(Boolean).length / points.length : 0;
+			const share = coveredShare(hits, points.length);
 			if (share <= BEHIND_TEXT_SHARE) {
 				behindRun.delete(id);
 				continue;
 			}
-			const run = behindRun.get(id) ?? { from: f, share };
-			run.share = Math.max(run.share, share);
+			const run = extendRun(behindRun.get(id), f, share);
 			behindRun.set(id, run);
-			if (f - run.from < BEHIND_TEXT_SECONDS * seg.fps) continue;
+			if (!runLongEnough(run, f, BEHIND_TEXT_SECONDS, seg.fps)) continue;
 			behindRun.delete(id);
 			toldBehind.add(id);
 			const clear = clearOfSpeaker(
@@ -1525,6 +1538,29 @@ export function createProgramScene(
 			);
 		}
 		return out;
+	}
+
+	/** The text boxes of a behind clip and how to tell where the speaker's picture covers them. */
+	function behindCoverage(root: HTMLElement, layout: ShotLayout, read: () => TextReader) {
+		const boxes = read().boxes(root, undefined, false);
+		return { boxes, sample: boxes.length ? subjectSampler(layout) : null };
+	}
+
+	/** The same for front text: the boxes not under a subject layer, against the layers after it. */
+	function frontCoverage(
+		root: HTMLElement,
+		read: () => TextReader,
+		layersOnScreen: () => HTMLElement[]
+	) {
+		const after = layersOnScreen().filter(
+			(l) =>
+				root.contains(l) || !!(root.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING)
+		);
+		if (!after.length) return { boxes: [] as Rect[], sample: null as Sampler | null };
+		const under = (node: Node) =>
+			after.some((l) => node.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING);
+		const boxes = read().boxes(root, (node) => !under(node), false);
+		return { boxes, sample: boxes.length ? layersSampler(after) : null };
 	}
 
 	/**

@@ -123,6 +123,184 @@ function inspectTween(
 	}
 }
 
+type InspectionContext = {
+	mode: RuntimeSupportMode;
+	component: Scene['layers'][number]['components'][number];
+	layerId: string;
+	capability: ComponentCapability;
+	componentPath: string;
+	issues: RuntimeSupportIssue[];
+};
+
+function report(
+	ctx: InspectionContext,
+	data: Omit<RuntimeSupportIssue, 'level' | 'type' | 'componentId' | 'layerId'>
+) {
+	ctx.issues.push(issue(ctx.mode, ctx.component, ctx.layerId, data));
+}
+
+function inspectTweenVars(
+	ctx: InspectionContext,
+	vars: Record<string, unknown> | undefined,
+	path: string
+) {
+	inspectTween(vars, path, ctx.capability, ctx.component, ctx.layerId, ctx.mode, ctx.issues);
+}
+
+function inspectRendererHook(ctx: InspectionContext) {
+	const { capability, component } = ctx;
+	if (!capability.visual || capability.renderers.preview !== 'none') return;
+	report(ctx, {
+		code: 'runtime-renderer-missing',
+		capabilityId: `component.${component.type}.runtime.rendered`,
+		path: ctx.componentPath,
+		message: `${component.type} is accepted by schema but has no component render hook.`
+	});
+}
+
+function enabledAnimationEntries(component: InspectionContext['component']) {
+	const animations = component.animations;
+	if (animations?.enabled === false) return [];
+	return (animations?.list ?? []).filter((entry) => entry != null && entry.enabled !== false);
+}
+
+function inspectAnimationAttachment(ctx: InspectionContext, enabledCount: number) {
+	if (enabledCount === 0 || ctx.capability.animation.attached) return;
+	report(ctx, {
+		code: 'runtime-animation-unsupported',
+		capabilityId: `component.${ctx.component.type}.animation.attachment`,
+		path: `${ctx.componentPath}.animations`,
+		message: `${ctx.component.type} animation data validates but is not attached to a runtime animation target.`
+	});
+}
+
+function inspectSingleTween(
+	ctx: InspectionContext,
+	animationObject: Record<string, unknown>,
+	keyframe: Record<string, unknown>,
+	basePath: string
+) {
+	const target = selectorKind(animationObject.target);
+	if (!ctx.capability.animation.selectors.includes(target as never)) {
+		report(ctx, {
+			code: 'runtime-animation-selector-unsupported',
+			capabilityId: `component.${ctx.component.type}.animation.selector.${target}`,
+			path: `${basePath}.target`,
+			message: `${ctx.component.type} animation target "${String(animationObject.target)}" collapses to or misses the runtime target.`
+		});
+	}
+	inspectTweenVars(
+		ctx,
+		keyframe.vars as Record<string, unknown> | undefined,
+		`${basePath}.tween.vars`
+	);
+}
+
+function inspectTimeline(ctx: InspectionContext, timeline: unknown[], basePath: string) {
+	for (const [itemIndex, item] of timeline.entries()) {
+		const sequence = item as Record<string, unknown>;
+		const target = selectorKind(sequence.target);
+		if (!ctx.capability.animation.selectors.includes(target as never)) {
+			report(ctx, {
+				code: 'runtime-animation-selector-unsupported',
+				capabilityId: `component.${ctx.component.type}.animation.selector.${target}`,
+				path: `${basePath}.timeline.${itemIndex}.target`,
+				message: `${ctx.component.type} does not support animation selector "${String(sequence.target)}".`
+			});
+		}
+		for (const [tweenIndex, tween] of ((sequence.tweens as unknown[]) ?? []).entries()) {
+			inspectTweenVars(
+				ctx,
+				(tween as Record<string, unknown>).vars as Record<string, unknown> | undefined,
+				`${basePath}.timeline.${itemIndex}.tweens.${tweenIndex}.vars`
+			);
+		}
+	}
+}
+
+function inspectAnimationEntry(
+	ctx: InspectionContext,
+	entry: { animation: unknown },
+	animationIndex: number
+) {
+	const animation = entry.animation;
+	// System presets are resolved at construction time. Their concrete timeline is not
+	// duplicated here; unresolved names are surfaced by the runtime explain path.
+	if (typeof animation === 'string') return;
+	const basePath = `${ctx.componentPath}.animations.list.${animationIndex}`;
+	const animationObject = animation as Record<string, unknown>;
+	const keyframe = animationObject.tween as Record<string, unknown> | undefined;
+	if (keyframe) inspectSingleTween(ctx, animationObject, keyframe, basePath);
+	inspectTimeline(ctx, (animationObject.timeline as unknown[]) ?? [], basePath);
+}
+
+function inspectEffects(ctx: InspectionContext) {
+	const { component, capability } = ctx;
+	if (component.effects?.enabled === false) return;
+	for (const [effectId, effect] of Object.entries(component.effects?.map ?? {})) {
+		const effectType = (effect as { type?: string })?.type;
+		if (!effectType || capability.effects.supported.includes(effectType)) continue;
+		report(ctx, {
+			code: 'runtime-effect-unsupported',
+			capabilityId: `component.${component.type}.effect.${effectType}`,
+			path: `${ctx.componentPath}.effects.map.${effectId}`,
+			message: `${effectType} is accepted for ${component.type} but is not in its runtime-supported effect set.`
+		});
+	}
+}
+
+function inspectTextConflicts(ctx: InspectionContext) {
+	const { component } = ctx;
+	if (component.type !== 'TEXT' && component.type !== 'SUBTITLES') return;
+	const text = component.appearance.text;
+	if (text.activeWord?.enabled && text.activeLine?.enabled) {
+		report(ctx, {
+			code: 'runtime-text-highlight-conflict',
+			capabilityId: `component.${component.type}.text.activeHighlight.precedence`,
+			path: `${ctx.componentPath}.appearance.text`,
+			message:
+				'activeWord and activeLine target the same glyphs; activeWord takes deterministic precedence.'
+		});
+	}
+	if (text.highlightColors?.some((color) => typeof color !== 'string')) {
+		report(ctx, {
+			code: 'runtime-text-highlight-gradient-unsupported',
+			capabilityId: `component.${component.type}.text.highlightColors.gradient`,
+			path: `${ctx.componentPath}.appearance.text.highlightColors`,
+			message:
+				'highlightColors currently cycles solid CSS colors only; gradient palette entries are not evaluated.'
+		});
+	}
+	const background = component.appearance.background;
+	if (
+		background &&
+		typeof background === 'object' &&
+		'color' in background &&
+		background.target === 'element' &&
+		typeof background.color === 'object' &&
+		typeof text.color === 'object'
+	) {
+		report(ctx, {
+			code: 'runtime-text-gradient-conflict',
+			capabilityId: `component.${component.type}.text.compositing.elementGradientBackgroundWithGradientGlyph`,
+			path: `${ctx.componentPath}.appearance`,
+			message:
+				'Element-target gradient background and gradient glyph fill compete for CSS background-image. Use wrapper target.'
+		});
+	}
+}
+
+function inspectComponent(ctx: InspectionContext) {
+	inspectRendererHook(ctx);
+	const enabledAnimations = enabledAnimationEntries(ctx.component);
+	inspectAnimationAttachment(ctx, enabledAnimations.length);
+	for (const [animationIndex, entry] of enabledAnimations.entries()) {
+		inspectAnimationEntry(ctx, entry, animationIndex);
+	}
+	inspectEffects(ctx);
+	inspectTextConflicts(ctx);
+}
+
 export function analyzeRuntimeSupport(
 	scene: Scene,
 	options: { mode?: RuntimeSupportMode } = {}
@@ -132,157 +310,16 @@ export function analyzeRuntimeSupport(
 
 	for (const [layerIndex, layer] of (scene.layers ?? []).entries()) {
 		for (const [componentIndex, component] of (layer.components ?? []).entries()) {
-			const componentPath = `layers.${layerIndex}.components.${componentIndex}`;
 			const capability = getComponentCapability(component.type);
 			if (!capability) continue;
-
-			if (capability.visual && capability.renderers.preview === 'none') {
-				issues.push(
-					issue(mode, component, layer.id, {
-						code: 'runtime-renderer-missing',
-						capabilityId: `component.${component.type}.runtime.rendered`,
-						path: componentPath,
-						message: `${component.type} is accepted by schema but has no component render hook.`
-					})
-				);
-			}
-
-			const animations = component.animations;
-			const enabledAnimations =
-				animations?.enabled === false
-					? []
-					: (animations?.list ?? []).filter((entry) => entry != null && entry.enabled !== false);
-			if (enabledAnimations.length > 0 && !capability.animation.attached) {
-				issues.push(
-					issue(mode, component, layer.id, {
-						code: 'runtime-animation-unsupported',
-						capabilityId: `component.${component.type}.animation.attachment`,
-						path: `${componentPath}.animations`,
-						message: `${component.type} animation data validates but is not attached to a runtime animation target.`
-					})
-				);
-			}
-
-			for (const [animationIndex, entry] of enabledAnimations.entries()) {
-				const basePath = `${componentPath}.animations.list.${animationIndex}`;
-				const animation = entry.animation;
-				if (typeof animation === 'string') {
-					// System presets are resolved at construction time. Their concrete timeline is not
-					// duplicated here; unresolved names are surfaced by the runtime explain path.
-					continue;
-				}
-				const animationObject = animation as Record<string, unknown>;
-				const keyframe = animationObject.tween as Record<string, unknown> | undefined;
-				if (keyframe) {
-					const target = selectorKind(animationObject.target);
-					if (!capability.animation.selectors.includes(target as never)) {
-						issues.push(
-							issue(mode, component, layer.id, {
-								code: 'runtime-animation-selector-unsupported',
-								capabilityId: `component.${component.type}.animation.selector.${target}`,
-								path: `${basePath}.target`,
-								message: `${component.type} animation target "${String(animationObject.target)}" collapses to or misses the runtime target.`
-							})
-						);
-					}
-					inspectTween(
-						keyframe.vars as Record<string, unknown> | undefined,
-						`${basePath}.tween.vars`,
-						capability,
-						component,
-						layer.id,
-						mode,
-						issues
-					);
-				}
-
-				for (const [itemIndex, item] of ((animationObject.timeline as unknown[]) ?? []).entries()) {
-					const sequence = item as Record<string, unknown>;
-					const target = selectorKind(sequence.target);
-					if (!capability.animation.selectors.includes(target as never)) {
-						issues.push(
-							issue(mode, component, layer.id, {
-								code: 'runtime-animation-selector-unsupported',
-								capabilityId: `component.${component.type}.animation.selector.${target}`,
-								path: `${basePath}.timeline.${itemIndex}.target`,
-								message: `${component.type} does not support animation selector "${String(sequence.target)}".`
-							})
-						);
-					}
-					for (const [tweenIndex, tween] of ((sequence.tweens as unknown[]) ?? []).entries()) {
-						inspectTween(
-							(tween as Record<string, unknown>).vars as Record<string, unknown> | undefined,
-							`${basePath}.timeline.${itemIndex}.tweens.${tweenIndex}.vars`,
-							capability,
-							component,
-							layer.id,
-							mode,
-							issues
-						);
-					}
-				}
-			}
-
-			if (component.effects?.enabled !== false) {
-				for (const [effectId, effect] of Object.entries(component.effects?.map ?? {})) {
-					const effectType = (effect as { type?: string })?.type;
-					if (effectType && !capability.effects.supported.includes(effectType)) {
-						issues.push(
-							issue(mode, component, layer.id, {
-								code: 'runtime-effect-unsupported',
-								capabilityId: `component.${component.type}.effect.${effectType}`,
-								path: `${componentPath}.effects.map.${effectId}`,
-								message: `${effectType} is accepted for ${component.type} but is not in its runtime-supported effect set.`
-							})
-						);
-					}
-				}
-			}
-
-			if (component.type === 'TEXT' || component.type === 'SUBTITLES') {
-				const text = component.appearance.text;
-				if (text.activeWord?.enabled && text.activeLine?.enabled) {
-					issues.push(
-						issue(mode, component, layer.id, {
-							code: 'runtime-text-highlight-conflict',
-							capabilityId: `component.${component.type}.text.activeHighlight.precedence`,
-							path: `${componentPath}.appearance.text`,
-							message:
-								'activeWord and activeLine target the same glyphs; activeWord takes deterministic precedence.'
-						})
-					);
-				}
-				if (text.highlightColors?.some((color) => typeof color !== 'string')) {
-					issues.push(
-						issue(mode, component, layer.id, {
-							code: 'runtime-text-highlight-gradient-unsupported',
-							capabilityId: `component.${component.type}.text.highlightColors.gradient`,
-							path: `${componentPath}.appearance.text.highlightColors`,
-							message:
-								'highlightColors currently cycles solid CSS colors only; gradient palette entries are not evaluated.'
-						})
-					);
-				}
-				const background = component.appearance.background;
-				if (
-					background &&
-					typeof background === 'object' &&
-					'color' in background &&
-					background.target === 'element' &&
-					typeof background.color === 'object' &&
-					typeof text.color === 'object'
-				) {
-					issues.push(
-						issue(mode, component, layer.id, {
-							code: 'runtime-text-gradient-conflict',
-							capabilityId: `component.${component.type}.text.compositing.elementGradientBackgroundWithGradientGlyph`,
-							path: `${componentPath}.appearance`,
-							message:
-								'Element-target gradient background and gradient glyph fill compete for CSS background-image. Use wrapper target.'
-						})
-					);
-				}
-			}
+			inspectComponent({
+				mode,
+				component,
+				layerId: layer.id,
+				capability,
+				componentPath: `layers.${layerIndex}.components.${componentIndex}`,
+				issues
+			});
 		}
 	}
 

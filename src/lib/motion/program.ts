@@ -396,9 +396,7 @@ export function resolveProgram(
 		chunkSeconds?: number;
 	} = {}
 ): ResolvedProgram {
-	const chunkSeconds = opts.chunkSeconds ?? project.chunkSeconds ?? CHUNK_SECONDS;
-	if (!(chunkSeconds > 0 && Number.isFinite(chunkSeconds)))
-		throw new Error(`chunkSeconds must be a positive number, got ${chunkSeconds}.`);
+	const chunkSeconds = chunkSecondsOf(project, opts.chunkSeconds);
 	const fps = project.fps;
 	// An excerpt resolves the whole program in its own format, then slices it.
 	const spec = opts.excerpt === undefined ? null : excerptSpec(project, opts.excerpt);
@@ -420,37 +418,12 @@ export function resolveProgram(
 		end
 	});
 	diagnostics.push(...placement.diagnostics);
-	// Where the cut list (or `duration`) fixes the program length, each music item's end is known
-	// before anything reads its beats, so beat anchors exist exactly while the music plays. After a
-	// broken cut list the length means nothing: no warnings about ends then.
-	const fixedFrames = program
-		? (cutList.frames ??
-			(project.duration !== undefined ? Math.round(project.duration * fps) : null))
-		: null;
-	const cutsBroken = cutList.diagnostics.some((d) => d.level === 'error');
-	const { ends, beats: playing } = musicEnds(
-		project,
-		placement.placed,
-		fixedFrames === null ? null : fixedFrames / fps,
-		cutsBroken ? [] : diagnostics
-	);
-	const inputs = given.tracks ? { ...given, music: playing } : given;
-	if (!program) {
-		const i = (project.music ?? []).findIndex((m) => m.snap !== undefined);
-		if (i >= 0)
-			diagnostics.push({
-				level: 'warning',
-				item: project.music![i].id ?? `music${i + 1}`,
-				field: `music[${i}].snap`,
-				message:
-					'"snap" has no effect without "cuts" or "shots": music is mixed, and ends on a bar, only in a program.'
-			});
-	}
+	const { ends, inputs } = playMusic(project, given, cutList, placement.placed, diagnostics);
+	if (!program) warnSnapWithoutProgram(project, diagnostics);
 	const warn = (level: ProgramDiagnostic['level'], item: string, field: string, message: string) =>
 		diagnostics.push({ level, item, field, message });
 
 	// Clips resolve exactly as in `ResolvedProject`, against the program transcript.
-	const beats = beatsOf(inputs);
 	const resolved = resolveMotionProject(
 		formatName ? { ...project, size: format.size } : project,
 		words,
@@ -458,98 +431,36 @@ export function resolveProgram(
 		{ ...inputs.look, end, files: inputs.files }
 	);
 	diagnostics.push(...resolved.diagnostics);
-	const anchorCtx: AnchorContext = {
-		words,
-		fps,
-		window: null,
-		localBase: null,
-		beats,
-		end,
-		event: (name, clip) => clipEvent(resolved.clips, project, inputs, name, clip)
-	};
 	checkEvents(resolved.clips, inputs, end, diagnostics);
-	const hitAt: AnchorAt = (anchor, from, order) =>
-		resolveAnchor(
-			anchor,
-			{ ...anchorCtx, ...(from === undefined ? {} : { window: { from, to: Infinity } }), order },
-			from === undefined ? 'start' : 'end'
-		);
+	const hitAt = programAnchors(project, inputs, words, end, resolved.clips);
 	const at = (anchor: MotionAnchor) => hitAt(anchor).time;
 
-	// Program length: the cut list, else `duration`, else the latest end of clips or music.
-	const musicStops = placement.placed.flatMap((m) =>
-		m?.until == null ? [] : [Math.round(m.until * fps)]
-	);
-	const frames =
-		cutList.frames ??
-		(project.duration !== undefined
-			? Math.round(project.duration * fps)
-			: Math.max(0, ...resolved.clips.map(endOf), ...musicStops));
+	const frames = programFrames(project, cutList, resolved.clips, placement.placed);
 
 	const sources = programSources(project, inputs);
-	const cuts: ProgramCut[] = cutList.cuts.map((c) => ({
-		id: c.id,
-		index: c.index,
-		source: c.source,
-		startFrame: c.startFrame,
-		frames: c.frames,
-		srcIn: c.srcIn,
-		srcOut: c.srcOut,
-		handles: {
-			before: c.srcIn,
-			after: sources[c.source]?.frames == null ? null : sources[c.source].frames! - c.srcOut
-		},
-		...(c.hold ? { hold: c.hold } : {}),
-		transition: null,
-		audio: { edit: c.edit, split: c.split, crossfade: c.crossfade, gain: c.gain, mute: c.mute },
-		native: c.native
-	}));
+	const cuts = programCuts(cutList.cuts, sources);
 
 	const brand = inputs.look?.brand ?? NEUTRAL_BRAND;
 	const shots = program
 		? resolveShots(project, inputs, words, cuts, frames, hitAt, diagnostics, format.size, end)
 		: [];
-	const clips: ProgramClip[] = resolved.clips.map((clip) => {
-		const spec = project.clips.find((c) => c.id === clip.id)!;
-		if (!program)
-			for (const field of ['slot', 'transition', 'keys'] as const)
-				if (spec[field] !== undefined)
-					diagnostics.push({
-						level: 'warning',
-						clip: clip.id,
-						field,
-						message: `"${field}" has no effect without "cuts" or "shots" (inserts mode).`
-					});
-		return {
-			...clip,
-			slot: program ? (spec.slot ?? null) : null,
-			layer: spec.layer ?? 'front',
-			transition: null,
-			keys: program
-				? resolveKeys(spec.keys, clip, 'clip', clip.id, {
-						words,
-						end,
-						beats: { music: inputs.music ?? [], clip: spec.music },
-						fps,
-						diagnostics,
-						brand,
-						energy: clipEnergy(clip),
-						size: format.size,
-						block: clip.block,
-						animatable: spec.keys?.some((k) => k.props)
-							? blockAnimatable(inputs, clip.block, clip.id, diagnostics)
-							: undefined
-					})
-				: [],
-			z: project.clips.indexOf(spec),
-			native: spec.native ?? null
-		};
-	});
+	const clips = resolved.clips.map((clip) =>
+		programClip(clip, {
+			project,
+			inputs,
+			program,
+			words,
+			end,
+			brand,
+			size: format.size,
+			diagnostics
+		})
+	);
 	if (program) {
 		checkBehind(clips, cuts, shots, project, diagnostics);
 		checkSubjectLayers(clips, cuts, shots, project, diagnostics);
+		checkSlots(clips, shots, format, fps, diagnostics);
 	}
-	if (program) checkSlots(clips, shots, format, fps, diagnostics);
 	const transitions = program
 		? resolveTransitions(project, cutList.cuts, cuts, shots, clips, fps, format.class, warn)
 		: [];
@@ -558,42 +469,28 @@ export function resolveProgram(
 		awayLooks(shots, footageMap({ frames, sources, cuts, shots, transitions }), fps);
 	if (program && cuts.length) checkHardCuts(shots, cutList.cuts, transitions, diagnostics);
 	const events = resolveEvents(shots, transitions);
-	if (program) checkShotOrder(shots, diagnostics);
-	if (program) checkEventClash(events, shots, fps, diagnostics);
-	const mix = project.mix ?? {};
-	const audio = {
-		speech: program ? speechPieces(project, cutList.cuts, sources, inputs, frames / fps) : [],
-		sfx: resolveSfx(project, transitions, inputs, hitAt, diagnostics),
-		music: resolveMusic(
-			project,
-			placement.placed,
-			ends,
-			frames / fps,
-			program,
-			inputs,
-			at,
-			diagnostics
-		),
-		levels: { sfx: mix.sfx ?? MIX_DEFAULTS.sfx, music: mix.music ?? MIX_DEFAULTS.music },
-		master: {
-			lufs: mix.loudness ?? MIX_DEFAULTS.loudness,
-			truePeak: mix.truePeak ?? MIX_DEFAULTS.truePeak
-		}
-	};
+	if (program) {
+		checkShotOrder(shots, diagnostics);
+		checkEventClash(events, shots, fps, diagnostics);
+	}
+	const audio = programAudio({
+		project,
+		cutList,
+		program,
+		inputs,
+		sources,
+		transitions,
+		placed: placement.placed,
+		ends,
+		frames,
+		hitAt,
+		at,
+		diagnostics
+	});
 	// Clips, music and sfx share one id space only in a program (inserts mode keeps them apart).
 	if (program) checkIds(project, cuts, shots, clips, diagnostics);
 	checkMissingBeats(project, diagnostics);
 
-	const hashes = {
-		project: inputs.hashes?.project ?? null,
-		transcript: inputs.hashes?.transcript ?? null,
-		transcripts: inputs.hashes?.transcripts ?? {},
-		sources: inputs.hashes?.sources ?? {},
-		assets: inputs.hashes?.assets ?? {},
-		music: inputs.hashes?.music ?? null,
-		brand: inputs.hashes?.brand ?? null,
-		style: inputs.hashes?.style ?? null
-	};
 	const base = {
 		version: 1 as const,
 		mode: cutList.mode,
@@ -601,7 +498,7 @@ export function resolveProgram(
 		fps,
 		frames,
 		background: project.background ?? null,
-		hashes,
+		hashes: programHashes(given.hashes),
 		sources,
 		cuts,
 		shots,
@@ -625,18 +522,27 @@ export function resolveProgram(
 		diagnostics,
 		...(excerpts ? { excerpts } : {})
 	};
-	// The end cards of the excerpts not asked for are checked too: their problems are warnings.
-	for (const e of excerpts ?? []) {
-		const other = project.excerpts!.find((x) => x.id === e.id)!;
-		if (e.id === spec?.id || !other.end) continue;
-		const found: ProgramDiagnostic[] = [];
-		endCard(project, inputs, other, e, format, found);
-		for (const d of found)
-			if (d.level !== 'info') diagnostics.push({ ...d, level: 'warning', item: d.item ?? e.id });
-	}
+	warnUnaskedEndCards(project, inputs, excerpts, spec?.id, format, diagnostics);
 	const range = spec && excerpts?.find((e) => e.id === spec.id);
 	// An excerpt that does not resolve leaves the whole program, with the error saying why.
 	if (!spec || !range) return whole;
+	return sliceExcerpt(whole, { project, inputs, spec, range, format, chunkSeconds, diagnostics });
+}
+
+/** The whole program cut down to one excerpt, with its end card and its own segments and chunks. */
+function sliceExcerpt(
+	whole: ResolvedProgram,
+	ctx: {
+		project: MotionProject;
+		inputs: ProgramInputs;
+		spec: Excerpt;
+		range: ProgramExcerpt;
+		format: ProgramFormat;
+		chunkSeconds: number;
+		diagnostics: ProgramDiagnostic[];
+	}
+): ResolvedProgram {
+	const { project, inputs, spec, range, format, chunkSeconds, diagnostics } = ctx;
 	const card = endCard(project, inputs, spec, range, format, diagnostics);
 	const { excerpts: _all, ...rest } = whole;
 	const field = `excerpts[${project.excerpts!.indexOf(spec)}]`;
@@ -647,10 +553,252 @@ export function resolveProgram(
 		...withChunks(
 			resolveSegments(sliced, project, { hold, footage: sliced.excerpt?.footage }, chunkSeconds),
 			sliced.frames,
-			fps,
+			project.fps,
 			chunkSeconds
 		)
 	};
+}
+
+/** Anchors of the program: against its words, beats and the events of its clips. */
+function programAnchors(
+	project: MotionProject,
+	inputs: ProgramInputs,
+	words: MotionWord[] | null,
+	end: number | null | undefined,
+	clips: ResolvedClip[]
+): AnchorAt {
+	const anchorCtx: AnchorContext = {
+		words,
+		fps: project.fps,
+		window: null,
+		localBase: null,
+		beats: beatsOf(inputs),
+		end,
+		event: (name, clip) => clipEvent(clips, project, inputs, name, clip)
+	};
+	return (anchor, from, order) =>
+		resolveAnchor(
+			anchor,
+			{ ...anchorCtx, ...(from === undefined ? {} : { window: { from, to: Infinity } }), order },
+			from === undefined ? 'start' : 'end'
+		);
+}
+
+/** Program length: the cut list, else `duration`, else the latest end of clips or music. */
+function programFrames(
+	project: MotionProject,
+	cutList: ReturnType<typeof resolveCutList>,
+	clips: Span[],
+	placed: ReturnType<typeof placeMusic>['placed']
+): number {
+	const musicStops = placed.flatMap((m) =>
+		m?.until == null ? [] : [Math.round(m.until * project.fps)]
+	);
+	return (
+		cutList.frames ??
+		(project.duration !== undefined
+			? Math.round(project.duration * project.fps)
+			: Math.max(0, ...clips.map(endOf), ...musicStops))
+	);
+}
+
+/** Seconds of a chunk: the option, else the project's, else the default; it must be positive. */
+function chunkSecondsOf(project: MotionProject, asked: number | undefined): number {
+	const chunkSeconds = asked ?? project.chunkSeconds ?? CHUNK_SECONDS;
+	if (!(chunkSeconds > 0 && Number.isFinite(chunkSeconds)))
+		throw new Error(`chunkSeconds must be a positive number, got ${chunkSeconds}.`);
+	return chunkSeconds;
+}
+
+/**
+ * Which music plays and when each piece ends. Where the cut list (or `duration`) fixes the
+ * program length, each item's end is known before anything reads its beats, so beat anchors
+ * exist exactly while the music plays. After a broken cut list the length means nothing: no
+ * warnings about ends then.
+ */
+function playMusic(
+	project: MotionProject,
+	given: ProgramInputs,
+	cutList: ReturnType<typeof resolveCutList>,
+	placed: ReturnType<typeof placeMusic>['placed'],
+	diagnostics: ProgramDiagnostic[]
+) {
+	const fps = project.fps;
+	const fixedFrames =
+		cutList.mode === 'program'
+			? (cutList.frames ??
+				(project.duration !== undefined ? Math.round(project.duration * fps) : null))
+			: null;
+	const cutsBroken = cutList.diagnostics.some((d) => d.level === 'error');
+	const { ends, beats: playing } = musicEnds(
+		project,
+		placed,
+		fixedFrames === null ? null : fixedFrames / fps,
+		cutsBroken ? [] : diagnostics
+	);
+	const inputs = given.tracks ? { ...given, music: playing } : given;
+	return { ends, inputs };
+}
+
+/** Inserts mode has no program to snap music to: say so for the first item that asks. */
+function warnSnapWithoutProgram(project: MotionProject, diagnostics: ProgramDiagnostic[]) {
+	const i = (project.music ?? []).findIndex((m) => m.snap !== undefined);
+	if (i >= 0)
+		diagnostics.push({
+			level: 'warning',
+			item: project.music![i].id ?? `music${i + 1}`,
+			field: `music[${i}].snap`,
+			message:
+				'"snap" has no effect without "cuts" or "shots": music is mixed, and ends on a bar, only in a program.'
+		});
+}
+
+/** The cut list as program cuts: handles from the source lengths, transitions filled in later. */
+function programCuts(
+	list: ReturnType<typeof resolveCutList>['cuts'],
+	sources: ResolvedProgram['sources']
+): ProgramCut[] {
+	return list.map((c) => ({
+		id: c.id,
+		index: c.index,
+		source: c.source,
+		startFrame: c.startFrame,
+		frames: c.frames,
+		srcIn: c.srcIn,
+		srcOut: c.srcOut,
+		handles: {
+			before: c.srcIn,
+			after: sources[c.source]?.frames == null ? null : sources[c.source].frames! - c.srcOut
+		},
+		...(c.hold ? { hold: c.hold } : {}),
+		transition: null,
+		audio: { edit: c.edit, split: c.split, crossfade: c.crossfade, gain: c.gain, mute: c.mute },
+		native: c.native
+	}));
+}
+
+/** One resolved clip as a program clip: slot, layer and keys only count in a program. */
+function programClip(
+	clip: ReturnType<typeof resolveMotionProject>['clips'][number],
+	ctx: {
+		project: MotionProject;
+		inputs: ProgramInputs;
+		program: boolean;
+		words: MotionWord[] | null;
+		end: number | null | undefined;
+		brand: typeof NEUTRAL_BRAND;
+		size: [number, number];
+		diagnostics: ProgramDiagnostic[];
+	}
+): ProgramClip {
+	const { project, inputs, program, words, end, brand, size, diagnostics } = ctx;
+	const spec = project.clips.find((c) => c.id === clip.id)!;
+	if (!program)
+		for (const field of ['slot', 'transition', 'keys'] as const)
+			if (spec[field] !== undefined)
+				diagnostics.push({
+					level: 'warning',
+					clip: clip.id,
+					field,
+					message: `"${field}" has no effect without "cuts" or "shots" (inserts mode).`
+				});
+	return {
+		...clip,
+		slot: program ? (spec.slot ?? null) : null,
+		layer: spec.layer ?? 'front',
+		transition: null,
+		keys: program
+			? resolveKeys(spec.keys, clip, 'clip', clip.id, {
+					words,
+					end,
+					beats: { music: inputs.music ?? [], clip: spec.music },
+					fps: project.fps,
+					diagnostics,
+					brand,
+					energy: clipEnergy(clip),
+					size,
+					block: clip.block,
+					animatable: spec.keys?.some((k) => k.props)
+						? blockAnimatable(inputs, clip.block, clip.id, diagnostics)
+						: undefined
+				})
+			: [],
+		z: project.clips.indexOf(spec),
+		native: spec.native ?? null
+	};
+}
+
+/** The audio of the program: speech pieces, sfx, music and the mix levels. */
+function programAudio(ctx: {
+	project: MotionProject;
+	cutList: ReturnType<typeof resolveCutList>;
+	program: boolean;
+	inputs: ProgramInputs;
+	sources: ResolvedProgram['sources'];
+	transitions: ProgramTransition[];
+	placed: ReturnType<typeof placeMusic>['placed'];
+	ends: Parameters<typeof resolveMusic>[2];
+	frames: number;
+	hitAt: AnchorAt;
+	at: (anchor: MotionAnchor) => number;
+	diagnostics: ProgramDiagnostic[];
+}): ResolvedProgram['audio'] {
+	const { project, cutList, program, inputs, sources, transitions, frames, diagnostics } = ctx;
+	const mix = project.mix ?? {};
+	return {
+		speech: program
+			? speechPieces(project, cutList.cuts, sources, inputs, frames / project.fps)
+			: [],
+		sfx: resolveSfx(project, transitions, inputs, ctx.hitAt, diagnostics),
+		music: resolveMusic(
+			project,
+			ctx.placed,
+			ctx.ends,
+			frames / project.fps,
+			program,
+			inputs,
+			ctx.at,
+			diagnostics
+		),
+		levels: { sfx: mix.sfx ?? MIX_DEFAULTS.sfx, music: mix.music ?? MIX_DEFAULTS.music },
+		master: {
+			lufs: mix.loudness ?? MIX_DEFAULTS.loudness,
+			truePeak: mix.truePeak ?? MIX_DEFAULTS.truePeak
+		}
+	};
+}
+
+/** The input hashes the program records; absent ones are null or empty. */
+function programHashes(given: ProgramHashes | undefined): ResolvedProgram['hashes'] {
+	return {
+		project: given?.project ?? null,
+		transcript: given?.transcript ?? null,
+		transcripts: given?.transcripts ?? {},
+		sources: given?.sources ?? {},
+		assets: given?.assets ?? {},
+		music: given?.music ?? null,
+		brand: given?.brand ?? null,
+		style: given?.style ?? null
+	};
+}
+
+/** The end cards of the excerpts not asked for are checked too: their problems are warnings. */
+function warnUnaskedEndCards(
+	project: MotionProject,
+	inputs: ProgramInputs,
+	excerpts: ProgramExcerpt[] | null,
+	asked: string | undefined,
+	format: ProgramFormat,
+	diagnostics: ProgramDiagnostic[]
+) {
+	for (const e of excerpts ?? []) {
+		const other = project.excerpts!.find((x) => x.id === e.id)!;
+		if (e.id === asked || !other.end) continue;
+		const found: ProgramDiagnostic[] = [];
+		endCard(project, inputs, other, e, format, found);
+		for (const d of found)
+			if (d.level !== 'info') diagnostics.push({ ...d, level: 'warning', item: d.item ?? e.id });
+	}
 }
 
 /** Segments and the chunks of the grid made of their parts. */
@@ -1135,6 +1283,140 @@ function blockAnimatable(
 	return found.props;
 }
 
+/** Whether the shot names a known (or custom) shot; reports the unknown, the bad params and the undrawn. */
+function checkShotKind(
+	shot: NonNullable<MotionProject['shots']>[number],
+	id: string,
+	i: number,
+	diagnostics: ProgramDiagnostic[],
+	fail: (field: string, message: string) => void
+): boolean {
+	if (!(SHOTS as readonly string[]).includes(shot.shot) && !isCustom(shot.shot, CUSTOM_SHOT)) {
+		fail(
+			'shot',
+			`Unknown shot "${shot.shot}". Built in: ${SHOTS.join(', ')}; or a file such as "shots/My.ts".`
+		);
+		return false;
+	}
+	const module = shotModule(shot.shot);
+	for (const message of module?.check?.(shot.params ?? {}) ?? []) fail('params', message);
+	if (!module)
+		diagnostics.push({
+			level: 'warning',
+			item: id,
+			field: `shots[${i}].shot`,
+			message: isCustom(shot.shot, CUSTOM_SHOT)
+				? `Custom shot files are not drawn yet; "${shot.shot}" is framed full.`
+				: `The "${shot.shot}" shot is not drawn yet; it is framed full.`
+		});
+	return true;
+}
+
+/**
+ * The frames a shot covers, or null after reporting why it has none. `cursor.previous` is where
+ * the shot before it starts (as written); it moves to this shot's start as soon as `from`
+ * resolves, also when the shot then fails, so the next shot searches its phrase after it.
+ */
+function resolveShotRange(
+	shot: NonNullable<MotionProject['shots']>[number],
+	id: string,
+	i: number,
+	ctx: {
+		at: AnchorAt;
+		frames: number;
+		fps: number;
+		diagnostics: ProgramDiagnostic[];
+		order: (field: string, after: number | null, what: string) => PhraseOrder;
+		cursor: { previous: number | null };
+	},
+	fail: (field: string, message: string) => void
+): { startFrame: number; endFrame: number } | null {
+	const { at, frames, fps, diagnostics, order, cursor } = ctx;
+	let start: number;
+	let end: number;
+	try {
+		const hit = at(shot.from, undefined, order('from', cursor.previous, 'the previous shot'));
+		start = hit.time;
+		cursor.previous = orderPoint(hit);
+	} catch (error) {
+		fail('from', (error as Error).message);
+		return null;
+	}
+	try {
+		end = at(shot.until, start, order('until', start, "the shot's start")).time;
+	} catch (error) {
+		fail('until', (error as Error).message);
+		return null;
+	}
+	const startFrame = Math.max(0, Math.round(start * fps));
+	if (startFrame >= frames) {
+		fail(
+			'from',
+			`Shot starts at ${start.toFixed(2)} s, after the program ends (${(frames / fps).toFixed(2)} s).`
+		);
+		return null;
+	}
+	let endFrame = Math.round(end * fps);
+	if (endFrame > frames) {
+		diagnostics.push({
+			level: 'warning',
+			item: id,
+			field: `shots[${i}].until`,
+			message: `Shot ends at ${end.toFixed(2)} s, after the program (${(frames / fps).toFixed(2)} s); it is cut there.`
+		});
+		endFrame = frames;
+	}
+	if (endFrame <= startFrame) {
+		fail('until', `Shot ends (${end.toFixed(2)} s) before it starts (${start.toFixed(2)} s).`);
+		return null;
+	}
+	return { startFrame, endFrame };
+}
+
+/** The footage a shot shows, null for the cut list's own; undefined after reporting a problem. */
+function resolveShotSource(
+	project: MotionProject,
+	inputs: ProgramInputs,
+	shot: NonNullable<MotionProject['shots']>[number],
+	fail: (field: string, message: string) => void
+): ProgramShot['source'] | undefined {
+	if (shot.source === undefined) return null;
+	const fps = project.fps;
+	const name = typeof shot.source === 'string' ? shot.source : shot.source.name;
+	const srcTime: SourceTime | undefined =
+		typeof shot.source === 'string' ? undefined : shot.source.in;
+	if (!project.footage?.[name]) {
+		fail(
+			'source',
+			`Unknown footage "${name}". Footage: ${Object.keys(project.footage ?? {}).join(', ') || 'none'}`
+		);
+		return undefined;
+	}
+	let srcIn = 0;
+	if (srcTime !== undefined) {
+		try {
+			srcIn = Math.round(
+				resolveAnchor(
+					srcTime,
+					{
+						words: inputs.transcripts?.[name] ?? null,
+						fps,
+						window: null,
+						localBase: null,
+						scope: 'source',
+						needs: `set "transcript" on footage "${name}"`
+					},
+					'start'
+				).time * fps
+			);
+		} catch (error) {
+			fail('source.in', (error as Error).message);
+			return undefined;
+		}
+	}
+	return { name, srcIn };
+}
+
 function resolveShots(
 	project: MotionProject,
 	inputs: ProgramInputs,
@@ -1149,108 +1431,27 @@ function resolveShots(
 	const fps = project.fps;
 	const written: ProgramShot[] = [];
 	/** Where the previous shot (as written) starts, for repeated phrases (see `PhraseOrder`). */
-	let previous: number | null = null;
+	const cursor: { previous: number | null } = { previous: null };
 	/** What each written shot says about its morph: seconds, and whether a transition replaces it. */
 	const asked = new Map<ProgramShot, { morph?: number; transition: boolean }>();
 	(project.shots ?? []).forEach((shot, i) => {
 		const id = shot.id ?? `shot${i + 1}`;
 		const fail = (field: string, message: string) =>
 			diagnostics.push({ level: 'error', item: id, field: `shots[${i}].${field}`, message });
-		if (!(SHOTS as readonly string[]).includes(shot.shot) && !isCustom(shot.shot, CUSTOM_SHOT)) {
-			fail(
-				'shot',
-				`Unknown shot "${shot.shot}". Built in: ${SHOTS.join(', ')}; or a file such as "shots/My.ts".`
-			);
-			return;
-		}
-		const module = shotModule(shot.shot);
-		for (const message of module?.check?.(shot.params ?? {}) ?? []) fail('params', message);
-		if (!module)
-			diagnostics.push({
-				level: 'warning',
-				item: id,
-				field: `shots[${i}].shot`,
-				message: isCustom(shot.shot, CUSTOM_SHOT)
-					? `Custom shot files are not drawn yet; "${shot.shot}" is framed full.`
-					: `The "${shot.shot}" shot is not drawn yet; it is framed full.`
-			});
-		let start: number;
-		let end: number;
+		if (!checkShotKind(shot, id, i, diagnostics, fail)) return;
 		const order = (field: string, after: number | null, what: string) =>
 			itemOrder(diagnostics, id, `shots[${i}].${field}`, after, what);
-		try {
-			const hit = at(shot.from, undefined, order('from', previous, 'the previous shot'));
-			start = hit.time;
-			previous = orderPoint(hit);
-		} catch (error) {
-			fail('from', (error as Error).message);
-			return;
-		}
-		try {
-			end = at(shot.until, start, order('until', start, "the shot's start")).time;
-		} catch (error) {
-			fail('until', (error as Error).message);
-			return;
-		}
-		const startFrame = Math.max(0, Math.round(start * fps));
-		if (startFrame >= frames) {
-			fail(
-				'from',
-				`Shot starts at ${start.toFixed(2)} s, after the program ends (${(frames / fps).toFixed(2)} s).`
-			);
-			return;
-		}
-		let endFrame = Math.round(end * fps);
-		if (endFrame > frames) {
-			diagnostics.push({
-				level: 'warning',
-				item: id,
-				field: `shots[${i}].until`,
-				message: `Shot ends at ${end.toFixed(2)} s, after the program (${(frames / fps).toFixed(2)} s); it is cut there.`
-			});
-			endFrame = frames;
-		}
-		if (endFrame <= startFrame) {
-			fail('until', `Shot ends (${end.toFixed(2)} s) before it starts (${start.toFixed(2)} s).`);
-			return;
-		}
-		let source: ProgramShot['source'] = null;
-		if (shot.source !== undefined) {
-			const name = typeof shot.source === 'string' ? shot.source : shot.source.name;
-			const srcTime: SourceTime | undefined =
-				typeof shot.source === 'string' ? undefined : shot.source.in;
-			if (!project.footage?.[name]) {
-				fail(
-					'source',
-					`Unknown footage "${name}". Footage: ${Object.keys(project.footage ?? {}).join(', ') || 'none'}`
-				);
-				return;
-			}
-			let srcIn = 0;
-			if (srcTime !== undefined) {
-				try {
-					srcIn = Math.round(
-						resolveAnchor(
-							srcTime,
-							{
-								words: inputs.transcripts?.[name] ?? null,
-								fps,
-								window: null,
-								localBase: null,
-								scope: 'source',
-								needs: `set "transcript" on footage "${name}"`
-							},
-							'start'
-						).time * fps
-					);
-				} catch (error) {
-					fail('source.in', (error as Error).message);
-					return;
-				}
-			}
-			source = { name, srcIn };
-		}
-		const span = { startFrame, frames: endFrame - startFrame };
+		const range = resolveShotRange(
+			shot,
+			id,
+			i,
+			{ at, frames, fps, diagnostics, order, cursor },
+			fail
+		);
+		if (!range) return;
+		const source = resolveShotSource(project, inputs, shot, fail);
+		if (source === undefined) return;
+		const span = { startFrame: range.startFrame, frames: range.endFrame - range.startFrame };
 		const resolved: ProgramShot = {
 			id,
 			shot: shot.shot,

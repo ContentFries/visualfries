@@ -102,30 +102,15 @@ export function placeMusic(project, opts) {
     const failed = [];
     const diagnostics = [];
     const list = project.music ?? [];
-    list.forEach((music, i) => {
-        const owner = music.id ?? `music${i + 1}`;
-        const error = (field, message) => diagnostics.push({ level: 'error', item: owner, field: `music[${i}].${field}`, message });
-        const track = opts.tracks?.find((t) => t.item === i) ?? null;
-        // At the cut stage an item placed on a phrase waits for the program words, and so does one
-        // placed on the beats of music that waits.
-        const waits = anchorUsesWords(music.from) ||
-            namedMusic(music.from).some((id) => deferred.includes(id)) ||
-            (deferred.length > 0 && unnamedBeats(music.from));
-        if (opts.stage === 'cuts' && waits) {
-            if (track)
-                deferred.push(owner);
-            placed.push(null);
-            return;
-        }
-        const ctx = {
-            words: opts.words,
-            fps,
-            window: null,
-            localBase: null,
-            scope: 'program',
-            beats: { music: opts.tracks ? [...beats] : (opts.given ?? []), clip: undefined },
-            end: opts.stage === 'program' ? opts.end : undefined
-        };
+    /**
+     * At the cut stage an item placed on a phrase waits for the program words, and so does one
+     * placed on the beats of music that waits.
+     */
+    const waitsForProgram = (music) => anchorUsesWords(music.from) ||
+        namedMusic(music.from).some((id) => deferred.includes(id)) ||
+        (deferred.length > 0 && unnamedBeats(music.from));
+    /** Where an item starts. A `from` that cannot resolve is explained in `why` and plays from 0. */
+    const resolveFrom = (music, i, owner, track, ctx) => {
         // A failed `from` or `until` is reported once; the item then plays from 0 (or to the end)
         // so that what is anchored on its beats still resolves instead of failing everywhere.
         let from = 0;
@@ -145,6 +130,54 @@ export function placeMusic(project, opts) {
                 why = e.message;
             }
         }
+        return { from, why };
+    };
+    /** Where an item stops, or null: to the file end. A failing `until` is reported and ignored. */
+    const resolveUntil = (music, owner, from, grid, ctx, error, stage) => {
+        let until = null;
+        // At the cut stage a phrase in `until` waits: cut points see the beats up to the file end.
+        if (music.until !== undefined && !(stage === 'cuts' && anchorUsesWords(music.until))) {
+            const self = grid
+                ? { id: owner, name: music.id ?? music.src, grid }
+                : null;
+            try {
+                until = resolveAnchor(music.until, {
+                    ...ctx,
+                    window: { from, to: Infinity },
+                    beats: self ? { music: [self, ...ctx.beats.music], clip: owner } : ctx.beats
+                }, 'end').time;
+                if (until <= Math.max(0, from)) {
+                    error('until', `Music "${owner}" stops (${until.toFixed(2)} s) before it starts (${Math.max(0, from).toFixed(2)} s).`);
+                    until = null;
+                }
+            }
+            catch (e) {
+                error('until', e.message);
+            }
+        }
+        return until;
+    };
+    list.forEach((music, i) => {
+        const owner = music.id ?? `music${i + 1}`;
+        const error = (field, message) => diagnostics.push({ level: 'error', item: owner, field: `music[${i}].${field}`, message });
+        const track = opts.tracks?.find((t) => t.item === i) ?? null;
+        const waits = waitsForProgram(music);
+        if (opts.stage === 'cuts' && waits) {
+            if (track)
+                deferred.push(owner);
+            placed.push(null);
+            return;
+        }
+        const ctx = {
+            words: opts.words,
+            fps,
+            window: null,
+            localBase: null,
+            scope: 'program',
+            beats: { music: opts.tracks ? [...beats] : (opts.given ?? []), clip: undefined },
+            end: opts.stage === 'program' ? opts.end : undefined
+        };
+        const { from, why } = resolveFrom(music, i, owner, track, ctx);
         if (why !== null) {
             error('from', why);
             // Cut points never read music whose place is unknown.
@@ -168,27 +201,7 @@ export function placeMusic(project, opts) {
         const grid = track?.grid
             .filter((b) => offset === 0 || b.time >= offset - 1e-6)
             .map((b) => ({ ...b, time: micro(from + (b.time - offset)) })) ?? null;
-        let until = null;
-        // At the cut stage a phrase in `until` waits: cut points see the beats up to the file end.
-        if (music.until !== undefined && !(opts.stage === 'cuts' && anchorUsesWords(music.until))) {
-            const self = grid
-                ? { id: owner, name: music.id ?? music.src, grid }
-                : null;
-            try {
-                until = resolveAnchor(music.until, {
-                    ...ctx,
-                    window: { from, to: Infinity },
-                    beats: self ? { music: [self, ...ctx.beats.music], clip: owner } : ctx.beats
-                }, 'end').time;
-                if (until <= Math.max(0, from)) {
-                    error('until', `Music "${owner}" stops (${until.toFixed(2)} s) before it starts (${Math.max(0, from).toFixed(2)} s).`);
-                    until = null;
-                }
-            }
-            catch (e) {
-                error('until', e.message);
-            }
-        }
+        const until = resolveUntil(music, owner, from, grid, ctx, error, opts.stage);
         const fileEnd = duration === null ? null : micro(from + duration - offset);
         const item = {
             item: i,

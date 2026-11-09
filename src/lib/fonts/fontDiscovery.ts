@@ -170,6 +170,40 @@ const upsertVariant = (
 	}
 };
 
+const collectTextWeights = (
+	textAppearance: any,
+	configMatch: ParsedConfiguredFont | undefined
+): Set<number> => {
+	const weights = new Set<number>();
+	const styleWeights = [
+		textAppearance.fontWeight,
+		textAppearance.activeWord?.fontWeight,
+		textAppearance.activeLine?.fontWeight
+	];
+
+	for (const styleWeight of styleWeights) {
+		const parsed = normalizeWeight(styleWeight);
+		if (parsed !== null) {
+			weights.add(parsed);
+		}
+	}
+
+	for (const variantWeight of parseWeightsFromVariants(textAppearance.fontSource?.variants)) {
+		weights.add(variantWeight);
+	}
+
+	if (weights.size === 0 && configMatch?.weights?.length) {
+		for (const configuredWeight of configMatch.weights) {
+			weights.add(configuredWeight);
+		}
+	}
+
+	if (weights.size === 0) {
+		weights.add(DEFAULT_WEIGHT);
+	}
+	return weights;
+};
+
 const collectComponentTextVariants = (
 	component: any,
 	configuredLookup: Map<string, ParsedConfiguredFont>,
@@ -199,33 +233,7 @@ const collectComponentTextVariants = (
 	const fileUrl =
 		normalizeFamily(textAppearance.fontSource?.fileUrl) ?? configMatch?.fileUrl ?? undefined;
 
-	const weights = new Set<number>();
-	const styleWeights = [
-		textAppearance.fontWeight,
-		textAppearance.activeWord?.fontWeight,
-		textAppearance.activeLine?.fontWeight
-	];
-
-	for (const styleWeight of styleWeights) {
-		const parsed = normalizeWeight(styleWeight);
-		if (parsed !== null) {
-			weights.add(parsed);
-		}
-	}
-
-	for (const variantWeight of parseWeightsFromVariants(textAppearance.fontSource?.variants)) {
-		weights.add(variantWeight);
-	}
-
-	if (weights.size === 0 && configMatch?.weights?.length) {
-		for (const configuredWeight of configMatch.weights) {
-			weights.add(configuredWeight);
-		}
-	}
-
-	if (weights.size === 0) {
-		weights.add(DEFAULT_WEIGHT);
-	}
+	const weights = collectTextWeights(textAppearance, configMatch);
 
 	for (const weight of weights) {
 		upsertVariant(output, {

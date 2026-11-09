@@ -92,6 +92,101 @@ function validateAndAdjustWordTiming(originalWords, text, startTime, endTime) {
         return result;
     });
 }
+// Merge only a short subtitle whose neighbour is close in time and whose combined text stays
+// near the limit, so merging never undoes a split.
+function canMergeWithNext(sub, next, maxChars) {
+    const trimmedLen = (sub.text || '').trim().length;
+    if (trimmedLen === 0 || !next)
+        return false;
+    if (trimmedLen >= Math.max(4, Math.floor(maxChars * 0.45)))
+        return false;
+    const combinedLen = (sub.text.trim() + ' ' + (next.text || '').trim()).length;
+    const gap = next.start_at - sub.end_at;
+    // allow slight overflow and require small temporal gap
+    return combinedLen <= Math.round(maxChars * 1.15) && gap <= 0.7;
+}
+function isValidWordTuple(tuple) {
+    return !!tuple && tuple.length >= 3 && typeof tuple[0] === 'string';
+}
+// Splitting inside a word cuts its timing proportionally and gives both halves the metadata.
+function splitWordTuple(splitWord, splitCharInWord) {
+    if (!splitWord || splitWord.length < 3) {
+        console.warn('SubtitlesManager: Invalid word tuple for splitting');
+        return null;
+    }
+    const originalWord = splitWord[0];
+    const originalStartTime = splitWord[1];
+    const originalEndTime = splitWord[2];
+    const originalMetadata = splitWord.length > 3 ? splitWord[3] : undefined;
+    if (typeof originalWord !== 'string' ||
+        typeof originalStartTime !== 'number' ||
+        typeof originalEndTime !== 'number') {
+        console.warn('SubtitlesManager: Invalid word tuple data types for splitting');
+        return null;
+    }
+    const wordDuration = originalEndTime - originalStartTime;
+    const wordSplitRatio = splitCharInWord / originalWord.length;
+    const wordSplitTime = originalStartTime + wordDuration * wordSplitRatio;
+    const firstWordPart = [
+        originalWord.substring(0, splitCharInWord),
+        originalStartTime,
+        wordSplitTime
+    ];
+    const secondWordPart = [
+        originalWord.substring(splitCharInWord),
+        wordSplitTime,
+        originalEndTime
+    ];
+    if (originalMetadata !== undefined && originalMetadata !== null) {
+        firstWordPart.push(originalMetadata);
+        secondWordPart.push(originalMetadata);
+    }
+    return [firstWordPart, secondWordPart];
+}
+// Returns null (after warning) when the word that must be cut in two is malformed.
+function distributeWordsAtSplit(words, splitAt) {
+    // Find which word contains the split position
+    let currentCharPos = 0;
+    let splitWordIndex = -1;
+    let splitCharInWord = 0;
+    for (let i = 0; i < words.length; i++) {
+        if (!isValidWordTuple(words[i]))
+            continue;
+        const wordLength = words[i][0].length;
+        if (currentCharPos <= splitAt && splitAt < currentCharPos + wordLength) {
+            splitWordIndex = i;
+            splitCharInWord = splitAt - currentCharPos;
+            break;
+        }
+        currentCharPos += wordLength + 1; // +1 for space
+    }
+    if (splitWordIndex === -1) {
+        // Split at word boundary - simple distribution
+        const firstWords = [];
+        const secondWords = [];
+        currentCharPos = 0;
+        for (const wordTuple of words) {
+            if (!isValidWordTuple(wordTuple))
+                continue;
+            const wordLength = wordTuple[0].length;
+            if (currentCharPos + wordLength <= splitAt) {
+                firstWords.push(wordTuple);
+            }
+            else {
+                secondWords.push(wordTuple);
+            }
+            currentCharPos += wordLength + 1; // +1 for space
+        }
+        return { firstWords, secondWords };
+    }
+    const parts = splitWordTuple(words[splitWordIndex], splitCharInWord);
+    if (!parts)
+        return null;
+    return {
+        firstWords: [...words.slice(0, splitWordIndex), parts[0]],
+        secondWords: [parts[1], ...words.slice(splitWordIndex + 1)]
+    };
+}
 // Natural, word-safe splitting helper: prefers punctuation/space boundaries and never splits inside a word
 function findNaturalSplitIndex(text, targetChars, tolerance = 12) {
     const length = text.length;
@@ -652,28 +747,15 @@ function buildSubtitlesManager(timeManager, eventManager, sceneData, subtitles) 
                 const sub = list[i];
                 if (!sub)
                     continue;
-                const trimmedLen = (sub.text || '').trim().length;
-                if (trimmedLen === 0)
-                    continue;
-                const threshold = Math.max(4, Math.floor(maxChars * 0.45));
-                if (trimmedLen < threshold) {
-                    const next = list[i + 1];
-                    if (next) {
-                        const combinedLen = (sub.text.trim() + ' ' + (next.text || '').trim()).length;
-                        const gap = next.start_at - sub.end_at;
-                        // allow slight overflow and require small temporal gap
-                        if (combinedLen <= Math.round(maxChars * 1.15) && gap <= 0.7) {
-                            if (++ops > maxOps) {
-                                console.warn('SubtitlesManager.splitByChars: aborting due to excessive operations (merge)');
-                                return;
-                            }
-                            this.mergeSubtitles(assetId, sub.id, lang, 'start');
-                            // After merge, refresh and re-evaluate current index
-                            list = sorted[assetId]?.[lang] || [];
-                            i = Math.max(i - 1, -1); // -1 because loop will i++
-                            continue;
-                        }
+                if (canMergeWithNext(sub, list[i + 1], maxChars)) {
+                    if (++ops > maxOps) {
+                        console.warn('SubtitlesManager.splitByChars: aborting due to excessive operations (merge)');
+                        return;
                     }
+                    this.mergeSubtitles(assetId, sub.id, lang, 'start');
+                    // After merge, refresh and re-evaluate current index
+                    list = sorted[assetId]?.[lang] || [];
+                    i = Math.max(i - 1, -1); // -1 because loop will i++
                 }
             }
             markAllSubtitlesDirty();
@@ -894,95 +976,10 @@ function buildSubtitlesManager(timeManager, eventManager, sceneData, subtitles) 
             // Calculate timing split point proportionally
             const splitRatio = splitAt / sub.text.length;
             const splitTime = sub.start_at + totalDuration * splitRatio;
-            // Find the word boundaries around the split position
-            let currentCharPos = 0;
-            let splitWordIndex = -1;
-            let splitCharInWord = 0;
-            // Find which word contains the split position with safe tuple access
-            for (let i = 0; i < words.length; i++) {
-                const wordTuple = words[i];
-                if (!wordTuple || wordTuple.length < 3)
-                    continue; // Skip invalid tuples
-                const word = wordTuple[0];
-                if (typeof word !== 'string')
-                    continue; // Skip invalid word text
-                const wordLength = word.length;
-                if (currentCharPos <= splitAt && splitAt < currentCharPos + wordLength) {
-                    splitWordIndex = i;
-                    splitCharInWord = splitAt - currentCharPos;
-                    break;
-                }
-                currentCharPos += wordLength + 1; // +1 for space
-            }
-            // Create words arrays for both subtitles
-            let firstWords = [];
-            const secondWords = [];
-            if (splitWordIndex === -1) {
-                // Split at word boundary - simple distribution
-                currentCharPos = 0;
-                for (let i = 0; i < words.length; i++) {
-                    const wordTuple = words[i];
-                    if (!wordTuple || wordTuple.length < 3)
-                        continue;
-                    const word = wordTuple[0];
-                    if (typeof word !== 'string')
-                        continue;
-                    const wordLength = word.length;
-                    if (currentCharPos + wordLength <= splitAt) {
-                        firstWords.push(wordTuple);
-                    }
-                    else {
-                        secondWords.push(wordTuple);
-                    }
-                    currentCharPos += wordLength + 1; // +1 for space
-                }
-            }
-            else {
-                // Split within a word
-                const splitWord = words[splitWordIndex];
-                if (!splitWord || splitWord.length < 3) {
-                    console.warn('SubtitlesManager: Invalid word tuple for splitting');
-                    return;
-                }
-                const originalWord = splitWord[0];
-                const originalStartTime = splitWord[1];
-                const originalEndTime = splitWord[2];
-                const originalMetadata = splitWord.length > 3 ? splitWord[3] : undefined;
-                // Type safety checks
-                if (typeof originalWord !== 'string' ||
-                    typeof originalStartTime !== 'number' ||
-                    typeof originalEndTime !== 'number') {
-                    console.warn('SubtitlesManager: Invalid word tuple data types for splitting');
-                    return;
-                }
-                // Split the word timing proportionally
-                const wordDuration = originalEndTime - originalStartTime;
-                const wordSplitRatio = splitCharInWord / originalWord.length;
-                const wordSplitTime = originalStartTime + wordDuration * wordSplitRatio;
-                // Create split word parts
-                const firstWordPart = [
-                    originalWord.substring(0, splitCharInWord),
-                    originalStartTime,
-                    wordSplitTime
-                ];
-                const secondWordPart = [
-                    originalWord.substring(splitCharInWord),
-                    wordSplitTime,
-                    originalEndTime
-                ];
-                // Add metadata if it exists
-                if (originalMetadata !== undefined && originalMetadata !== null) {
-                    firstWordPart.push(originalMetadata);
-                    secondWordPart.push(originalMetadata);
-                }
-                // Distribute words to respective subtitles - use simple loops
-                firstWords = words.slice(0, splitWordIndex);
-                firstWords.push(firstWordPart);
-                secondWords.push(secondWordPart);
-                if (splitWordIndex + 1 < words.length) {
-                    secondWords.push(...words.slice(splitWordIndex + 1));
-                }
-            }
+            const distributed = distributeWordsAtSplit(words, splitAt);
+            if (!distributed)
+                return;
+            const { firstWords, secondWords } = distributed;
             // Create new subtitle ID for the second part
             const newSubtitleId = uuidv4();
             // Create the subtitles

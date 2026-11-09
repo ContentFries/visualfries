@@ -39,6 +39,118 @@ export type InspectSceneOptions = {
 	includeCapabilities?: boolean;
 };
 
+type SceneComponent = Scene['layers'][number]['components'][number];
+
+function inspectSubtitles(
+	scene: Scene,
+	component: Extract<SceneComponent, { type: 'SUBTITLES' }>,
+	layerId: string
+): SceneInspectionIssue[] {
+	const ref = { componentId: component.id, layerId };
+	const assetId = component.timingAnchor.assetId ?? component.source?.assetId;
+	const languageCode = component.source?.languageCode;
+	if (!assetId) {
+		return [
+			{
+				level: 'error',
+				type: 'subtitle-anchor-missing',
+				message: 'Subtitles component needs timingAnchor.assetId or source.assetId.',
+				...ref
+			}
+		];
+	}
+	const assetData = scene.settings.subtitles?.data?.[assetId];
+	if (!assetData) {
+		return [
+			{
+				level: 'warning',
+				type: 'subtitle-data-missing',
+				message: `No scene.settings.subtitles.data entry found for "${assetId}".`,
+				...ref
+			}
+		];
+	}
+	if (languageCode && (!assetData[languageCode] || assetData[languageCode].length === 0)) {
+		return [
+			{
+				level: 'warning',
+				type: 'subtitle-language-data-missing',
+				message: `No subtitle data found for asset "${assetId}" and language "${languageCode}". Runtime may fall back to another language.`,
+				...ref
+			}
+		];
+	}
+	return [];
+}
+
+function inspectComponent(
+	scene: Scene,
+	assetIds: Set<string>,
+	component: SceneComponent,
+	layerId: string
+): SceneInspectionIssue[] {
+	const issues: SceneInspectionIssue[] = [];
+	const ref = { componentId: component.id, layerId };
+	if (component.timeline.endAt > scene.settings.duration) {
+		issues.push({
+			level: 'warning',
+			type: 'timeline-outside-scene',
+			message: `Component ends after scene duration (${component.timeline.endAt}s > ${scene.settings.duration}s).`,
+			...ref
+		});
+	}
+	if (
+		'source' in component &&
+		component.source?.assetId &&
+		!assetIds.has(component.source.assetId)
+	) {
+		issues.push({
+			level: 'warning',
+			type: 'missing-asset',
+			message: `Component references asset "${component.source.assetId}" that is not in scene.assets.`,
+			...ref
+		});
+	}
+	if (component.type === 'SUBTITLES') issues.push(...inspectSubtitles(scene, component, layerId));
+	return issues;
+}
+
+// clipColor is stripped by permissive nested parsing, so it is only visible on the raw input.
+function findRawClipColorIssues(input: unknown, strict: boolean): SceneInspectionIssue[] {
+	const issues: SceneInspectionIssue[] = [];
+	const rawLayers = (input as { layers?: unknown[] })?.layers;
+	if (!Array.isArray(rawLayers)) return issues;
+	for (const [layerIndex, rawLayer] of rawLayers.entries()) {
+		const layer = rawLayer as { id?: string; components?: unknown[] };
+		if (!Array.isArray(layer.components)) continue;
+		for (const [componentIndex, rawComponent] of layer.components.entries()) {
+			const component = rawComponent as {
+				id?: string;
+				type?: string;
+				appearance?: { clipColor?: unknown; text?: { clipColor?: unknown } };
+			};
+			if (
+				component.appearance?.clipColor === undefined &&
+				component.appearance?.text?.clipColor === undefined
+			) {
+				continue;
+			}
+			issues.push({
+				level: strict ? 'error' : 'warning',
+				type: 'runtime-support',
+				code: 'runtime-text-clip-color-unsupported',
+				capabilityId: `component.${component.type ?? 'TEXT'}.text.clipColor`,
+				path: `layers.${layerIndex}.components.${componentIndex}.appearance.text.clipColor`,
+				message:
+					'clipColor has no defined VisualFries runtime semantics and would otherwise be stripped during parsing.',
+				componentId: component.id,
+				layerId: layer.id
+			});
+		}
+	}
+	return issues;
+}
+
 export function inspectScene(
 	input: unknown,
 	options: InspectSceneOptions = {}
@@ -78,63 +190,7 @@ export function inspectScene(
 					? {}
 					: { capability: getComponentCapability(component.type) })
 			});
-			if (component.timeline.endAt > scene.settings.duration) {
-				issues.push({
-					level: 'warning',
-					type: 'timeline-outside-scene',
-					message: `Component ends after scene duration (${component.timeline.endAt}s > ${scene.settings.duration}s).`,
-					componentId: component.id,
-					layerId: layer.id
-				});
-			}
-
-			if (
-				'source' in component &&
-				component.source?.assetId &&
-				!assetIds.has(component.source.assetId)
-			) {
-				issues.push({
-					level: 'warning',
-					type: 'missing-asset',
-					message: `Component references asset "${component.source.assetId}" that is not in scene.assets.`,
-					componentId: component.id,
-					layerId: layer.id
-				});
-			}
-
-			if (component.type === 'SUBTITLES') {
-				const assetId = component.timingAnchor.assetId ?? component.source?.assetId;
-				const languageCode = component.source?.languageCode;
-				if (!assetId) {
-					issues.push({
-						level: 'error',
-						type: 'subtitle-anchor-missing',
-						message: 'Subtitles component needs timingAnchor.assetId or source.assetId.',
-						componentId: component.id,
-						layerId: layer.id
-					});
-				} else if (!scene.settings.subtitles?.data?.[assetId]) {
-					issues.push({
-						level: 'warning',
-						type: 'subtitle-data-missing',
-						message: `No scene.settings.subtitles.data entry found for "${assetId}".`,
-						componentId: component.id,
-						layerId: layer.id
-					});
-				} else if (
-					languageCode &&
-					(!scene.settings.subtitles.data[assetId]?.[languageCode] ||
-						scene.settings.subtitles.data[assetId][languageCode].length === 0)
-				) {
-					issues.push({
-						level: 'warning',
-						type: 'subtitle-language-data-missing',
-						message: `No subtitle data found for asset "${assetId}" and language "${languageCode}". Runtime may fall back to another language.`,
-						componentId: component.id,
-						layerId: layer.id
-					});
-				}
-			}
+			issues.push(...inspectComponent(scene, assetIds, component, layer.id));
 		}
 	}
 
@@ -142,38 +198,7 @@ export function inspectScene(
 		mode: (options.strictRuntimeSupport ? 'strict' : 'warn') satisfies RuntimeSupportMode
 	});
 	issues.push(...runtime.issues);
-	const rawRuntimeIssues: SceneInspectionIssue[] = [];
-	const rawLayers = (input as { layers?: unknown[] })?.layers;
-	if (Array.isArray(rawLayers)) {
-		for (const [layerIndex, rawLayer] of rawLayers.entries()) {
-			const layer = rawLayer as { id?: string; components?: unknown[] };
-			if (!Array.isArray(layer.components)) continue;
-			for (const [componentIndex, rawComponent] of layer.components.entries()) {
-				const component = rawComponent as {
-					id?: string;
-					type?: string;
-					appearance?: { clipColor?: unknown; text?: { clipColor?: unknown } };
-				};
-				if (
-					component.appearance?.clipColor === undefined &&
-					component.appearance?.text?.clipColor === undefined
-				) {
-					continue;
-				}
-				rawRuntimeIssues.push({
-					level: options.strictRuntimeSupport ? 'error' : 'warning',
-					type: 'runtime-support',
-					code: 'runtime-text-clip-color-unsupported',
-					capabilityId: `component.${component.type ?? 'TEXT'}.text.clipColor`,
-					path: `layers.${layerIndex}.components.${componentIndex}.appearance.text.clipColor`,
-					message:
-						'clipColor has no defined VisualFries runtime semantics and would otherwise be stripped during parsing.',
-					componentId: component.id,
-					layerId: layer.id
-				});
-			}
-		}
-	}
+	const rawRuntimeIssues = findRawClipColorIssues(input, Boolean(options.strictRuntimeSupport));
 	issues.push(...rawRuntimeIssues);
 
 	return {

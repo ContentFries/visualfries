@@ -1676,6 +1676,87 @@ function formatFlag(args) {
 	return value;
 }
 
+/** Project-wide warnings (no clip) come once, before the clips; stdout stays JSON with --json. */
+function printProjectWarnings(loaded, json) {
+	for (const d of loaded.resolved.diagnostics.filter((d) => !d.clip && d.level === 'warning'))
+		(json ? console.error : console.log)(`warning: ${d.field}: ${d.message}`);
+}
+
+/** The frame size and safe zone `check --format` draws the program in. */
+function printCheckFormat(program) {
+	console.log(
+		`format ${program.format.name} (${program.format.class}), safe zone "${program.format.zone}": top ${program.format.safe.top}, right ${program.format.safe.right}, bottom ${program.format.safe.bottom}, left ${program.format.safe.left} px\n`
+	);
+}
+
+/** Program diagnostics the clip checks below do not repeat. */
+function newProgramDiagnostics(loaded, program, programMode) {
+	const key = (d) => JSON.stringify([d.clip, d.field, d.message]);
+	// Printed above (project-wide) or, in inserts mode, with each clip; program mode checks segments.
+	// The clip checks list errors and warnings only, so a clip's notes (info) come here.
+	const shown = new Set(
+		loaded.resolved.diagnostics
+			.filter((d) => (d.clip ? !programMode && d.level !== 'info' : d.level === 'warning'))
+			.map(key)
+	);
+	return program.diagnostics.filter((d) => !shown.has(key(d)));
+}
+
+function printProgramDiagnostics(program, diagnostics, excerpt) {
+	console.log(
+		`${excerpt ? `excerpt ${excerpt}` : 'program'} (${program.frames} frames, ${program.segments.length} segments)`
+	);
+	for (const d of diagnostics)
+		console.log(`  ${d.level}: ${d.item ?? d.clip ?? '-'} ${d.field}: ${d.message}`);
+}
+
+function printMix(mix) {
+	if (mix.error) {
+		console.log(`mix\n  error: ${mix.error}`);
+		return;
+	}
+	console.log(
+		`mix: speech ${mix.speech ?? '–'} LUFS, ${mix.lufs} LUFS and ${mix.truePeak} dBTP before encoding (${mix.gain} dB${mix.limiter ? `, limiter ${mix.limiter} dB` : ''})`
+	);
+	for (const w of mix.warnings) console.log(`  warning: ${w}`);
+}
+
+/** The program's sound: every sound file decodes, and the mix reaches its loudness. */
+async function checkProgramMix(program, loaded, json) {
+	const { mixProgram } = await import('../dist/motion/audio.js');
+	let mix;
+	try {
+		mix = (await mixProgram(program, { dir: loaded.dir }))?.report ?? null;
+	} catch (error) {
+		mix = { error: error.message };
+		process.exitCode = 1;
+	}
+	if (!json && mix) printMix(mix);
+	return mix;
+}
+
+function printCheckJson(program, programMode, format, diagnostics, mix, results) {
+	// With --format, the frame size and safe zone checked; without it the output is unchanged.
+	const checked =
+		format === undefined
+			? {}
+			: {
+					format: {
+						name: program.format.name,
+						class: program.format.class,
+						zone: program.format.zone,
+						safe: program.format.safe
+					}
+				};
+	console.log(
+		JSON.stringify(
+			programMode ? { ...checked, program: diagnostics, mix, clips: results } : results,
+			null,
+			2
+		)
+	);
+}
+
 async function motionCheckCommand(args) {
 	const file = args[0];
 	if (!file)
@@ -1684,6 +1765,7 @@ async function motionCheckCommand(args) {
 		);
 	const { loadMotionProject, checkMotionProject, describeMusicGrid, motionProgram } =
 		await motionModule();
+	const { checkExport, checkResultLines } = await import('../dist/motion/check-report.js');
 	const loaded = await loadMotionProject(file, {
 		transcript: readFlag(args, '--transcript'),
 		editPoints: true
@@ -1691,9 +1773,7 @@ async function motionCheckCommand(args) {
 	const json = hasFlag(args, '--json');
 	const grid = describeMusicGrid(loaded);
 	if (grid && !json) console.log(`${grid}\n`);
-	// Project-wide warnings (no clip) come once, before the clips; stdout stays JSON with --json.
-	for (const d of loaded.resolved.diagnostics.filter((d) => !d.clip && d.level === 'warning'))
-		(json ? console.error : console.log)(`warning: ${d.field}: ${d.message}`);
+	printProjectWarnings(loaded, json);
 	// Program diagnostics: cuts, shots, transitions, audio, and clip fields only the program
 	// reads (keys, layer, transition); the clip checks below report the rest.
 	// --format checks the program in another frame size, as render --format draws it.
@@ -1705,54 +1785,19 @@ async function motionCheckCommand(args) {
 		);
 	const { program } = await motionProgram(loaded, { format, excerpt });
 	const programMode = program.mode === 'program';
-	if (format !== undefined && !json)
-		console.log(
-			`format ${program.format.name} (${program.format.class}), safe zone "${program.format.zone}": top ${program.format.safe.top}, right ${program.format.safe.right}, bottom ${program.format.safe.bottom}, left ${program.format.safe.left} px\n`
-		);
-	const key = (d) => JSON.stringify([d.clip, d.field, d.message]);
-	// Printed above (project-wide) or, in inserts mode, with each clip; program mode checks segments.
-	// The clip checks list errors and warnings only, so a clip's notes (info) come here.
-	const shown = new Set(
-		loaded.resolved.diagnostics
-			.filter((d) => (d.clip ? !programMode && d.level !== 'info' : d.level === 'warning'))
-			.map(key)
-	);
-	const diagnostics = program.diagnostics.filter((d) => !shown.has(key(d)));
+	if (format !== undefined && !json) printCheckFormat(program);
+	const diagnostics = newProgramDiagnostics(loaded, program, programMode);
 	// What the inserts export of a program leaves to the program render.
-	const exportAs = readFlag(args, '--export');
-	if (exportAs !== undefined && exportAs !== 'inserts' && exportAs !== 'video')
-		throw new Error(`--export must be video or inserts, got "${exportAs}".`);
-	if (exportAs === 'inserts' && excerpt !== undefined)
-		throw new Error('--excerpt renders a video; inserts come from the whole program.');
+	const exportAs = checkExport(readFlag(args, '--export'), excerpt);
 	if (exportAs === 'inserts' && programMode) {
 		const { insertNotes } = await import('../dist/motion/inserts.js');
 		diagnostics.push(...insertNotes(program, loaded.project));
 	}
-	if (!json && diagnostics.length) {
-		console.log(
-			`${excerpt ? `excerpt ${excerpt}` : 'program'} (${program.frames} frames, ${program.segments.length} segments)`
-		);
-		for (const d of diagnostics)
-			console.log(`  ${d.level}: ${d.item ?? d.clip ?? '-'} ${d.field}: ${d.message}`);
-	}
-	// The program's sound: every sound file decodes, and the mix reaches its loudness.
-	let mix = null;
-	if (programMode && !diagnostics.some((d) => d.level === 'error')) {
-		const { mixProgram } = await import('../dist/motion/audio.js');
-		try {
-			mix = (await mixProgram(program, { dir: loaded.dir }))?.report ?? null;
-		} catch (error) {
-			mix = { error: error.message };
-			process.exitCode = 1;
-		}
-		if (!json && mix?.error) console.log(`mix\n  error: ${mix.error}`);
-		else if (!json && mix) {
-			console.log(
-				`mix: speech ${mix.speech ?? '–'} LUFS, ${mix.lufs} LUFS and ${mix.truePeak} dBTP before encoding (${mix.gain} dB${mix.limiter ? `, limiter ${mix.limiter} dB` : ''})`
-			);
-			for (const w of mix.warnings) console.log(`  warning: ${w}`);
-		}
-	}
+	if (!json && diagnostics.length) printProgramDiagnostics(program, diagnostics, excerpt);
+	const mix =
+		programMode && !diagnostics.some((d) => d.level === 'error')
+			? await checkProgramMix(program, loaded, json)
+			: null;
 	const checkOptions = {
 		clips: readAllFlags(args, '--clip'),
 		determinism: hasFlag(args, '--determinism'),
@@ -1762,46 +1807,8 @@ async function motionCheckCommand(args) {
 	const results = programMode
 		? await (await programModule()).checkProgram(loaded, checkOptions)
 		: await checkMotionProject(loaded, checkOptions);
-	const kind = programMode ? 'segments' : 'clips';
-	const segment = (id) => program.segments.find((s) => s.id === id);
-	if (json) {
-		// With --format, the frame size and safe zone checked; without it the output is unchanged.
-		const checked =
-			format === undefined
-				? {}
-				: {
-						format: {
-							name: program.format.name,
-							class: program.format.class,
-							zone: program.format.zone,
-							safe: program.format.safe
-						}
-					};
-		console.log(
-			JSON.stringify(
-				programMode ? { ...checked, program: diagnostics, mix, clips: results } : results,
-				null,
-				2
-			)
-		);
-	} else {
-		for (const r of results) {
-			const seg = programMode ? segment(r.id) : null;
-			const span = seg ? `  frames ${seg.startFrame}–${seg.startFrame + seg.frames - 1}` : '';
-			console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.id}${span}${r.mode ? `  (${r.mode})` : ''}`);
-			for (const e of r.errors)
-				console.log(
-					`  error${e.frame !== undefined && e.frame >= 0 ? ` @f${e.frame}` : ''}: ${e.message}`
-				);
-			for (const w of r.warnings) console.log(`  warning: ${w.message}`);
-		}
-		const failed = results.filter((r) => !r.ok).length;
-		console.log(
-			failed
-				? `${failed} of ${results.length} ${kind} need attention.`
-				: `All ${results.length} ${kind} pass.`
-		);
-	}
+	if (json) printCheckJson(program, programMode, format, diagnostics, mix, results);
+	else console.log(checkResultLines(program, programMode, results).join('\n'));
 	if (results.some((r) => !r.ok) || diagnostics.some((d) => d.level === 'error'))
 		process.exitCode = 1;
 }
@@ -1846,7 +1853,9 @@ async function motionProgramCommand(args) {
 			);
 		for (const s of program.shots.filter((x) => !x.implicit))
 			console.log(
-				`shot ${s.id.padEnd(9)} ${frameTime(s.startFrame, fps)}  ${s.frames} frames  ${s.shot}${s.morphFrames ? `  morph ${s.morphFrames} frames ${s.morphEase}` : ''}${s.keys.length ? `  ${s.keys.length} keys` : ''}${(s.away ?? [])
+				`shot ${s.id.padEnd(9)} ${frameTime(s.startFrame, fps)}  ${s.frames} frames  ${s.shot}${s.morphFrames ? `  morph ${s.morphFrames} frames ${s.morphEase}` : ''}${s.keys.length ? `  ${s.keys.length} keys` : ''}${(
+					s.away ?? []
+				)
 					.map(
 						(r) =>
 							`  away ${frameTime(r.from, fps)}–${r.until === null ? 'end' : frameTime(r.until, fps)}${r.side ? ` ${r.side}` : ''}`

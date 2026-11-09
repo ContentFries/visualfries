@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # crap-check compares with the base branch
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -40,8 +42,16 @@ jobs:
       - name: Type check
         run: pnpm check
 
+      # Coverage only where the CRAP step reads it: it adds about a third to the run.
       - name: Unit tests
-        run: pnpm exec vitest run
+        run: pnpm exec vitest run ${{ github.event_name == 'pull_request' && '--coverage.enabled --coverage.provider=v8 --coverage.reporter=lcov' || '' }}
+
+      # Functions a pull request changes must stay at CRAP 30 or below (crap.config.json, AGENTS.md).
+      # Reads the coverage of the whole suite above instead of running the related tests again.
+      - name: CRAP score of changed functions
+        if: github.event_name == 'pull_request'
+        shell: bash -o pipefail {0}
+        run: pnpm exec crap-check --no-run --base "origin/${{ github.base_ref }}" | tee -a "$GITHUB_STEP_SUMMARY"
 
       # Projects without a cut list must render exactly as on main: render both builds here, on
       # the same Chromium and ffmpeg, and compare file bytes and manifests.
@@ -56,3 +66,4 @@ jobs:
 
       - name: Build package and site
         run: pnpm build
+

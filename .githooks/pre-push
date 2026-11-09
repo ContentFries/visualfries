@@ -1,0 +1,34 @@
+#!/bin/sh
+# crap-check: the functions a push changes must stay under the CRAP limit (see AGENTS.md).
+# Judges each pushed commit itself (--ref), not the working tree.
+# Emergency only, and say so in the PR: CRAP_CHECK_SKIP=1 git push
+[ "${CRAP_CHECK_SKIP:-}" = "1" ] && exit 0
+if [ -x node_modules/.bin/crap-check ]; then
+	run="node_modules/.bin/crap-check" # the repo's pinned version first
+elif command -v crap-check >/dev/null 2>&1; then
+	run="crap-check"
+else
+	echo "crap-check is not installed here; skipping the CRAP check (see AGENTS.md)." >&2
+	exit 0
+fi
+command -v aaw-heavy >/dev/null 2>&1 && run="aaw-heavy -- $run"
+
+head=$(git rev-parse HEAD)
+status=0
+checked=""
+# git passes one line per pushed ref: <local ref> <local sha> <remote ref> <remote sha>
+while read -r local_ref local_sha remote_ref remote_sha; do
+	case "$remote_ref" in refs/tags/*) continue ;; esac # a tag points at code a branch push judges
+	case "$local_sha" in *[!0]*) ;; *) continue ;; esac # deleting a branch: nothing to judge
+	case " $checked " in *" $local_sha "*) continue ;; esac
+	checked="$checked $local_sha"
+	if [ "$local_sha" != "$head" ]; then
+		# Its tests would run on the checked-out branch, so its coverage would be wrong: refuse.
+		echo "crap-check: $local_ref is not checked out. Push it from its own checkout (or worktree)," >&2
+		echo "or skip deliberately with CRAP_CHECK_SKIP=1 and say so in the PR." >&2
+		status=1
+		continue
+	fi
+	$run --ref "$local_sha" || status=$?
+done
+exit $status

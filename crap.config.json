@@ -6,7 +6,7 @@
 			"root": ".",
 			"test": "pnpm exec vitest related --run --coverage.enabled --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportOnFailure {files}",
 			"testFirst": "pnpm exec vitest run --coverage.enabled --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportOnFailure {tests}",
-			"tests": ["**/!(*-stage|*-e2e|*render*|clean-plate|webgl-block|program-audio|program-golden|program-canvas|prop-files|footage-ranges|matte).{test,spec}.{ts,js}"],
+			"tests": ["**/!(*-stage|*-e2e|*render*|clean-plate|webgl-block|program-audio|program-golden|program-canvas|prop-files|footage-ranges|matte|inserts-legacy).{test,spec}.{ts,js}"],
 			"testsDepth": 1,
 			"testAll": "pnpm exec vitest run --coverage.enabled --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportOnFailure",
 			"coverage": "coverage/lcov.info"

@@ -104,7 +104,7 @@
 		}
 	},
 	"devDependencies": {
-		"@bladesk/crap-check": "0.1.2",
+		"@bladesk/crap-check": "0.2.0",
 		"@eslint/js": "^9.37.0",
 		"@sveltejs/adapter-auto": "^3.0.0",
 		"@sveltejs/adapter-static": "^3.0.10",

@@ -36,16 +36,19 @@ describe('backdropLook', () => {
 });
 
 describe('subjectDrawn', () => {
-	const base = { insert: null, behind: false, room: false, hasSubject: true };
-	it('draws for behind clips or a room, when a matte exists', () => {
+	const base = { insert: null, behind: false, room: false, cutAway: false, hasSubject: true };
+	it('draws for behind clips, a room or a room cut away, when a matte exists', () => {
 		expect(subjectDrawn(base)).toBe(false);
 		expect(subjectDrawn({ ...base, behind: true })).toBe(true);
 		expect(subjectDrawn({ ...base, room: true })).toBe(true);
+		expect(subjectDrawn({ ...base, cutAway: true })).toBe(true);
+		expect(subjectDrawn({ ...base, cutAway: true, hasSubject: false })).toBe(false);
 		expect(subjectDrawn({ ...base, behind: true, hasSubject: false })).toBe(false);
 	});
 	it('in an insert only a holdout over behind clips draws it; a room does not', () => {
 		expect(subjectDrawn({ ...base, insert: { holdout: true }, behind: true })).toBe(true);
 		expect(subjectDrawn({ ...base, insert: { holdout: true }, room: true })).toBe(false);
+		expect(subjectDrawn({ ...base, insert: { holdout: true }, cutAway: true })).toBe(false);
 		expect(subjectDrawn({ ...base, insert: { holdout: false }, behind: true })).toBe(false);
 	});
 });

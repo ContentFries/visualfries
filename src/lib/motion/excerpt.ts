@@ -8,6 +8,8 @@ import {
 	type FrameRange
 } from './footage-map.js';
 import { headroomParam, SUBJECT_SMOOTH } from './shots/layout.js';
+import { awayMovesDuring } from './shots/away.js';
+import { shotModule } from './shots/index.js';
 import type {
 	AudioPiece,
 	ProgramClip,
@@ -65,8 +67,9 @@ export type ExcerptFootage = {
 	 */
 	around: Record<string, FrameRange[]>;
 	/**
-	 * The picture over the whole shot, in the whole program, of each shot with `headroom` that
-	 * runs across an edge: its one head size is measured over it (`headOfRuns`).
+	 * The picture over the whole shot, in the whole program, of each shot with `headroom` (or one
+	 * that always reads its head, see `ShotModule.measuresHead`) that runs across an edge: its
+	 * one head size and how high its head gets are measured over it (`headOfRuns`, `topOfRuns`).
 	 */
 	heads: Record<string, FootageRun[]>;
 };
@@ -124,7 +127,16 @@ export function sliceProgram(
 		...s,
 		startFrame: frame(s.startFrame),
 		transition: transitionOf(s.transition),
-		keys: s.keys.map((k) => ({ ...k, frame: frame(k.frame) }))
+		keys: s.keys.map((k) => ({ ...k, frame: frame(k.frame) })),
+		...(s.away
+			? {
+					away: s.away.map((r) => ({
+						...r,
+						from: frame(r.from),
+						until: r.until === null ? null : frame(r.until)
+					}))
+				}
+			: {})
 	}));
 	const clips = full.clips
 		.filter((c) => {
@@ -177,10 +189,18 @@ export function sliceProgram(
 	const margin = Math.round(2 * SUBJECT_SMOOTH * fps) + gap;
 	const heads: ExcerptFootage['heads'] = {};
 	for (const s of stagedShots(full.shots, full.transitions, range))
-		if (headroomParam(s.params) !== false && (s.startFrame < first || endOf(s) > endOf(range)))
+		if (
+			(headroomParam(s.params) !== false || shotModule(s.shot)?.measuresHead) &&
+			(s.startFrame < first || endOf(s) > endOf(range))
+		)
 			heads[s.id] = pictureRuns(map, s.startFrame, endOf(s));
 	const around = shownRanges(map, first - margin, endOf(range) + margin, gap);
-
+	// Where an away move drawn in the excerpt decides its side, maybe outside the range: the
+	// frames the decision reads, no more (see `AwayLook`).
+	const drawn = { startFrame: 0, frames: excerpt.frames };
+	for (const s of shots)
+		for (const { look } of awayMovesDuring(s.away, drawn))
+			if (look) (around[look.source] ??= []).push({ first: look.first, last: look.last });
 	return {
 		...full,
 		frames: excerpt.frames + cardFrames,

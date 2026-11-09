@@ -31,15 +31,16 @@ export function backdropLook(
 
 /**
  * Whether the subject picture draws over the behind clips. It covers them only while one is on
- * screen, or a dimmed room; in an insert it is only what a holdout cuts out.
+ * screen, a dimmed room or a room cut away; in an insert it is only what a holdout cuts out.
  */
 export function subjectDrawn(o: {
 	insert: { holdout: boolean } | null | undefined;
 	behind: boolean;
 	room: boolean;
+	cutAway: boolean;
 	hasSubject: boolean;
 }): boolean {
-	const wanted = o.insert ? o.insert.holdout && o.behind : o.behind || o.room;
+	const wanted = o.insert ? o.insert.holdout && o.behind : o.behind || o.room || o.cutAway;
 	return wanted && o.hasSubject;
 }
 

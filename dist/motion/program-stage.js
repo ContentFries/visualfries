@@ -7,7 +7,8 @@ import { programFootageAt, transitionSidesAt } from './footage-map.js';
 import { sourceFrameUrl, sourceSubjectBox } from './footage.js';
 import { programFraming } from './framing.js';
 import { clipFrameAt } from './segments.js';
-import { shotModule } from './shots/index.js';
+import { awayAt, shotAt, shotModule } from './shots/index.js';
+import { AWAY_SEEN_SHARE, awayInFrameMessage, turnedReadback } from './shots/away.js';
 import { facePoint, frameRect } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
 import { keyTracks, placementTransform } from './keys.js';
@@ -15,7 +16,6 @@ import { cssAlpha, opaqueGradient } from './color.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import { BEHIND_TEXT_SECONDS, BEHIND_TEXT_SHARE, FACE_TEXT_SECONDS, FACE_TEXT_SHARE, TEXT_OPACITY, clearOfSpeaker, faceCovered, facePoints, headOnStage, intersect, textBehindMessage, textOverFaceMessage } from './text-over-face.js';
 import { CUT_SHARE, FIT_SECONDS, SAFE_TEXT_SHARE, addReach, contentReach, cutShare, emptyPart, frameFitMessage, newReach, outsideSafe, reachBox, safeBoxes } from './frame-fit.js';
-import { backdropLook, behindMeasurable, coveredShare, extendRun, measuredRecently, roomShown, runLongEnough, subjectDrawn } from './stage-decisions.js';
 import { PANEL_TEXT_SHARE, captionsInMoveMessage, moveAtStart, shotMoves } from './shot-moves.js';
 /**
  * The fill around a framed shot: the brand's surface; without a brand, the project background
@@ -618,6 +618,10 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     const behindAt = new Map();
     /** Where `subjectSampler` reads the subject picture back. */
     let readBack = null;
+    /** Where `turnedSpeakerInFrame` reads a turned cut-out back. */
+    let turnedBack = null;
+    /** Away ranges (shot id and index) already warned about a speaker still in the frame. */
+    const toldAway = new Set();
     /** The extracted frames of the source a view shows; null without them. */
     const framesOf = (view) => (view ? (seg.footage[view.source] ?? null) : null);
     const framing = programFraming(seg);
@@ -855,17 +859,6 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             over.drawImage(rimSheet.canvas, 0, 0);
         }
     }
-    /** The blurred copy under footage that leaves the camera window open (see `backdrop`). */
-    function drawBackdrop(s, layout, backdrop, url, pending) {
-        const back = s.plate.back;
-        const { camera } = backdrop;
-        const { clip } = layout;
-        place(back, { ...camera, x: px(camera.x - clip.x), y: px(camera.y - clip.y) });
-        back.style.filter = filters.plate(`${s.name}-back`, backdropLook(backdrop, layout.room), layout.motionBlur);
-        const copy = show(back, url);
-        if (copy)
-            pending.push(copy);
-    }
     function drawSide(s, view, behind, pending, holes = []) {
         const { layout } = view;
         s.fill.style.background = layout.fill ? surface(seg) : '';
@@ -874,7 +867,10 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         frameBox(s.plate, layout);
         frameBox(s.subject, layout);
         s.plate.box.style.boxShadow = windowShadow(layout, seg.size);
-        const room = roomShown(layout.room, BLUR_MIN);
+        // A room cut away (see `cutout`): the plate fades, the subject stays over the fill.
+        const gone = layout.cutout ?? 0;
+        s.plate.box.style.opacity = gone > 0 ? String(px(1 - gone)) : '';
+        const room = !!layout.room && (layout.room.dim > 0 || layout.room.blur >= BLUR_MIN);
         s.plate.img.style.filter = filters.plate(s.name, layout.room, layout.motionBlur);
         s.subject.img.style.filter = filters.subject(s.name, layout.room?.dim ?? 0, layout.motionBlur);
         s.behind.style.filter = filters.streak(`behind-${s.name}`, layout.motionBlur);
@@ -893,16 +889,27 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         const plate = seg.insert ? null : show(s.plate.img, url);
         if (plate)
             pending.push(plate);
-        if (layout.backdrop && !seg.insert)
-            drawBackdrop(s, layout, layout.backdrop, url, pending);
+        if (layout.backdrop && !seg.insert) {
+            // The blurred copy under footage that leaves the camera window open (see `backdrop`).
+            const { camera, blur, dim } = layout.backdrop;
+            const { clip } = layout;
+            place(back, { ...camera, x: px(camera.x - clip.x), y: px(camera.y - clip.y) });
+            // Under a dimmed room the copy is part of the room: dimmed and blurred with it too.
+            const roomDim = layout.room?.dim ?? 0;
+            const look = {
+                dim: px(1 - (1 - dim) * (1 - roomDim)),
+                blur: px(Math.hypot(blur, layout.room?.blur ?? 0))
+            };
+            back.style.filter = filters.plate(`${s.name}-back`, look, layout.motionBlur);
+            const copy = show(back, url);
+            if (copy)
+                pending.push(copy);
+        }
         else
             hide(back);
-        const subjectOn = subjectDrawn({
-            insert: seg.insert,
-            behind,
-            room,
-            hasSubject: !!frames.subject
-        });
+        // The subject covers behind clips only while one is on screen, a dimmed room or a room cut
+        // away; in an insert it is only what a holdout cuts out.
+        const subjectOn = (seg.insert ? seg.insert.holdout && behind : behind || room || gone > 0) && frames.subject;
         if (holes.length) {
             // The holes' layers draw the subject (cut) instead of its picture.
             hide(s.subject.img);
@@ -913,6 +920,8 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                 frameSheet(x, layout, frames.width, frames.height);
             }
             hole.canvas.style.filter = s.plate.img.style.filter;
+            // The clean plate in the holes is part of the room: it goes with it.
+            hole.box.style.opacity = s.plate.box.style.opacity;
             cut.canvas.style.filter = subjectOn ? s.subject.img.style.filter : '';
             pending.push(drawHoles(s, view, holes, subjectOn));
             return;
@@ -1212,14 +1221,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         const frames = framesOf(view);
         const holes = !!a.cut && a.cut.box.style.display !== 'none';
         const faded = (now?.a.layout.opacity ?? 1) < TEXT_OPACITY;
-        if (!now ||
-            !behindMeasurable({
-                planned: true,
-                hasView: !!view,
-                hasSubject: !!frames?.subject,
-                holes,
-                faded
-            })) {
+        if (!now || !view || !frames?.subject || holes || faded) {
             behindRun.clear();
             behindAt.clear();
             return [];
@@ -1238,22 +1240,38 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                 continue;
             }
             const at = behindAt.get(id);
-            if (measuredRecently(at, f, BEHIND_STRIDE))
+            if (at !== undefined && f - at < BEHIND_STRIDE)
                 continue;
             behindAt.set(id, f);
-            const { boxes, sample } = behind
-                ? behindCoverage(root, now.a.layout, read)
-                : frontCoverage(root, read, () => (layers ??= subjectLayers(read())));
+            let boxes = [];
+            let sample = null;
+            if (behind) {
+                boxes = read().boxes(root, undefined, false);
+                if (boxes.length)
+                    sample = subjectSampler(now.a.layout);
+            }
+            else {
+                layers ??= subjectLayers(read());
+                const after = layers.filter((l) => root.contains(l) ||
+                    !!(root.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING));
+                if (after.length) {
+                    const under = (node) => after.some((l) => node.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING);
+                    boxes = read().boxes(root, (node) => !under(node), false);
+                    if (boxes.length)
+                        sample = layersSampler(after);
+                }
+            }
             const points = boxes.length ? textPoints(boxes) : [];
             const hits = sample && points.length ? sample(points) : null;
-            const share = coveredShare(hits, points.length);
+            const share = hits ? hits.filter(Boolean).length / points.length : 0;
             if (share <= BEHIND_TEXT_SHARE) {
                 behindRun.delete(id);
                 continue;
             }
-            const run = extendRun(behindRun.get(id), f, share);
+            const run = behindRun.get(id) ?? { from: f, share };
+            run.share = Math.max(run.share, share);
             behindRun.set(id, run);
-            if (!runLongEnough(run, f, BEHIND_TEXT_SECONDS, seg.fps))
+            if (f - run.from < BEHIND_TEXT_SECONDS * seg.fps)
                 continue;
             behindRun.delete(id);
             toldBehind.add(id);
@@ -1262,19 +1280,177 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         }
         return out;
     }
-    /** The text boxes of a behind clip and how to tell where the speaker's picture covers them. */
-    function behindCoverage(root, layout, read) {
-        const boxes = read().boxes(root, undefined, false);
-        return { boxes, sample: boxes.length ? subjectSampler(layout) : null };
+    /**
+     * The speaker still in the frame at the frame last drawn, while an `away` range of the shot
+     * on screen has him wholly off it: the subject picture's pixels (at least half opaque) inside
+     * the visible part of the camera window, read back at full size. A range warns once, at the
+     * first frame checked that shows more than `AWAY_SEEN_SHARE` of the frame of him. Left out:
+     * transition windows, morphs and footage without a drawn subject picture.
+     */
+    function awayInFrame(f) {
+        const now = last?.f === f ? last : null;
+        if (!now || now.b || seg.insert)
+            return [];
+        const { shot, prev } = shotAt(seg.shots, now.g);
+        const state = prev ? null : awayAt(shot.away, now.g);
+        if (!state || state.p < 1 || !shot.id)
+            return [];
+        const index = shot.away.indexOf(state.range);
+        const key = `${shot.id}\u0000${index}`;
+        if (toldAway.has(key))
+            return [];
+        const seen = speakerInFrame(now.a.layout);
+        if (!seen || seen.area < AWAY_SEEN_SHARE * seg.size[0] * seg.size[1])
+            return [];
+        toldAway.add(key);
+        return [
+            awayInFrameMessage({
+                shot: shot.id,
+                kind: shot.shot,
+                range: index + 1,
+                from: state.range.from,
+                until: state.range.until,
+                frame: now.g,
+                ...seen
+            }, seg.size, seg.fps)
+        ];
     }
-    /** The same for front text: the boxes not under a subject layer, against the layers after it. */
-    function frontCoverage(root, read, layersOnScreen) {
-        const after = layersOnScreen().filter((l) => root.contains(l) || !!(root.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING));
-        if (!after.length)
-            return { boxes: [], sample: null };
-        const under = (node) => after.some((l) => node.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING);
-        const boxes = read().boxes(root, (node) => !under(node), false);
-        return { boxes, sample: boxes.length ? layersSampler(after) : null };
+    /**
+     * Stage pixels of the subject picture (side a) drawn at least half opaque inside the visible
+     * part of the camera window, and their box; null when there are none or the picture is not
+     * drawn. A turned camera is drawn turned and read back the same way (`turnedSpeakerInFrame`).
+     */
+    function speakerInFrame(layout) {
+        const img = a.subject.img;
+        if (img.style.display === 'none' || !img.complete || !img.naturalWidth)
+            return null;
+        const view = intersect(layout.clip, frameRect(seg.size));
+        if (!view)
+            return null;
+        if (layout.turn)
+            return turnedSpeakerInFrame(img, layout, view);
+        const { camera } = layout;
+        const part = intersect(view, camera);
+        if (!part)
+            return null;
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        // The part of the picture inside the frame, in picture pixels.
+        const sx = Math.floor(((part.x - camera.x) / camera.width) * w);
+        const sy = Math.floor(((part.y - camera.y) / camera.height) * h);
+        const sw = Math.max(1, Math.ceil(((part.x + part.width - camera.x) / camera.width) * w) - sx);
+        const sh = Math.max(1, Math.ceil(((part.y + part.height - camera.y) / camera.height) * h) - sy);
+        readBack ??= document.createElement('canvas');
+        if (readBack.width < sw || readBack.height < sh) {
+            readBack.width = Math.max(readBack.width, sw);
+            readBack.height = Math.max(readBack.height, sh);
+        }
+        const ctx = readBack.getContext('2d');
+        if (!ctx)
+            return null;
+        let data;
+        try {
+            ctx.clearRect(0, 0, sw, sh);
+            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+            data = ctx.getImageData(0, 0, sw, sh).data;
+        }
+        catch {
+            return null;
+        }
+        let n = 0;
+        let x0 = Infinity;
+        let y0 = Infinity;
+        let x1 = -Infinity;
+        let y1 = -Infinity;
+        for (let y = 0; y < sh; y++)
+            for (let x = 0; x < sw; x++) {
+                if (data[(y * sw + x) * 4 + 3] < 128)
+                    continue;
+                n++;
+                x0 = Math.min(x0, x);
+                y0 = Math.min(y0, y);
+                x1 = Math.max(x1, x + 1);
+                y1 = Math.max(y1, y + 1);
+            }
+        if (!n)
+            return null;
+        // Picture pixels back to stage pixels.
+        const kx = camera.width / w;
+        const ky = camera.height / h;
+        const box = {
+            x: Math.max(view.x, camera.x + (sx + x0) * kx),
+            y: Math.max(view.y, camera.y + (sy + y0) * ky),
+            width: (x1 - x0) * kx,
+            height: (y1 - y0) * ky
+        };
+        return { area: n * kx * ky, box };
+    }
+    /**
+     * `speakerInFrame` under a turned camera: the subject picture drawn turned over the part of
+     * the visible window it covers, at its own resolution as far as the frame's pixel count
+     * allows (see `turnedReadback`), and read back whole. Nothing is read once it is wholly out.
+     */
+    function turnedSpeakerInFrame(img, layout, view) {
+        const { camera, turn } = layout;
+        const read = turnedReadback(layout, view, [img.naturalWidth, img.naturalHeight], seg.size);
+        if (!read)
+            return null;
+        const { region, scale: k } = read;
+        const cw = Math.max(1, Math.ceil(region.width * k));
+        const ch = Math.max(1, Math.ceil(region.height * k));
+        // Its own canvas, sized to this read: the shared one keeps its largest size.
+        turnedBack ??= document.createElement('canvas');
+        if (turnedBack.width !== cw || turnedBack.height !== ch) {
+            turnedBack.width = cw;
+            turnedBack.height = ch;
+        }
+        const ctx = turnedBack.getContext('2d');
+        if (!ctx)
+            return null;
+        let data;
+        try {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, cw, ch);
+            // Stage pixels to canvas pixels, then the turn about its pivot.
+            ctx.setTransform(k, 0, 0, k, -region.x * k, -region.y * k);
+            if (turn) {
+                ctx.translate(turn.pivot.x, turn.pivot.y);
+                ctx.rotate((turn.rotation * Math.PI) / 180);
+                ctx.translate(-turn.pivot.x, -turn.pivot.y);
+            }
+            ctx.drawImage(img, camera.x, camera.y, camera.width, camera.height);
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            data = ctx.getImageData(0, 0, cw, ch).data;
+        }
+        catch {
+            return null;
+        }
+        let n = 0;
+        let x0 = Infinity;
+        let y0 = Infinity;
+        let x1 = -Infinity;
+        let y1 = -Infinity;
+        for (let y = 0; y < ch; y++)
+            for (let x = 0; x < cw; x++) {
+                if (data[(y * cw + x) * 4 + 3] < 128)
+                    continue;
+                n++;
+                x0 = Math.min(x0, x);
+                y0 = Math.min(y0, y);
+                x1 = Math.max(x1, x + 1);
+                y1 = Math.max(y1, y + 1);
+            }
+        if (!n)
+            return null;
+        return {
+            area: n / (k * k),
+            box: {
+                x: region.x + x0 / k,
+                y: region.y + y0 / k,
+                width: (x1 - x0) / k,
+                height: (y1 - y0) / k
+            }
+        };
     }
     /** The subject layers of front clips on screen that draw the speaker, at least half opaque. */
     function subjectLayers(page) {
@@ -1535,7 +1711,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             let page = null;
             const read = () => (page ??= textReader(stage, seg.size));
             out.push(...faceText(f, read), ...textBehind(f, read));
-            out.push(...frameFit(f, read), ...movingCaptions(f, read));
+            out.push(...frameFit(f, read), ...movingCaptions(f, read), ...awayInFrame(f));
             return out;
         },
         holdout(on) {

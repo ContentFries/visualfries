@@ -94,7 +94,7 @@ export type ItemAnchor = z.infer<typeof ItemAnchorShape>;
 /** Built-in transitions; a path ("transitions/My.svelte") names a custom one. */
 export declare const TRANSITIONS: readonly ["wipe", "push", "zoom-through", "shape-mask", "blinds", "card"];
 /** Built-in shots; a path ("shots/My.ts") names a custom one. */
-export declare const SHOTS: readonly ["full", "punch", "strip", "window", "behind", "whip"];
+export declare const SHOTS: readonly ["full", "punch", "strip", "window", "behind", "whip", "cutout"];
 /**
  * The handoff into the item that carries it. A name ("push") or the full form. It never changes
  * program time and never touches audio.
@@ -298,6 +298,28 @@ export declare const CutShape: z.ZodObject<{
     native: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 export type Cut = z.infer<typeof CutShape>;
+/**
+ * A stretch of a shot with the speaker off the frame: wholly gone from `from` (the exit ends
+ * there) until `until` (the way back in starts there). Program time, like the shot's own range.
+ */
+declare const AwayShape: z.ZodObject<{
+    from: z.ZodLazy<z.ZodType<import("./project.js").MotionAnchor, unknown, z.core.$ZodTypeInternals<import("./project.js").MotionAnchor, unknown>>>;
+    until: z.ZodLazy<z.ZodType<import("./project.js").MotionAnchor, unknown, z.core.$ZodTypeInternals<import("./project.js").MotionAnchor, unknown>>>;
+    side: z.ZodOptional<z.ZodEnum<{
+        left: "left";
+        right: "right";
+        bottom: "bottom";
+    }>>;
+    exit: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodObject<{
+        seconds: z.ZodNumber;
+        ease: z.ZodOptional<z.ZodString>;
+    }, z.core.$strict>]>>;
+    enter: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodObject<{
+        seconds: z.ZodNumber;
+        ease: z.ZodOptional<z.ZodString>;
+    }, z.core.$strict>]>>;
+}, z.core.$strict>;
+export type Away = z.infer<typeof AwayShape>;
 /** How footage is framed from `from` until `until` (program time). */
 export declare const ShotShape: z.ZodObject<{
     id: z.ZodOptional<z.ZodString>;
@@ -359,6 +381,23 @@ export declare const ShotShape: z.ZodObject<{
             oklch: "oklch";
         }>>;
     }, z.core.$strip>>>;
+    away: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        from: z.ZodLazy<z.ZodType<import("./project.js").MotionAnchor, unknown, z.core.$ZodTypeInternals<import("./project.js").MotionAnchor, unknown>>>;
+        until: z.ZodLazy<z.ZodType<import("./project.js").MotionAnchor, unknown, z.core.$ZodTypeInternals<import("./project.js").MotionAnchor, unknown>>>;
+        side: z.ZodOptional<z.ZodEnum<{
+            left: "left";
+            right: "right";
+            bottom: "bottom";
+        }>>;
+        exit: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodObject<{
+            seconds: z.ZodNumber;
+            ease: z.ZodOptional<z.ZodString>;
+        }, z.core.$strict>]>>;
+        enter: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodObject<{
+            seconds: z.ZodNumber;
+            ease: z.ZodOptional<z.ZodString>;
+        }, z.core.$strict>]>>;
+    }, z.core.$strict>>>;
     native: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 export type Shot = z.infer<typeof ShotShape>;
@@ -416,3 +455,4 @@ export type Mix = z.infer<typeof MixShape>;
 export declare function isProgramProject(project: Pick<MotionProject, 'cuts' | 'shots'>): boolean;
 /** Parses a project file's JSON, with one readable line per problem instead of zod's dump. */
 export declare function parseMotionProject(value: unknown, file?: string): MotionProject;
+export {};

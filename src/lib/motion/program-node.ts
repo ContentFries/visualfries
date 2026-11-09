@@ -13,10 +13,18 @@ import {
 } from './node.js';
 import { resolveProgram, type ProgramSegment, type ResolvedProgram } from './program.js';
 import { resolveMoment } from './moment.js';
-import { headCropMessage, headCrops } from './framing.js';
+import {
+	cutoutEdgeMessage,
+	cutoutEdges,
+	cutoutPanelMessage,
+	cutoutPanels,
+	headCropMessage,
+	headCrops
+} from './framing.js';
 import { textBehindClip, textOverFaceClip } from './text-over-face.js';
 import { frameFitKey } from './frame-fit.js';
 import { captionsInMoveClip } from './shot-moves.js';
+import { awayInFrameKey } from './shots/away.js';
 import {
 	edgeFrames,
 	scrambled,
@@ -293,8 +301,8 @@ export async function checkProgram(
 		await browser.close();
 		await fs.rm(bundle.dir, { recursive: true, force: true });
 	}
-	// Warnings about a clip's text or content are told once per clip (and kind), in the first
-	// segment they are found in.
+	// Warnings about a clip's text or content are told once per clip (and kind), and about a
+	// speaker still in the frame once per away range, in the first segment they are found in.
 	const told = new Set<string>();
 	const onceKey = (message: string) => {
 		const face = textOverFaceClip(message);
@@ -303,6 +311,8 @@ export async function checkProgram(
 		if (behind !== null) return `behind\u0000${behind}`;
 		const captions = captionsInMoveClip(message);
 		if (captions !== null) return `captions\u0000${captions}`;
+		const away = awayInFrameKey(message);
+		if (away !== null) return `away\u0000${away}`;
 		const fit = frameFitKey(message);
 		return fit === null ? null : `fit\u0000${fit}`;
 	};
@@ -320,13 +330,25 @@ export async function checkProgram(
 
 /**
  * Warnings for every stretch where a shot's camera window cuts the speaker's head (see
- * `headCrops`), each at its first frame.
+ * `headCrops`), a cutout shows the speaker cut (see `cutoutEdges`) or leaves a filled slot no
+ * room (see `cutoutPanels`), each at its first frame.
  */
 export function headCropWarnings(segment: StageSegment): { frame: number; message: string }[] {
-	return headCrops(segment, segment).map((crop) => ({
-		frame: crop.from,
-		message: headCropMessage(crop, segment.shots.find((s) => s.id === crop.shot)!, segment.fps)
-	}));
+	const shot = (id: string) => segment.shots.find((s) => s.id === id)!;
+	return [
+		...headCrops(segment, segment).map((crop) => ({
+			frame: crop.from,
+			message: headCropMessage(crop, shot(crop.shot), segment.fps)
+		})),
+		...cutoutEdges(segment, segment).map((cut) => ({
+			frame: cut.from,
+			message: cutoutEdgeMessage(cut, shot(cut.shot), segment.fps)
+		})),
+		...cutoutPanels(segment).map((panel) => ({
+			frame: panel.from,
+			message: cutoutPanelMessage(panel, shot(panel.shot), segment.fps)
+		}))
+	].sort((a, b) => a.frame - b.frame);
 }
 
 /** Up to about a dozen evenly spread frames plus the frames on both sides of every change. */

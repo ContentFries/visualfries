@@ -248,7 +248,8 @@ running on its own; set the poses from `t` or `clip.map`, then render).
 - Behind the speaker: in a program, give the clip `"layer": "behind"`. It is drawn between the
   footage and the speaker cut out by the matte, so give the block its own background (an opaque
   element under the canvas) when the world should replace the footage, and put labels that
-  must stay in front of the speaker in a second clip without `layer`.
+  must stay in front of the speaker inside `<Front>` in the same clip (see "Behind and in front
+  from one clip"), so they read the same state and the world runs once.
 - Nothing may carry over from the frames drawn before: pages draw frames in any order. A
   geometry whose vertices you move every frame (a water surface, a cloth) needs
   `geometry.computeBoundingSphere()` after the move, as Three.js culls and sorts transparent
@@ -621,9 +622,108 @@ Gaps between shots are `full`. Each shot lays out per format class (landscape, s
   Inside a transition window there is no motion blur (the transition owns the move). Without a
   clip in the slot the style's surface shows. A whip right after a whip does not move, so it
   has no event and `check` warns.
+- `cutout`: only the speaker, cut out by the matte, over the style's surface: no room, no
+  plate. Clips with `"layer": "behind"` go between the surface and the speaker (a 3D world, a
+  colour field). It places a speaker recorded wider than the format anywhere in the frame, such
+  as a seated landscape recording in the lower left of a 9:16 frame. `params.anchor` is where
+  the speaker sits: `bottom-left`, `bottom` (default), `bottom-right` put the body on the
+  frame's bottom edge; `left`, `center`, `right` centre the speaker's box (head top to the
+  matte's bottom) on the frame's height. `params.size` is how tall the head is, top to chin, as
+  a share of the frame height (default 0.2 landscape, 0.15 square, 0.11 portrait). It is
+  measured from the matte over the whole shot, so the speaker comes out the same size whatever
+  the recording's framing: a close take and a wide one at the same `size` look alike, which a
+  share of the matte's box (it grows with every gesture and with how much body the recording
+  shows) would not give. `params.margin` is the space to the side edges the anchor names, as a
+  share of the frame's shorter side (default 0.05; negative moves the speaker past them). Across,
+  the head's centre sits 1.2 head heights in from the margin, so the shoulders stay in and the
+  speaker holds still while the hands move, but at most 0.35 of the frame width, so a speaker
+  too big for both shoulders runs off the anchored edge instead of drifting to the middle. Down, a matte that reaches the recording's bottom edge (a seated speaker, a medium
+  shot) puts that edge on the frame's whatever the margin, so the cut body runs out of the
+  frame; a matte that ends above it (feet) stands a margin above the frame's edge (on it with a
+  negative margin). A `panel` slot takes the empty part
+  of the frame: above the speaker for `bottom`, and in portrait and square for `bottom-left`
+  and `bottom-right` too (from the top of the safe area down to a margin above how high the
+  head gets over the shot, so it holds still while the head moves); beside the speaker
+  otherwise (the other side of the frame, full height; in portrait inside the safe area);
+  `center` has none. Shot keys (`x`, `y`, `scale`, `rotation`, `opacity`) move the speaker on
+  top, the panel stays. In a morph into or out of the shot the room fades out or in while the
+  camera moves. `check` warns when a frame edge the anchor does not name cuts the speaker off,
+  and when the speaker runs into an edge of the recording that sits inside the frame (a body
+  cut by the recording ending in mid-frame, as with `left` on a seated recording or a `y` key
+  lifting it). Both warnings follow the shot's keys, `rotation` included. It also warns when a
+  clip fills a `panel` the speaker leaves no room for (a head that reaches the top of the safe
+  area), since the clip then does not show. Needs a matte (`check` reports footage without one).
+
+**The speaker away.** A shot that cuts the speaker out by the matte (`behind`, `cutout`) takes `away`:
+stretches where the speaker is off the frame, so they are on screen only while they talk to the
+camera and the world behind them carries the rest.
+
+```json
+{
+	"id": "speaker",
+	"shot": "behind",
+	"from": 0,
+	"until": "end",
+	"away": [
+		{
+			"from": { "say": "the answer", "edge": "end" },
+			"until": { "say": "Now", "edge": "start" },
+			"side": "left"
+		},
+		{ "from": { "say": "harness", "occurrence": 2, "edge": "end" }, "until": "end" }
+	]
+}
+```
+
+- `from` is where the speaker is wholly gone (the exit ends there) and `until` where they start
+  coming back; both are program moments in the usual grammar, so a phrase in `until` is the end of
+  its last word: write `"edge": "start"` to be back for a word. A repeated phrase resolves in
+  program order: `from` to the first occurrence at or after the previous range's `until` (the
+  shot's start for the first range), `until` at or after `from`. `until` at the shot's own end
+  (its `until` moment) keeps the speaker away to the end of the shot and through a morph out of
+  it, which then brings them in; `"until": "end"` is the program's end, so it does that only in a
+  shot that runs to the program end (in a shot that ends before it, it is an error). A range from
+  the shot's first frame starts away, also wherever the shot's picture is drawn before its
+  start: a morph into the shot takes them out, a shot transition into it shows them already
+  gone.
+- `exit` and `enter` are seconds (`0.3`) or `{ "seconds": 0.3, "ease": "power3.in" }`; default
+  0.16 s `power2.in` out and 0.22 s `expo.out` back in.
+- `side`: `left`, `right` or `bottom`; default the edge the speaker reaches by the shortest way,
+  decided where each move starts (or, for the way back, on its last frame) by the footage the whole
+  program shows there, framed as the shot frames it there: a speaker near the middle never
+  changes sides mid-move (across a cut to other footage either), and an excerpt that starts
+  inside a move slides them the way the full video does (the decision reads only the frames
+  shown in one run around that moment, which every render extracts). A range from the shot's first frame
+  decides at that frame.
+- How far the picture moves comes from the matte: the boxes of the frames around each frame
+  (half a second either way, so a raised arm counts), where the shot, its keys (`x`, `y`, `scale`,
+  `rotation`) and its morph put them, plus a small margin past what the room's blur still
+  shows of them; under footage that leaves its window open, the speaker of the bigger blurred
+  backdrop clears it too, blur included. The speaker just clears the
+  frame in any format, and keys and morphs go on moving the camera under the slide.
+- What moves is the footage picture inside the camera window: the room, the cut-out speaker, a
+  blurred backdrop and subject layers of clips (`<Footage layer="subject">`, `<Subject>`) that
+  follow the camera. Clips with `"layer": "behind"`, front clips and the shot's slots (the `word`
+  slot too, also through a morph into or out of the shot) stay where they are: the room leaves with the speaker, so give the shot a behind clip
+  that covers the frame (a scene, a colour) for the world they leave, or the background shows.
+  A word in the `word` slot stays put; end its clip at the exit if it should go.
+- `away` works on the shots that cut the speaker out, `behind` and `cutout`. `full`, `punch`,
+  `strip`, `window`, `whip` and custom shots reject it: there the speaker is the whole picture,
+  and sliding it off leaves an empty frame. Move the picture with shot keys there, or use
+  `behind`.
+- Errors: `until` not after `from`, a range outside the shot, an exit that would start before
+  the shot (unless `from` is its first frame), a way back that would outlast it, and a range
+  that starts leaving before the one before it is back. `program` warns where the speaker is
+  gone while still saying a word (at least 0.1 s of it off the frame), or starts coming back
+  0.1 s or more after a word began. `check` warns (once per range) where a piece of the speaker
+  is still in the frame inside a range: it reads the cut-out's pixels in the frame after the exit
+  at full size, under a turned camera too (an arm or hair the matte's boxes miss, a speck the
+  matte keeps). Head-crop warnings skip the
+  ranges and their moves.
 
 **Keeping the head in.** Shots frame the face a third from the top of their camera window
-(`full`, `punch`, `strip`, `window`, `behind`, `whip`). That suits most footage, but a close
+(`full`, `punch`, `strip`, `window`, `behind`, `whip`; `cutout` sizes the speaker by the head
+instead). That suits most footage, but a close
 handheld selfie, where the head fills half the frame, can lose the top of the head in a strip or
 a small window. `params.headroom` (off by default; 0.06 is a good start) keeps the whole head in
 the shot's camera window, from the matte: the footage moves down until that share of the window
@@ -752,14 +852,14 @@ second: a ticker or marquee, a card with text that bleeds off the frame by desig
 `--safe-*`, its own layout for `clip.format.class`), after a look at a still.
 
 The layout moves from the previous shot's over `morph` seconds (default: 0.7 s into `full`,
-`strip` and `window`, 0.3 s into `behind` from `full` (0.7 s from a framed shot), 0.16 s into
+`strip`, `window` and `cutout`, 0.3 s into `behind` from `full` (0.7 s from a framed shot), 0.16 s into
 `punch`, 0.45 s out of a punch, 0.42 s
 into and out of a whip; none under a shot `transition`). A window's ring and shadow and a dimmed
-room fade with the move. A clip with `"slot": "panel"` fills that slot and moves with it; while
+room fade with the move, and so does a room cut away by `cutout`. A clip with `"slot": "panel"` fills that slot and moves with it; while
 no shot frees its slot it is hidden and `check` warns. Its root also says how much of the slot
 platform UI covers at that frame ([safe insets of a slot](#safe-insets-of-a-slot)). Shots add
-events to the program for sounds to land on: `shot` halfway through a move into `strip` or
-`window` and back out of them, `punch` on a punch-in's first frame, and `whip` halfway through the
+events to the program for sounds to land on: `shot` halfway through a move into `strip`,
+`window` or `cutout` and back out of them, `punch` on a punch-in's first frame, and `whip` halfway through the
 whip out and the whip back (a punch after a whip hits when the camera lands). Nothing moves on the program's first frame,
 so a shot there has no event. A shot may run across hard cuts (the jump cuts of a talking head);
 `check` warns only when its morph, a change between two of its keys or its transition window is
@@ -1573,11 +1673,12 @@ project renders, run `check --format 1080x1920` (any `WxH`): the program is chec
 `render --format` draws it, with the format's safe zone, and `still --format` draws its stills.
 
 **8. Render.** `visualfries render reel.vf.json --output out/`, and `--format 1920x1080` for
-16:9 from the same project. The render reports each segment as drawn or cached, the mix and the
-time; the resolved program is saved beside the video. The cache works per segment (the range
-between two hard cuts): an edit redraws the segments whose content changed. A clip that spans
-several segments (a captions clip over the whole program) puts every one of them in play, and a
-cut that gets longer or shorter moves everything after it, so those segments are drawn again. To
+16:9 from the same project. The render reports each 15 s chunk as drawn or cached, the mix and
+the time; the resolved program is saved beside the video. An edit redraws only the chunks whose
+frames it changes (see [Programs](#programs) for what counts). New props or code of a clip that
+spans several segments (a captions clip over the whole program) put every chunk of those
+segments in play, and a cut that gets longer or shorter moves everything after it, so those
+chunks are drawn again. To
 finish the edit in an editor instead, `--export inserts` renders each clip as its own file to lay over
 the rough cut (see [Inserts from a program](#inserts-from-a-program)).
 
@@ -1658,10 +1759,10 @@ visualfries render video.vf.json --excerpt teaser1 --output out/   # out/video.t
   sound, a `{ "file" }` that is not there), is an error when it is asked for (`--excerpt`) and a
   warning in the whole program, so a typo in one teaser never stops the full video. The
   whole program has to resolve without errors, since the excerpt is its slice.
-- **Cache.** An excerpt is drawn as a program of its own: its segments are cached in
+- **Cache.** An excerpt is drawn as a program of its own: its chunks are cached in
   `.visualfries/segments/` under their own hashes, and each excerpt and format records its own
   files, so rendering one never prunes another's or the full video's. Rendering it again draws
-  only what changed in it. It does not take segments from the full video's render: a teaser is
+  only what changed in it. It does not take chunks from the full video's render: a teaser is
   usually another format, its edges rarely fall on the hard cuts between segments, and its
   hashes cover excerpt frames, so an edit that moves the range inside the program (a cut before
   it gets longer) draws the excerpt again.
@@ -1871,7 +1972,7 @@ transitions, a clip's own `transition`, the program's sound and a clip's `audio`
 the program render (`--export video`). `check --export inserts` lists, as `info`, where a
 program relies on them: clips that arrive or leave with a cut or shot transition (the insert
 cuts in or out), clips with their own transition, clips in a slot of a shot that reframes the
-footage (`punch`, `strip`, `window`, `whip`, a shot with keys; such an insert lines up with the
+footage (`punch`, `strip`, `window`, `whip`, a shot with keys or `away`; such an insert lines up with the
 program's framing, so frame the footage like the shot or use the program render), behind clips
 under such a shot, behind clips inside a cut or shot transition window, and clips with `audio`;
 as a `warning`, `"alpha": false` on a behind clip. `render` prints the same notes and writes

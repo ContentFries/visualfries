@@ -42,8 +42,9 @@ jobs:
       - name: Type check
         run: pnpm check
 
+      # Coverage only where the CRAP step reads it: it adds about a third to the run.
       - name: Unit tests
-        run: pnpm exec vitest run --coverage.enabled --coverage.provider=v8 --coverage.reporter=lcov
+        run: pnpm exec vitest run ${{ github.event_name == 'pull_request' && '--coverage.enabled --coverage.provider=v8 --coverage.reporter=lcov' || '' }}
 
       # Functions a pull request changes must stay at CRAP 30 or below (crap.config.json, AGENTS.md).
       # Reads the coverage of the whole suite above instead of running the related tests again.

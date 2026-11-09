@@ -1,0 +1,18 @@
+{
+	"threshold": 30,
+	"base": "origin/main",
+	"packages": [
+		{
+			"root": ".",
+			"test": "pnpm exec vitest related --run --coverage.enabled --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportOnFailure {files}",
+			"testAll": "pnpm exec vitest run --coverage.enabled --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportOnFailure",
+			"coverage": "coverage/lcov.info"
+		}
+	],
+	"exclude": ["dist/**", "static/**", "examples/**"],
+	"reviewTiers": [
+		{ "name": "render, CLI and loading", "paths": ["src/lib/motion/**", "src/lib/agent/**", "bin/**"], "reviewers": 2, "effort": "xhigh" },
+		{ "name": "library", "paths": ["src/lib/**"], "reviewers": 2, "effort": "high" },
+		{ "name": "site and docs", "paths": ["src/**", "worker/**", "docs/**", "examples/**"], "reviewers": 1, "effort": "high" }
+	]
+}

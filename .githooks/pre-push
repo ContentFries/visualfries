@@ -18,6 +18,7 @@ status=0
 checked=""
 # git passes one line per pushed ref: <local ref> <local sha> <remote ref> <remote sha>
 while read -r local_ref local_sha remote_ref remote_sha; do
+	case "$remote_ref" in refs/tags/*) continue ;; esac # a tag points at code a branch push judges
 	case "$local_sha" in *[!0]*) ;; *) continue ;; esac # deleting a branch: nothing to judge
 	case " $checked " in *" $local_sha "*) continue ;; esac
 	checked="$checked $local_sha"

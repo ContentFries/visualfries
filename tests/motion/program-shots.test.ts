@@ -52,7 +52,7 @@ describe('shots as written in a program', () => {
 				diag(
 					'error',
 					'shots[0].shot',
-					'Unknown shot "nope". Built in: full, punch, strip, window, behind, whip; or a file such as "shots/My.ts".'
+					'Unknown shot "nope". Built in: full, punch, strip, window, behind, whip, cutout; or a file such as "shots/My.ts".'
 				)
 			],
 			shots: []

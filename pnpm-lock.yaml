@@ -49,8 +49,8 @@ importers:
         version: 4.1.12
     devDependencies:
       '@bladesk/crap-check':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.2
+        version: 0.1.2
       '@eslint/js':
         specifier: ^9.37.0
         version: 9.37.0
@@ -207,9 +207,9 @@ packages:
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
 
-  '@bladesk/crap-check@0.1.1':
-    resolution: {integrity: sha512-JzI+deCetkTGlByDJTEdg1+XpeyS7TOxeC8rsqjx0/sD+Wy9CYNWUewik3kcEk+ovnLZP4tpu+79UnihQkNWAA==}
-    engines: {node: '>=22'}
+  '@bladesk/crap-check@0.1.2':
+    resolution: {integrity: sha512-rzSdMKmkLrVc+bBMXujeaugMJEreyilP5EKgjW52BUwU1yTW72dX3dttx7Fu7WpnrelJ22fLxHbwK9D/s0qccQ==}
+    engines: {node: '>=20'}
     hasBin: true
 
   '@conventional-commits/parser@0.4.1':
@@ -3940,7 +3940,7 @@ snapshots:
 
   '@bcoe/v8-coverage@0.2.3': {}
 
-  '@bladesk/crap-check@0.1.1':
+  '@bladesk/crap-check@0.1.2':
     dependencies:
       picomatch: 4.0.7
       typescript: 5.9.3

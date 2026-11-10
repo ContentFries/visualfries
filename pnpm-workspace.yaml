@@ -7,3 +7,5 @@ onlyBuiltDependencies:
 allowBuilds:
   esbuild: true
   canvas: false
+minimumReleaseAgeExclude:
+  - '@bladesk/crap-check@0.2.0'

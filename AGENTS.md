@@ -7,8 +7,10 @@ Write everything in this repository in English: docs, the site, skills, examples
 ## Before a PR: CRAP check
 
 Run `pnpm exec crap-check` before showing a change for approval and before opening or updating a PR
-(config in `crap.config.json`). It runs the tests related to the change with coverage and scores each
-changed function: CRAP = complexity² × (1 − coverage)³ + complexity.
+(config in `crap.config.json`). It scores each changed function: CRAP = complexity² × (1 − coverage)³ +
+complexity. Functions that complexity alone decides need no tests. For the rest it first runs only
+the fast tests that name the changed modules (browser and render tests left out, `testFirst`), and
+the related tests (`test`) only where something still fails, so a failing check takes longest.
 
 - New functions must score CRAP 30 or less. Changed functions over 30 must not get more complex.
 - Fix a ✗ row with tests or by splitting the function. Never raise the threshold or add excludes to

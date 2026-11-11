@@ -91,7 +91,12 @@ Work like an editor, in this order; each step ends on its criterion:
    at each one, in every format, and can answer for each: no text over a face, no word hidden by
    the speaker, no text cut by the frame, accents and
    descenders whole, no empty slot, no flash of a bright colour longer than a few frames, no frame
-   standing still.
+   standing still. Full-screen cards hand over with hard cuts: never fade a full-screen block's
+   own opacity at its edges over the footage, start the next one on the frame the last one ends,
+   and put edges near a cut on it. `check` warns about footage that shows for less than 0.8 s
+   between full-screen clips or between one and a cut (it names a clip that fades itself, with
+   its program time and frame) and about full-screen clip edges up to 0.4 s off a cut; `program`
+   warns about shot edges off a cut. Look at the frames −3 to +2 around each edge it names.
 7. **Fix.** Change the project or a block, then repeat from 4 for what changed. Done when a
    fresh pass of 4, 5 and 6 over everything the change touched finds nothing to fix.
 8. **Render.** `visualfries render <project> --output out/` (and `--format WxH` for other
@@ -116,6 +121,10 @@ have events but no sound yet, so their effects are `sfx` items on the shot's anc
 move.
 
 Program tools for common needs:
+
+- An edge exactly on a cut: `"snap": "cut"` on a clip or shot moves both edges onto the nearest
+  cut within 0.4 s (`{ "from": "cut" }` or `{ "until": "cut" }` for one edge), before cues
+  resolve. Use it instead of copying cut times into `from`/`until` by hand.
 
 - Picture after the last word: `"hold": 1.7` on the cut freezes its last frame, silent, while
   effects and music play on. No extra muted cut, no frame offsets in a block.

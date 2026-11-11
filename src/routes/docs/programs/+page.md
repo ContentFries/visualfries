@@ -113,13 +113,13 @@ npx visualfries beats music/bed.mp3
 2. **Plan.** Read the transcript and write the outline before the JSON: the hook, the sections, and which phrase each move lands on. Plan one move per spoken beat; no stretch should hold a still frame longer than about two seconds.
 3. **Cut list.** One cut per kept range, `in` and `out` as phrases. Run `visualfries program` until every cut resolves.
 4. **Shots.** Chain them end to start: the next shot's `from` gets the same anchor as the previous shot's `until`. A gap of a few frames between two shots is a `full` shot of its own, and the move into it is squeezed into those frames. Give shots that hold longer than about two seconds `keys` that keep the camera moving. See [Shots and transitions](/docs/shots-and-transitions).
-5. **Clips.** A clip in a slot (`panel`, `card`, `word`) shows while a shot frees that slot. End it when the next shot's move is over, not when the shot ends. Captions are a `@visualfries/captions` clip per stretch of speech they cover: put them low on the chest, give them a fixed `size` when the project renders several formats, and leave them out where a panel repeats the words.
+5. **Clips.** A clip in a slot (`panel`, `card`, `word`) shows while a shot frees that slot. End it when the next shot's move is over, not when the shot ends. Captions are a `@visualfries/captions` clip per stretch of speech they cover: put them low on the chest, give them a fixed `size` when the project renders several formats, and leave them out where a panel repeats the words. Full-screen cards hand over with hard cuts: never fade their own opacity over the footage, start the next card on the frame the last one ends, and put an edge near a cut on it with `"snap": "cut"` (both edges move onto the nearest cut within 0.4 s; `{ "from": "cut" }` or `{ "until": "cut" }` moves one).
 6. **Transitions and sound.** See [Program sound](/docs/program-sound).
 7. **Check and look.** Run `visualfries program` after every edit until it shows no errors, then `check --determinism`. Look at stills of:
    - every cut;
    - the first, middle and last frame of every transition window;
    - every event and the first frames of every shot move;
-   - every time `check` names: a cut head, text over the face or hidden by the speaker, captions over a move, content cut by the frame.
+   - every time `check` names: a cut head, text over the face or hidden by the speaker, captions over a move, content cut by the frame, footage flashing for less than 0.8 s around a full-screen clip (it names a clip that fades itself), a full-screen clip or shot edge a few frames off a cut. Look at the frames −3 to +2 around each.
 
    For every other format the project renders, run `check --format WxH` and look at `still --format WxH` too.
 

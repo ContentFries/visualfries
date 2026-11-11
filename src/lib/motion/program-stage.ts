@@ -2009,8 +2009,7 @@ export function createProgramScene(
 		},
 		nested3d(f) {
 			const out: Nested3d[] = [];
-			for (const m of mounted) {
-				if (m.shown === null || !due3d(m.data.id, f)) continue;
+			for (const m of mounted.filter((x) => x.shown !== null && due3d(x.data.id, f))) {
 				const el = nestedPreserve3d(rootsOf(m));
 				next3d.set(m.data.id, el ? Infinity : f + seg.fps);
 				if (el) out.push({ clip: m.data.id, block: m.data.block, path: path3d(el) });

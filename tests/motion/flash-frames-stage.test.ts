@@ -7,7 +7,7 @@ import path from 'node:path';
 import { findChromium, loadMotionProject } from '../../src/lib/motion/node.js';
 import { checkProgram } from '../../src/lib/motion/program-node.js';
 // @ts-expect-error: a plain .mjs helper shared with the subject layer tests
-import { SW, SH, writeFootage } from './fixtures/subject/footage.mjs';
+import { SW, SH, ffmpeg, writeFootage } from './fixtures/subject/footage.mjs';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -43,6 +43,28 @@ const DICE = `<div style="position:absolute;left:100px;top:200px;width:160px;hei
 </div>
 `;
 
+/** A full-frame picture (`props.src`), loaded before the clip draws. */
+const PICTURE = `<script>
+	import { useClip, useReady } from 'visualfries/motion';
+	const p = useClip().props;
+	const img = new Image();
+	img.src = p.src;
+	useReady(img.decode().catch(() => {}));
+</script>
+<img src={p.src} alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:{p.fit ?? 'fill'}" />
+`;
+
+/** An opaque card inside a parent that clips it and closes over its last 0.3 s. */
+const COLLAPSE = `<script>
+	import { useClip } from 'visualfries/motion';
+	const clip = useClip();
+	const open = $derived(1 - clip.p('end - 0.3', 0.3));
+</script>
+<div style="position:absolute;left:0;top:0;width:100%;height:{open * 100}%;overflow:hidden">
+	<div style="position:absolute;left:0;top:0;width:${SW}px;height:${SH}px;background:#123"></div>
+</div>
+`;
+
 const flashes = (messages: string[]) =>
 	messages.filter((m) => /full-screen|between full-screen/.test(m));
 
@@ -54,6 +76,29 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('flash frames in check', () => {
 		await fs.writeFile(path.join(dir, 'Ring.svelte'), RING);
 		await fs.writeFile(path.join(dir, 'Term.svelte'), TERM);
 		await fs.writeFile(path.join(dir, 'Dice.svelte'), DICE);
+		await fs.writeFile(path.join(dir, 'Picture.svelte'), PICTURE);
+		await fs.writeFile(path.join(dir, 'Collapse.svelte'), COLLAPSE);
+		// A photo, and an overlay that is transparent but for a small patch.
+		ffmpeg([
+			'-f',
+			'lavfi',
+			'-i',
+			`color=0x336699:s=${SW}x${SH}`,
+			'-frames:v',
+			'1',
+			path.join(dir, 'photo.jpg')
+		]);
+		ffmpeg([
+			'-f',
+			'lavfi',
+			'-i',
+			`color=white:s=${SW}x${SH}`,
+			'-vf',
+			'format=rgba,colorchannelmixer=aa=0,drawbox=x=20:y=20:w=60:h=60:color=yellow@1:t=fill',
+			'-frames:v',
+			'1',
+			path.join(dir, 'overlay.png')
+		]);
 	}, 120_000);
 	afterAll(async () => {
 		await fs.rm(dir, { recursive: true, force: true });
@@ -84,6 +129,11 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('flash frames in check', () => {
 		expect(results.flatMap((r) => r.errors)).toEqual([]);
 		const found = flashes(results.flatMap((r) => r.warnings.map((w) => w.message)));
 		expect(found).toHaveLength(1);
+		// The frame stays with the warning, for `check --json`.
+		const frames = results.flatMap((r) =>
+			r.warnings.filter((w) => w.message === found[0]).map((w) => w.frame)
+		);
+		expect(frames).toEqual([expect.any(Number)]);
 		expect(found[0]).toMatch(
 			/^Clip "ring" \(Ring\.svelte\) is full-screen but \d+ % opaque at 1\.\d\d s \(program frame 5\d\), next to "nastroj"/
 		);
@@ -97,10 +147,22 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('flash frames in check', () => {
 		expect(flashes(results.flatMap((r) => r.warnings.map((w) => w.message)))).toEqual([]);
 	}, 300_000);
 
-	it('warns about nested CSS 3D when the page draws HTML in a canvas', async () => {
-		const file = await write('dice.vf.json', false, [
-			{ id: 'dice', block: 'Dice.svelte', from: 3.2, until: 3.8 }
-		]);
+	it('warns about nested CSS 3D when the page draws HTML in a canvas, once per clip', async () => {
+		// The die spans the hard cut at 3 s: two segments, one warning.
+		const file = path.join(dir, 'dice.vf.json');
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [SW, SH],
+				fps: 30,
+				footage: { talk: { src: 'talk.mp4', matte: 'talk.matte.mp4' } },
+				cuts: [
+					{ source: 'talk', in: 0, out: 3 },
+					{ source: 'talk', in: 3, out: 4 }
+				],
+				clips: [{ id: 'dice', block: 'Dice.svelte', from: 2.5, until: 3.8 }]
+			})
+		);
 		const results = await checkProgram(await loadMotionProject(file));
 		const found = results
 			.flatMap((r) => r.warnings.map((w) => w.message))
@@ -108,5 +170,49 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('flash frames in check', () => {
 		if (results[0].mode !== 'html-in-canvas') return expect(found).toEqual([]);
 		expect(found).toEqual([expect.stringMatching(/^Clip "dice" \(Dice\.svelte\): nested CSS 3D/)]);
 		expect(found[0]).toContain('div.die');
+	}, 300_000);
+
+	it('counts only opaque, unclipped pictures and planes as full-screen', async () => {
+		// Cuts at 2 s (frame 60). A transparent overlay 6 frames after it, a photo ending 3 frames
+		// before it, and a card whose clipping parent closes before the next card.
+		const file = path.join(dir, 'media.vf.json');
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [SW, SH],
+				fps: 30,
+				footage: { talk: { src: 'talk.mp4', matte: 'talk.matte.mp4' } },
+				cuts: [
+					{ source: 'talk', in: 0, out: 2 },
+					{ source: 'talk', in: 2, out: 4 }
+				],
+				clips: [
+					{
+						id: 'photo',
+						block: 'Picture.svelte',
+						from: 0.5,
+						until: 1.9,
+						props: { src: { file: 'photo.jpg' } }
+					},
+					{
+						id: 'overlay',
+						block: 'Picture.svelte',
+						from: 2.2,
+						until: 2.6,
+						props: { src: { file: 'overlay.png' } }
+					},
+					{ id: 'collapse', block: 'Collapse.svelte', from: 3, until: 3.5 },
+					{ id: 'next', block: 'Term.svelte', from: 3.5, until: 4 }
+				]
+			})
+		);
+		const results = await checkProgram(await loadMotionProject(file));
+		expect(results.flatMap((r) => r.errors)).toEqual([]);
+		const found = flashes(results.flatMap((r) => r.warnings.map((w) => w.message)));
+		expect(found.filter((m) => m.includes('"overlay"'))).toEqual([]);
+		expect(found.filter((m) => m.startsWith('Clip "photo"'))).toEqual([
+			expect.stringMatching(/ends 3 frames \(0\.10 s\) before the cut at 2\.00 s/)
+		]);
+		expect(found.filter((m) => m.includes('"collapse"'))).toHaveLength(1);
 	}, 300_000);
 });

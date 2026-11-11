@@ -55,8 +55,10 @@ my-video/
 - **`"snap": "cut"`** (in a program, on a clip or a shot) moves `from` and `until` onto the
   nearest cut edge (a cut's first frame, or the end of the last cut) within 0.4 s, when the
   program resolves and before cues, so clip-local times keep their meaning. `{ "from": "cut" }`
-  or `{ "until": "cut" }` moves one edge. An edge with no cut that near stays where it is, with
-  a warning; without a cut list `snap` warns and does nothing. Use it on full-screen cards and
+  or `{ "until": "cut" }` moves one edge. `until` snaps with its `tail`, so the clip ends on the
+  cut. An edge with no cut that near stays where it is, with a warning; so does a span too short
+  to reach two cuts (both edges would land on one); without a cut list `snap` warns and does
+  nothing. Two chained shots that share an edge both snap it (see [Flash frames](#flash-frames)). Use it on full-screen cards and
   shots that should change exactly with the footage (see [Flash frames](#flash-frames)).
 - **`cues`** are named moments inside the clip. Names may use any language and inner spaces
   (`"nových odberateľov": "nových odberateľov"`), but not start with a digit or contain `+ - .`, and `bar 5` / `beat 17` read as music beats. Phrases are searched only inside the clip;
@@ -1663,10 +1665,15 @@ its own opacity at its edge, two cards that leave a gap of a few frames, or a ca
 frames off a cut show the footage underneath for a blink: a flash of the speaker reading, or of
 the shot before a cut. `check` warns about these. At the frames it checks (every fifth, plus
 both sides of every clip edge, cut and cue) it measures how much of the footage each front clip
-hides: the most opaque element over the whole frame (a background colour, an opaque gradient, a
-background or loaded image, a video), times its opacity and its ancestors'. A clip that hides
-at least 98 % somewhere is full-screen; canvases count as see-through, and so do clips behind
-the speaker or in a slot. Then:
+hides: the most opaque element whose shown part (cut to the ancestors that clip their overflow)
+lies over the whole frame, times its opacity and its ancestors'. An element hides the footage
+with an opaque background colour or gradient, or as a loaded image or video whose pixels are
+all opaque (read from a small copy of the picture; an image's drawn picture must fill the
+frame, so a letterbox does not count). A clip that hides at least 98 % somewhere is
+full-screen. What cannot be measured reliably counts as see-through, so it is never taken for
+full-screen: a CSS `background-image` picture, a canvas (a Three.js scene), a picture with
+transparent parts (an overlay, a cut-out of the speaker, a frame), and clips behind the
+speaker or in a slot. A flash next to such a clip goes unwarned; look at it. Then:
 
 - footage that shows for less than 0.8 s between two full-screen clips, or between a
   full-screen clip and a cut, warns. When a full-screen clip is partly see-through there (it
@@ -1675,15 +1682,20 @@ the speaker or in a slot. Then:
   for up to 4 frames …`. Otherwise it gives the frames and the two clips (or the clip and the
   cut);
 - a full-screen clip edge 1 frame to 0.4 s off a cut warns, saying whether the footage shows
-  there or the card covers the cut, and suggests `"snap": "cut"`;
+  there or the card covers the cut, and suggests `"snap": "cut"`. Only where the clip hides
+  the footage on its own frame next to the edge: an edge inside a transition window, or after
+  the clip faded itself, is judged by how long the footage shows (above);
 - footage that stays on screen for 0.8 s or more after a fade is a dissolve to the camera and
   passes, and so do frames inside a declared transition window (a clip `transition` or a cut
   transition is meant).
 
 `program` warns the same way about a written shot whose edge lands 1 frame to 0.4 s off a cut
 (the program's first and last frame are no cuts for these warnings, but `snap` reaches them):
-a framing change just beside a cut reads as a second, tiny cut. The engine moves nothing unless
-an edge asks for `"snap": "cut"`; look at the frames around the edge (−3 to +2) and decide.
+a framing change just beside a cut reads as a second, tiny cut. An edge two chained shots share
+moves only when both snap it: `{ "until": "cut" }` on the earlier shot and `{ "from": "cut" }`
+on the later one (the warning names both); snapping one alone breaks the chain. The engine moves
+nothing unless an edge asks for `"snap": "cut"`; look at the frames around the edge (−3 to +2)
+and decide.
 
 In HTML-in-Canvas capture `check` also warns, once per clip, about nested CSS 3D: an element
 with `transform-style: preserve-3d` inside another one (a die turning inside a turning scene)

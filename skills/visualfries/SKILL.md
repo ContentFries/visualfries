@@ -124,7 +124,11 @@ Program tools for common needs:
 
 - An edge exactly on a cut: `"snap": "cut"` on a clip or shot moves both edges onto the nearest
   cut within 0.4 s (`{ "from": "cut" }` or `{ "until": "cut" }` for one edge), before cues
-  resolve. Use it instead of copying cut times into `from`/`until` by hand.
+  resolve. For an edge two chained shots share, snap it on both (`{ "until": "cut" }` on the
+  first, `{ "from": "cut" }` on the second). Use it instead of copying cut times into
+  `from`/`until` by hand. For the flash hints, full-screen means an opaque plane, or a picture
+  with no transparent pixels, over the whole frame; a canvas, a CSS background picture or an
+  overlay with transparent parts is never taken for full-screen, so look at flashes next to them.
 
 - Picture after the last word: `"hold": 1.7` on the cut freezes its last frame, silent, while
   effects and music play on. No extra muted cut, no frame offsets in a block.

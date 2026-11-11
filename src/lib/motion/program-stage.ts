@@ -28,7 +28,7 @@ import { createTransitionPlayer } from './transitions/player.js';
 import type { Point } from './transitions/contract.js';
 import { keyTracks, placementTransform, type Animatable, type KeyTracks } from './keys.js';
 import { cssAlpha, opaqueGradient } from './color.js';
-import { coverable, planeCover, type Nested3d, type Plane } from './flash-frames.js';
+import { coverable, opaquePixels, planeCover, type Nested3d, type Plane } from './flash-frames.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import type { CameraView, HoleSource } from './runtime.svelte.js';
 import {
@@ -2170,12 +2170,29 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 		return out;
 	};
 	/** What `planeCover` reads of an element. */
+	/** Whether `el`, cut to the ancestors that clip their overflow, lies over the whole stage. */
+	const coversWhole = (el: HTMLElement) => {
+		const box = rect(el.getBoundingClientRect());
+		const clip = lookOf(el).clip;
+		return whole(clip ? (intersect(box, clip) ?? { ...box, width: 0, height: 0 }) : box);
+	};
+	/**
+	 * A picture that hides the footage: a loaded image whose drawn picture lies over the whole
+	 * stage (not a letterbox), or a video, with no transparent pixels.
+	 */
+	const opaqueMedia = (el: HTMLElement): boolean => {
+		if (!isMedia(el)) return false;
+		const style = getComputedStyle(el);
+		const box = rect(el.getBoundingClientRect());
+		if (el instanceof HTMLImageElement && !whole(pictureBox(el, box, style))) return false;
+		return opaquePicture(el as HTMLImageElement | HTMLVideoElement);
+	};
 	const planeOf = (el: HTMLElement): Plane => {
 		const style = getComputedStyle(el);
 		return {
 			opacity: lookOf(el).opacity,
 			visible: style.visibility === 'visible',
-			media: isMedia(el),
+			media: opaqueMedia(el),
 			color: cssAlpha(style.backgroundColor),
 			image: style.backgroundImage
 		};
@@ -2191,8 +2208,7 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 			let best = 0;
 			for (const root of roots)
 				for (const el of [root, ...root.querySelectorAll<HTMLElement>('*')])
-					if (whole(rect(el.getBoundingClientRect())))
-						best = Math.max(best, planeCover(planeOf(el)));
+					if (coversWhole(el)) best = Math.max(best, planeCover(planeOf(el)));
 			return best;
 		},
 		/**
@@ -2313,6 +2329,28 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 function isMedia(el: HTMLElement): boolean {
 	if (el instanceof HTMLVideoElement) return true;
 	return el instanceof HTMLImageElement && el.complete && el.naturalWidth > 0;
+}
+
+/** A small canvas that pictures are drawn into to read their alpha (see `opaquePicture`). */
+let alphaProbe: CanvasRenderingContext2D | null = null;
+const PROBE = 32;
+
+/**
+ * Whether an image or the current video frame has no transparent pixels, read from a 32×32
+ * copy. A picture that cannot be read counts as see-through: a missed flash, never a false one.
+ */
+function opaquePicture(el: HTMLImageElement | HTMLVideoElement): boolean {
+	alphaProbe ??= Object.assign(document.createElement('canvas'), {
+		width: PROBE,
+		height: PROBE
+	}).getContext('2d', { willReadFrequently: true });
+	try {
+		alphaProbe!.clearRect(0, 0, PROBE, PROBE);
+		alphaProbe!.drawImage(el, 0, 0, PROBE, PROBE);
+		return opaquePixels(alphaProbe!.getImageData(0, 0, PROBE, PROBE).data);
+	} catch {
+		return false;
+	}
 }
 
 const is3d = (el: Element) => getComputedStyle(el).transformStyle === 'preserve-3d';

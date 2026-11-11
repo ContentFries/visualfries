@@ -6,6 +6,7 @@ import {
 	flashFrames,
 	nested3dClip,
 	nested3dMessage,
+	alphaReader,
 	offCut,
 	opaquePixels,
 	planeCover,
@@ -379,5 +380,42 @@ describe('review round 1', () => {
 	it('does not count a CSS background image as hiding the footage: its alpha is unknown', () => {
 		const plane = { opacity: 1, visible: true, media: false, color: 0, image: 'url("a.png")' };
 		expect(planeCover(plane)).toBe(0);
+	});
+});
+
+describe('review round 2: alphaReader', () => {
+	/** A context that reads `alpha` for every pixel, and throws once a "remote" picture is drawn. */
+	const context = () => {
+		let tainted = false;
+		let alpha = 255;
+		return {
+			made: true,
+			clearRect() {},
+			drawImage(picture: { remote?: boolean; alpha: number }) {
+				if (picture.remote) tainted = true;
+				alpha = picture.alpha;
+			},
+			getImageData() {
+				if (tainted) throw new Error('SecurityError: the canvas has been tainted');
+				return { data: new Uint8ClampedArray([0, 0, 0, alpha, 0, 0, 0, alpha]) };
+			}
+		};
+	};
+
+	it('reads local pictures again after a cross-origin one tainted its canvas', () => {
+		let made = 0;
+		const read = alphaReader<{ remote?: boolean; alpha: number }>(() => {
+			made++;
+			return context();
+		}, 2);
+		expect(read({ alpha: 255 })).toBe(true);
+		expect(read({ remote: true, alpha: 255 })).toBe(false);
+		expect(read({ alpha: 255 })).toBe(true);
+		expect(read({ alpha: 0 })).toBe(false);
+		expect(made).toBe(2);
+	});
+
+	it('counts every picture as see-through without a canvas', () => {
+		expect(alphaReader(() => null)({})).toBe(false);
 	});
 });

@@ -65,6 +65,24 @@ const COLLAPSE = `<script>
 </div>
 `;
 
+/** A video (`props.src`) on its first frame, fitted as `props.fit` says. */
+const VIDEO = `<script>
+	import { useClip, useReady } from 'visualfries/motion';
+	const p = useClip().props;
+	let video;
+	useReady(
+		new Promise((done) => {
+			queueMicrotask(() => {
+				if (video.readyState >= 2) return done();
+				video.addEventListener('loadeddata', () => done(), { once: true });
+				video.addEventListener('error', () => done(), { once: true });
+			});
+		})
+	);
+</script>
+<video bind:this={video} src={p.src} muted preload="auto" style="position:absolute;inset:0;width:100%;height:100%;object-fit:{p.fit ?? 'fill'}"></video>
+`;
+
 const flashes = (messages: string[]) =>
 	messages.filter((m) => /full-screen|between full-screen/.test(m));
 
@@ -78,6 +96,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('flash frames in check', () => {
 		await fs.writeFile(path.join(dir, 'Dice.svelte'), DICE);
 		await fs.writeFile(path.join(dir, 'Picture.svelte'), PICTURE);
 		await fs.writeFile(path.join(dir, 'Collapse.svelte'), COLLAPSE);
+		await fs.writeFile(path.join(dir, 'Video.svelte'), VIDEO);
 		// A photo, and an overlay that is transparent but for a small patch.
 		ffmpeg([
 			'-f',
@@ -214,5 +233,61 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('flash frames in check', () => {
 			expect.stringMatching(/ends 3 frames \(0\.10 s\) before the cut at 2\.00 s/)
 		]);
 		expect(found.filter((m) => m.includes('"collapse"'))).toHaveLength(1);
+	}, 300_000);
+
+	/** A project with a cut at 2 s (frame 60) and these clips. */
+	const twoCuts = async (name: string, clips: object[]) => {
+		const file = path.join(dir, name);
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [SW, SH],
+				fps: 30,
+				footage: { talk: { src: 'talk.mp4', matte: 'talk.matte.mp4' } },
+				cuts: [
+					{ source: 'talk', in: 0, out: 2 },
+					{ source: 'talk', in: 2, out: 4 }
+				],
+				clips
+			})
+		);
+		return file;
+	};
+
+	it('does not count a letterboxed video as full-screen', async () => {
+		// A landscape video in a portrait frame with object-fit: contain leaves bars.
+		ffmpeg([
+			'-f',
+			'lavfi',
+			'-i',
+			'color=0x336699:s=640x360:r=30:d=1',
+			'-c:v',
+			'libvpx',
+			'-b:v',
+			'200k',
+			path.join(dir, 'wide.webm')
+		]);
+		const file = await twoCuts('video.vf.json', [
+			{
+				id: 'boxed',
+				block: 'Video.svelte',
+				from: 2.2,
+				until: 2.8,
+				props: { src: { file: 'wide.webm' }, fit: 'contain' }
+			},
+			{
+				id: 'filled',
+				block: 'Video.svelte',
+				from: 0.5,
+				until: 1.9,
+				props: { src: { file: 'wide.webm' }, fit: 'cover' }
+			}
+		]);
+		const results = await checkProgram(await loadMotionProject(file));
+		expect(results.flatMap((r) => r.errors)).toEqual([]);
+		const found = flashes(results.flatMap((r) => r.warnings.map((w) => w.message)));
+		expect(found.filter((m) => m.includes('"boxed"'))).toEqual([]);
+		// The same video filling the frame is full-screen: its edge 3 frames before the cut warns.
+		expect(found.filter((m) => m.startsWith('Clip "filled"'))).toHaveLength(1);
 	}, 300_000);
 });

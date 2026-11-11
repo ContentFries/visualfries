@@ -28,7 +28,7 @@ import { createTransitionPlayer } from './transitions/player.js';
 import type { Point } from './transitions/contract.js';
 import { keyTracks, placementTransform, type Animatable, type KeyTracks } from './keys.js';
 import { cssAlpha, opaqueGradient } from './color.js';
-import { coverable, opaquePixels, planeCover, type Nested3d, type Plane } from './flash-frames.js';
+import { alphaReader, coverable, planeCover, type Nested3d, type Plane } from './flash-frames.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import type { CameraView, HoleSource } from './runtime.svelte.js';
 import {
@@ -2184,8 +2184,9 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 		if (!isMedia(el)) return false;
 		const style = getComputedStyle(el);
 		const box = rect(el.getBoundingClientRect());
-		if (el instanceof HTMLImageElement && !whole(pictureBox(el, box, style))) return false;
-		return opaquePicture(el as HTMLImageElement | HTMLVideoElement);
+		const picture = el as HTMLImageElement | HTMLVideoElement;
+		if (!whole(pictureBox(pictureSize(picture), box, style))) return false;
+		return opaquePicture(picture);
 	};
 	const planeOf = (el: HTMLElement): Plane => {
 		const style = getComputedStyle(el);
@@ -2331,26 +2332,25 @@ function isMedia(el: HTMLElement): boolean {
 	return el instanceof HTMLImageElement && el.complete && el.naturalWidth > 0;
 }
 
-/** A small canvas that pictures are drawn into to read their alpha (see `opaquePicture`). */
-let alphaProbe: CanvasRenderingContext2D | null = null;
-const PROBE = 32;
-
 /**
  * Whether an image or the current video frame has no transparent pixels, read from a 32×32
- * copy. A picture that cannot be read counts as see-through: a missed flash, never a false one.
+ * copy (see `alphaReader`). A picture that cannot be read counts as see-through: a missed flash,
+ * never a false one.
  */
-function opaquePicture(el: HTMLImageElement | HTMLVideoElement): boolean {
-	alphaProbe ??= Object.assign(document.createElement('canvas'), {
-		width: PROBE,
-		height: PROBE
-	}).getContext('2d', { willReadFrequently: true });
-	try {
-		alphaProbe!.clearRect(0, 0, PROBE, PROBE);
-		alphaProbe!.drawImage(el, 0, 0, PROBE, PROBE);
-		return opaquePixels(alphaProbe!.getImageData(0, 0, PROBE, PROBE).data);
-	} catch {
-		return false;
-	}
+const opaquePicture = alphaReader<HTMLImageElement | HTMLVideoElement>(() =>
+	Object.assign(document.createElement('canvas'), { width: 32, height: 32 }).getContext('2d', {
+		willReadFrequently: true
+	})
+);
+
+/** The picture size `pictureBox` reads: an image's own, or a video's frame size. */
+function pictureSize(el: HTMLImageElement | HTMLVideoElement) {
+	if (el instanceof HTMLImageElement) return el;
+	return {
+		naturalWidth: el.videoWidth,
+		naturalHeight: el.videoHeight,
+		offsetWidth: el.offsetWidth
+	};
 }
 
 const is3d = (el: Element) => getComputedStyle(el).transformStyle === 'preserve-3d';
@@ -2390,7 +2390,11 @@ function contentOf(page: TextReader, roots: HTMLElement[]) {
  * and `cover`, the scaled picture placed by `object-position` for `contain`, `scale-down` and
  * `none`.
  */
-function pictureBox(img: HTMLImageElement, box: Rect, style: CSSStyleDeclaration): Rect {
+function pictureBox(
+	img: Pick<HTMLImageElement, 'naturalWidth' | 'naturalHeight' | 'offsetWidth'>,
+	box: Rect,
+	style: CSSStyleDeclaration
+): Rect {
 	const fit = style.objectFit;
 	if (fit === 'fill' || fit === 'cover' || !img.naturalWidth || !img.naturalHeight) return box;
 	// The box may be scaled by transforms: CSS pixels of the image's own width map onto it.

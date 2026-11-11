@@ -1668,8 +1668,9 @@ both sides of every clip edge, cut and cue) it measures how much of the footage 
 hides: the most opaque element whose shown part (cut to the ancestors that clip their overflow)
 lies over the whole frame, times its opacity and its ancestors'. An element hides the footage
 with an opaque background colour or gradient, or as a loaded image or video whose pixels are
-all opaque (read from a small copy of the picture; an image's drawn picture must fill the
-frame, so a letterbox does not count). A clip that hides at least 98 % somewhere is
+all opaque (read from a small copy of the picture; the drawn picture must fill the frame, so a
+letterboxed image or video does not count, and a cross-origin picture, which cannot be read,
+counts as see-through). A clip that hides at least 98 % somewhere is
 full-screen. What cannot be measured reliably counts as see-through, so it is never taken for
 full-screen: a CSS `background-image` picture, a canvas (a Three.js scene), a picture with
 transparent parts (an overlay, a cut-out of the speaker, a frame), and clips behind the

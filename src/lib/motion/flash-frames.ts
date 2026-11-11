@@ -93,6 +93,38 @@ export function cutEdges(cuts: Span[]): number[] {
  */
 const between = (edges: number[]) => edges.slice(1, -1);
 
+/** What `alphaReader` needs of a 2D canvas context. */
+export type AlphaContext<T> = {
+	clearRect(x: number, y: number, w: number, h: number): void;
+	drawImage(picture: T, x: number, y: number, w: number, h: number): void;
+	getImageData(x: number, y: number, w: number, h: number): { data: Uint8ClampedArray };
+};
+
+/**
+ * Reads whether a picture has no transparent pixels, from a `size`×`size` copy drawn into a
+ * canvas that `make` creates. A picture that cannot be read (a cross-origin image taints the
+ * canvas) counts as see-through, and the tainted canvas is dropped: a later picture gets a clean
+ * one, since clearing never cleans a tainted canvas.
+ */
+export function alphaReader<T>(
+	make: () => AlphaContext<T> | null,
+	size = 32
+): (picture: T) => boolean {
+	let ctx: AlphaContext<T> | null = null;
+	return (picture) => {
+		ctx ??= make();
+		if (!ctx) return false;
+		try {
+			ctx.clearRect(0, 0, size, size);
+			ctx.drawImage(picture, 0, 0, size, size);
+			return opaquePixels(ctx.getImageData(0, 0, size, size).data);
+		} catch {
+			ctx = null;
+			return false;
+		}
+	};
+}
+
 /** The cut an edge lands a few frames off (`off` frames, negative before it); null on or far. */
 export function offCut(
 	frame: number,

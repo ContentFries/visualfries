@@ -12,6 +12,30 @@ my-video/
   fonts/…              font files (never rely on system fonts)
 ```
 
+## Recipes for talking-head explainers
+
+Before writing a block, check this list: each need below has a built-in.
+
+| The edit needs | Built-in |
+| --- | --- |
+| The speaker reads (eyes off the lens) while a visual explains | `window` shot (corner window with ring and shadow, morphs to and from the other shots) plus a clip with `"slot": "panel"`, or a full-frame clip over the camera. Not a `<Footage program>` in a hand-made rounded box. |
+| The speaker talks into the lens | `full`; `punch` on a claim; `strip` with a `panel` clip for a list |
+| Words behind the head | `behind` shot plus a clip with `"layer": "behind", "slot": "word"`; needs a matte |
+| The speaker in part of the frame, without the room | `cutout` shot (`anchor`, `size`) |
+| The speaker on screen only while they talk to the camera | `away` ranges on a `behind` or `cutout` shot |
+| A full-screen card for the one thing worth showing | `whip` shot plus a clip with `"slot": "card"` |
+| A handover between two pictures | `transition` on a cut, shot or clip: `push`, `wipe`, `zoom-through`, `shape-mask`, `blinds`, `card` |
+| Entrances, exits, emphasis, counters | `use:motion={{ enter: 'pop', at: 'cue', exit: 'fade' }}` from `visualfries/motion` |
+| Labels in front of a scene that sits behind the speaker | one clip with `"layer": "behind"` and the front markup in `<Front>` |
+| Gags on the body (head flying off, a hole) | a clip with `"block": "@visualfries/subject"`, footage `"clean": true` |
+| Captions | a clip with `"block": "@visualfries/captions"` |
+| Picture after the last word | `"hold"` on the last cut |
+| A teaser from the long video | `excerpts` in the same project, `end` for the end card (`@visualfries/end-card`) |
+
+Details: [Programs](#programs), shots under [Footage and mattes](#footage-and-mattes), [Motion
+primitives](#motion-primitives), [Behind and in front from one clip](#behind-and-in-front-from-one-clip),
+[Subject layers](#subject-layers), [Excerpts](#excerpts).
+
 ## The project file
 
 ```json

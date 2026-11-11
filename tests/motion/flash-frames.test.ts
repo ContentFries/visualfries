@@ -4,8 +4,10 @@ import {
 	coverable,
 	cutEdges,
 	flashFrames,
+	nested3dClip,
 	nested3dMessage,
 	offCut,
+	opaquePixels,
 	planeCover,
 	shotsOffCut,
 	snapSpan,
@@ -202,7 +204,6 @@ describe('planeCover', () => {
 		expect(planeCover({ ...plane, color: 1, opacity: 0.4 })).toBeCloseTo(0.4);
 		expect(planeCover({ ...plane, media: true, opacity: 0.5 })).toBeCloseTo(0.5);
 		expect(planeCover({ ...plane, image: 'linear-gradient(rgb(0, 0, 0), rgb(9, 9, 9))' })).toBe(1);
-		expect(planeCover({ ...plane, image: 'url("a.png")', opacity: 0.8 })).toBeCloseTo(0.8);
 	});
 	it('is 0 for hidden, transparent or see-through planes', () => {
 		expect(planeCover({ ...plane, color: 1, visible: false })).toBe(0);
@@ -250,7 +251,7 @@ describe('shotsOffCut', () => {
 				item: 'zoom',
 				field: 'shots[1].from',
 				message: expect.stringMatching(
-					/^Shot "zoom" starts 3 frames \(0\.12 s\) before the cut at 80\.00 s: .*"snap": "cut"/
+					/^Shot "zoom" starts 3 frames \(0\.12 s\) before the cut at 80\.00 s \(where shot "cam" ends\): .*\{ "from": "cut" \} on "zoom"/
 				)
 			}
 		]);
@@ -314,5 +315,69 @@ describe('nested3dMessage', () => {
 		});
 		expect(message).toMatch(/^Clip "dice" \(Dice\.svelte\): nested CSS 3D/);
 		expect(message).toContain('div.scene > div.die');
+	});
+});
+
+describe('review round 1', () => {
+	it('names both shots of a chained edge and the edge field to snap on each', () => {
+		const shots = [
+			{ id: 'cam', startFrame: 0, frames: 2003 },
+			{ id: 'zoom', startFrame: 2003, frames: 497 }
+		];
+		const [w] = shotsOffCut(shots, [0, 2000, 2500], FPS);
+		expect(w.message).toContain('where shot "cam" ends');
+		expect(w.message).toContain('{ "until": "cut" } on "cam" and { "from": "cut" } on "zoom"');
+	});
+
+	it('leaves a full-screen clip edge off a cut alone inside a transition window', () => {
+		// "card" starts 3 frames before the cut at 2000 inside a dissolve centred on its start.
+		const program: FlashProgram = {
+			...RING,
+			clips: [{ id: 'card', block: 'A.svelte', startFrame: 1997, frames: 100 }],
+			transitions: [{ startFrame: 1991, frames: 12 }]
+		};
+		const covers = (f: number) => (f >= 1997 && f < 2097 ? { card: f < 2003 ? 0.5 : 1 } : {});
+		expect(flashFrames(program, sample(range(1900, 2200), covers))).toEqual([]);
+	});
+
+	it('leaves a full-screen clip edge off a cut alone when the clip has faded out before it', () => {
+		// "card" fades out over 1 s (frames 1965–1995) and ends 5 frames before the cut.
+		const program: FlashProgram = {
+			...RING,
+			clips: [{ id: 'card', block: 'A.svelte', startFrame: 1800, frames: 195 }]
+		};
+		const covers = (f: number) =>
+			f >= 1800 && f < 1995 ? { card: f >= 1965 ? (1995 - f) / 30 : 1 } : {};
+		expect(flashFrames(program, sample(range(1700, 2200), covers))).toEqual([]);
+	});
+
+	it('does not snap both edges of a short span onto one cut, and says why', () => {
+		const notes: string[] = [];
+		const span = snapSpan('cut', { start: 79.9, end: 80.2 }, [0, 2000, 2500], FPS, (_, m) =>
+			notes.push(m)
+		);
+		expect(span).toEqual({ start: 79.9, end: 80.2 });
+		expect(notes).toEqual([
+			expect.stringMatching(/^"snap": "cut" would put both edges on the cut at 80\.00 s/)
+		]);
+	});
+
+	it('names the clip of a nested 3D warning, for telling it once per clip', () => {
+		const message = nested3dMessage({ clip: 'dice', block: 'Dice.svelte', path: 'div > div' });
+		expect(nested3dClip(message)).toBe('dice');
+		expect(nested3dClip('Clip "dice" (Dice.svelte): something else')).toBeNull();
+	});
+
+	it('counts a picture as opaque only when every sampled pixel is', () => {
+		const pixels = (alphas: number[]) =>
+			new Uint8ClampedArray(alphas.flatMap((a) => [10, 20, 30, a]));
+		expect(opaquePixels(pixels([255, 255, 255, 251]))).toBe(true);
+		expect(opaquePixels(pixels([255, 255, 0, 255]))).toBe(false);
+		expect(opaquePixels(pixels([]))).toBe(false);
+	});
+
+	it('does not count a CSS background image as hiding the footage: its alpha is unknown', () => {
+		const plane = { opacity: 1, visible: true, media: false, color: 0, image: 'url("a.png")' };
+		expect(planeCover(plane)).toBe(0);
 	});
 });

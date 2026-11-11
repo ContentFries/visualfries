@@ -53,11 +53,25 @@ export function planeCover(plane: Plane): number {
 	return plane.opacity * fill;
 }
 
-/** A background image hides what is under it when it is a picture or an opaque gradient. */
+/**
+ * A background image hides what is under it when it is an opaque gradient. A picture
+ * (`url(…)`) does not count: whether it has transparent parts is not known from its style, and a
+ * clip wrongly taken for full-screen gives false warnings, while one missed only goes unchecked.
+ */
 function imageFill(image: string): number {
-	if (image === 'none' || !image) return 0;
-	if (image.startsWith('url(')) return 1;
+	if (image === 'none' || !image || image.includes('url(')) return 0;
 	return opaqueGradient(image, FULL_COVER) ? 1 : 0;
+}
+
+/**
+ * Whether RGBA pixels read from a picture (an image or a video frame drawn small) are all
+ * opaque: a picture with transparent parts (an overlay, a cut-out, a frame) does not hide the
+ * footage.
+ */
+export function opaquePixels(data: Uint8ClampedArray): boolean {
+	if (!data.length) return false;
+	for (let i = 3; i < data.length; i += 4) if (data[i] < 250) return false;
+	return true;
 }
 
 /** Whether a clip can hide the footage: in front of the speaker and not in a shot's slot. */
@@ -118,12 +132,12 @@ export function shotsOffCut(
 	const warn = (i: number, edge: 'from' | 'until', frame: number) => {
 		const at = offCut(frame, cuts, fps);
 		if (!at) return;
-		const verb = edge === 'from' ? 'starts' : 'ends';
+		const before = edge === 'from' ? shots.find((s) => s.startFrame + s.frames === frame) : null;
 		out.push({
 			level: 'warning',
 			item: shots[i].id,
 			field: `shots[${i}].${edge}`,
-			message: `Shot "${shots[i].id}" ${verb} ${offText(at, fps)}: a shot change just beside a cut reads as a second, tiny cut. Put the edge on the cut with "snap": "cut" on the shot, unless that is meant.`
+			message: shotOffCutMessage(shots[i].id, edge, at, fps, before?.id)
 		});
 	};
 	shots.forEach((s, i) => {
@@ -132,6 +146,25 @@ export function shotsOffCut(
 		if (!starts.has(end)) warn(i, 'until', end);
 	});
 	return out;
+}
+
+/**
+ * The warning for a shot edge off a cut. An edge the shot shares with the shot before it (the
+ * chain) moves only when both shots snap it: snapping one alone leaves the other where it was.
+ */
+function shotOffCutMessage(
+	id: string,
+	edge: 'from' | 'until',
+	at: { cut: number; off: number },
+	fps: number,
+	before: string | undefined
+): string {
+	const verb = edge === 'from' ? 'starts' : 'ends';
+	const head = `Shot "${id}" ${verb} ${offText(at, fps)}`;
+	const why = 'a shot change just beside a cut reads as a second, tiny cut.';
+	if (before === undefined)
+		return `${head}: ${why} Put the edge on the cut with { "${edge}": "cut" } in "snap" on the shot, unless that is meant.`;
+	return `${head} (where shot "${before}" ends): ${why} Put the edge on the cut on both shots, { "until": "cut" } on "${before}" and { "from": "cut" } on "${id}" (snapping one alone breaks the chain), unless that is meant.`;
 }
 
 /** `"snap": "cut"` on a clip or shot: both edges, or the ones named. */
@@ -161,7 +194,13 @@ export function snapSpan(
 		snap === 'cut' ? { from: true, until: true } : { from: !!snap.from, until: !!snap.until };
 	const move = (edge: 'from' | 'until', time: number) =>
 		asked[edge] ? snapTime(edge, time, edges, fps, note) : time;
-	return { start: move('from', span.start), end: move('until', span.end) };
+	const snapped = { start: move('from', span.start), end: move('until', span.end) };
+	if (snapped.end > snapped.start) return snapped;
+	note(
+		'until',
+		`"snap": "cut" would put both edges on the cut at ${snapped.start.toFixed(2)} s (the span is too short to reach two cuts); the edges stay where they are. Snap one edge, or make the span longer.`
+	);
+	return span;
 }
 
 /** `time` on the nearest cut edge within reach, or as it is after a note. */
@@ -281,7 +320,7 @@ export function flashFrames(program: FlashProgram, samples: CoverSample[]): Flas
 	const full = fullScreen(list);
 	const edges = cutEdges(program.cuts);
 	const told = new Set<string>();
-	const out = clipsOffCut(program, full, edges, told);
+	const out = clipsOffCut(program, { full, list }, edges, told);
 	const limit = FLASH_SECONDS * program.fps;
 	for (const run of footageRuns(list, edges)) {
 		const length = run.right.frame - run.left.frame;
@@ -299,21 +338,28 @@ function toldAtCut(run: Run, told: Set<string>): boolean {
 	return cut !== null && told.has(`${clip}\u0000${cut}`);
 }
 
-/** Warnings for full-screen clip edges a few frames off a cut; `told` gets clip and cut. */
+/**
+ * Warnings for full-screen clip edges a few frames off a cut; `told` gets clip and cut. An edge
+ * counts only where the clip hides the footage on its own frame next to the edge (its first or
+ * last): an edge inside a transition window (no sample there) or after the clip faded itself is
+ * left to the footage runs.
+ */
 function clipsOffCut(
 	program: FlashProgram,
-	full: Set<string>,
+	seen: { full: Set<string>; list: CoverSample[] },
 	edges: number[],
 	told: Set<string>
 ): FlashWarning[] {
 	const out: FlashWarning[] = [];
-	for (const clip of program.clips.filter((c) => full.has(c.id)))
-		for (const [verb, frame] of [
-			['starts', clip.startFrame],
-			['ends', clip.startFrame + clip.frames]
+	const at = new Map(seen.list.map((s) => [s.frame, s]));
+	const hides = (id: string, frame: number) => (at.get(frame)?.clips[id] ?? 0) >= FULL_COVER;
+	for (const clip of program.clips.filter((c) => seen.full.has(c.id)))
+		for (const [verb, frame, inside] of [
+			['starts', clip.startFrame, clip.startFrame],
+			['ends', clip.startFrame + clip.frames, clip.startFrame + clip.frames - 1]
 		] as const) {
 			const at = offCut(frame, between(edges), program.fps);
-			if (!at) continue;
+			if (!at || !hides(clip.id, inside)) continue;
 			told.add(`${clip.id}\u0000${at.cut}`);
 			out.push({ frame, message: offCutMessage(clip, verb, at, program.fps) });
 		}
@@ -369,6 +415,11 @@ function runMessage(program: FlashProgram, run: Run, full: Set<string>): string 
 
 /** Where an element sits in nested CSS 3D, found by the page. */
 export type Nested3d = { clip: string; block: string; path: string };
+
+/** The clip a nested 3D warning names; null for any other message. */
+export function nested3dClip(message: string): string | null {
+	return /^Clip "(.*?)" \(.*?\): nested CSS 3D/.exec(message)?.[1] ?? null;
+}
 
 /** A `check` warning for nested `transform-style: preserve-3d` in HTML-in-Canvas capture. */
 export function nested3dMessage(found: Nested3d): string {

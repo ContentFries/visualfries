@@ -111,3 +111,27 @@ describe('"snap": "cut" on shots, and shot edges off a cut', () => {
 		expect(p.diagnostics.filter((d) => d.level !== 'info')).toEqual([]);
 	});
 });
+
+describe('review round 1: snap', () => {
+	it('snaps "until" with its tail, so the clip ends on the cut', () => {
+		const p = resolve({
+			clips: [card({ from: 1, until: 1.9, tail: 0.2, snap: { until: 'cut' } })]
+		});
+		const clip = p.clips[0];
+		expect(clip.startFrame + clip.frames).toBe(60);
+	});
+
+	it('keeps a chain of shots whole when both shots snap the edge they share', () => {
+		const p = resolve({
+			shots: [
+				{ id: 'a', shot: 'full', from: 0, until: 2.1, snap: { until: 'cut' } },
+				{ id: 'b', shot: 'punch', from: 2.1, until: 'end', snap: { from: 'cut' } }
+			]
+		});
+		expect(p.diagnostics.filter((d) => d.level !== 'info')).toEqual([]);
+		expect(p.shots.map((s) => [s.id, s.startFrame, s.frames])).toEqual([
+			['a', 0, 60],
+			['b', 60, 60]
+		]);
+	});
+});

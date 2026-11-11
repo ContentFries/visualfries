@@ -44,7 +44,7 @@ Each is described under "Program tools for common needs" below and in `docs/MOTI
 
 - Bring full-screen clips in and out on a hard cut or with a `transition`, opacity 1 on their
   first and last frame: a clip fading its own opacity over another shot shows the camera for a few frames.
-- Chain back-to-back full-screen clips: the next one's `from` is the previous one's `until` anchor.
+- Chain back-to-back full-screen clips on one explicit boundary: give the previous clip's `until` and the next clip's `from` the same `{ "say": "…", "edge": "end" }` (a bare phrase means its end in `until` but its start in `from`).
 - Have a card's content on screen by the last frame of the transition or whip that brings it in;
   look at a still there.
 - Leave a `behind` shot on a hard cut with `"morph": 0` on the next shot: a morph out of it into a

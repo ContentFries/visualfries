@@ -132,6 +132,8 @@ export type ProjectLook = {
  */
 export type ProgramEnd = {
     end?: number | null;
+    /** In a program: the cut edges in program frames, for `"snap": "cut"` (see `cutEdges`). */
+    cutEdges?: number[];
 };
 /**
  * Project files that clip props name as `{ "file": … }`, checked by the node tooling: by the path

@@ -174,6 +174,14 @@ export const MotionMusicShape = z
 })
     // Unknown fields are errors: a typo ("gian") must not pass silently.
     .strict();
+/**
+ * `"snap": "cut"` on a clip or shot: its edges move onto the nearest cut edge within 0.4 s
+ * (`SNAP_SECONDS`); `{ "from": "cut" }` or `{ "until": "cut" }` moves one edge.
+ */
+export const CutSnapShape = z.union([
+    z.literal('cut'),
+    z.object({ from: z.literal('cut').optional(), until: z.literal('cut').optional() }).strict()
+]);
 export const MotionClipShape = z.object({
     id: z.string().regex(/^[A-Za-z0-9._-]+$/, 'clip id: letters, digits, dot, dash, underscore'),
     block: z.string().min(1),
@@ -181,6 +189,8 @@ export const MotionClipShape = z.object({
     until: MotionAnchorShape,
     /** Seconds added after `until` (negative trims). */
     tail: z.number().optional(),
+    /** Program mode: move `from` and/or `until` onto the nearest cut (see `CutSnapShape`). */
+    snap: CutSnapShape.optional(),
     /**
      * Phrases are searched inside the clip. Numbers are clip-local seconds and `{ frame }` is a
      * clip-local frame. "start" and "end" are built in.

@@ -13,6 +13,7 @@ import { facePoint, frameRect } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
 import { keyTracks, placementTransform } from './keys.js';
 import { cssAlpha, opaqueGradient } from './color.js';
+import { coverable, planeCover } from './flash-frames.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import { BEHIND_TEXT_SECONDS, BEHIND_TEXT_SHARE, FACE_TEXT_SECONDS, FACE_TEXT_SHARE, TEXT_OPACITY, clearOfSpeaker, faceCovered, facePoints, headOnStage, intersect, textBehindMessage, textOverFaceMessage } from './text-over-face.js';
 import { CUT_SHARE, FIT_SECONDS, SAFE_TEXT_SHARE, addReach, contentReach, cutShare, emptyPart, frameFitMessage, newReach, outsideSafe, reachBox, safeBoxes } from './frame-fit.js';
@@ -595,6 +596,9 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     const overFace = new Map();
     /** Clips already warned about text over the face: once per clip. */
     const toldFace = new Set();
+    /** Per clip, the program frame from which `nested3d` looks at it again (Infinity: told). */
+    const next3d = new Map();
+    const due3d = (id, f) => f >= (next3d.get(id) ?? -Infinity);
     /** Per clip and kind (`cut`, `safe`), the run of checked frames its content does not fit. */
     const misfit = new Map();
     /**
@@ -1721,6 +1725,26 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             out.push(...frameFit(f, read), ...movingCaptions(f, read), ...awayInFrame(f));
             return out;
         },
+        covers() {
+            const page = textReader(stage, seg.size);
+            const out = {};
+            for (const m of mounted)
+                if (m.shown !== null && coverable(m.data))
+                    out[m.data.id] = page.cover(rootsOf(m));
+            return out;
+        },
+        nested3d(f) {
+            const out = [];
+            for (const m of mounted) {
+                if (m.shown === null || !due3d(m.data.id, f))
+                    continue;
+                const el = nestedPreserve3d(rootsOf(m));
+                next3d.set(m.data.id, el ? Infinity : f + seg.fps);
+                if (el)
+                    out.push({ clip: m.data.id, block: m.data.block, path: path3d(el) });
+            }
+            return out;
+        },
         holdout(on) {
             const shown = !!seg.insert?.holdout && a.subject.img.style.display !== 'none';
             if (on && !shown)
@@ -1857,9 +1881,32 @@ function textReader(stage, size) {
         }
         return out;
     };
+    /** What `planeCover` reads of an element. */
+    const planeOf = (el) => {
+        const style = getComputedStyle(el);
+        return {
+            opacity: lookOf(el).opacity,
+            visible: style.visibility === 'visible',
+            media: isMedia(el),
+            color: cssAlpha(style.backgroundColor),
+            image: style.backgroundImage
+        };
+    };
     return {
         /** The effective opacity of `el`: its own times its ancestors'. */
         opacityOf: (el) => lookOf(el).opacity,
+        /**
+         * How much of the footage `roots` hide (0–1): the most that any element over the whole
+         * stage hides (see `planeCover`).
+         */
+        cover(roots) {
+            let best = 0;
+            for (const root of roots)
+                for (const el of [root, ...root.querySelectorAll('*')])
+                    if (whole(rect(el.getBoundingClientRect())))
+                        best = Math.max(best, planeCover(planeOf(el)));
+            return best;
+        },
         /**
          * The boxes of the text inside `root` that can be read: each line box of each text node,
          * or the opaque card it sits on (unless `cards` is false), cut to the ancestors that clip
@@ -1979,6 +2026,27 @@ function textReader(stage, size) {
             return false;
         }
     };
+}
+/** A loaded image or a video: a picture that hides what is under it. */
+function isMedia(el) {
+    if (el instanceof HTMLVideoElement)
+        return true;
+    return el instanceof HTMLImageElement && el.complete && el.naturalWidth > 0;
+}
+const is3d = (el) => getComputedStyle(el).transformStyle === 'preserve-3d';
+/** Whether an element keeps its children in 3D inside a parent that does too. */
+function inPreserve3d(el) {
+    const up = el.parentElement;
+    return !!up && is3d(el) && is3d(up);
+}
+/** The first element in `roots` with nested CSS 3D; null when there is none. */
+function nestedPreserve3d(roots) {
+    return roots.flatMap((root) => [...root.querySelectorAll('*')]).find(inPreserve3d) ?? null;
+}
+/** `div.scene > div.die`: an element and its parent, by tag and first class. */
+function path3d(el) {
+    const label = (e) => e.tagName.toLowerCase() + (e.classList[0] ? `.${e.classList[0]}` : '');
+    return `${label(el.parentElement)} > ${label(el)}`;
 }
 /** What `TextReader.content` finds in several roots of one clip, together. */
 function contentOf(page, roots) {

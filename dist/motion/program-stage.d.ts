@@ -1,6 +1,7 @@
 import { type Component } from 'svelte';
 import { type StageSegment } from './segments.js';
 import { type Animatable } from './keys.js';
+import { type Nested3d } from './flash-frames.js';
 export type ProgramScene = {
     readonly fps: number;
     /** `useReady` promises of every clip. */
@@ -19,6 +20,16 @@ export type ProgramScene = {
      * text behind the speaker that the speaker covers (see `textBehind`).
      */
     measure(f: number): Promise<string[]>;
+    /**
+     * How much of the footage (0–1) each front clip on screen hides at the frame last drawn, for
+     * the flash-frame check (see `flashFrames`).
+     */
+    covers(): Record<string, number>;
+    /**
+     * Clips on screen at the frame last drawn with nested CSS 3D (`preserve-3d` inside
+     * `preserve-3d`), each clip looked at about once a second until found, and told once.
+     */
+    nested3d(f: number): Nested3d[];
     /**
      * A holdout insert's second pass: `true` shows the subject alone (as drawn at the frame last
      * drawn) and returns whether there is one to cut out; `false` shows the clips again.

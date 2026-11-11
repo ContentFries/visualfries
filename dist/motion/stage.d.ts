@@ -1,3 +1,4 @@
+import { type CoverSample } from './flash-frames.js';
 import { type Component } from 'svelte';
 import type { ResolvedClip } from './resolve.js';
 import type { StageSegment } from './segments.js';
@@ -52,6 +53,7 @@ export declare function createMotionStage(options: StageOptions): {
     check: (frames: number[]) => Promise<{
         errors: CheckIssue[];
         warnings: CheckIssue[];
+        covers: CoverSample[];
     }>;
     unload: () => void;
     events: () => import("./runtime.svelte.js").ClipEvent[];

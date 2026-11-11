@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import { MotionAnchorShape, MotionProjectShape, footageName } from './project.js';
+import { CutSnapShape, MotionAnchorShape, MotionProjectShape, footageName } from './project.js';
 // project.ts builds its project shape from these shapes and these read its anchor shape: the
 // references go through z.lazy so either module may load first.
 const anchor = z.lazy(() => MotionAnchorShape);
 const footage = z.lazy(() => footageName);
+const cutSnap = z.lazy(() => CutSnapShape);
 const itemId = z
     .string()
     .regex(/^[A-Za-z0-9._-]+$/, 'item id: letters, digits, dot, dash, underscore');
@@ -187,6 +188,8 @@ export const ShotShape = z.object({
     shot: z.string().min(1),
     from: anchor,
     until: anchor,
+    /** Move `from` and/or `until` onto the nearest cut: "cut", or { "from": "cut" }. */
+    snap: cutSnap.optional(),
     /** Footage to frame instead of what the cut list shows; `in` is its source time at `from`. */
     source: z
         .union([footage, z.object({ name: footage, in: SourceTimeShape.optional() })])

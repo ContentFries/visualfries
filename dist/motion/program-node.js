@@ -5,6 +5,7 @@ import { resolveProgram } from './program.js';
 import { resolveMoment } from './moment.js';
 import { cutoutEdgeMessage, cutoutEdges, cutoutPanelMessage, cutoutPanels, headCropMessage, headCrops } from './framing.js';
 import { textBehindClip, textOverFaceClip } from './text-over-face.js';
+import { flashFrames } from './flash-frames.js';
 import { frameFitKey } from './frame-fit.js';
 import { captionsInMoveClip } from './shot-moves.js';
 import { awayInFrameKey } from './shots/away.js';
@@ -188,6 +189,8 @@ export async function checkProgram(loaded, opts = {}) {
     const browser = await launch();
     /** Hash of every sampled frame on its segment's page, by segment. */
     const sampled = new Map();
+    /** How much of the footage each clip hides, at every frame checked on any segment page. */
+    const covers = [];
     try {
         for (const segment of segments) {
             const result = results.find((r) => r.id === segment.id);
@@ -200,6 +203,7 @@ export async function checkProgram(loaded, opts = {}) {
                 result.errors.push(...found.errors);
                 result.warnings.push(...found.warnings);
                 result.warnings.push(...crops.filter((w) => within(segment, w.frame)));
+                covers.push(...found.covers);
                 if (!opts.determinism || found.errors.length)
                     continue;
                 const sample = determinismSample(program, segment, list);
@@ -235,6 +239,7 @@ export async function checkProgram(loaded, opts = {}) {
         await browser.close();
         await fs.rm(bundle.dir, { recursive: true, force: true });
     }
+    pushFlashWarnings(program, covers, results);
     // Warnings about a clip's text or content are told once per clip (and kind), and about a
     // speaker still in the frame once per away range, in the first segment they are found in.
     const told = new Set();
@@ -267,6 +272,17 @@ export async function checkProgram(loaded, opts = {}) {
     for (const r of results)
         r.ok = r.errors.length === 0;
     return results;
+}
+/**
+ * Flash-frame warnings over the whole program (see `flashFrames`), each in the result of the
+ * segment its frame is in (the first result when that segment was not checked).
+ */
+function pushFlashWarnings(program, covers, results) {
+    for (const w of flashFrames(program, covers)) {
+        const segment = segmentAt(program, w.frame);
+        const result = results.find((r) => r.id === segment?.id) ?? results[0];
+        result?.warnings.push({ message: w.message });
+    }
 }
 /**
  * Warnings for every stretch where a shot's camera window cuts the speaker's head (see

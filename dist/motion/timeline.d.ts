@@ -326,6 +326,10 @@ export declare const ShotShape: z.ZodObject<{
     shot: z.ZodString;
     from: z.ZodLazy<z.ZodType<import("./project.js").MotionAnchor, unknown, z.core.$ZodTypeInternals<import("./project.js").MotionAnchor, unknown>>>;
     until: z.ZodLazy<z.ZodType<import("./project.js").MotionAnchor, unknown, z.core.$ZodTypeInternals<import("./project.js").MotionAnchor, unknown>>>;
+    snap: z.ZodOptional<z.ZodLazy<z.ZodUnion<readonly [z.ZodLiteral<"cut">, z.ZodObject<{
+        from: z.ZodOptional<z.ZodLiteral<"cut">>;
+        until: z.ZodOptional<z.ZodLiteral<"cut">>;
+    }, z.core.$strict>]>>>;
     source: z.ZodOptional<z.ZodUnion<readonly [z.ZodLazy<z.ZodString>, z.ZodObject<{
         name: z.ZodLazy<z.ZodString>;
         in: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{

@@ -1,3 +1,4 @@
+import type { CoverSample } from './flash-frames.js';
 import { type MotionFont, type MotionMusic, type MotionProject } from './project.js';
 import { type ResolvedBrand } from './brand.js';
 import { type ResolvedStyle } from './style.js';
@@ -198,6 +199,8 @@ export type MotionPage = {
             frame: number;
             message: string;
         }[];
+        /** Program pages: how much of the footage each clip hides at each frame checked. */
+        covers: CoverSample[];
     }>;
     close(): Promise<void>;
 };

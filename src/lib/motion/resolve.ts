@@ -1,5 +1,6 @@
 import type { MotionClip, MotionProject, MotionWords } from './project.js';
 import type { MotionWord } from './transcript.js';
+import { snapSpan } from './flash-frames.js';
 import { pickMusic, type MotionBeatRef, type MusicBeats } from './beat-grid.js';
 import {
 	AnchorError,
@@ -170,7 +171,11 @@ export type ProjectLook = { brand?: ResolvedBrand; style?: ResolvedStyle };
  * In a program: its end in seconds (`"end"` anchors, and clips are cut there), or null while
  * its length is not fixed. Absent in inserts mode, where `"end"` is a phrase.
  */
-export type ProgramEnd = { end?: number | null };
+export type ProgramEnd = {
+	end?: number | null;
+	/** In a program: the cut edges in program frames, for `"snap": "cut"` (see `cutEdges`). */
+	cutEdges?: number[];
+};
 
 /**
  * Project files that clip props name as `{ "file": … }`, checked by the node tooling: by the path
@@ -262,7 +267,8 @@ function resolveClipSpan(
 	beats: BeatContext,
 	programEnd: number | null | undefined,
 	previous: ClipOrder,
-	diagnostics: MotionDiagnostic[]
+	diagnostics: MotionDiagnostic[],
+	edges: number[] | null = null
 ): { startSec: number; endSec: number } | null {
 	const order = (field: string, after: number | null, what: string): PhraseOrder => ({
 		after,
@@ -309,7 +315,10 @@ function resolveClipSpan(
 		failField(diagnostics, clip, 'until', error);
 		return null;
 	}
-	return { startSec, endSec: endSec + (clip.tail ?? 0) };
+	const snapped = snapSpan(clip.snap, { start: startSec, end: endSec }, edges, fps, (_, message) =>
+		diagnostics.push({ level: 'warning', clip: clip.id, field: 'snap', message })
+	);
+	return { startSec: snapped.start, endSec: snapped.end + (clip.tail ?? 0) };
 }
 
 /** A one-word phrase anchor easily matches the wrong spot after a re-take; say so. */
@@ -493,7 +502,16 @@ export function resolveMotionClip(
 	const fps = project.fps;
 	const beats: BeatContext = { music, clip: clip.music };
 	const programEnd = look.end;
-	const span = resolveClipSpan(clip, words, fps, beats, programEnd, previous, diagnostics);
+	const span = resolveClipSpan(
+		clip,
+		words,
+		fps,
+		beats,
+		programEnd,
+		previous,
+		diagnostics,
+		look.cutEdges ?? null
+	);
 	if (!span) return null;
 	const { startSec, endSec } = span;
 	warnOneWordAnchors(clip, programEnd, diagnostics);

@@ -1,4 +1,5 @@
 import type { MotionAnchor, MotionProject } from './project.js';
+import { cutEdges, shotsOffCut, snapSpan } from './flash-frames.js';
 import {
 	SHOTS,
 	TRANSITIONS,
@@ -428,7 +429,7 @@ export function resolveProgram(
 		formatName ? { ...project, size: format.size } : project,
 		words,
 		inputs.music ?? [],
-		{ ...inputs.look, end, files: inputs.files }
+		{ ...inputs.look, end, files: inputs.files, cutEdges: cutEdges(cutList.cuts) }
 	);
 	diagnostics.push(...resolved.diagnostics);
 	checkEvents(resolved.clips, inputs, end, diagnostics);
@@ -471,6 +472,7 @@ export function resolveProgram(
 	const events = resolveEvents(shots, transitions);
 	if (program) {
 		checkShotOrder(shots, diagnostics);
+		diagnostics.push(...writtenShotsOffCut(project, shots, cuts, fps));
 		checkEventClash(events, shots, fps, diagnostics);
 	}
 	const audio = programAudio({
@@ -638,6 +640,24 @@ function playMusic(
 	);
 	const inputs = given.tracks ? { ...given, music: playing } : given;
 	return { ends, inputs };
+}
+
+/**
+ * Warnings for written shots whose edges land a few frames off a cut (see `shotsOffCut`), each
+ * named by its place in `shots`.
+ */
+function writtenShotsOffCut(
+	project: MotionProject,
+	shots: ProgramShot[],
+	cuts: ProgramCut[],
+	fps: number
+): ProgramDiagnostic[] {
+	const ids = (project.shots ?? []).map((s, i) => s.id ?? `shot${i + 1}`);
+	const written = shots.filter((s) => !s.implicit);
+	return shotsOffCut(written, cutEdges(cuts), fps).map((d) => {
+		const i = ids.indexOf(d.item);
+		return { ...d, field: d.field.replace(/^shots\[\d+\]/, `shots[${i}]`) };
+	});
 }
 
 /** Inserts mode has no program to snap music to: say so for the first item that asks. */
@@ -1328,6 +1348,8 @@ function resolveShotRange(
 		diagnostics: ProgramDiagnostic[];
 		order: (field: string, after: number | null, what: string) => PhraseOrder;
 		cursor: { previous: number | null };
+		/** Cut edges in program frames, for `"snap": "cut"`. */
+		edges: number[];
 	},
 	fail: (field: string, message: string) => void
 ): { startFrame: number; endFrame: number } | null {
@@ -1348,6 +1370,9 @@ function resolveShotRange(
 		fail('until', (error as Error).message);
 		return null;
 	}
+	({ start, end } = snapSpan(shot.snap, { start, end }, ctx.edges, fps, (_, message) =>
+		diagnostics.push({ level: 'warning', item: id, field: `shots[${i}].snap`, message })
+	));
 	const startFrame = Math.max(0, Math.round(start * fps));
 	if (startFrame >= frames) {
 		fail(
@@ -1445,7 +1470,7 @@ function resolveShots(
 			shot,
 			id,
 			i,
-			{ at, frames, fps, diagnostics, order, cursor },
+			{ at, frames, fps, diagnostics, order, cursor, edges: cutEdges(cuts) },
 			fail
 		);
 		if (!range) return;

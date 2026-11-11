@@ -1,5 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { loadMotionProject } from '../../src/lib/motion/node.js';
+// @ts-expect-error: a plain .mjs helper shared with the subject layer tests
+import { SW, SH, writeFootage } from './fixtures/subject/footage.mjs';
 import { parseMotionProject } from '$lib/motion/timeline.js';
 import { resolveProgram, type ProgramInputs } from '$lib/motion/program.js';
 
@@ -135,3 +142,36 @@ describe('review round 1: snap', () => {
 		]);
 	});
 });
+
+describe.skipIf(spawnSync('ffmpeg', ['-version']).status !== 0)(
+	'review round 1: snap in the loaded project',
+	() => {
+		it('resolves clips with the cut list, as `clips` and `still --clip` read them', async () => {
+			const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-cut-snap-'));
+			try {
+				writeFootage(dir, 4);
+				const file = path.join(dir, 'p.vf.json');
+				await fs.writeFile(
+					file,
+					JSON.stringify({
+						size: [SW, SH],
+						fps: 30,
+						footage: { talk: { src: 'talk.mp4' } },
+						cuts: [
+							{ source: 'talk', in: 0, out: 2 },
+							{ source: 'talk', in: 2, out: 4 }
+						],
+						clips: [{ id: 'card', block: 'Card.svelte', from: 1.9, until: 3.95, snap: 'cut' }]
+					})
+				);
+				await fs.writeFile(path.join(dir, 'Card.svelte'), '<div></div>\n');
+				const loaded = await loadMotionProject(file);
+				const clip = loaded.resolved.clips.find((c) => c.id === 'card')!;
+				expect([clip.startFrame, clip.frames]).toEqual([60, 60]);
+				expect(loaded.resolved.diagnostics.filter((d) => d.field === 'snap')).toEqual([]);
+			} finally {
+				await fs.rm(dir, { recursive: true, force: true });
+			}
+		}, 120_000);
+	}
+);

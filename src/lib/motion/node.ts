@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import type { CoverSample } from './flash-frames.js';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -1321,6 +1322,8 @@ export type MotionPage = {
 	check(frames: number[]): Promise<{
 		errors: { frame: number; message: string }[];
 		warnings: { frame: number; message: string }[];
+		/** Program pages: how much of the footage each clip hides at each frame checked. */
+		covers: CoverSample[];
 	}>;
 	close(): Promise<void>;
 };

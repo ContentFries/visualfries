@@ -28,6 +28,7 @@ import { createTransitionPlayer } from './transitions/player.js';
 import type { Point } from './transitions/contract.js';
 import { keyTracks, placementTransform, type Animatable, type KeyTracks } from './keys.js';
 import { cssAlpha, opaqueGradient } from './color.js';
+import { coverable, planeCover, type Nested3d, type Plane } from './flash-frames.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import type { CameraView, HoleSource } from './runtime.svelte.js';
 import {
@@ -218,6 +219,16 @@ export type ProgramScene = {
 	 * text behind the speaker that the speaker covers (see `textBehind`).
 	 */
 	measure(f: number): Promise<string[]>;
+	/**
+	 * How much of the footage (0–1) each front clip on screen hides at the frame last drawn, for
+	 * the flash-frame check (see `flashFrames`).
+	 */
+	covers(): Record<string, number>;
+	/**
+	 * Clips on screen at the frame last drawn with nested CSS 3D (`preserve-3d` inside
+	 * `preserve-3d`), each clip looked at about once a second until found, and told once.
+	 */
+	nested3d(f: number): Nested3d[];
 	/**
 	 * A holdout insert's second pass: `true` shows the subject alone (as drawn at the frame last
 	 * drawn) and returns whether there is one to cut out; `false` shows the clips again.
@@ -816,6 +827,9 @@ export function createProgramScene(
 	const overFace = new Map<string, { from: number; share: number }>();
 	/** Clips already warned about text over the face: once per clip. */
 	const toldFace = new Set<string>();
+	/** Per clip, the program frame from which `nested3d` looks at it again (Infinity: told). */
+	const next3d = new Map<string, number>();
+	const due3d = (id: string, f: number) => f >= (next3d.get(id) ?? -Infinity);
 	/** Per clip and kind (`cut`, `safe`), the run of checked frames its content does not fit. */
 	const misfit = new Map<string, { from: number; finding: FitFinding }>();
 	/**
@@ -1986,6 +2000,23 @@ export function createProgramScene(
 			out.push(...frameFit(f, read), ...movingCaptions(f, read), ...awayInFrame(f));
 			return out;
 		},
+		covers() {
+			const page = textReader(stage, seg.size);
+			const out: Record<string, number> = {};
+			for (const m of mounted)
+				if (m.shown !== null && coverable(m.data)) out[m.data.id] = page.cover(rootsOf(m));
+			return out;
+		},
+		nested3d(f) {
+			const out: Nested3d[] = [];
+			for (const m of mounted) {
+				if (m.shown === null || !due3d(m.data.id, f)) continue;
+				const el = nestedPreserve3d(rootsOf(m));
+				next3d.set(m.data.id, el ? Infinity : f + seg.fps);
+				if (el) out.push({ clip: m.data.id, block: m.data.block, path: path3d(el) });
+			}
+			return out;
+		},
 		holdout(on) {
 			const shown = !!seg.insert?.holdout && a.subject.img.style.display !== 'none';
 			if (on && !shown) return false;
@@ -2139,9 +2170,32 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 		}
 		return out;
 	};
+	/** What `planeCover` reads of an element. */
+	const planeOf = (el: HTMLElement): Plane => {
+		const style = getComputedStyle(el);
+		return {
+			opacity: lookOf(el).opacity,
+			visible: style.visibility === 'visible',
+			media: isMedia(el),
+			color: cssAlpha(style.backgroundColor),
+			image: style.backgroundImage
+		};
+	};
 	return {
 		/** The effective opacity of `el`: its own times its ancestors'. */
 		opacityOf: (el: Element) => lookOf(el).opacity,
+		/**
+		 * How much of the footage `roots` hide (0–1): the most that any element over the whole
+		 * stage hides (see `planeCover`).
+		 */
+		cover(roots: HTMLElement[]): number {
+			let best = 0;
+			for (const root of roots)
+				for (const el of [root, ...root.querySelectorAll<HTMLElement>('*')])
+					if (whole(rect(el.getBoundingClientRect())))
+						best = Math.max(best, planeCover(planeOf(el)));
+			return best;
+		},
 		/**
 		 * The boxes of the text inside `root` that can be read: each line box of each text node,
 		 * or the opaque card it sits on (unless `cards` is false), cut to the ancestors that clip
@@ -2254,6 +2308,32 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 			return false;
 		}
 	};
+}
+
+/** A loaded image or a video: a picture that hides what is under it. */
+function isMedia(el: HTMLElement): boolean {
+	if (el instanceof HTMLVideoElement) return true;
+	return el instanceof HTMLImageElement && el.complete && el.naturalWidth > 0;
+}
+
+const is3d = (el: Element) => getComputedStyle(el).transformStyle === 'preserve-3d';
+
+/** Whether an element keeps its children in 3D inside a parent that does too. */
+function inPreserve3d(el: Element): boolean {
+	const up = el.parentElement;
+	return !!up && is3d(el) && is3d(up);
+}
+
+/** The first element in `roots` with nested CSS 3D; null when there is none. */
+function nestedPreserve3d(roots: HTMLElement[]): Element | null {
+	return roots.flatMap((root) => [...root.querySelectorAll('*')]).find(inPreserve3d) ?? null;
+}
+
+/** `div.scene > div.die`: an element and its parent, by tag and first class. */
+function path3d(el: Element): string {
+	const label = (e: Element) =>
+		e.tagName.toLowerCase() + (e.classList[0] ? `.${e.classList[0]}` : '');
+	return `${label(el.parentElement!)} > ${label(el)}`;
 }
 
 /** What `TextReader.content` finds in several roots of one clip, together. */

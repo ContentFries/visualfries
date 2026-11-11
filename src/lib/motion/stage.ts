@@ -1,4 +1,5 @@
 import { findBadValues } from './badvalues.js';
+import { nested3dMessage, type CoverSample } from './flash-frames.js';
 import { flushSync, mount, unmount, type Component } from 'svelte';
 import {
 	Clip,
@@ -392,9 +393,10 @@ export function createMotionStage(options: StageOptions) {
 	 */
 	async function check(
 		frames: number[]
-	): Promise<{ errors: CheckIssue[]; warnings: CheckIssue[] }> {
+	): Promise<{ errors: CheckIssue[]; warnings: CheckIssue[]; covers: CoverSample[] }> {
 		const errors: CheckIssue[] = [];
 		const warnings: CheckIssue[] = [];
+		const covers: CoverSample[] = [];
 		const seen = new Set<string>();
 		if (stage) stage.style.filter = ''; // a frame's filter would fail a canvas mounted mid-clip
 		for (const n of frames) {
@@ -413,7 +415,8 @@ export function createMotionStage(options: StageOptions) {
 				const message = (error as Error).message;
 				if (!errors.some((e) => e.message === message)) errors.push({ frame: n, message });
 			}
-			for (const message of [...(segment?.warnings(n) ?? []), ...measured])
+			covers.push(...coverSample(n));
+			for (const message of [...(segment?.warnings(n) ?? []), ...measured, ...flat3d(n)])
 				if (!warnings.some((w) => w.message === message)) warnings.push({ frame: n, message });
 			// broken math renders nothing and throws nothing: NaN/undefined in styles and SVG geometry
 			if (stage && seen.size < 5) {
@@ -448,7 +451,18 @@ export function createMotionStage(options: StageOptions) {
 				message: `${running.length} CSS animation(s)/transition(s) run on wall-clock time (${where}); they will not follow seeks. Drive them from clip time instead.`
 			});
 		}
-		return { errors, warnings };
+		return { errors, warnings, covers };
+	}
+
+	/** Program mode: how much of the footage each clip hides at frame `n` (see `covers`). */
+	function coverSample(n: number): CoverSample[] {
+		return segment ? [{ frame: n, clips: segment.covers() }] : [];
+	}
+
+	/** Nested CSS 3D in clips on screen, which HTML-in-Canvas capture can draw flat. */
+	function flat3d(n: number): string[] {
+		if (mode !== 'html-in-canvas' || !segment) return [];
+		return segment.nested3d(n).map(nested3dMessage);
 	}
 
 	/** Events the loaded clip's blocks recorded (`clip.event`, `use:motion`), in time order. */

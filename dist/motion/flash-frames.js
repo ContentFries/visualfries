@@ -62,6 +62,29 @@ export function cutEdges(cuts) {
  * item a few frames inside them is not off a cut.
  */
 const between = (edges) => edges.slice(1, -1);
+/**
+ * Reads whether a picture has no transparent pixels, from a `size`×`size` copy drawn into a
+ * canvas that `make` creates. A picture that cannot be read (a cross-origin image taints the
+ * canvas) counts as see-through, and the tainted canvas is dropped: a later picture gets a clean
+ * one, since clearing never cleans a tainted canvas.
+ */
+export function alphaReader(make, size = 32) {
+    let ctx = null;
+    return (picture) => {
+        ctx ??= make();
+        if (!ctx)
+            return false;
+        try {
+            ctx.clearRect(0, 0, size, size);
+            ctx.drawImage(picture, 0, 0, size, size);
+            return opaquePixels(ctx.getImageData(0, 0, size, size).data);
+        }
+        catch {
+            ctx = null;
+            return false;
+        }
+    };
+}
 /** The cut an edge lands a few frames off (`off` frames, negative before it); null on or far. */
 export function offCut(frame, edges, fps) {
     const reach = Math.round(SNAP_SECONDS * fps);

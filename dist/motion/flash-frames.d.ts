@@ -64,6 +64,21 @@ export declare function coverable(clip: {
 }): boolean;
 /** Program frames where the footage changes: every cut's start, and the end of the last. */
 export declare function cutEdges(cuts: Span[]): number[];
+/** What `alphaReader` needs of a 2D canvas context. */
+export type AlphaContext<T> = {
+    clearRect(x: number, y: number, w: number, h: number): void;
+    drawImage(picture: T, x: number, y: number, w: number, h: number): void;
+    getImageData(x: number, y: number, w: number, h: number): {
+        data: Uint8ClampedArray;
+    };
+};
+/**
+ * Reads whether a picture has no transparent pixels, from a `size`×`size` copy drawn into a
+ * canvas that `make` creates. A picture that cannot be read (a cross-origin image taints the
+ * canvas) counts as see-through, and the tainted canvas is dropped: a later picture gets a clean
+ * one, since clearing never cleans a tainted canvas.
+ */
+export declare function alphaReader<T>(make: () => AlphaContext<T> | null, size?: number): (picture: T) => boolean;
 /** The cut an edge lands a few frames off (`off` frames, negative before it); null on or far. */
 export declare function offCut(frame: number, edges: number[], fps: number): {
     cut: number;

@@ -51,6 +51,12 @@ export type Plane = {
 };
 /** How much of the footage an element over the whole frame hides (0–1). */
 export declare function planeCover(plane: Plane): number;
+/**
+ * Whether RGBA pixels read from a picture (an image or a video frame drawn small) are all
+ * opaque: a picture with transparent parts (an overlay, a cut-out, a frame) does not hide the
+ * footage.
+ */
+export declare function opaquePixels(data: Uint8ClampedArray): boolean;
 /** Whether a clip can hide the footage: in front of the speaker and not in a shot's slot. */
 export declare function coverable(clip: {
     layer?: string | null;
@@ -109,6 +115,8 @@ export type Nested3d = {
     block: string;
     path: string;
 };
+/** The clip a nested 3D warning names; null for any other message. */
+export declare function nested3dClip(message: string): string | null;
 /** A `check` warning for nested `transform-style: preserve-3d` in HTML-in-Canvas capture. */
 export declare function nested3dMessage(found: Nested3d): string;
 export {};

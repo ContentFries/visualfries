@@ -1,4 +1,4 @@
-import type { CoverSample } from './flash-frames.js';
+import { type CoverSample } from './flash-frames.js';
 import { type MotionFont, type MotionMusic, type MotionProject } from './project.js';
 import { type ResolvedBrand } from './brand.js';
 import { type ResolvedStyle } from './style.js';

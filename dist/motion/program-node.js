@@ -5,7 +5,7 @@ import { resolveProgram } from './program.js';
 import { resolveMoment } from './moment.js';
 import { cutoutEdgeMessage, cutoutEdges, cutoutPanelMessage, cutoutPanels, headCropMessage, headCrops } from './framing.js';
 import { textBehindClip, textOverFaceClip } from './text-over-face.js';
-import { flashFrames } from './flash-frames.js';
+import { flashFrames, nested3dClip } from './flash-frames.js';
 import { frameFitKey } from './frame-fit.js';
 import { captionsInMoveClip } from './shot-moves.js';
 import { awayInFrameKey } from './shots/away.js';
@@ -243,22 +243,6 @@ export async function checkProgram(loaded, opts = {}) {
     // Warnings about a clip's text or content are told once per clip (and kind), and about a
     // speaker still in the frame once per away range, in the first segment they are found in.
     const told = new Set();
-    const onceKey = (message) => {
-        const face = textOverFaceClip(message);
-        if (face !== null)
-            return `face\u0000${face}`;
-        const behind = textBehindClip(message);
-        if (behind !== null)
-            return `behind\u0000${behind}`;
-        const captions = captionsInMoveClip(message);
-        if (captions !== null)
-            return `captions\u0000${captions}`;
-        const away = awayInFrameKey(message);
-        if (away !== null)
-            return `away\u0000${away}`;
-        const fit = frameFitKey(message);
-        return fit === null ? null : `fit\u0000${fit}`;
-    };
     for (const r of results)
         r.warnings = r.warnings.filter((w) => {
             const key = onceKey(w.message);
@@ -273,6 +257,24 @@ export async function checkProgram(loaded, opts = {}) {
         r.ok = r.errors.length === 0;
     return results;
 }
+/** Warnings told once per clip (or away range) and kind: how to find the clip in each. */
+const ONCE = [
+    ['face', textOverFaceClip],
+    ['behind', textBehindClip],
+    ['captions', captionsInMoveClip],
+    ['away', awayInFrameKey],
+    ['fit', frameFitKey],
+    ['3d', nested3dClip]
+];
+/** The kind and clip a warning is told once for; null for a warning told every time. */
+function onceKey(message) {
+    for (const [kind, key] of ONCE) {
+        const found = key(message);
+        if (found !== null)
+            return `${kind}\u0000${found}`;
+    }
+    return null;
+}
 /**
  * Flash-frame warnings over the whole program (see `flashFrames`), each in the result of the
  * segment its frame is in (the first result when that segment was not checked).
@@ -281,7 +283,7 @@ function pushFlashWarnings(program, covers, results) {
     for (const w of flashFrames(program, covers)) {
         const segment = segmentAt(program, w.frame);
         const result = results.find((r) => r.id === segment?.id) ?? results[0];
-        result?.warnings.push({ message: w.message });
+        result?.warnings.push({ frame: w.frame, message: w.message });
     }
 }
 /**

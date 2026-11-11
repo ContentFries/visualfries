@@ -114,8 +114,10 @@ function resolveClipSpan(clip, words, fps, beats, programEnd, previous, diagnost
         failField(diagnostics, clip, 'until', error);
         return null;
     }
-    const snapped = snapSpan(clip.snap, { start: startSec, end: endSec }, edges, fps, (_, message) => diagnostics.push({ level: 'warning', clip: clip.id, field: 'snap', message }));
-    return { startSec: snapped.start, endSec: snapped.end + (clip.tail ?? 0) };
+    // The tail belongs to the end the clip shows, so the snap moves the end with its tail.
+    const end = endSec + (clip.tail ?? 0);
+    const snapped = snapSpan(clip.snap, { start: startSec, end }, edges, fps, (_, message) => diagnostics.push({ level: 'warning', clip: clip.id, field: 'snap', message }));
+    return { startSec: snapped.start, endSec: snapped.end };
 }
 /** A one-word phrase anchor easily matches the wrong spot after a re-take; say so. */
 function warnOneWordAnchors(clip, programEnd, diagnostics) {

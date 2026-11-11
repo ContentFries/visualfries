@@ -22,13 +22,28 @@ export function planeCover(plane) {
     const fill = plane.media ? 1 : Math.max(plane.color, imageFill(plane.image));
     return plane.opacity * fill;
 }
-/** A background image hides what is under it when it is a picture or an opaque gradient. */
+/**
+ * A background image hides what is under it when it is an opaque gradient. A picture
+ * (`url(…)`) does not count: whether it has transparent parts is not known from its style, and a
+ * clip wrongly taken for full-screen gives false warnings, while one missed only goes unchecked.
+ */
 function imageFill(image) {
-    if (image === 'none' || !image)
+    if (image === 'none' || !image || image.includes('url('))
         return 0;
-    if (image.startsWith('url('))
-        return 1;
     return opaqueGradient(image, FULL_COVER) ? 1 : 0;
+}
+/**
+ * Whether RGBA pixels read from a picture (an image or a video frame drawn small) are all
+ * opaque: a picture with transparent parts (an overlay, a cut-out, a frame) does not hide the
+ * footage.
+ */
+export function opaquePixels(data) {
+    if (!data.length)
+        return false;
+    for (let i = 3; i < data.length; i += 4)
+        if (data[i] < 250)
+            return false;
+    return true;
 }
 /** Whether a clip can hide the footage: in front of the speaker and not in a shot's slot. */
 export function coverable(clip) {
@@ -78,12 +93,12 @@ export function shotsOffCut(shots, edges, fps) {
         const at = offCut(frame, cuts, fps);
         if (!at)
             return;
-        const verb = edge === 'from' ? 'starts' : 'ends';
+        const before = edge === 'from' ? shots.find((s) => s.startFrame + s.frames === frame) : null;
         out.push({
             level: 'warning',
             item: shots[i].id,
             field: `shots[${i}].${edge}`,
-            message: `Shot "${shots[i].id}" ${verb} ${offText(at, fps)}: a shot change just beside a cut reads as a second, tiny cut. Put the edge on the cut with "snap": "cut" on the shot, unless that is meant.`
+            message: shotOffCutMessage(shots[i].id, edge, at, fps, before?.id)
         });
     };
     shots.forEach((s, i) => {
@@ -93,6 +108,18 @@ export function shotsOffCut(shots, edges, fps) {
             warn(i, 'until', end);
     });
     return out;
+}
+/**
+ * The warning for a shot edge off a cut. An edge the shot shares with the shot before it (the
+ * chain) moves only when both shots snap it: snapping one alone leaves the other where it was.
+ */
+function shotOffCutMessage(id, edge, at, fps, before) {
+    const verb = edge === 'from' ? 'starts' : 'ends';
+    const head = `Shot "${id}" ${verb} ${offText(at, fps)}`;
+    const why = 'a shot change just beside a cut reads as a second, tiny cut.';
+    if (before === undefined)
+        return `${head}: ${why} Put the edge on the cut with { "${edge}": "cut" } in "snap" on the shot, unless that is meant.`;
+    return `${head} (where shot "${before}" ends): ${why} Put the edge on the cut on both shots, { "until": "cut" } on "${before}" and { "from": "cut" } on "${id}" (snapping one alone breaks the chain), unless that is meant.`;
 }
 /**
  * A span in seconds with the edges `snap` asks for moved onto the nearest cut edge within
@@ -108,7 +135,11 @@ export function snapSpan(snap, span, edges, fps, note) {
     }
     const asked = snap === 'cut' ? { from: true, until: true } : { from: !!snap.from, until: !!snap.until };
     const move = (edge, time) => asked[edge] ? snapTime(edge, time, edges, fps, note) : time;
-    return { start: move('from', span.start), end: move('until', span.end) };
+    const snapped = { start: move('from', span.start), end: move('until', span.end) };
+    if (snapped.end > snapped.start)
+        return snapped;
+    note('until', `"snap": "cut" would put both edges on the cut at ${snapped.start.toFixed(2)} s (the span is too short to reach two cuts); the edges stay where they are. Snap one edge, or make the span longer.`);
+    return span;
 }
 /** `time` on the nearest cut edge within reach, or as it is after a note. */
 function snapTime(edge, time, edges, fps, note) {
@@ -203,7 +234,7 @@ export function flashFrames(program, samples) {
     const full = fullScreen(list);
     const edges = cutEdges(program.cuts);
     const told = new Set();
-    const out = clipsOffCut(program, full, edges, told);
+    const out = clipsOffCut(program, { full, list }, edges, told);
     const limit = FLASH_SECONDS * program.fps;
     for (const run of footageRuns(list, edges)) {
         const length = run.right.frame - run.left.frame;
@@ -221,16 +252,23 @@ function toldAtCut(run, told) {
     const clip = run.left.clip ?? run.right.clip;
     return cut !== null && told.has(`${clip}\u0000${cut}`);
 }
-/** Warnings for full-screen clip edges a few frames off a cut; `told` gets clip and cut. */
-function clipsOffCut(program, full, edges, told) {
+/**
+ * Warnings for full-screen clip edges a few frames off a cut; `told` gets clip and cut. An edge
+ * counts only where the clip hides the footage on its own frame next to the edge (its first or
+ * last): an edge inside a transition window (no sample there) or after the clip faded itself is
+ * left to the footage runs.
+ */
+function clipsOffCut(program, seen, edges, told) {
     const out = [];
-    for (const clip of program.clips.filter((c) => full.has(c.id)))
-        for (const [verb, frame] of [
-            ['starts', clip.startFrame],
-            ['ends', clip.startFrame + clip.frames]
+    const at = new Map(seen.list.map((s) => [s.frame, s]));
+    const hides = (id, frame) => (at.get(frame)?.clips[id] ?? 0) >= FULL_COVER;
+    for (const clip of program.clips.filter((c) => seen.full.has(c.id)))
+        for (const [verb, frame, inside] of [
+            ['starts', clip.startFrame, clip.startFrame],
+            ['ends', clip.startFrame + clip.frames, clip.startFrame + clip.frames - 1]
         ]) {
             const at = offCut(frame, between(edges), program.fps);
-            if (!at)
+            if (!at || !hides(clip.id, inside))
                 continue;
             told.add(`${clip.id}\u0000${at.cut}`);
             out.push({ frame, message: offCutMessage(clip, verb, at, program.fps) });
@@ -274,6 +312,10 @@ function runMessage(program, run, full) {
         ? `full-screen clips "${left.clip}" and "${right.clip}"`
         : `full-screen clip ${boundText(left.clip !== null ? left : right, fps)} and ${boundText(left.clip !== null ? right : left, fps)}`;
     return `The footage shows for ${n} (${span}, program frames ${left.frame}–${right.frame - 1}) between ${between}: a flash of the shot underneath. Make the clips meet (one starts where the other ends, or both on the cut with "snap": "cut"), or keep the footage on screen for ${FLASH_SECONDS} s or more.`;
+}
+/** The clip a nested 3D warning names; null for any other message. */
+export function nested3dClip(message) {
+    return /^Clip "(.*?)" \(.*?\): nested CSS 3D/.exec(message)?.[1] ?? null;
 }
 /** A `check` warning for nested `transform-style: preserve-3d` in HTML-in-Canvas capture. */
 export function nested3dMessage(found) {

@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { cutEdges } from './flash-frames.js';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -473,7 +474,8 @@ export async function loadMotionProject(file, opts = {}) {
     const resolved = resolveMotionProject(project, cutList.words, musicBeats, {
         ...look,
         end: programEnd(project, cutList),
-        files: checked
+        files: checked,
+        cutEdges: cutEdges(cutList.cuts)
     });
     resolved.diagnostics.unshift(...problemDiagnostics(cutList.diagnostics), ...musicDiagnostics);
     return {

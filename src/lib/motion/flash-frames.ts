@@ -73,6 +73,12 @@ export function cutEdges(cuts: Span[]): number[] {
 	return [...new Set(all)].sort((a, b) => a - b);
 }
 
+/**
+ * Cut edges between two cuts: the program's first and last frame are no cuts to land on, so an
+ * item a few frames inside them is not off a cut.
+ */
+const between = (edges: number[]) => edges.slice(1, -1);
+
 /** The cut an edge lands a few frames off (`off` frames, negative before it); null on or far. */
 export function offCut(
 	frame: number,
@@ -107,9 +113,10 @@ export function shotsOffCut(
 	fps: number
 ): { level: 'warning'; item: string; field: string; message: string }[] {
 	const starts = new Set(shots.map((s) => s.startFrame));
+	const cuts = between(edges);
 	const out: { level: 'warning'; item: string; field: string; message: string }[] = [];
 	const warn = (i: number, edge: 'from' | 'until', frame: number) => {
-		const at = offCut(frame, edges, fps);
+		const at = offCut(frame, cuts, fps);
 		if (!at) return;
 		const verb = edge === 'from' ? 'starts' : 'ends';
 		out.push({
@@ -305,7 +312,7 @@ function clipsOffCut(
 			['starts', clip.startFrame],
 			['ends', clip.startFrame + clip.frames]
 		] as const) {
-			const at = offCut(frame, edges, program.fps);
+			const at = offCut(frame, between(edges), program.fps);
 			if (!at) continue;
 			told.add(`${clip.id}\u0000${at.cut}`);
 			out.push({ frame, message: offCutMessage(clip, verb, at, program.fps) });

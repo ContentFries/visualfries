@@ -255,6 +255,10 @@ describe('shotsOffCut', () => {
 			}
 		]);
 	});
+	it('says nothing about shot edges a few frames inside the program start or end', () => {
+		const shots = [{ id: 'win', startFrame: 9, frames: 2485 }];
+		expect(shotsOffCut(shots, [0, 2500], FPS)).toEqual([]);
+	});
 	it('says nothing about shots on cuts', () => {
 		const shots = [
 			{ id: 'cam', startFrame: 0, frames: 2000 },

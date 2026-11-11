@@ -1680,7 +1680,8 @@ the speaker or in a slot. Then:
   passes, and so do frames inside a declared transition window (a clip `transition` or a cut
   transition is meant).
 
-`program` warns the same way about a written shot whose edge lands 1 frame to 0.4 s off a cut:
+`program` warns the same way about a written shot whose edge lands 1 frame to 0.4 s off a cut
+(the program's first and last frame are no cuts for these warnings, but `snap` reaches them):
 a framing change just beside a cut reads as a second, tiny cut. The engine moves nothing unless
 an edge asks for `"snap": "cut"`; look at the frames around the edge (−3 to +2) and decide.
 

@@ -33,7 +33,7 @@ Before writing a block, check the [recipes for talking-head explainers](/docs/pr
 - Have a card's content on screen by the last frame of the transition or whip that brings it in; look at a still there.
 - Leave a `behind` shot on a hard cut with `"morph": 0` on the next shot: a morph out of it into a cut leaves dimmed, blurred frames.
 - Show the speaker on camera only while they look into the lens, and start transitions into the camera on an in-lens frame: make a gaze sheet (stills at 1–2 fps) before planning.
-- Put an insert edge that falls within about 0.4 s of a cut exactly on the cut.
+- Put an insert edge that falls within about 0.4 s of a cut exactly on the cut: `"snap": "cut"` on the clip or shot does it (`check` warns about full-screen and shot edges that miss).
 - Keep content on screen as long as the speaker still talks about it.
 - End a slotted clip when the next shot's move is over, so the panel never slides away empty.
 - Take numbers and currency on cards from the transcript; leave out "source:" or "illustration" labels.

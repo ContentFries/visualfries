@@ -28,6 +28,16 @@ import { createTransitionPlayer } from './transitions/player.js';
 import type { Point } from './transitions/contract.js';
 import { keyTracks, placementTransform, type Animatable, type KeyTracks } from './keys.js';
 import { cssAlpha, opaqueGradient } from './color.js';
+import {
+	alphaReader,
+	coverable,
+	coversFrame,
+	pictureBox,
+	planeCover,
+	tiltedStyle,
+	type Nested3d,
+	type Plane
+} from './flash-frames.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import type { CameraView, HoleSource } from './runtime.svelte.js';
 import {
@@ -218,6 +228,16 @@ export type ProgramScene = {
 	 * text behind the speaker that the speaker covers (see `textBehind`).
 	 */
 	measure(f: number): Promise<string[]>;
+	/**
+	 * How much of the footage (0–1) each front clip on screen hides at the frame last drawn, for
+	 * the flash-frame check (see `flashFrames`).
+	 */
+	covers(): Record<string, number>;
+	/**
+	 * Clips on screen at the frame last drawn with nested CSS 3D (`preserve-3d` inside
+	 * `preserve-3d`), each clip looked at about once a second until found, and told once.
+	 */
+	nested3d(f: number): Nested3d[];
 	/**
 	 * A holdout insert's second pass: `true` shows the subject alone (as drawn at the frame last
 	 * drawn) and returns whether there is one to cut out; `false` shows the clips again.
@@ -816,6 +836,9 @@ export function createProgramScene(
 	const overFace = new Map<string, { from: number; share: number }>();
 	/** Clips already warned about text over the face: once per clip. */
 	const toldFace = new Set<string>();
+	/** Per clip, the program frame from which `nested3d` looks at it again (Infinity: told). */
+	const next3d = new Map<string, number>();
+	const due3d = (id: string, f: number) => f >= (next3d.get(id) ?? -Infinity);
 	/** Per clip and kind (`cut`, `safe`), the run of checked frames its content does not fit. */
 	const misfit = new Map<string, { from: number; finding: FitFinding }>();
 	/**
@@ -1986,6 +2009,22 @@ export function createProgramScene(
 			out.push(...frameFit(f, read), ...movingCaptions(f, read), ...awayInFrame(f));
 			return out;
 		},
+		covers() {
+			const page = textReader(stage, seg.size);
+			const out: Record<string, number> = {};
+			for (const m of mounted)
+				if (m.shown !== null && coverable(m.data)) out[m.data.id] = page.cover(rootsOf(m));
+			return out;
+		},
+		nested3d(f) {
+			const out: Nested3d[] = [];
+			for (const m of mounted.filter((x) => x.shown !== null && due3d(x.data.id, f))) {
+				const el = nestedPreserve3d(rootsOf(m));
+				next3d.set(m.data.id, el ? Infinity : f + seg.fps);
+				if (el) out.push({ clip: m.data.id, block: m.data.block, path: path3d(el) });
+			}
+			return out;
+		},
 		holdout(on) {
 			const shown = !!seg.insert?.holdout && a.subject.img.style.display !== 'none';
 			if (on && !shown) return false;
@@ -2139,9 +2178,57 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 		}
 		return out;
 	};
+	/** Per element: whether it or an ancestor inside the stage is turned, skewed or in perspective. */
+	const tilts = new Map<Element, boolean>();
+	const tiltedOf = (el: Element | null): boolean => {
+		if (!el || el === stage) return false;
+		let known = tilts.get(el);
+		if (known === undefined) {
+			known = tiltedOf(el.parentElement) || tiltedStyle(getComputedStyle(el));
+			tilts.set(el, known);
+		}
+		return known;
+	};
+	/** Whether `el`, cut to the ancestors that clip their overflow, lies over the whole stage. */
+	const coversWhole = (el: HTMLElement) =>
+		coversFrame(rect(el.getBoundingClientRect()), lookOf(el).clip, page, tiltedOf(el));
+	/**
+	 * A picture that hides the footage: a loaded image whose drawn picture lies over the whole
+	 * stage (not a letterbox), or a video, with no transparent pixels.
+	 */
+	const opaqueMedia = (el: HTMLElement): boolean => {
+		if (!isMedia(el)) return false;
+		const style = getComputedStyle(el);
+		const box = rect(el.getBoundingClientRect());
+		const picture = el as HTMLImageElement | HTMLVideoElement;
+		const drawn = pictureBox(pictureSize(picture), box, style);
+		return coversFrame(drawn, lookOf(el).clip, page, false) && opaquePicture(picture);
+	};
+	/** What `planeCover` reads of an element. */
+	const planeOf = (el: HTMLElement): Plane => {
+		const style = getComputedStyle(el);
+		return {
+			opacity: lookOf(el).opacity,
+			visible: style.visibility === 'visible',
+			media: opaqueMedia(el),
+			color: cssAlpha(style.backgroundColor),
+			image: style.backgroundImage
+		};
+	};
 	return {
 		/** The effective opacity of `el`: its own times its ancestors'. */
 		opacityOf: (el: Element) => lookOf(el).opacity,
+		/**
+		 * How much of the footage `roots` hide (0–1): the most that any element over the whole
+		 * stage hides (see `planeCover`).
+		 */
+		cover(roots: HTMLElement[]): number {
+			let best = 0;
+			for (const root of roots)
+				for (const el of [root, ...root.querySelectorAll<HTMLElement>('*')])
+					if (coversWhole(el)) best = Math.max(best, planeCover(planeOf(el)));
+			return best;
+		},
 		/**
 		 * The boxes of the text inside `root` that can be read: each line box of each text node,
 		 * or the opaque card it sits on (unless `cards` is false), cut to the ancestors that clip
@@ -2256,6 +2343,56 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 	};
 }
 
+/** A loaded image or a video: a picture that hides what is under it. */
+function isMedia(el: HTMLElement): boolean {
+	if (el instanceof HTMLVideoElement) return true;
+	return el instanceof HTMLImageElement && el.complete && el.naturalWidth > 0;
+}
+
+/**
+ * Whether an image or the current video frame has no transparent pixels, read from a 32×32
+ * copy (see `alphaReader`). A picture that cannot be read counts as see-through: a missed flash,
+ * never a false one.
+ */
+const opaquePicture = alphaReader<HTMLImageElement | HTMLVideoElement>(() =>
+	Object.assign(document.createElement('canvas'), { width: 32, height: 32 }).getContext('2d', {
+		willReadFrequently: true
+	})
+);
+
+/** The picture size `pictureBox` reads: an image's own, or a video's frame size. */
+function pictureSize(el: HTMLImageElement | HTMLVideoElement) {
+	if (el instanceof HTMLImageElement) return el;
+	return {
+		naturalWidth: el.videoWidth,
+		naturalHeight: el.videoHeight,
+		offsetWidth: el.offsetWidth
+	};
+}
+
+const is3d = (el: Element) => getComputedStyle(el).transformStyle === 'preserve-3d';
+
+/** Whether a drawn element keeps its children in 3D inside a parent that does too. */
+function inPreserve3d(el: Element): boolean {
+	const up = el.parentElement;
+	return !!up && is3d(el) && is3d(up) && drawn(el);
+}
+
+/** Whether an element is drawn: not inside `display: none`, not hidden by `visibility`. */
+const drawn = (el: Element) => el.checkVisibility({ visibilityProperty: true });
+
+/** The first element in `roots` with nested CSS 3D; null when there is none. */
+function nestedPreserve3d(roots: HTMLElement[]): Element | null {
+	return roots.flatMap((root) => [...root.querySelectorAll('*')]).find(inPreserve3d) ?? null;
+}
+
+/** `div.scene > div.die`: an element and its parent, by tag and first class. */
+function path3d(el: Element): string {
+	const label = (e: Element) =>
+		e.tagName.toLowerCase() + (e.classList[0] ? `.${e.classList[0]}` : '');
+	return `${label(el.parentElement!)} > ${label(el)}`;
+}
+
 /** What `TextReader.content` finds in several roots of one clip, together. */
 function contentOf(page: TextReader, roots: HTMLElement[]) {
 	if (roots.length === 1) return page.content(roots[0]);
@@ -2265,32 +2402,6 @@ function contentOf(page: TextReader, roots: HTMLElement[]) {
 		text: all.flatMap((c) => c.text),
 		covers: all.some((c) => c.covers),
 		filled: all.some((c) => c.filled)
-	};
-}
-
-/**
- * Where an image draws its picture inside its box `box` (page pixels): the whole box for `fill`
- * and `cover`, the scaled picture placed by `object-position` for `contain`, `scale-down` and
- * `none`.
- */
-function pictureBox(img: HTMLImageElement, box: Rect, style: CSSStyleDeclaration): Rect {
-	const fit = style.objectFit;
-	if (fit === 'fill' || fit === 'cover' || !img.naturalWidth || !img.naturalHeight) return box;
-	// The box may be scaled by transforms: CSS pixels of the image's own width map onto it.
-	const unit = img.offsetWidth ? box.width / img.offsetWidth : 1;
-	const contain = Math.min(box.width / img.naturalWidth, box.height / img.naturalHeight);
-	const scale = fit === 'none' ? unit : fit === 'scale-down' ? Math.min(unit, contain) : contain;
-	const width = img.naturalWidth * scale;
-	const height = img.naturalHeight * scale;
-	// The computed `object-position` is two lengths or percentages ("50% 50%", "0px 20%").
-	const [ox = '50%', oy = '50%'] = style.objectPosition.split(/\s+/);
-	const offset = (v: string, room: number) =>
-		v.endsWith('%') ? (parseFloat(v) / 100) * room : (parseFloat(v) || 0) * unit;
-	return {
-		x: box.x + offset(ox, box.width - width),
-		y: box.y + offset(oy, box.height - height),
-		width,
-		height
 	};
 }
 

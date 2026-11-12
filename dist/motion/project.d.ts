@@ -127,12 +127,24 @@ export declare const MotionMusicShape: z.ZodObject<{
     }, z.core.$loose>>>;
 }, z.core.$strict>;
 export type MotionMusic = z.infer<typeof MotionMusicShape>;
+/**
+ * `"snap": "cut"` on a clip or shot: its edges move onto the nearest cut edge within 0.4 s
+ * (`SNAP_SECONDS`); `{ "from": "cut" }` or `{ "until": "cut" }` moves one edge.
+ */
+export declare const CutSnapShape: z.ZodUnion<readonly [z.ZodLiteral<"cut">, z.ZodObject<{
+    from: z.ZodOptional<z.ZodLiteral<"cut">>;
+    until: z.ZodOptional<z.ZodLiteral<"cut">>;
+}, z.core.$strict>]>;
 export declare const MotionClipShape: z.ZodObject<{
     id: z.ZodString;
     block: z.ZodString;
     from: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
     until: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
     tail: z.ZodOptional<z.ZodNumber>;
+    snap: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<"cut">, z.ZodObject<{
+        from: z.ZodOptional<z.ZodLiteral<"cut">>;
+        until: z.ZodOptional<z.ZodLiteral<"cut">>;
+    }, z.core.$strict>]>>;
     cues: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>>;
     words: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnion<readonly [z.ZodLiteral<"clip">, z.ZodString, z.ZodObject<{
         from: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
@@ -427,6 +439,10 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         from: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
         until: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
         tail: z.ZodOptional<z.ZodNumber>;
+        snap: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<"cut">, z.ZodObject<{
+            from: z.ZodOptional<z.ZodLiteral<"cut">>;
+            until: z.ZodOptional<z.ZodLiteral<"cut">>;
+        }, z.core.$strict>]>>;
         cues: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>>;
         words: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnion<readonly [z.ZodLiteral<"clip">, z.ZodString, z.ZodObject<{
             from: z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>;
@@ -643,6 +659,10 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         shot: z.ZodString;
         from: z.ZodLazy<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
         until: z.ZodLazy<z.ZodType<MotionAnchor, unknown, z.core.$ZodTypeInternals<MotionAnchor, unknown>>>;
+        snap: z.ZodOptional<z.ZodLazy<z.ZodUnion<readonly [z.ZodLiteral<"cut">, z.ZodObject<{
+            from: z.ZodOptional<z.ZodLiteral<"cut">>;
+            until: z.ZodOptional<z.ZodLiteral<"cut">>;
+        }, z.core.$strict>]>>>;
         source: z.ZodOptional<z.ZodUnion<readonly [z.ZodLazy<z.ZodString>, z.ZodObject<{
             name: z.ZodLazy<z.ZodString>;
             in: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodObject<{
@@ -753,6 +773,10 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         from: MotionAnchor;
         until: MotionAnchor;
         tail?: number | undefined;
+        snap?: "cut" | {
+            from?: "cut" | undefined;
+            until?: "cut" | undefined;
+        } | undefined;
         cues?: Record<string, MotionAnchor> | undefined;
         words?: Record<string, string | {
             from: MotionAnchor;
@@ -1018,6 +1042,10 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         from: MotionAnchor;
         until: MotionAnchor;
         id?: string | undefined;
+        snap?: "cut" | {
+            from?: "cut" | undefined;
+            until?: "cut" | undefined;
+        } | undefined;
         source?: string | {
             name: string;
             in?: string | number | {
@@ -1106,6 +1134,10 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         from: MotionAnchor;
         until: MotionAnchor;
         tail?: number | undefined;
+        snap?: "cut" | {
+            from?: "cut" | undefined;
+            until?: "cut" | undefined;
+        } | undefined;
         cues?: Record<string, MotionAnchor> | undefined;
         words?: Record<string, string | {
             from: MotionAnchor;
@@ -1372,6 +1404,10 @@ export declare const MotionProjectShape: z.ZodPipe<z.ZodObject<{
         from: MotionAnchor;
         until: MotionAnchor;
         id?: string | undefined;
+        snap?: "cut" | {
+            from?: "cut" | undefined;
+            until?: "cut" | undefined;
+        } | undefined;
         source?: string | {
             name: string;
             in?: string | number | {

@@ -76,6 +76,14 @@ primitives](#motion-primitives), [Behind and in front from one clip](#behind-and
   `"end"` stays a phrase.
   _Changed in behaviour:_ in a program, `"end"` used to be searched as a spoken phrase; a
   program that anchored on the word must now write `{ "say": "end" }`.
+- **`"snap": "cut"`** (in a program, on a clip or a shot) moves `from` and `until` onto the
+  nearest cut edge (a cut's first frame, or the end of the last cut) within 0.4 s, when the
+  program resolves and before cues, so clip-local times keep their meaning. `{ "from": "cut" }`
+  or `{ "until": "cut" }` moves one edge. `until` snaps with its `tail`, so the clip ends on the
+  cut. An edge with no cut that near stays where it is, with a warning; so does a span too short
+  to reach two cuts (both edges would land on one); without a cut list `snap` warns and does
+  nothing. Two chained shots that share an edge both snap it (see [Flash frames](#flash-frames)). Use it on full-screen cards and
+  shots that should change exactly with the footage (see [Flash frames](#flash-frames)).
 - **`cues`** are named moments inside the clip. Names may use any language and inner spaces
   (`"nových odberateľov": "nových odberateľov"`), but not start with a digit or contain `+ - .`, and `bar 5` / `beat 17` read as music beats. Phrases are searched only inside the clip;
   numbers and `{ "frame": n }` are clip-local. `start` and `end` are built in and cannot be
@@ -1673,6 +1681,54 @@ insets of a slot](#safe-insets-of-a-slot)).
 Use the brand's tokens for colours and fonts, and declare the font files: the neutral brand names
 Anton and Inter but loads neither. See [Brand, style and format](#brand-style-and-format).
 
+#### Flash frames
+
+A full-screen clip (a card or picture over the whole frame) hands over with a hard cut: to the
+next full-screen clip at exactly the same frame, or to the footage on a cut. A card that fades
+its own opacity at its edge, two cards that leave a gap of a few frames, or a card edge a few
+frames off a cut show the footage underneath for a blink: a flash of the speaker reading, or of
+the shot before a cut. `check` warns about these. At the frames it checks (every fifth, plus
+both sides of every clip edge, cut and cue) it measures how much of the footage each front clip
+hides: the most opaque element whose shown part (cut to the ancestors that clip their overflow)
+lies over the whole frame, times its opacity and its ancestors'. An element hides the footage
+with an opaque background colour or gradient, or as a loaded image or video whose pixels are
+all opaque (read from a small copy of the picture; the drawn picture must fill the frame, so a
+letterboxed image or video does not count, and a cross-origin picture, which cannot be read,
+counts as see-through). A clip that hides at least 98 % somewhere is
+full-screen. What cannot be measured reliably counts as see-through, so it is never taken for
+full-screen: a CSS `background-image` picture, a canvas (a Three.js scene), a picture with
+transparent parts (an overlay, a cut-out of the speaker, a frame), an element turned (`transform` or `rotate`), skewed
+or in perspective (itself or an ancestor: its bounding box says nothing about its corners), and
+clips behind the speaker or in a slot. A flash next to such a clip goes unwarned; look at it. Then:
+
+- footage that shows for less than 0.8 s between two full-screen clips, or between a
+  full-screen clip and a cut, warns. When a full-screen clip is partly see-through there (it
+  fades itself), the warning names it: `Clip "ring" (blocks/Ring.svelte) is full-screen but
+  35 % opaque at 39.76 s (program frame 994), next to "tool": the footage under it shows through
+  for up to 4 frames …`. Otherwise it gives the frames and the two clips (or the clip and the
+  cut);
+- a full-screen clip edge 1 frame to 0.4 s off a cut warns, saying whether the footage shows
+  there or the card covers the cut, and suggests `"snap": "cut"`. Only where the clip hides
+  the footage on its own frame next to the edge: an edge inside a transition window, or after
+  the clip faded itself, is judged by how long the footage shows (above);
+- footage that stays on screen for 0.8 s or more after a fade is a dissolve to the camera and
+  passes, and so do frames inside a declared transition window (a clip `transition` or a cut
+  transition is meant).
+
+`program` warns the same way about a written shot whose edge lands 1 frame to 0.4 s off a cut
+(the program's first and last frame are no cuts for these warnings, but `snap` reaches them):
+a framing change just beside a cut reads as a second, tiny cut. An edge two chained shots share
+moves only when both snap it: `{ "until": "cut" }` on the earlier shot and `{ "from": "cut" }`
+on the later one (the warning names both); snapping one alone breaks the chain. The engine moves
+nothing unless an edge asks for `"snap": "cut"`; look at the frames around the edge (−3 to +2)
+and decide.
+
+In HTML-in-Canvas capture `check` also warns, once per clip, about nested CSS 3D that is drawn
+(not inside `display: none` or `visibility: hidden`): an element
+with `transform-style: preserve-3d` inside another one (a die turning inside a turning scene)
+can draw flattened or mirrored there. Look at a still; keep one 3D level (2D flips for the
+inner parts) or draw the 3D with WebGL (see [3D blocks](#3d-blocks)).
+
 **6. Transitions and sound.** A `transition` with `"sound"` plays it on the transition's event
 (see the built-ins above). Shots emit events too (`program --json` lists them under `events` with
 their frames) but carry no sound yet: put an `sfx` item on the shot's anchor plus half its move
@@ -1690,7 +1746,7 @@ move. Ask of each frame: is any text over the face, cut by the frame or covered 
 be read, does a slot ever show empty, does the frame stand still for more than two seconds, do
 accents and descenders keep their room. Add a still at every time `check` names (text over the
 face, text the speaker covers, captions over a move, content cut by the frame or a half-empty
-card), look, then decide: the warnings are hints, and the engine moves nothing on its own. They
+card, flash frames around a full-screen clip), look, then decide: the warnings are hints, and the engine moves nothing on its own. They
 only find what the page lays out (not text drawn on a canvas or baked into an image), so look
 anyway. A sheet of about ten moments per `still` call stays quick. For every other format the
 project renders, run `check --format 1080x1920` (any `WxH`): the program is checked as

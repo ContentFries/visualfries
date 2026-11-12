@@ -1,3 +1,4 @@
+import { cutEdges, shotsOffCut, snapSpan } from './flash-frames.js';
 import { SHOTS, TRANSITIONS, isProgramProject } from './timeline.js';
 import { AnchorError, NO_BEATS, orderPoint, resolveAnchor } from './anchors.js';
 import { NO_MUSIC_BEATS, pickMusic } from './beat-grid.js';
@@ -102,7 +103,7 @@ export function resolveProgram(project, given, opts = {}) {
         warnSnapWithoutProgram(project, diagnostics);
     const warn = (level, item, field, message) => diagnostics.push({ level, item, field, message });
     // Clips resolve exactly as in `ResolvedProject`, against the program transcript.
-    const resolved = resolveMotionProject(formatName ? { ...project, size: format.size } : project, words, inputs.music ?? [], { ...inputs.look, end, files: inputs.files });
+    const resolved = resolveMotionProject(formatName ? { ...project, size: format.size } : project, words, inputs.music ?? [], { ...inputs.look, end, files: inputs.files, cutEdges: cutEdges(cutList.cuts) });
     diagnostics.push(...resolved.diagnostics);
     checkEvents(resolved.clips, inputs, end, diagnostics);
     const hitAt = programAnchors(project, inputs, words, end, resolved.clips);
@@ -140,6 +141,7 @@ export function resolveProgram(project, given, opts = {}) {
     const events = resolveEvents(shots, transitions);
     if (program) {
         checkShotOrder(shots, diagnostics);
+        diagnostics.push(...writtenShotsOffCut(project, shots, cuts, fps));
         checkEventClash(events, shots, fps, diagnostics);
     }
     const audio = programAudio({
@@ -250,6 +252,18 @@ function playMusic(project, given, cutList, placed, diagnostics) {
     const { ends, beats: playing } = musicEnds(project, placed, fixedFrames === null ? null : fixedFrames / fps, cutsBroken ? [] : diagnostics);
     const inputs = given.tracks ? { ...given, music: playing } : given;
     return { ends, inputs };
+}
+/**
+ * Warnings for written shots whose edges land a few frames off a cut (see `shotsOffCut`), each
+ * named by its place in `shots`.
+ */
+function writtenShotsOffCut(project, shots, cuts, fps) {
+    const ids = (project.shots ?? []).map((s, i) => s.id ?? `shot${i + 1}`);
+    const written = shots.filter((s) => !s.implicit);
+    return shotsOffCut(written, cutEdges(cuts), fps).map((d) => {
+        const i = ids.indexOf(d.item);
+        return { ...d, field: d.field.replace(/^shots\[\d+\]/, `shots[${i}]`) };
+    });
 }
 /** Inserts mode has no program to snap music to: say so for the first item that asks. */
 function warnSnapWithoutProgram(project, diagnostics) {
@@ -763,6 +777,7 @@ function resolveShotRange(shot, id, i, ctx, fail) {
         fail('until', error.message);
         return null;
     }
+    ({ start, end } = snapSpan(shot.snap, { start, end }, ctx.edges, fps, (_, message) => diagnostics.push({ level: 'warning', item: id, field: `shots[${i}].snap`, message })));
     const startFrame = Math.max(0, Math.round(start * fps));
     if (startFrame >= frames) {
         fail('from', `Shot starts at ${start.toFixed(2)} s, after the program ends (${(frames / fps).toFixed(2)} s).`);
@@ -827,7 +842,7 @@ function resolveShots(project, inputs, words, cuts, frames, at, diagnostics, siz
         if (!checkShotKind(shot, id, i, diagnostics, fail))
             return;
         const order = (field, after, what) => itemOrder(diagnostics, id, `shots[${i}].${field}`, after, what);
-        const range = resolveShotRange(shot, id, i, { at, frames, fps, diagnostics, order, cursor }, fail);
+        const range = resolveShotRange(shot, id, i, { at, frames, fps, diagnostics, order, cursor, edges: cutEdges(cuts) }, fail);
         if (!range)
             return;
         const source = resolveShotSource(project, inputs, shot, fail);

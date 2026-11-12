@@ -1,3 +1,4 @@
+import { snapSpan } from './flash-frames.js';
 import { pickMusic } from './beat-grid.js';
 import { AnchorError, isProgramEnd, orderPoint, resolveAnchor, resolvePhrase } from './anchors.js';
 import { NEUTRAL_BRAND } from './brand.js';
@@ -73,7 +74,7 @@ function failField(diagnostics, clip, field, error) {
     diagnostics.push({ level: 'error', clip: clip.id, field, message: error.message });
 }
 /** Where the clip starts and ends in seconds (`tail` included), or null once a diagnostic says why not. */
-function resolveClipSpan(clip, words, fps, beats, programEnd, previous, diagnostics) {
+function resolveClipSpan(clip, words, fps, beats, programEnd, previous, diagnostics, edges = null) {
     const order = (field, after, what) => ({
         after,
         what,
@@ -113,7 +114,10 @@ function resolveClipSpan(clip, words, fps, beats, programEnd, previous, diagnost
         failField(diagnostics, clip, 'until', error);
         return null;
     }
-    return { startSec, endSec: endSec + (clip.tail ?? 0) };
+    // The tail belongs to the end the clip shows, so the snap moves the end with its tail.
+    const end = endSec + (clip.tail ?? 0);
+    const snapped = snapSpan(clip.snap, { start: startSec, end }, edges, fps, (_, message) => diagnostics.push({ level: 'warning', clip: clip.id, field: 'snap', message }));
+    return { startSec: snapped.start, endSec: snapped.end };
 }
 /** A one-word phrase anchor easily matches the wrong spot after a re-take; say so. */
 function warnOneWordAnchors(clip, programEnd, diagnostics) {
@@ -243,7 +247,7 @@ export function resolveMotionClip(clip, project, words, diagnostics, music = [],
     const fps = project.fps;
     const beats = { music, clip: clip.music };
     const programEnd = look.end;
-    const span = resolveClipSpan(clip, words, fps, beats, programEnd, previous, diagnostics);
+    const span = resolveClipSpan(clip, words, fps, beats, programEnd, previous, diagnostics, look.cutEdges ?? null);
     if (!span)
         return null;
     const { startSec, endSec } = span;

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+	CutSnapShape,
 	MotionAnchorShape,
 	MotionProjectShape,
 	footageName,
@@ -10,6 +11,7 @@ import {
 // references go through z.lazy so either module may load first.
 const anchor = z.lazy(() => MotionAnchorShape);
 const footage = z.lazy(() => footageName);
+const cutSnap = z.lazy(() => CutSnapShape);
 
 const itemId = z
 	.string()
@@ -217,6 +219,8 @@ export const ShotShape = z.object({
 	shot: z.string().min(1),
 	from: anchor,
 	until: anchor,
+	/** Move `from` and/or `until` onto the nearest cut: "cut", or { "from": "cut" }. */
+	snap: cutSnap.optional(),
 	/** Footage to frame instead of what the cut list shows; `in` is its source time at `from`. */
 	source: z
 		.union([footage, z.object({ name: footage, in: SourceTimeShape.optional() })])

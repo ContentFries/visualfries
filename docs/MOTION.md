@@ -1697,8 +1697,9 @@ letterboxed image or video does not count, and a cross-origin picture, which can
 counts as see-through). A clip that hides at least 98 % somewhere is
 full-screen. What cannot be measured reliably counts as see-through, so it is never taken for
 full-screen: a CSS `background-image` picture, a canvas (a Three.js scene), a picture with
-transparent parts (an overlay, a cut-out of the speaker, a frame), and clips behind the
-speaker or in a slot. A flash next to such a clip goes unwarned; look at it. Then:
+transparent parts (an overlay, a cut-out of the speaker, a frame), an element turned, skewed
+or in perspective (itself or an ancestor: its bounding box says nothing about its corners), and
+clips behind the speaker or in a slot. A flash next to such a clip goes unwarned; look at it. Then:
 
 - footage that shows for less than 0.8 s between two full-screen clips, or between a
   full-screen clip and a cut, warns. When a full-screen clip is partly see-through there (it
@@ -1722,7 +1723,8 @@ on the later one (the warning names both); snapping one alone breaks the chain. 
 nothing unless an edge asks for `"snap": "cut"`; look at the frames around the edge (−3 to +2)
 and decide.
 
-In HTML-in-Canvas capture `check` also warns, once per clip, about nested CSS 3D: an element
+In HTML-in-Canvas capture `check` also warns, once per clip, about nested CSS 3D that is drawn
+(not inside `display: none` or `visibility: hidden`): an element
 with `transform-style: preserve-3d` inside another one (a die turning inside a turning scene)
 can draw flattened or mirrored there. Look at a still; keep one 3D level (2D flips for the
 inner parts) or draw the 3D with WebGL (see [3D blocks](#3d-blocks)).

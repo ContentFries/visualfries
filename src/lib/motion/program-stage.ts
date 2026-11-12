@@ -28,7 +28,16 @@ import { createTransitionPlayer } from './transitions/player.js';
 import type { Point } from './transitions/contract.js';
 import { keyTracks, placementTransform, type Animatable, type KeyTracks } from './keys.js';
 import { cssAlpha, opaqueGradient } from './color.js';
-import { alphaReader, coverable, planeCover, type Nested3d, type Plane } from './flash-frames.js';
+import {
+	alphaReader,
+	axisAligned,
+	coverable,
+	coversFrame,
+	pictureBox,
+	planeCover,
+	type Nested3d,
+	type Plane
+} from './flash-frames.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import type { CameraView, HoleSource } from './runtime.svelte.js';
 import {
@@ -2169,13 +2178,20 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 		}
 		return out;
 	};
-	/** What `planeCover` reads of an element. */
-	/** Whether `el`, cut to the ancestors that clip their overflow, lies over the whole stage. */
-	const coversWhole = (el: HTMLElement) => {
-		const box = rect(el.getBoundingClientRect());
-		const clip = lookOf(el).clip;
-		return whole(clip ? (intersect(box, clip) ?? { ...box, width: 0, height: 0 }) : box);
+	/** Per element: whether it or an ancestor inside the stage is turned, skewed or in perspective. */
+	const tilts = new Map<Element, boolean>();
+	const tiltedOf = (el: Element | null): boolean => {
+		if (!el || el === stage) return false;
+		let known = tilts.get(el);
+		if (known === undefined) {
+			known = tiltedOf(el.parentElement) || !axisAligned(getComputedStyle(el).transform);
+			tilts.set(el, known);
+		}
+		return known;
 	};
+	/** Whether `el`, cut to the ancestors that clip their overflow, lies over the whole stage. */
+	const coversWhole = (el: HTMLElement) =>
+		coversFrame(rect(el.getBoundingClientRect()), lookOf(el).clip, page, tiltedOf(el));
 	/**
 	 * A picture that hides the footage: a loaded image whose drawn picture lies over the whole
 	 * stage (not a letterbox), or a video, with no transparent pixels.
@@ -2185,9 +2201,10 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 		const style = getComputedStyle(el);
 		const box = rect(el.getBoundingClientRect());
 		const picture = el as HTMLImageElement | HTMLVideoElement;
-		if (!whole(pictureBox(pictureSize(picture), box, style))) return false;
-		return opaquePicture(picture);
+		const drawn = pictureBox(pictureSize(picture), box, style);
+		return coversFrame(drawn, lookOf(el).clip, page, false) && opaquePicture(picture);
 	};
+	/** What `planeCover` reads of an element. */
 	const planeOf = (el: HTMLElement): Plane => {
 		const style = getComputedStyle(el);
 		return {
@@ -2355,11 +2372,14 @@ function pictureSize(el: HTMLImageElement | HTMLVideoElement) {
 
 const is3d = (el: Element) => getComputedStyle(el).transformStyle === 'preserve-3d';
 
-/** Whether an element keeps its children in 3D inside a parent that does too. */
+/** Whether a drawn element keeps its children in 3D inside a parent that does too. */
 function inPreserve3d(el: Element): boolean {
 	const up = el.parentElement;
-	return !!up && is3d(el) && is3d(up);
+	return !!up && is3d(el) && is3d(up) && drawn(el);
 }
+
+/** Whether an element is drawn: not inside `display: none`, not hidden by `visibility`. */
+const drawn = (el: Element) => el.checkVisibility({ visibilityProperty: true });
 
 /** The first element in `roots` with nested CSS 3D; null when there is none. */
 function nestedPreserve3d(roots: HTMLElement[]): Element | null {
@@ -2382,36 +2402,6 @@ function contentOf(page: TextReader, roots: HTMLElement[]) {
 		text: all.flatMap((c) => c.text),
 		covers: all.some((c) => c.covers),
 		filled: all.some((c) => c.filled)
-	};
-}
-
-/**
- * Where an image draws its picture inside its box `box` (page pixels): the whole box for `fill`
- * and `cover`, the scaled picture placed by `object-position` for `contain`, `scale-down` and
- * `none`.
- */
-function pictureBox(
-	img: Pick<HTMLImageElement, 'naturalWidth' | 'naturalHeight' | 'offsetWidth'>,
-	box: Rect,
-	style: CSSStyleDeclaration
-): Rect {
-	const fit = style.objectFit;
-	if (fit === 'fill' || fit === 'cover' || !img.naturalWidth || !img.naturalHeight) return box;
-	// The box may be scaled by transforms: CSS pixels of the image's own width map onto it.
-	const unit = img.offsetWidth ? box.width / img.offsetWidth : 1;
-	const contain = Math.min(box.width / img.naturalWidth, box.height / img.naturalHeight);
-	const scale = fit === 'none' ? unit : fit === 'scale-down' ? Math.min(unit, contain) : contain;
-	const width = img.naturalWidth * scale;
-	const height = img.naturalHeight * scale;
-	// The computed `object-position` is two lengths or percentages ("50% 50%", "0px 20%").
-	const [ox = '50%', oy = '50%'] = style.objectPosition.split(/\s+/);
-	const offset = (v: string, room: number) =>
-		v.endsWith('%') ? (parseFloat(v) / 100) * room : (parseFloat(v) || 0) * unit;
-	return {
-		x: box.x + offset(ox, box.width - width),
-		y: box.y + offset(oy, box.height - height),
-		width,
-		height
 	};
 }
 

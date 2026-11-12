@@ -7,6 +7,9 @@ import {
 	nested3dClip,
 	nested3dMessage,
 	alphaReader,
+	axisAligned,
+	coversFrame,
+	pictureBox,
 	offCut,
 	opaquePixels,
 	planeCover,
@@ -417,5 +420,80 @@ describe('review round 2: alphaReader', () => {
 
 	it('counts every picture as see-through without a canvas', () => {
 		expect(alphaReader(() => null)({})).toBe(false);
+	});
+});
+
+describe('automated review (CodeRabbit)', () => {
+	it('keeps a span whose snapped edges round to the same frame', () => {
+		const notes: string[] = [];
+		const span = { start: 1.01, end: 1.04 };
+		expect(snapSpan({ from: 'cut' }, span, [0, 31, 90], 30, (_, m) => notes.push(m))).toEqual(span);
+		expect(notes).toEqual([
+			expect.stringMatching(/^"snap": "cut" would put both edges on the cut/)
+		]);
+	});
+
+	it('does not say the footage shows where another full-screen clip hides it', () => {
+		// "a" ends 3 frames before the cut at 2000, but "b" covers 1900–2100.
+		const program: FlashProgram = {
+			...RING,
+			clips: [
+				{ id: 'a', block: 'A.svelte', startFrame: 1950, frames: 47 },
+				{ id: 'b', block: 'B.svelte', startFrame: 1900, frames: 200 }
+			]
+		};
+		const covers = (f: number) => ({
+			...(f >= 1950 && f < 1997 ? { a: 1 } : {}),
+			...(f >= 1900 && f < 2100 ? { b: 1 } : {})
+		});
+		expect(flashFrames(program, sample(range(1800, 2200), covers))).toEqual([]);
+	});
+
+	it('knows which transforms keep a box axis-aligned', () => {
+		expect(axisAligned('none')).toBe(true);
+		expect(axisAligned('matrix(1.2, 0, 0, 1.2, 10, 20)')).toBe(true);
+		expect(axisAligned('matrix(0.707107, 0.707107, -0.707107, 0.707107, 0, 0)')).toBe(false);
+		expect(axisAligned('matrix(1, 0, 0.3, 1, 0, 0)')).toBe(false);
+		expect(axisAligned('matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 5, 0, 1)')).toBe(true);
+		expect(axisAligned('matrix3d(0.9, 0, 0.4, 0, 0, 1, 0, 0, -0.4, 0, 0.9, 0, 0, 0, 0, 1)')).toBe(
+			false
+		);
+		expect(axisAligned('matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.002, 0, 0, 0, 1)')).toBe(
+			false
+		);
+	});
+
+	it('covers the stage only with an axis-aligned box that its clipping ancestors leave whole', () => {
+		const stage = { x: 0, y: 0, width: 100, height: 100 };
+		const box = { x: -10, y: -10, width: 120, height: 120 };
+		expect(coversFrame(box, null, stage, false)).toBe(true);
+		expect(coversFrame(box, null, stage, true)).toBe(false);
+		expect(coversFrame(box, { x: 0, y: 0, width: 100, height: 40 }, stage, false)).toBe(false);
+		expect(coversFrame(box, { x: 0, y: 0, width: 0, height: 0 }, stage, false)).toBe(false);
+		expect(coversFrame({ x: 0.5, y: 0, width: 100, height: 100 }, null, stage, false)).toBe(true);
+		expect(coversFrame({ x: 5, y: 0, width: 95, height: 100 }, null, stage, false)).toBe(false);
+	});
+
+	it('places the drawn picture of an image or video by object-fit and object-position', () => {
+		const box = { x: 0, y: 0, width: 360, height: 640 };
+		const wide = { naturalWidth: 640, naturalHeight: 360, offsetWidth: 360 };
+		const style = (objectFit: string, objectPosition = '50% 50%') => ({
+			objectFit,
+			objectPosition
+		});
+		expect(pictureBox(wide, box, style('cover'))).toEqual(box);
+		expect(pictureBox(wide, box, style('fill'))).toEqual(box);
+		const contain = pictureBox(wide, box, style('contain'));
+		expect(contain.width).toBeCloseTo(360);
+		expect(contain.height).toBeCloseTo(202.5);
+		expect(contain.y).toBeCloseTo((640 - 202.5) / 2);
+		expect(pictureBox(wide, box, style('contain', '0% 0%')).y).toBe(0);
+		expect(pictureBox(wide, box, style('none', '0px 10px'))).toEqual({
+			x: 0,
+			y: 10,
+			width: 640,
+			height: 360
+		});
+		expect(pictureBox({ ...wide, naturalWidth: 0 }, box, style('contain'))).toEqual(box);
 	});
 });

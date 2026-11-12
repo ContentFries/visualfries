@@ -83,6 +83,14 @@ const VIDEO = `<script>
 <video bind:this={video} src={p.src} muted preload="auto" style="position:absolute;inset:0;width:100%;height:100%;object-fit:{p.fit ?? 'fill'}"></video>
 `;
 
+/** An opaque square turned 45°: its bounding box covers the frame, its corners leave it open. */
+const DIAMOND = `<div style="position:absolute;left:50%;top:50%;width:${SH}px;height:${SH}px;margin:-${SH / 2}px 0 0 -${SH / 2}px;background:#123;transform:rotate(45deg)"></div>
+`;
+
+/** The die of DICE, kept in the page but not drawn (display: none). */
+const HIDDEN_DICE = `<div style="display:none">${DICE}</div>
+`;
+
 const flashes = (messages: string[]) =>
 	messages.filter((m) => /full-screen|between full-screen/.test(m));
 
@@ -97,6 +105,8 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('flash frames in check', () => {
 		await fs.writeFile(path.join(dir, 'Picture.svelte'), PICTURE);
 		await fs.writeFile(path.join(dir, 'Collapse.svelte'), COLLAPSE);
 		await fs.writeFile(path.join(dir, 'Video.svelte'), VIDEO);
+		await fs.writeFile(path.join(dir, 'Diamond.svelte'), DIAMOND);
+		await fs.writeFile(path.join(dir, 'HiddenDice.svelte'), HIDDEN_DICE);
 		// A photo, and an overlay that is transparent but for a small patch.
 		ffmpeg([
 			'-f',
@@ -289,5 +299,17 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('flash frames in check', () => {
 		expect(found.filter((m) => m.includes('"boxed"'))).toEqual([]);
 		// The same video filling the frame is full-screen: its edge 3 frames before the cut warns.
 		expect(found.filter((m) => m.startsWith('Clip "filled"'))).toHaveLength(1);
+	}, 300_000);
+
+	it('does not count a turned plane as full-screen, nor nested 3D that is not drawn', async () => {
+		const file = await twoCuts('turned.vf.json', [
+			{ id: 'diamond', block: 'Diamond.svelte', from: 2.2, until: 2.8 },
+			{ id: 'hidden', block: 'HiddenDice.svelte', from: 0.5, until: 1.5 }
+		]);
+		const results = await checkProgram(await loadMotionProject(file));
+		expect(results.flatMap((r) => r.errors)).toEqual([]);
+		const messages = results.flatMap((r) => r.warnings.map((w) => w.message));
+		expect(flashes(messages).filter((m) => m.includes('"diamond"'))).toEqual([]);
+		expect(messages.filter((m) => m.includes('nested CSS 3D'))).toEqual([]);
 	}, 300_000);
 });

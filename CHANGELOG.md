@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.11.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.10.0...visualfries-v0.11.0) (2026-11-12)
+
+
+### Features
+
+* **motion:** flash-frame check hints and "snap": "cut" on clip and shot edges ([#136](https://github.com/ContentFries/visualfries/issues/136)) ([51fc78c](https://github.com/ContentFries/visualfries/commit/51fc78c8a26e603f5d54f733060afdd6b8e3469c))
+
+
+### Documentation
+
+* recipes for talking-head explainers and known pitfalls ([#135](https://github.com/ContentFries/visualfries/issues/135)) ([bb2fbb3](https://github.com/ContentFries/visualfries/commit/bb2fbb3900203b8df4aab8f1979ddf491f23f514))
+
 ## [0.10.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.9.0...visualfries-v0.10.0) (2026-11-08)
 
 

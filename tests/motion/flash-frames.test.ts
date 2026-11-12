@@ -8,6 +8,7 @@ import {
 	nested3dMessage,
 	alphaReader,
 	axisAligned,
+	tiltedStyle,
 	coversFrame,
 	pictureBox,
 	offCut,
@@ -495,5 +496,21 @@ describe('automated review (CodeRabbit)', () => {
 			height: 360
 		});
 		expect(pictureBox({ ...wide, naturalWidth: 0 }, box, style('contain'))).toEqual(box);
+	});
+});
+
+describe('review round 3: the rotate property', () => {
+	it('counts a CSS rotate other than none or 0 as tilted, next to the transform', () => {
+		const style = (rotate: string, transform = 'none') => ({ rotate, transform });
+		expect(tiltedStyle(style('none'))).toBe(false);
+		expect(tiltedStyle(style('0deg'))).toBe(false);
+		expect(tiltedStyle(style('45deg'))).toBe(true);
+		expect(tiltedStyle(style('x 30deg'))).toBe(true);
+		expect(tiltedStyle(style('1 1 0 0.2turn'))).toBe(true);
+		expect(
+			tiltedStyle(style('none', 'matrix(0.707107, 0.707107, -0.707107, 0.707107, 0, 0)'))
+		).toBe(true);
+		expect(tiltedStyle(style('none', 'matrix(2, 0, 0, 2, 0, 0)'))).toBe(false);
+		expect(tiltedStyle({ transform: 'none' })).toBe(false);
 	});
 });

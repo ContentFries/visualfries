@@ -87,6 +87,9 @@ const VIDEO = `<script>
 const DIAMOND = `<div style="position:absolute;left:50%;top:50%;width:${SH}px;height:${SH}px;margin:-${SH / 2}px 0 0 -${SH / 2}px;background:#123;transform:rotate(45deg)"></div>
 `;
 
+/** The same square turned by the CSS \`rotate\` property instead of \`transform\`. */
+const DIAMOND_ROTATE = DIAMOND.replace('transform:rotate(45deg)', 'rotate:45deg');
+
 /** The die of DICE, kept in the page but not drawn (display: none). */
 const HIDDEN_DICE = `<div style="display:none">${DICE}</div>
 `;
@@ -106,6 +109,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('flash frames in check', () => {
 		await fs.writeFile(path.join(dir, 'Collapse.svelte'), COLLAPSE);
 		await fs.writeFile(path.join(dir, 'Video.svelte'), VIDEO);
 		await fs.writeFile(path.join(dir, 'Diamond.svelte'), DIAMOND);
+		await fs.writeFile(path.join(dir, 'DiamondRotate.svelte'), DIAMOND_ROTATE);
 		await fs.writeFile(path.join(dir, 'HiddenDice.svelte'), HIDDEN_DICE);
 		// A photo, and an overlay that is transparent but for a small patch.
 		ffmpeg([
@@ -304,12 +308,13 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('flash frames in check', () => {
 	it('does not count a turned plane as full-screen, nor nested 3D that is not drawn', async () => {
 		const file = await twoCuts('turned.vf.json', [
 			{ id: 'diamond', block: 'Diamond.svelte', from: 2.2, until: 2.8 },
+			{ id: 'rotated', block: 'DiamondRotate.svelte', from: 0.5, until: 1.9 },
 			{ id: 'hidden', block: 'HiddenDice.svelte', from: 0.5, until: 1.5 }
 		]);
 		const results = await checkProgram(await loadMotionProject(file));
 		expect(results.flatMap((r) => r.errors)).toEqual([]);
 		const messages = results.flatMap((r) => r.warnings.map((w) => w.message));
-		expect(flashes(messages).filter((m) => m.includes('"diamond"'))).toEqual([]);
+		expect(flashes(messages).filter((m) => /"(diamond|rotated)"/.test(m))).toEqual([]);
 		expect(messages.filter((m) => m.includes('nested CSS 3D'))).toEqual([]);
 	}, 300_000);
 });

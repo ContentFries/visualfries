@@ -1697,7 +1697,7 @@ letterboxed image or video does not count, and a cross-origin picture, which can
 counts as see-through). A clip that hides at least 98 % somewhere is
 full-screen. What cannot be measured reliably counts as see-through, so it is never taken for
 full-screen: a CSS `background-image` picture, a canvas (a Three.js scene), a picture with
-transparent parts (an overlay, a cut-out of the speaker, a frame), an element turned, skewed
+transparent parts (an overlay, a cut-out of the speaker, a frame), an element turned (`transform` or `rotate`), skewed
 or in perspective (itself or an ancestor: its bounding box says nothing about its corners), and
 clips behind the speaker or in a slot. A flash next to such a clip goes unwarned; look at it. Then:
 

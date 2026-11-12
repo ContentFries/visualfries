@@ -30,11 +30,11 @@ import { keyTracks, placementTransform, type Animatable, type KeyTracks } from '
 import { cssAlpha, opaqueGradient } from './color.js';
 import {
 	alphaReader,
-	axisAligned,
 	coverable,
 	coversFrame,
 	pictureBox,
 	planeCover,
+	tiltedStyle,
 	type Nested3d,
 	type Plane
 } from './flash-frames.js';
@@ -2184,7 +2184,7 @@ function textReader(stage: HTMLElement, size: [number, number]) {
 		if (!el || el === stage) return false;
 		let known = tilts.get(el);
 		if (known === undefined) {
-			known = tiltedOf(el.parentElement) || !axisAligned(getComputedStyle(el).transform);
+			known = tiltedOf(el.parentElement) || tiltedStyle(getComputedStyle(el));
 			tilts.set(el, known);
 		}
 		return known;

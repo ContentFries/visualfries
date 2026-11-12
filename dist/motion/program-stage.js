@@ -13,7 +13,7 @@ import { facePoint, frameRect } from './shots/layout.js';
 import { createTransitionPlayer } from './transitions/player.js';
 import { keyTracks, placementTransform } from './keys.js';
 import { cssAlpha, opaqueGradient } from './color.js';
-import { alphaReader, axisAligned, coverable, coversFrame, pictureBox, planeCover } from './flash-frames.js';
+import { alphaReader, coverable, coversFrame, pictureBox, planeCover, tiltedStyle } from './flash-frames.js';
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import { BEHIND_TEXT_SECONDS, BEHIND_TEXT_SHARE, FACE_TEXT_SECONDS, FACE_TEXT_SHARE, TEXT_OPACITY, clearOfSpeaker, faceCovered, facePoints, headOnStage, intersect, textBehindMessage, textOverFaceMessage } from './text-over-face.js';
 import { CUT_SHARE, FIT_SECONDS, SAFE_TEXT_SHARE, addReach, contentReach, cutShare, emptyPart, frameFitMessage, newReach, outsideSafe, reachBox, safeBoxes } from './frame-fit.js';
@@ -1886,7 +1886,7 @@ function textReader(stage, size) {
             return false;
         let known = tilts.get(el);
         if (known === undefined) {
-            known = tiltedOf(el.parentElement) || !axisAligned(getComputedStyle(el).transform);
+            known = tiltedOf(el.parentElement) || tiltedStyle(getComputedStyle(el));
             tilts.set(el, known);
         }
         return known;

@@ -64,6 +64,14 @@ export declare function opaquePixels(data: Uint8ClampedArray): boolean;
  */
 export declare function axisAligned(transform: string): boolean;
 /**
+ * Whether an element's computed style turns its box: a `transform` that is not axis-aligned, or
+ * a `rotate` property with any angle (on any axis). `scale` and `translate` keep it aligned.
+ */
+export declare function tiltedStyle(style: {
+    transform: string;
+    rotate?: string;
+}): boolean;
+/**
  * Whether an element's box (page pixels) covers the whole stage, cut to `clip` (the ancestors
  * that clip their overflow; null: none). A box that is turned or skewed (`tilted`, itself or an
  * ancestor) never counts: its bounding box says nothing about its corners.

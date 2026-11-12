@@ -17,6 +17,46 @@ Programs and motion projects are the current path for new work. The scene-JSON p
 
 The same guides are on the site: https://visualfries.com/docs/programs.md, https://visualfries.com/docs/shots-and-transitions.md and https://visualfries.com/docs/program-sound.md.
 
+## Recipes for talking-head explainers
+
+Before writing a block, check this list: each need below has a built-in.
+
+- Speaker reads (eyes off the lens) while a visual explains: `window` shot (corner window with
+  ring and shadow, morphs to and from the other shots) plus a `"slot": "panel"` clip, or a
+  full-frame clip over the camera. Never a `<Footage program>` in a hand-made rounded box.
+- Speaker talks into the lens: `full`; `punch` on a claim; `strip` with a `panel` clip for a list.
+- Words behind the head: `behind` shot plus a clip with `"layer": "behind", "slot": "word"` (needs a matte).
+- Speaker in part of the frame without the room: `cutout` (`anchor`, `size`).
+- Speaker on screen only while talking to the camera: `away` ranges on a `behind` or `cutout` shot.
+- A full-screen card: `whip` shot plus a `"slot": "card"` clip.
+- Handovers: `transition` on a cut, shot or clip (`push`, `wipe`, `zoom-through`, `shape-mask`,
+  `blinds`, `card`).
+- Entrances, exits, emphasis, counters: `use:motion={{ enter: 'pop', at: 'cue', exit: 'fade' }}`
+  from `visualfries/motion`, never hand-written enter animations.
+- Labels in front of a scene behind the speaker: one `"layer": "behind"` clip with `<Front>`.
+- Body gags: `@visualfries/subject` clip; captions: `@visualfries/captions`; picture after the
+  last word: `"hold"` on the cut; teasers: `excerpts` with an `end` card (`@visualfries/end-card`).
+
+Each is described under "Program tools for common needs" below and in `docs/MOTION.md`
+("Recipes for talking-head explainers", "Programs", "Footage and mattes").
+
+## Known pitfalls
+
+- Bring full-screen clips in and out on a hard cut or with a `transition`, opacity 1 on their
+  first and last frame: a clip fading its own opacity over another shot shows the camera for a few frames.
+- Chain back-to-back full-screen clips on one explicit boundary: give the previous clip's `until` and the next clip's `from` the same `{ "say": "…", "edge": "end" }` (a bare phrase means its end in `until` but its start in `from`).
+- Have a card's content on screen by the last frame of the transition or whip that brings it in;
+  look at a still there.
+- Leave a `behind` shot on a hard cut with `"morph": 0` on the next shot: a morph out of it into a
+  cut leaves dimmed, blurred frames.
+- Show the speaker on camera only while they look into the lens, and start transitions into the
+  camera on an in-lens frame: make a gaze sheet (stills at 1–2 fps) before planning.
+- Put an insert edge that falls within about 0.4 s of a cut exactly on the cut.
+- Keep content on screen as long as the speaker still talks about it.
+- End a slotted clip when the next shot's move is over, so the panel never slides away empty.
+- Take numbers and currency on cards from the transcript; leave out "source:" or "illustration" labels.
+- After the render, look at frames −3 to +2 around every full-screen edge.
+
 ## Reels from raw takes (programs)
 
 Use a **program** (a motion project with `cuts` and `shots`) when the input is a raw recording

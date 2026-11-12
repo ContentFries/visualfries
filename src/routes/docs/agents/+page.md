@@ -24,6 +24,21 @@ npx visualfries render reel.vf.json --output out/
 
 Keep every timing a phrase, never source seconds: then a retake renders again without edits.
 
+Before writing a block, check the [recipes for talking-head explainers](/docs/programs#recipes-for-talking-head-explainers): a corner face-cam is the `window` shot, words behind the head the `behind` shot, entrances `use:motion`.
+
+### Known pitfalls
+
+- Bring full-screen clips in and out on a hard cut or with a `transition`, opacity 1 on their first and last frame: a clip fading its own opacity over another shot shows the camera for a few frames.
+- Chain back-to-back full-screen clips on one explicit boundary: give the previous clip's `until` and the next clip's `from` the same `{ "say": "…", "edge": "end" }` (a bare phrase means its end in `until` but its start in `from`).
+- Have a card's content on screen by the last frame of the transition or whip that brings it in; look at a still there.
+- Leave a `behind` shot on a hard cut with `"morph": 0` on the next shot: a morph out of it into a cut leaves dimmed, blurred frames.
+- Show the speaker on camera only while they look into the lens, and start transitions into the camera on an in-lens frame: make a gaze sheet (stills at 1–2 fps) before planning.
+- Put an insert edge that falls within about 0.4 s of a cut exactly on the cut.
+- Keep content on screen as long as the speaker still talks about it.
+- End a slotted clip when the next shot's move is over, so the panel never slides away empty.
+- Take numbers and currency on cards from the transcript; leave out "source:" or "illustration" labels.
+- After the render, look at frames −3 to +2 around every full-screen edge.
+
 ## Motion projects (.vf.json)
 
 Follow this loop for every change, in this order:

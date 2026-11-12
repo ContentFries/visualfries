@@ -1,3 +1,4 @@
+import type { Rect } from './shots/layout.js';
 /**
  * Flash frames: a few frames of footage between full-screen clips, or between a full-screen clip
  * and a cut, that the edit never meant to show (a card fading its own opacity at its end over the
@@ -57,6 +58,31 @@ export declare function planeCover(plane: Plane): number;
  * footage.
  */
 export declare function opaquePixels(data: Uint8ClampedArray): boolean;
+/**
+ * Whether a computed CSS `transform` keeps boxes axis-aligned (scale and move only): a turned,
+ * skewed or perspective box can have a bounding box over the frame and leave its corners open.
+ */
+export declare function axisAligned(transform: string): boolean;
+/**
+ * Whether an element's box (page pixels) covers the whole stage, cut to `clip` (the ancestors
+ * that clip their overflow; null: none). A box that is turned or skewed (`tilted`, itself or an
+ * ancestor) never counts: its bounding box says nothing about its corners.
+ */
+export declare function coversFrame(box: Rect, clip: Rect | null, stage: Rect, tilted: boolean): boolean;
+/**
+ * Where an image or video draws its picture inside its box `box` (page pixels): the whole box
+ * for `fill` and `cover`, the scaled picture placed by `object-position` for `contain`,
+ * `scale-down` and `none`. `size` is the picture's own size (a video's frame size) and the
+ * element's CSS width.
+ */
+export declare function pictureBox(size: {
+    naturalWidth: number;
+    naturalHeight: number;
+    offsetWidth: number;
+}, box: Rect, style: {
+    objectFit: string;
+    objectPosition: string;
+}): Rect;
 /** Whether a clip can hide the footage: in front of the speaker and not in a shot's slot. */
 export declare function coverable(clip: {
     layer?: string | null;

@@ -1,4 +1,5 @@
 import { opaqueGradient } from './color.js';
+import { intersect } from './text-over-face.js';
 /**
  * Flash frames: a few frames of footage between full-screen clips, or between a full-screen clip
  * and a cut, that the edit never meant to show (a card fading its own opacity at its end over the
@@ -44,6 +45,59 @@ export function opaquePixels(data) {
         if (data[i] < 250)
             return false;
     return true;
+}
+/**
+ * Whether a computed CSS `transform` keeps boxes axis-aligned (scale and move only): a turned,
+ * skewed or perspective box can have a bounding box over the frame and leave its corners open.
+ */
+export function axisAligned(transform) {
+    if (!transform || transform === 'none')
+        return true;
+    const values = /\(([^)]*)\)/.exec(transform)?.[1].split(',').map(Number) ?? [];
+    const off = transform.startsWith('matrix3d') ? [1, 2, 3, 4, 6, 7, 8, 9, 11] : [1, 2];
+    return values.length > 0 && off.every((i) => Math.abs(values[i] ?? 1) < 1e-6);
+}
+/**
+ * Whether an element's box (page pixels) covers the whole stage, cut to `clip` (the ancestors
+ * that clip their overflow; null: none). A box that is turned or skewed (`tilted`, itself or an
+ * ancestor) never counts: its bounding box says nothing about its corners.
+ */
+export function coversFrame(box, clip, stage, tilted) {
+    if (tilted)
+        return false;
+    const shown = clip ? intersect(box, clip) : box;
+    if (!shown)
+        return false;
+    return (shown.x <= stage.x + 1 &&
+        shown.y <= stage.y + 1 &&
+        shown.x + shown.width >= stage.x + stage.width - 1 &&
+        shown.y + shown.height >= stage.y + stage.height - 1);
+}
+/**
+ * Where an image or video draws its picture inside its box `box` (page pixels): the whole box
+ * for `fill` and `cover`, the scaled picture placed by `object-position` for `contain`,
+ * `scale-down` and `none`. `size` is the picture's own size (a video's frame size) and the
+ * element's CSS width.
+ */
+export function pictureBox(size, box, style) {
+    const fit = style.objectFit;
+    if (fit === 'fill' || fit === 'cover' || !size.naturalWidth || !size.naturalHeight)
+        return box;
+    // The box may be scaled by transforms: CSS pixels of the element's own width map onto it.
+    const unit = size.offsetWidth ? box.width / size.offsetWidth : 1;
+    const contain = Math.min(box.width / size.naturalWidth, box.height / size.naturalHeight);
+    const scale = fit === 'none' ? unit : fit === 'scale-down' ? Math.min(unit, contain) : contain;
+    const width = size.naturalWidth * scale;
+    const height = size.naturalHeight * scale;
+    // The computed `object-position` is two lengths or percentages ("50% 50%", "0px 20%").
+    const [ox = '50%', oy = '50%'] = style.objectPosition.split(/\s+/);
+    const offset = (v, room) => v.endsWith('%') ? (parseFloat(v) / 100) * room : (parseFloat(v) || 0) * unit;
+    return {
+        x: box.x + offset(ox, box.width - width),
+        y: box.y + offset(oy, box.height - height),
+        width,
+        height
+    };
 }
 /** Whether a clip can hide the footage: in front of the speaker and not in a shot's slot. */
 export function coverable(clip) {
@@ -159,7 +213,8 @@ export function snapSpan(snap, span, edges, fps, note) {
     const asked = snap === 'cut' ? { from: true, until: true } : { from: !!snap.from, until: !!snap.until };
     const move = (edge, time) => asked[edge] ? snapTime(edge, time, edges, fps, note) : time;
     const snapped = { start: move('from', span.start), end: move('until', span.end) };
-    if (snapped.end > snapped.start)
+    // Frames decide: a span whose edges round to one frame has none left.
+    if (Math.round(snapped.end * fps) > Math.round(snapped.start * fps))
         return snapped;
     note('until', `"snap": "cut" would put both edges on the cut at ${snapped.start.toFixed(2)} s (the span is too short to reach two cuts); the edges stay where they are. Snap one edge, or make the span longer.`);
     return span;
@@ -269,6 +324,16 @@ export function flashFrames(program, samples) {
     }
     return out.sort((a, b) => a.frame - b.frame);
 }
+/**
+ * Whether other clips hide the footage on every sample between a clip's edge and the cut it
+ * missed: then nothing shows there, whichever way the edge is off.
+ */
+function hiddenByOthers(list, id, frame, at) {
+    const [from, to] = frame < at.cut ? [frame, at.cut] : [at.cut, frame];
+    const between = list.filter((s) => s.frame >= from && s.frame < to);
+    const others = (s) => combined({ ...s, clips: { ...s.clips, [id]: 0 } });
+    return between.length > 0 && between.every((s) => others(s) >= FULL_COVER);
+}
 /** Whether an off-cut warning already names the clip and cut that bound a run. */
 function toldAtCut(run, told) {
     const cut = run.left.cut ?? run.right.cut;
@@ -291,7 +356,7 @@ function clipsOffCut(program, seen, edges, told) {
             ['ends', clip.startFrame + clip.frames, clip.startFrame + clip.frames - 1]
         ]) {
             const at = offCut(frame, between(edges), program.fps);
-            if (!at || !hides(clip.id, inside))
+            if (!at || !hides(clip.id, inside) || hiddenByOthers(seen.list, clip.id, frame, at))
                 continue;
             told.add(`${clip.id}\u0000${at.cut}`);
             out.push({ frame, message: offCutMessage(clip, verb, at, program.fps) });

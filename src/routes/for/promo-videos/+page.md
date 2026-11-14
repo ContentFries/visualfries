@@ -19,13 +19,13 @@ Not every video starts with someone talking. An opener for an event, a product f
 
 ## A product promo, 35 seconds
 
-<video src="/media/v4/promo-diary.mp4" poster="/media/v4/promo-diary.jpg" autoplay muted loop playsinline aria-label="A 35-second product promo for a paper planner: b-roll of a woman at a desk, large serif letters over close-ups of handwriting, kinetic lines of text and an end card with the three planners."></video>
+<video src="/media/v4/promo-diary.mp4" poster="/media/v4/promo-diary.jpg" preload="none" muted loop playsinline aria-label="A 35-second product promo for a paper planner: b-roll of a woman at a desk, large serif letters over close-ups of handwriting, kinetic lines of text and an end card with the three planners."></video>
 
 A promo for a yearly paper planner, in Slovak. B-roll, big serif letters that sit inside the picture, lines of type that land on the beat, and an end card with the product. The b-roll is generated from the brand's own materials, and the agent gathered those itself. Sound is off here; the original has a music bed.
 
 ## An event opener
 
-<video src="/media/v4/promo-opener.mp4" poster="/media/v4/promo-opener.jpg" autoplay muted loop playsinline aria-label="An excerpt of an event opener: silhouettes in a dark hall, serif lines of text, the speaker on stage, and a gold end card."></video>
+<video src="/media/v4/promo-opener.mp4" poster="/media/v4/promo-opener.jpg" preload="none" muted loop playsinline aria-label="An excerpt of an event opener: silhouettes in a dark hall, serif lines of text, the speaker on stage, and a gold end card."></video>
 
 An excerpt of the 58-second opener that started a three-day live training. Event footage and photos with slow camera moves, serif type that builds line by line, and a gold end card. The agent found the material itself. The full opener also introduces the guest speakers; this page shows the parts without them.
 

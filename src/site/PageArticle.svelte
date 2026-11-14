@@ -1,7 +1,10 @@
 <!-- mdsvex layout for the use-case and comparison pages: title, SEO, FAQ and the way on. -->
 <script lang="ts">
 	import { page } from '$app/state';
+	import { afterNavigate } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import './docs.css';
+	import { watchVideos } from './lazy-video';
 
 	type Faq = { q: string; a: string };
 	let {
@@ -12,6 +15,19 @@
 		faq = [] as Faq[],
 		children
 	} = $props();
+
+	// Videos in the page body load and play only near the viewport.
+	let article: HTMLElement;
+	let unwatch = () => {};
+	const rewatch = () => {
+		unwatch();
+		unwatch = watchVideos(article);
+	};
+	onMount(() => {
+		rewatch();
+		return () => unwatch();
+	});
+	afterNavigate(() => queueMicrotask(rewatch));
 
 	const SITE = 'https://www.visualfries.com';
 	const CONTENTFRIES =
@@ -88,7 +104,7 @@
 </svelte:head>
 
 <main class="cmp" id="content">
-	<article class="doc">
+	<article class="doc" bind:this={article}>
 		<nav class="crumbs" aria-label="Breadcrumb">
 			<a href="/">VisualFries</a><span>/</span>
 			{#if isHub}<span>{hubName}</span>{:else}<a href={HUB}>{hubName}</a>{/if}

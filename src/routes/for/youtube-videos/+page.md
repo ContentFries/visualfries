@@ -19,7 +19,7 @@ faq:
 
 You talk, or your AI voice does. Your agent edits. VisualFries renders the finished episode: the dead air and the retakes cut, punch-ins on the claims, full-screen cards for the one thing worth showing, graphics that land on the word you say, music under the whole video and a mix at -14 LUFS.
 
-<video src="/media/v4/cf053-demo.mp4" poster="/media/v4/cf053-demo.jpg" autoplay muted loop playsinline aria-label="A passage of a YouTube episode made only of explainer animation: ten questions wrapped into one call, a sorting machine with a running counter, and a wall of tiles a human colours one by one before the model fills it in a wave. Captions translate the voice."></video>
+<video src="/media/v4/cf053-demo.mp4" poster="/media/v4/cf053-demo.jpg" preload="none" muted loop playsinline aria-label="A passage of a YouTube episode made only of explainer animation: ten questions wrapped into one call, a sorting machine with a running counter, and a wall of tiles a human colours one by one before the model fills it in a wave. Captions translate the voice."></video>
 
 28 seconds of a CodingFry episode, edited by an agent. The episode is in Slovak; for this page the same program was rendered again with English text on screen, and the captions translate the voice.
 

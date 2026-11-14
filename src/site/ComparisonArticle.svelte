@@ -14,6 +14,12 @@
 	} = $props();
 
 	const SITE = 'https://www.visualfries.com';
+	// YAML reads a bare date as a Date; show and publish it as YYYY-MM-DD.
+	const checked = $derived(
+		(updated as unknown) instanceof Date
+			? (updated as unknown as Date).toISOString().slice(0, 10)
+			: String(updated)
+	);
 	const HUB = '/alternatives';
 	const path = $derived(page.url.pathname.replace(/\/$/, '') || '/');
 	const url = $derived(`${SITE}${path}`);
@@ -27,8 +33,8 @@
 				headline: heading || title,
 				description,
 				url,
-				datePublished: updated || undefined,
-				dateModified: updated || undefined,
+				datePublished: checked || undefined,
+				dateModified: checked || undefined,
 				author: {
 					'@type': 'Organization',
 					name: 'ContentFries',
@@ -112,7 +118,7 @@
 		</div>
 
 		<div class="meta">
-			{#if updated}<span>Checked {updated}</span>{/if}
+			{#if checked}<span>Checked {checked}</span>{/if}
 			<a href="https://github.com/ContentFries/visualfries/issues"
 				>Something wrong or out of date? Tell us</a
 			>

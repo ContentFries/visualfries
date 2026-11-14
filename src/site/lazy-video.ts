@@ -19,20 +19,49 @@ export function videoAction({ near, reduce, paused, held }: VideoState): 'play' 
 }
 
 /**
- * Start a video and say whether it started. A browser may refuse (autoplay blocked, data
- * saver): the video then gets the native controls, so the poster never stays a dead picture.
+ * Start a video and say how it went. When the browser refuses autoplay (blocked, data saver)
+ * the video gets the native controls, so the poster never stays a dead picture. A start that our
+ * own pause interrupted (the video scrolled away while loading) is "aborted" and changes nothing.
  */
 export function startVideo(video: {
 	play: () => Promise<unknown>;
 	controls: boolean;
-}): Promise<boolean> {
+}): Promise<'started' | 'refused' | 'aborted'> {
 	return video.play().then(
-		() => true,
-		() => {
+		() => 'started' as const,
+		(err: unknown) => {
+			if ((err as { name?: string } | null)?.name !== 'NotAllowedError') return 'aborted' as const;
 			video.controls = true;
-			return false;
+			return 'refused' as const;
 		}
 	);
+}
+
+type Pausable = { paused: boolean; pause: () => void };
+
+/**
+ * Tells the visitor's pauses from ours. `leave` pauses a video that left the viewport; feed it the
+ * media `pause` and `play` events and `held` says whether the visitor paused the video, which
+ * then stays paused until they start it again.
+ */
+export function pauseTracker<V extends Pausable & object>() {
+	const heldByVisitor = new WeakSet<V>();
+	const pausedByUs = new WeakSet<V>();
+	return {
+		leave(v: V) {
+			if (v.paused) return;
+			pausedByUs.add(v);
+			v.pause();
+		},
+		paused(v: V) {
+			if (pausedByUs.has(v)) pausedByUs.delete(v);
+			else heldByVisitor.add(v);
+		},
+		played(v: V) {
+			heldByVisitor.delete(v);
+		},
+		held: (v: V) => heldByVisitor.has(v)
+	};
 }
 
 /** When the visitor turns reduced motion on, stop what plays and hand over the controls. */
@@ -54,15 +83,9 @@ export function watchVideos(root: ParentNode, margin = '200px'): () => void {
 	if (!('IntersectionObserver' in window)) return () => {};
 
 	const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-	const held = new WeakSet<HTMLVideoElement>();
-	const left = new WeakSet<HTMLVideoElement>();
-	// A pause that did not come from leaving the viewport is the visitor's.
-	const onPause = (e: Event) => {
-		const v = e.target as HTMLVideoElement;
-		if (left.has(v)) left.delete(v);
-		else held.add(v);
-	};
-	const onPlay = (e: Event) => held.delete(e.target as HTMLVideoElement);
+	const track = pauseTracker<HTMLVideoElement>();
+	const onPause = (e: Event) => track.paused(e.target as HTMLVideoElement);
+	const onPlay = (e: Event) => track.played(e.target as HTMLVideoElement);
 	const onMotion = () => settleForReducedMotion(videos, motion.matches);
 
 	const io = new IntersectionObserver(
@@ -73,13 +96,10 @@ export function watchVideos(root: ParentNode, margin = '200px'): () => void {
 					near: e.isIntersecting,
 					reduce: motion.matches,
 					paused: v.paused,
-					held: held.has(v)
+					held: track.held(v)
 				});
 				if (action === 'play') void startVideo(v);
-				else if (action === 'pause') {
-					left.add(v);
-					v.pause();
-				}
+				else if (action === 'pause') track.leave(v);
 			}),
 		{ rootMargin: margin }
 	);

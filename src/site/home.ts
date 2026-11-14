@@ -3,7 +3,7 @@
  * the brief tabs, and the exploded layer stack (scroll-driven, pointer-tilted).
  * Framework-free; returns a cleanup function.
  */
-import { startVideo } from './lazy-video';
+import { pauseTracker, startVideo } from './lazy-video';
 
 const AGENT_PROMPT = `Install VisualFries: npm install visualfries svelte playwright && npx playwright install chromium && npx visualfries doctor.
 Before writing anything, read https://www.visualfries.com/docs/programs.md, https://www.visualfries.com/docs/shots-and-transitions.md and https://www.visualfries.com/docs/program-sound.md (the same guide ships in the package as node_modules/visualfries/docs/MOTION.md, "Programs", and the agent skill as node_modules/visualfries/skills/visualfries/SKILL.md). Start from the worked example static/demo/reel in https://github.com/ContentFries/visualfries.
@@ -77,20 +77,13 @@ export function initHome(root: HTMLElement): () => void {
 
 	// ---- videos: play only when visible, each with a pause button; never autoplay with reduced motion ----
 	const vids = $$<HTMLVideoElement>('video');
-	const paused = new Set<HTMLVideoElement>();
+	const track = pauseTracker<HTMLVideoElement>();
 	const PAUSE =
 		'<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg>';
 	const PLAY = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>';
 	const syncs = new Map<HTMLVideoElement, () => void>();
 	// A browser may refuse to start a video: it then gets the native controls and its button says Play.
-	const play = (v: HTMLVideoElement) => {
-		if (reduce || paused.has(v)) return;
-		void startVideo(v).then((started) => {
-			if (started) return;
-			paused.add(v);
-			syncs.get(v)?.();
-		});
-	};
+	const play = (v: HTMLVideoElement) => void startVideo(v).then(() => syncs.get(v)?.());
 	vids.forEach((v) => {
 		if (reduce) {
 			v.controls = true;
@@ -99,22 +92,24 @@ export function initHome(root: HTMLElement): () => void {
 		const b = document.createElement('button');
 		b.type = 'button';
 		b.className = 'vpause';
+		// The button shows what the video does, whoever started or stopped it.
 		const sync = () => {
-			const off = paused.has(v);
-			b.innerHTML = off ? PLAY : PAUSE;
-			b.setAttribute('aria-label', off ? 'Play video' : 'Pause video');
+			b.innerHTML = v.paused ? PLAY : PAUSE;
+			b.setAttribute('aria-label', v.paused ? 'Play video' : 'Pause video');
 		};
 		sync();
 		syncs.set(v, sync);
-		on(b, 'click', () => {
-			if (paused.has(v)) {
-				paused.delete(v);
-				play(v);
-			} else {
-				paused.add(v);
-				v.pause();
-			}
+		on(v, 'play', () => {
+			track.played(v);
 			sync();
+		});
+		on(v, 'pause', () => {
+			track.paused(v);
+			sync();
+		});
+		on(b, 'click', () => {
+			if (v.paused) play(v);
+			else v.pause();
 		});
 		v.after(b);
 		cleanups.push(() => b.remove());
@@ -124,8 +119,8 @@ export function initHome(root: HTMLElement): () => void {
 			(es) =>
 				es.forEach((e) => {
 					const v = e.target as HTMLVideoElement;
-					if (e.isIntersecting) play(v);
-					else v.pause();
+					if (!e.isIntersecting) track.leave(v);
+					else if (!track.held(v)) play(v);
 				}),
 			{ threshold: 0.25 }
 		);

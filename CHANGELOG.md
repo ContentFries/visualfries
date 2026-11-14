@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.12.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.11.1...visualfries-v0.12.0) (2026-11-14)
+
+
+### Features
+
+* **site:** position VisualFries for social video, comparison and use-case pages, real showcases ([#138](https://github.com/ContentFries/visualfries/issues/138)) ([f18aac0](https://github.com/ContentFries/visualfries/commit/f18aac050fa162cef51f160139ae318339db50a8))
+
 ## [0.11.1](https://github.com/ContentFries/visualfries/compare/visualfries-v0.11.0...visualfries-v0.11.1) (2026-11-14)
 
 

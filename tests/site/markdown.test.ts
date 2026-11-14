@@ -72,6 +72,22 @@ describe('use-case and comparison pages', () => {
 		]);
 	});
 
+	it('keeps frontmatter values free of a colon followed by a space', () => {
+		// Unquoted YAML reads "a: b: c" as a nested map; the page then renders without its layout.
+		const pages = import.meta.glob(
+			['/src/routes/for/**/+page.md', '/src/routes/alternatives/**/+page.md'],
+			{ query: '?raw', import: 'default', eager: true }
+		) as Record<string, string>;
+		for (const [file, raw] of Object.entries(pages)) {
+			const head = /^---\n([\s\S]*?)\n---/.exec(raw)?.[1] ?? '';
+			for (const line of head.split('\n')) {
+				const value = /^\s*(?:- )?\w+:\s(.*)$/.exec(line)?.[1] ?? '';
+				if (/^['"]/.test(value)) continue;
+				expect(value, `${file}: ${line.slice(0, 60)}`).not.toMatch(/:\s/);
+			}
+		}
+	});
+
 	it('lists the real pages in llms.txt and the sitemap entries', () => {
 		const real = [...articlePages('for'), ...articlePages('alternatives')];
 		expect(articlePages('for').length).toBeGreaterThanOrEqual(3);

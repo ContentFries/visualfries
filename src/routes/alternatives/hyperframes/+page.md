@@ -6,7 +6,7 @@ description: Looking for a HyperFrames alternative? With VisualFries your AI age
 updated: 2026-11-14
 faq:
   - q: Is VisualFries a drop-in replacement for HyperFrames?
-    a: No. HyperFrames renders HTML compositions of any kind. VisualFries edits anything spoken (a camera recording, an AI voiceover, an avatar video) into social content: YouTube videos, shorts, reels, and stills such as covers, carousel slides and quotes, described as one JSON program with Svelte blocks. If the piece is motion design with no voice driving it, HyperFrames is the better tool.
+    a: No. HyperFrames renders HTML compositions of any kind. VisualFries edits anything spoken (a camera recording, an AI voiceover, an avatar video) into YouTube videos, shorts, reels, and stills such as covers, carousel slides and quotes, described as one JSON program with Svelte blocks. If the piece is motion design with no voice driving it, HyperFrames is the better tool.
   - q: Is VisualFries free?
     a: Yes. VisualFries is MIT licensed, renders on your own machine or server, and has no account, no seats and no hosted service to pay for. You pay for your coding agent and, if you use one, your speech-to-text provider.
   - q: Which is better for videos made by an AI agent?

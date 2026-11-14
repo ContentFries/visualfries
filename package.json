@@ -1,6 +1,28 @@
 {
 	"name": "visualfries",
 	"version": "0.11.0",
+	"description": "The engine for talking-head video. One raw recording and a JSON program in, a finished reel out: cuts, shots, motion graphics, captions and sound anchored to the words of the transcript, rendered in headless Chromium. Built for AI agents.",
+	"keywords": [
+		"video",
+		"video-editing",
+		"talking-head",
+		"transcript",
+		"captions",
+		"subtitles",
+		"reels",
+		"shorts",
+		"motion-graphics",
+		"programmatic-video",
+		"video-rendering",
+		"ai-agents",
+		"agent-skills",
+		"svelte",
+		"gsap",
+		"ffmpeg",
+		"playwright",
+		"cli"
+	],
+	"homepage": "https://www.visualfries.com",
 	"license": "MIT",
 	"author": "ContentFries",
 	"repository": {

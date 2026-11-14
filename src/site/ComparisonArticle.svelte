@@ -14,12 +14,8 @@
 	} = $props();
 
 	const SITE = 'https://www.visualfries.com';
-	// YAML reads a bare date as a Date; show and publish it as YYYY-MM-DD.
-	const checked = $derived(
-		(updated as unknown) instanceof Date
-			? (updated as unknown as Date).toISOString().slice(0, 10)
-			: String(updated)
-	);
+	// mdsvex hands a bare YAML date over as an ISO timestamp; show and publish the day.
+	const checked = $derived(String(updated ?? '').slice(0, 10));
 	const HUB = '/alternatives';
 	const path = $derived(page.url.pathname.replace(/\/$/, '') || '/');
 	const url = $derived(`${SITE}${path}`);

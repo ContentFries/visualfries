@@ -1,6 +1,6 @@
 {
 	"name": "visualfries",
-	"version": "0.11.0",
+	"version": "0.11.1",
 	"description": "The open-source engine your AI agent edits with. Anything spoken in (a recording, an AI voiceover, an avatar video); YouTube videos, shorts, reels, covers and carousel slides out: cuts, shots, motion graphics, captions and sound anchored to the words of the transcript, rendered in headless Chromium.",
 	"keywords": [
 		"video",

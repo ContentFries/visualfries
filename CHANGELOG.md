@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.11.1](https://github.com/ContentFries/visualfries/compare/visualfries-v0.11.0...visualfries-v0.11.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **motion:** content="drawable" canvas opt-in for current Chromium ([#139](https://github.com/ContentFries/visualfries/issues/139)) ([bccbdb4](https://github.com/ContentFries/visualfries/commit/bccbdb4230245f9107a0aca096e9c5923194df1b))
+
 ## [0.11.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.10.0...visualfries-v0.11.0) (2026-11-12)
 
 

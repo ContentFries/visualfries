@@ -19,6 +19,7 @@ import {
 	segmentStage,
 	type StageClip
 } from '../../src/lib/motion/segments.js';
+import { rgba } from './png.js';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -105,9 +106,6 @@ function ffmpeg(args: string[], input?: Buffer): Buffer {
 }
 
 /** RGBA pixels of a PNG. */
-function rgba(png: Buffer): Buffer {
-	return ffmpeg(['-i', 'pipe:0', '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'], png);
-}
 const at = (raw: Buffer, x: number, y: number) => [
 	...raw.subarray((y * W + x) * 4, (y * W + x) * 4 + 3)
 ];

@@ -15,6 +15,7 @@ import {
 	renderStills
 } from '../../src/lib/motion/node.js';
 import { renderProgramStills } from '../../src/lib/motion/program-node.js';
+import { rgba } from './png.js';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -30,13 +31,9 @@ const BLOCK = `<script>
 <img src={clip.props.pic.src} alt="" style="position:absolute;inset:0;width:100%;height:100%" />
 `;
 
-/** RGBA of one pixel of a PNG, decoded by ffmpeg. */
+/** RGBA of one pixel of a PNG. */
 function pixel(png: Buffer, x: number, y: number, width: number): number[] {
-	const raw = spawnSync(
-		'ffmpeg',
-		['-v', 'error', '-i', 'pipe:0', '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'],
-		{ input: png }
-	).stdout;
+	const raw = rgba(png);
 	const i = (y * width + x) * 4;
 	return [...raw.subarray(i, i + 4)];
 }

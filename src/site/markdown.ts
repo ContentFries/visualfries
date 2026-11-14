@@ -121,7 +121,7 @@ export function llmsTxt(): string {
 	const lines = [
 		'# VisualFries',
 		'',
-		'> Open-source (MIT) Svelte 5 engine for visual social-media content. A JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces. Scene documents mount live in an editor; motion projects time animations by the words of a transcript and render frame by frame in headless Chromium.',
+		'> The open-source (MIT) engine for talking-head video: one raw recording and a JSON program in, a finished reel out. A program holds the cut list, the shots that frame the speaker, clips (Svelte components), transitions, captions and sound, all anchored to the words of a transcript, and renders frame by frame in headless Chromium. Motion projects time inserts the same way; scene documents mount live in an editor. Built for AI agents to drive.',
 		'',
 		'Every page below is available as Markdown by appending `.md` to its URL. The whole documentation in one file: ' +
 			`${SITE}/llms-full.txt`,

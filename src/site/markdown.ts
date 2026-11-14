@@ -16,6 +16,13 @@ const exampleScenes = import.meta.glob('/src/lib/examples/0*.json', {
 	eager: true
 }) as Record<string, string>;
 
+// Comparison pages (src/routes/alternatives) describe themselves in their frontmatter.
+const comparisonSources = import.meta.glob('/src/routes/alternatives/**/+page.md', {
+	query: '?raw',
+	import: 'default',
+	eager: true
+}) as Record<string, string>;
+
 const fence = '```';
 
 // Pages written in Svelte (live demos) describe themselves here.
@@ -82,6 +89,34 @@ export function pageDescription(page: DocPage): string {
 		: (svelteOnly[page.slug]?.description ?? '');
 }
 
+export type ComparisonPage = { path: string; title: string; description: string; updated: string };
+
+/** Every comparison page with what its frontmatter says, ordered by path. */
+export function comparisonPages(
+	sources: Record<string, string> = comparisonSources
+): ComparisonPage[] {
+	return Object.entries(sources)
+		.map(([file, raw]) => {
+			const { data } = frontmatter(raw);
+			return {
+				path: file.replace(/^\/src\/routes/, '').replace(/\/\+page\.md$/, ''),
+				title: data.title ?? '',
+				description: data.description ?? '',
+				updated: data.updated ?? ''
+			};
+		})
+		.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** Every indexable URL of the site: the homepage, the docs and the comparison pages. */
+export function sitemapEntries(): { loc: string; lastmod?: string }[] {
+	return [
+		{ loc: `${SITE}/` },
+		...pages.map((p) => ({ loc: `${SITE}${pageUrl(p.slug)}` })),
+		...comparisonPages().map((p) => ({ loc: `${SITE}${p.path}`, lastmod: p.updated || undefined }))
+	];
+}
+
 export function llmsTxt(): string {
 	const lines = [
 		'# VisualFries',
@@ -103,6 +138,12 @@ export function llmsTxt(): string {
 			`- [${p.title}](${SITE}${pageUrl(p.slug)}.md): ${pageDescription(p)}${p.planned ? ' (planned)' : ''}`
 		);
 		if (pages[pages.indexOf(p) + 1]?.section !== p.section) lines.push('');
+	}
+	const comparisons = comparisonPages();
+	if (comparisons.length) {
+		lines.push('## Comparisons', '');
+		for (const p of comparisons) lines.push(`- [${p.title}](${SITE}${p.path}): ${p.description}`);
+		lines.push('');
 	}
 	lines.push(
 		'## Optional',

@@ -1,12 +1,12 @@
 ---
 layout: page
-title: 'HyperFrames alternative for videos with a voice: VisualFries'
-heading: The HyperFrames alternative for everything with a voice in it
-description: Looking for a HyperFrames alternative? With VisualFries your AI agent edits anything spoken, a recording or an AI voiceover, into finished videos. Fair, sourced.
+title: 'HyperFrames alternative for edited videos and motion promos: VisualFries'
+heading: The HyperFrames alternative for edited videos and motion promos
+description: Looking for a HyperFrames alternative? With VisualFries your AI agent edits anything spoken into finished videos and builds motion promos. Fair, sourced.
 updated: 2026-11-14
 faq:
   - q: Is VisualFries a drop-in replacement for HyperFrames?
-    a: No. HyperFrames renders HTML compositions of any kind. VisualFries edits anything spoken (a camera recording, an AI voiceover, an avatar video) into YouTube videos, shorts, reels, and stills such as covers, carousel slides and quotes, described as one JSON program with Svelte blocks. If the piece is motion design with no voice driving it, HyperFrames is the better tool.
+    a: No. HyperFrames renders HTML compositions of any kind. HyperFrames renders HTML compositions; VisualFries renders a JSON program with Svelte blocks. VisualFries is built for social content, both videos edited from anything spoken and motion promos cut to music, so a project moves over by rebuilding it, not by converting it.
   - q: Is VisualFries free?
     a: Yes. VisualFries is MIT licensed, renders on your own machine or server, and has no account, no seats and no hosted service to pay for. You pay for your coding agent and, if you use one, your speech-to-text provider.
   - q: Which is better for videos made by an AI agent?
@@ -17,12 +17,12 @@ faq:
     a: Node 20 or newer, ffmpeg, a Chromium browser through Playwright, and a word-level transcript of the recording. No GPU.
 ---
 
-HyperFrames turns HTML into video, and it does that well. VisualFries starts from the other end: something spoken. A camera recording, an AI voiceover or an avatar video goes in with one program, and your agent turns it into the finished YouTube video, short or reel, cut and animated by the words that are said, with the cover and the carousel slides from the same project.
+HyperFrames turns HTML into video, and it does that well. VisualFries is built for social content, and it does two jobs. It edits anything spoken (a camera recording, an AI voiceover, an avatar video) into the finished YouTube video, short or reel, timed by the words that are said. And it builds motion promos with no speech at all: openers, product films and kinetic type cut to the beat of the music. Your agent does both in one JSON program, with your photos, footage and brand. See the [promos](/for/promo-videos) and judge for yourself.
 
 ## The short version
 
-- **Pick VisualFries** when a voice drives the content: a YouTube episode, a short, a reel, a podcast clip, an explainer over an AI voiceover, an avatar video that needs graphics and cuts, plus the covers and carousel slides that go with them. The whole edit is one program, timed by the words that are said.
-- **Pick HyperFrames** when the video is motion design with no voice driving it: a product launch film, a chart race, a website turned into a promo.
+- **Pick VisualFries** for social content your agent should ship end to end: a YouTube episode, a short, a reel, a podcast clip, an explainer over an AI voiceover, and motion promos such as an event opener or a product film, plus the covers and carousel slides that go with them.
+- **Pick HyperFrames** when you want plain HTML with no framework, a large catalog of ready-made blocks, a visual editor, or rendering in a hosted cloud.
 - Both are free, open source and made to be driven by a coding agent. They are good at different videos.
 
 ## What HyperFrames is
@@ -53,11 +53,12 @@ HyperFrames works with footage too. Its guide for talking-head clips covers capt
 
 **Sound is part of the edit.** Sound effects land on a spoken word, music snaps to bars and ends on one, and the mix is normalised to -14 LUFS. No second tool.
 
+**Promos without a word.** Music is analysed into bars and beats, and cuts, type and photos anchor to them the same way other clips anchor to words. Brand colours and fonts are tokens, transitions carry their own sound, and the mix lands at -14 LUFS. An event opener and a product promo made this way are on the [promo page](/for/promo-videos).
+
 **Re-renders are cheap.** The program is drawn in 15-second chunks, each encoded once and joined by stream copy. Change one card in a 15-minute talk and only its chunk is drawn again.
 
 ## Where HyperFrames wins
 
-- **Motion design from nothing.** Any HTML page can become a video, and a large catalog gives the agent a head start. VisualFries is strongest when there is speech to edit and animate.
 - **A big catalog.** About 450 blocks and components to install. VisualFries ships a small set of built-in blocks and expects your agent to write the rest in Svelte. [1]
 - **A visual editor.** HyperFrames has a Studio app and a browser editor with a timeline. [2] VisualFries programs are edited by an agent or by hand in JSON; there is no timeline GUI for them.
 - **Hosted rendering.** HeyGen cloud, AWS Lambda and Google Cloud Run are documented paths. [3] VisualFries renders where you run it: your laptop, your server, your CI.
@@ -67,21 +68,21 @@ HyperFrames works with footage too. Its guide for talking-head clips covers capt
 
 ## Side by side
 
-|                          | VisualFries                                                                                                                                                      | HyperFrames                                                 |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Built for                | Social content from anything spoken (a recording, an AI voiceover, an avatar video): videos, shorts and reels, plus covers, carousel slides and quotes as stills | Any video made from HTML                                    |
-| You write                | One JSON program plus Svelte blocks                                                                                                                              | HTML, CSS and JavaScript                                    |
-| Timing                   | Phrases of the transcript; seconds, frames and beats also work                                                                                                   | Seconds in data attributes                                  |
-| Cutting a raw take       | Cut list: takes, retakes, order, handles                                                                                                                         | Pause removal through the agent [4]                         |
-| After a retake           | Pass the new transcript, the edit follows                                                                                                                        | Cut first, then caption again [4]                           |
-| Speaker framing          | Seven built-in shots, face-aware checks                                                                                                                          | Layout and keyframes you write                              |
-| Words behind the speaker | `behind` shot with a matte (fal.ai or local)                                                                                                                     | Background removal, local or cloud [5]                      |
-| Sound                    | Effects on words, music on bars, -14 LUFS mix                                                                                                                    | Audio tracks and effects, music catalog with an account [3] |
-| Formats                  | 9:16, 4:5, 1:1, 16:9 from one program                                                                                                                            | Set per composition                                         |
-| Editor GUI               | None for programs                                                                                                                                                | Studio app and browser editor [2]                           |
-| Rendering                | Local headless Chromium, CPU only                                                                                                                                | Local, Docker, HeyGen cloud, Lambda, Cloud Run [3]          |
-| Licence                  | MIT                                                                                                                                                              | Apache 2.0 [1]                                              |
-| Needs                    | Node 20+, ffmpeg, Chromium, Svelte 5                                                                                                                             | Node 22+, ffmpeg [1]                                        |
+|                          | VisualFries                                                                                                                  | HyperFrames                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Built for                | Social content: videos edited from anything spoken, motion promos cut to music, and stills (covers, carousel slides, quotes) | Any video made from HTML                                    |
+| You write                | One JSON program plus Svelte blocks                                                                                          | HTML, CSS and JavaScript                                    |
+| Timing                   | Phrases of the transcript; seconds, frames and beats also work                                                               | Seconds in data attributes                                  |
+| Cutting a raw take       | Cut list: takes, retakes, order, handles                                                                                     | Pause removal through the agent [4]                         |
+| After a retake           | Pass the new transcript, the edit follows                                                                                    | Cut first, then caption again [4]                           |
+| Speaker framing          | Seven built-in shots, face-aware checks                                                                                      | Layout and keyframes you write                              |
+| Words behind the speaker | `behind` shot with a matte (fal.ai or local)                                                                                 | Background removal, local or cloud [5]                      |
+| Sound                    | Effects on words, music on bars, -14 LUFS mix                                                                                | Audio tracks and effects, music catalog with an account [3] |
+| Formats                  | 9:16, 4:5, 1:1, 16:9 from one program                                                                                        | Set per composition                                         |
+| Editor GUI               | None for programs                                                                                                            | Studio app and browser editor [2]                           |
+| Rendering                | Local headless Chromium, CPU only                                                                                            | Local, Docker, HeyGen cloud, Lambda, Cloud Run [3]          |
+| Licence                  | MIT                                                                                                                          | Apache 2.0 [1]                                              |
+| Needs                    | Node 20+, ffmpeg, Chromium, Svelte 5                                                                                         | Node 22+, ffmpeg [1]                                        |
 
 ## Coming from HyperFrames
 

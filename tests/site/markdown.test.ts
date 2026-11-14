@@ -90,7 +90,7 @@ describe('use-case and comparison pages', () => {
 
 	it('lists the real pages in llms.txt and the sitemap entries', () => {
 		const real = [...articlePages('for'), ...articlePages('alternatives')];
-		expect(articlePages('for').length).toBeGreaterThanOrEqual(3);
+		expect(articlePages('for').length).toBeGreaterThanOrEqual(4);
 		expect(articlePages('alternatives').length).toBeGreaterThanOrEqual(3);
 		for (const p of real) {
 			expect(p.title, p.path).not.toBe('');

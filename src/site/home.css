@@ -275,3 +275,49 @@
 	color: var(--cool);
 	white-space: nowrap;
 }
+
+/* program: one wide player with its timeline; showcase: two promos beside two reels */
+.home .prog.one {
+	grid-template-columns: 1fr;
+}
+.home .show {
+	display: grid;
+	grid-template-columns: minmax(0, 1.58fr) minmax(0, 1fr) minmax(0, 1fr);
+	gap: 14px;
+	align-items: start;
+	margin-bottom: 18px;
+}
+.home .show figure {
+	margin: 0;
+	display: grid;
+	gap: 10px;
+}
+.home .show-wide {
+	display: grid;
+	gap: 14px;
+}
+.home .show figcaption {
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+	align-items: baseline;
+	font-size: 14px;
+	color: var(--ink-2);
+}
+.home .show figcaption small {
+	font: 11px var(--mono);
+	color: var(--muted);
+	letter-spacing: 0.06em;
+}
+.home .show a,
+.home .showcase .tl-cap a {
+	color: var(--cool);
+}
+@media (max-width: 860px) {
+	.home .show {
+		grid-template-columns: 1fr 1fr;
+	}
+	.home .show-wide {
+		grid-column: 1 / -1;
+	}
+}

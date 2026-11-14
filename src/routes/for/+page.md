@@ -20,15 +20,16 @@ Your AI agent is your editor now, and VisualFries is the open-source engine it e
 - **A camera recording.** Raw takes or a rough cut, with the pauses, the fluffed sentences and the retakes.
 - **An AI voiceover.** A fully animated video with no camera at all: the voice is the timeline and every graphic lands on its word.
 - **An avatar video.** An existing AI presenter clip that needs cuts, explainers, animation and captions to hold attention.
+- **Nothing spoken at all.** A brief, a track and some pictures become a promo cut to the beat.
 
-All three need the same thing: a word-level transcript of what is said.
+The spoken ones need a word-level transcript of what is said.
 
 ## Video, edited and animated by your agent
 
 - **[YouTube videos](/for/youtube-videos).** A long recording becomes the finished episode: cuts, punch-ins, full-screen cards, graphics on the words, music and the final mix. One changed card redraws 15 seconds, not the whole video.
 - **[Shorts and reels](/for/shorts-and-reels).** A raw take or a passage of a long video becomes a vertical clip with captions, shots, sound effects and an end card, safe on TikTok, Instagram and YouTube.
 - **Podcast and interview clips.** The same cut list works on any recording with a transcript. Cutting between several camera files is yours to line up: there is no automatic multi-camera sync or speaker detection yet.
-- **Promos, openers and guest intro videos.** Photos, event footage, music cut to the beat and kinetic type, in one program.
+- **[Promo videos](/for/promo-videos).** Product promos, event openers and guest intro videos with no voice at all: photos, footage, kinetic type and music cut to the beat, in one program.
 - **Explainers and inserts.** Motion graphics timed to a voiceover, as a finished video or as transparent ProRes 4444 inserts for your editing software.
 
 ## Stills, from the same project

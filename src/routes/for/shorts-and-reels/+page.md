@@ -19,6 +19,15 @@ faq:
 
 One raw take, one good passage of a long video, or an AI voiceover becomes a vertical clip that holds attention: the pauses gone, a punch-in on the claim, the big word behind your head, captions on every word, a sound on the hit and an end card that sends people to the full video.
 
+## Two that are live
+
+<div class="duo">
+<figure><video src="/media/v4/reel-andy-3.mp4" poster="/media/v4/reel-andy-3.jpg" autoplay muted loop playsinline aria-label="The first seconds of a seminar reel: the speaker on stage tells a story, illustrated stills appear, yellow captions follow each line."></video><figcaption><a href="https://www.instagram.com/andywinsonofficial/reel/DfcdR_gkZT2/">Watch the whole reel on Instagram</a></figcaption></figure>
+<figure><video src="/media/v4/reel-andy-6.mp4" poster="/media/v4/reel-andy-6.jpg" autoplay muted loop playsinline aria-label="The first seconds of a seminar reel: a warning triangle blinks behind the speaker, then counters with amounts of money over the footage."></video><figcaption><a href="https://www.instagram.com/andywinsonofficial/reel/DfXbYnygbeK/">Watch the whole reel on Instagram</a></figcaption></figure>
+</div>
+
+The first seconds of two seminar reels of Andy Winson, in Slovak, sound off. The hook and the taste are the editor's. VisualFries gave them what holds attention: story stills, counters that run with the numbers he says, a warning sign behind him, captions held line by line.
+
 ## What is in the edit
 
 - **The cut list.** Takes, retakes and their order, each cut placed on a phrase and measured on the sound, with a warning when it clips a word.

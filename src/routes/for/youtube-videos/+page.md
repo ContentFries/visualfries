@@ -19,6 +19,10 @@ faq:
 
 You talk, or your AI voice does. Your agent edits. VisualFries renders the finished episode: the dead air and the retakes cut, punch-ins on the claims, full-screen cards for the one thing worth showing, graphics that land on the word you say, music under the whole video and a mix at -14 LUFS.
 
+<video src="/media/v4/cf053-en.mp4" poster="/media/v4/cf053-en.jpg" autoplay muted loop playsinline aria-label="A passage of a YouTube episode: a wall of screenshots, the speaker with words beside his head, a punch-in, a web page with a highlighted label, a ring of model names and a terminal. Captions follow the English voice."></video>
+
+24 seconds of a CodingFry episode, English version, edited by an agent. Sound is off here, so captions are added for this page.
+
 ## What you hand over
 
 - Something spoken: raw camera takes, a rough cut you already made, an AI voiceover for a fully animated video, or an avatar video.

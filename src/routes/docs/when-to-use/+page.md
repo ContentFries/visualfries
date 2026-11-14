@@ -9,6 +9,7 @@ VisualFries is the right choice when social content starts from something spoken
 ## It fits when
 
 - A **raw take should become a finished video**: pauses and retakes cut, the speaker framed, captions, transitions, sound and music, in every format. That is a [program](/docs/programs).
+- You want a **motion promo** with no speech: an opener, a product film, kinetic type cut to the beat of the music.
 - **Timing comes from speech**: transcripts, retakes, word-level captions, inserts that land on a spoken word.
 - **An agent writes or repairs the edit**, so JSON plus a CLI that fails loudly beats a timeline GUI.
 - You need **transparent inserts** (ProRes 4444) placed on an NLE timeline through `manifest.json`.
@@ -18,21 +19,21 @@ VisualFries is the right choice when social content starts from something spoken
 ## Something else may fit better when
 
 - Your team works in **React**, the video lives inside a product, or you want a large ecosystem of components and templates. Remotion is the natural choice there.
-- You want **motion design from plain HTML** with no recording at its centre, a visual editor and hosted rendering. HyperFrames targets that.
+- You want **plain HTML compositions** with a large block catalog, a visual editor and hosted rendering. HyperFrames targets that.
 - You need a **finished editing product** rather than an engine. VisualFries is a library; ContentFries is the product built on it.
 
 ## How they differ
 
 All three render a browser page frame by frame. They differ in what the video starts from and what you write.
 
-|                    | VisualFries                                                                                                                                                      | Remotion                            | HyperFrames                     |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------- |
-| Built for          | Social content from anything spoken (a recording, an AI voiceover, an avatar video): videos, shorts and reels, plus covers, carousel slides and quotes as stills | Any video written in React          | Any video made from HTML        |
-| You write          | One JSON program plus Svelte blocks                                                                                                                              | React components                    | HTML, CSS and JavaScript        |
-| Primary timing     | Transcript phrases as anchors, plus seconds, frames, beats                                                                                                       | Frame numbers                       | Seconds in data attributes      |
-| Cutting a raw take | Cut list with takes, retakes and order                                                                                                                           | Sequences and trims you write       | Pause removal through the agent |
-| Editor GUI         | None for programs; scenes mount live in your app                                                                                                                 | Remotion Studio                     | Studio app and browser editor   |
-| Rendering          | Local headless Chromium, CPU only                                                                                                                                | Local, server, AWS Lambda           | Local, Docker, cloud            |
-| Licence            | MIT                                                                                                                                                              | Own licence, paid above 3 employees | Apache 2.0                      |
+|                    | VisualFries                                                                                                                  | Remotion                            | HyperFrames                     |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------- |
+| Built for          | Social content: videos edited from anything spoken, motion promos cut to music, and stills (covers, carousel slides, quotes) | Any video written in React          | Any video made from HTML        |
+| You write          | One JSON program plus Svelte blocks                                                                                          | React components                    | HTML, CSS and JavaScript        |
+| Primary timing     | Transcript phrases as anchors, plus seconds, frames, beats                                                                   | Frame numbers                       | Seconds in data attributes      |
+| Cutting a raw take | Cut list with takes, retakes and order                                                                                       | Sequences and trims you write       | Pause removal through the agent |
+| Editor GUI         | None for programs; scenes mount live in your app                                                                             | Remotion Studio                     | Studio app and browser editor   |
+| Rendering          | Local headless Chromium, CPU only                                                                                            | Local, server, AWS Lambda           | Local, Docker, cloud            |
+| Licence            | MIT                                                                                                                          | Own licence, paid above 3 employees | Apache 2.0                      |
 
 The full comparisons, with sources and dates: [VisualFries vs HyperFrames vs Remotion](/alternatives), [VisualFries as a HyperFrames alternative](/alternatives/hyperframes) and [VisualFries as a Remotion alternative](/alternatives/remotion).

@@ -158,6 +158,24 @@
 	.cmp .crumbs a:hover {
 		color: var(--ink);
 	}
+	.cmp :global(.duo) {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 260px));
+		gap: 16px;
+		margin-top: 18px;
+	}
+	.cmp :global(.duo figure) {
+		margin: 0;
+	}
+	.cmp :global(.duo video) {
+		margin-top: 0;
+		aspect-ratio: 9 / 16;
+		object-fit: cover;
+	}
+	.cmp :global(.duo figcaption) {
+		margin-top: 8px;
+		font-size: 14px;
+	}
 	.next {
 		margin-top: 56px;
 		padding: 28px;

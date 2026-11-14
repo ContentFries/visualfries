@@ -119,7 +119,10 @@ const LABEL = `<script>
 </style>
 `;
 
-/** A CSS filter landing on a nested canvas right before the paint: Chromium's renderer dies. */
+/**
+ * A CSS filter landing on a nested canvas right before the paint: Chromium's renderer dies (156
+ * and older). Chromium 158 draws it, and the stage's check names the filter on the next frame.
+ */
 const CRASH = `<script>
 	import { useFrame } from 'visualfries/motion';
 	let wrap = $state();
@@ -519,7 +522,9 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('program video render', () => {
 			output: path.join(crashDir, 'out.mp4'),
 			jobs: 2
 		});
-		await expect(render).rejects.toThrow(/Segment "seg1": the browser page crashed during frame/);
+		await expect(render).rejects.toThrow(
+			/Segment "seg1": the browser page crashed during frame|Segment "seg1", frame \d+: <div> has a CSS filter and holds a drawable <canvas>/
+		);
 		expect(Date.now() - t0).toBeLessThan(30_000);
 		const left = await fs.readdir(path.join(crashDir, '.visualfries', 'segments'));
 		expect(left.filter((f) => f.includes('.partial-'))).toEqual([]);

@@ -18,7 +18,7 @@ VisualFries renders by drawing each frame in a real browser engine. The same cod
 
 | Mode             | When                                                    | How                                                                                                    |
 | ---------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `html-in-canvas` | Chromium with the `CanvasDrawElement` feature (default) | The block lives inside `<canvas layoutsubtree>` and is drawn with `drawElementImage` into a 2D canvas. |
+| `html-in-canvas` | Chromium with the `CanvasDrawElement` feature (default) | The block lives inside a drawable canvas (`layoutsubtree` and `content="drawable"`, so old and current Chromium both draw it) and is drawn with `drawElementImage` into a 2D canvas. |
 | `dom`            | Browsers without the feature                            | The block is a normal DOM element; frames are page screenshots.                                        |
 
 The mode is chosen automatically and reported by `check` and `render`. A 2D canvas needs no GPU and was about four times faster than software WebGL on a CPU-only server in our tests.

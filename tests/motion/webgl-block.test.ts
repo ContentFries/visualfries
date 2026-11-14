@@ -14,7 +14,7 @@ import {
 	renderStills
 } from '../../src/lib/motion/node.js';
 
-// A block with a nested WebGL `<canvas layoutsubtree>` that samples its own children.
+// A block with a nested WebGL drawable canvas that samples its own children.
 const BLOCK = path.join(
 	path.dirname(fileURLToPath(import.meta.url)),
 	'fixtures/webgl-block/WebGlBlock.svelte'
@@ -153,7 +153,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('a block with its own WebGL canvas',
 	it('names a filter around the canvas instead of crashing the page', async () => {
 		const { loaded } = await project({ props: { wrap: 'filter: blur(1px)' } });
 		await expect(renderStills(loaded, [{ clip: 'webgl', at: 'f0' }])).rejects.toThrow(
-			/<div class="wrap[^>]*> has a CSS filter and holds a <canvas layoutsubtree>/
+			/<div class="wrap[^>]*> has a CSS filter and holds a drawable <canvas>/
 		);
 		const [checked] = await checkMotionProject(loaded);
 		expect(checked.errors.map((e) => e.message).join('\n')).toMatch(/has a CSS filter/);
@@ -171,7 +171,9 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('a block with its own WebGL canvas',
 	}, 60_000);
 
 	it('fails the render at once when the page crashes', async () => {
-		// The filter lands after the stage's check, right before the paint: Chromium crashes.
+		// The filter lands after the stage's check, right before the paint: Chromium up to 156
+		// crashes. Chromium 158 draws it, so the stage's check names the filter on the next frame
+		// instead. Either way the render fails at once.
 		const { dir, loaded } = await project(
 			{ block: 'Crash.svelte' },
 			{
@@ -187,7 +189,9 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('a block with its own WebGL canvas',
 		);
 		const t0 = Date.now();
 		const render = renderMotionClips(loaded, { output: path.join(dir, 'out.mp4'), jobs: 2 });
-		await expect(render).rejects.toThrow(/Clip "webgl": the browser page crashed during frame \d+/);
+		await expect(render).rejects.toThrow(
+			/Clip "webgl": the browser page crashed during frame \d+|Clip "webgl", frame \d+: <div> has a CSS filter and holds a drawable <canvas>/
+		);
 		expect(Date.now() - t0).toBeLessThan(30_000);
 	}, 60_000);
 });

@@ -1,4 +1,5 @@
 import { findBadValues } from './badvalues.js';
+import { DRAWABLE_CANVAS, optInCanvas, optInDrawing } from './drawable.js';
 import { nested3dMessage, type CoverSample } from './flash-frames.js';
 import { flushSync, mount, unmount, type Component } from 'svelte';
 import {
@@ -78,7 +79,7 @@ export function createMotionStage(options: StageOptions) {
 	/** Program mode: the segment on the stage (see `loadSegment`). */
 	let segment: ProgramScene | null = null;
 	let seeks = 0;
-	/** `<canvas layoutsubtree>` elements the block nests in the stage, as of the last seek. */
+	/** Drawable canvases the block nests in the stage, as of the last seek. */
 	let nested: HTMLCanvasElement[] = [];
 
 	async function load(data: ResolvedClip) {
@@ -128,12 +129,14 @@ export function createMotionStage(options: StageOptions) {
 		stage.style.background = background ?? 'transparent';
 		if (mode === 'html-in-canvas') {
 			canvas = document.createElement('canvas') as CanvasWithElements;
-			canvas.setAttribute('layoutsubtree', '');
 			canvas.width = width;
 			canvas.height = height;
 			canvas.style.width = `${width}px`;
 			canvas.style.height = `${height}px`;
 			canvas.appendChild(stage);
+			// Both opt-in attributes and `drawable` on the stage: older Chromium reads
+			// `layoutsubtree`, current Chromium `content="drawable"` (see drawable.ts).
+			optInDrawing(canvas, stage);
 			document.body.appendChild(canvas);
 			ctx = canvas.getContext('2d') as Ctx2DWithElements;
 		} else {
@@ -275,17 +278,18 @@ export function createMotionStage(options: StageOptions) {
 		});
 	}
 
-	/** Refreshes `nested`: the `<canvas layoutsubtree>` elements inside the stage's own canvas. */
+	/**
+	 * Refreshes `nested`: the drawable canvases inside the stage's own canvas. Each gets the opt-in
+	 * attribute it lacks, so a block written for either Chromium draws on both.
+	 */
 	function findNestedCanvases() {
-		nested =
-			canvas && stage
-				? [...stage.querySelectorAll<HTMLCanvasElement>('canvas[layoutsubtree]')]
-				: [];
+		nested = canvas && stage ? [...stage.querySelectorAll<HTMLCanvasElement>(DRAWABLE_CANVAS)] : [];
+		nested.forEach(optInCanvas);
 	}
 
 	/**
-	 * Chromium's renderer crashes when a nested `<canvas layoutsubtree>`, or anything between it
-	 * and the stage's canvas, has a CSS filter or mask. Name the element instead, and unload the
+	 * Chromium's renderer (156 and older) crashes when a nested drawable canvas, or anything
+	 * between it and the stage's canvas, has a CSS filter or mask. Name the element instead, and unload the
 	 * clip first so the browser's next paint does not crash the page anyway.
 	 */
 	function assertNoEffectOverNestedCanvas() {
@@ -298,7 +302,7 @@ export function createMotionStage(options: StageOptions) {
 				const where = describe(el);
 				unload();
 				throw new Error(
-					`${where} has a CSS ${effect} and holds a <canvas layoutsubtree>; Chromium crashes on that. Move the ${effect} inside the canvas, onto its children, or into the canvas drawing.`
+					`${where} has a CSS ${effect} and holds a drawable <canvas>; Chromium 156 and older crash on that. Move the ${effect} inside the canvas, onto its children, or into the canvas drawing.`
 				);
 			}
 		}
@@ -310,7 +314,7 @@ export function createMotionStage(options: StageOptions) {
 		// Force a fresh raster of the whole subtree: Chromium otherwise reuses cached raster for
 		// transform-animated layers and the pixels depend on seek history.
 		const how = options.invalidate ?? 'filters';
-		// A filter on the stage would crash Chromium once a block nests a `<canvas layoutsubtree>`
+		// A filter on the stage would crash Chromium once a block nests a drawable canvas
 		// (a WebGL canvas sampling its children), so such a stage is re-inserted instead. The
 		// re-insert comes before the seek: a nested canvas re-inserted after its own paint is left
 		// out of the next paint of the stage's canvas, and the frame would come out without it.

@@ -19,6 +19,7 @@ import { BEHIND_TEXT_SECONDS, BEHIND_TEXT_SHARE, FACE_TEXT_SECONDS, FACE_TEXT_SH
 import { CUT_SHARE, FIT_SECONDS, SAFE_TEXT_SHARE, addReach, contentReach, cutShare, emptyPart, frameFitMessage, newReach, outsideSafe, reachBox, safeBoxes } from './frame-fit.js';
 import { backdropLook, behindMeasurable, coveredShare, extendRun, measuredRecently, roomShown, runLongEnough, subjectDrawn } from './stage-decisions.js';
 import { PANEL_TEXT_SHARE, captionsInMoveMessage, moveAtStart, shotMoves } from './shot-moves.js';
+import { PLAIN_CANVAS } from './drawable.js';
 /**
  * The fill around a framed shot: the brand's surface; without a brand, the project background
  * (the brand's neutral surface when there is none either).
@@ -429,9 +430,9 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     applyLook(stage, seg);
     // HTML-in-Canvas leaves a 2D canvas out of the captured frame unless it sits at the stage's
     // top left corner or contains its own paint: every canvas the stage, a hole or a block draws
-    // contains it (a `<canvas layoutsubtree>` is left alone: it samples its own children).
+    // contains it (a drawable canvas is left alone: it samples its own children).
     const canvases = document.createElement('style');
-    canvases.textContent = '#vf-stage canvas:not([layoutsubtree]){contain:paint}';
+    canvases.textContent = `#vf-stage ${PLAIN_CANVAS}{contain:paint}`;
     stage.appendChild(canvases);
     const a = side(stage, 'a');
     // Side b shows only inside a cut or shot transition window.

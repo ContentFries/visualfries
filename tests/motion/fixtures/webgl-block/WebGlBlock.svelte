@@ -1,7 +1,8 @@
 <!--
   A block with its own WebGL canvas that samples its HTML children (HTML-in-Canvas): every
-  frame it waits for the canvas to paint, uploads the children with texElementImage2D and
-  draws them through a shader. The colour changes with the frame, so a frame that comes out
+  frame it waits for the canvas to paint, uploads its drawable child with texElementSubImage2D
+  (texElementImage2D on Chromium before the API's rename) and draws it through a shader. The child
+  has its size set in CSS: current Chromium lays a drawable canvas's children out statically. The colour changes with the frame, so a frame that comes out
   without the canvas, or with another frame's pixels, shows. `props.wrap` puts a CSS style on
   an element around the canvas; `props.from` mounts the canvas only from that frame on.
 -->
@@ -60,7 +61,12 @@
 			canvas.addEventListener('paint', resolve, { once: true });
 			canvas.requestPaint();
 		});
-		gl.texElementImage2D(gl.TEXTURE_2D, gl.RGBA8, source);
+		if (gl.texElementImage2D) gl.texElementImage2D(gl.TEXTURE_2D, gl.RGBA8, source);
+		else {
+			// Current API: allocate the texture, then copy the drawable child into it.
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+			gl.texElementSubImage2D(gl.TEXTURE_2D, 0, 0, 0, source);
+		}
 		gl.viewport(0, 0, width, height);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 	});
@@ -68,8 +74,12 @@
 
 <div class="wrap" style={clip.props.wrap ?? ''}>
 	{#if clip.frame >= (clip.props.from ?? 0)}
-		<canvas bind:this={canvas} layoutsubtree {width} {height}>
-			<div bind:this={source} style:background="rgb({(clip.frame * 8) % 256} 128 64)">
+		<canvas bind:this={canvas} layoutsubtree content="drawable" {width} {height}>
+			<div
+				bind:this={source}
+				drawable
+				style:background="rgb({(clip.frame * 8) % 256} 128 64)"
+			>
 				{clip.frame}
 			</div>
 		</canvas>
@@ -82,6 +92,14 @@
 	div {
 		position: absolute;
 		inset: 0;
+	}
+	/* Current Chromium lays a drawable canvas's children out statically: size it explicitly. The
+	   number sits in the middle, away from the pixel the test reads. */
+	canvas > div {
+		width: 100%;
+		height: 100%;
+		display: grid;
+		place-items: center;
 	}
 	div {
 		color: white;

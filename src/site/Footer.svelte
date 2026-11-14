@@ -7,6 +7,8 @@
 		<span class="grow"></span>
 		<a href="/docs">Docs</a>
 		<a href="/docs/agents">Agents</a>
+		<a href="/for">Use cases</a>
+		<a href="/alternatives">Alternatives</a>
 		<a href="https://github.com/ContentFries/visualfries">GitHub</a>
 		<a href="https://www.npmjs.com/package/visualfries">npm</a>
 		<a href="/llms.txt">llms.txt</a>

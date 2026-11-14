@@ -1,12 +1,14 @@
 ---
 title: What is VisualFries
-description: VisualFries is an open-source Svelte 5 engine for social video and stills. Scene documents mount live in an editor; motion projects time Svelte blocks by the words of a transcript and render to MP4 or ProRes.
-updated: 2026-09-27
+description: VisualFries is the open-source engine for social media content, driven by an AI agent. Anything spoken and a JSON program in; YouTube videos, shorts, reels and stills out, with cuts, shots, captions and sound anchored to the words of the transcript. Motion projects and scene documents use the same engine.
+updated: 2026-11-14
 ---
 
-VisualFries is an MIT-licensed Svelte 5 engine for making visual content for social media from code and data. A JSON document is the source of truth, visuals are Svelte components and HTML/CSS, animation is GSAP. Motion blocks are functions of time, so with the same document, fonts and browser a frame is meant to look the same whenever it is rendered; `check --determinism` verifies that ([rules](/docs/determinism)). It is the engine behind [ContentFries](https://contentfries.com), which turns one long video into a week of clips, captions and posts.
+VisualFries is the open-source (MIT) engine for social media content: your agent edits anything spoken (a camera recording, an AI voiceover, an avatar video) into YouTube videos, shorts and reels, timed by the words that are said, and renders covers, posts and carousel slides from the same blocks. A JSON document is the source of truth, visuals are Svelte components and HTML/CSS, animation is GSAP. Motion blocks are functions of time, so with the same document, fonts and browser a frame is meant to look the same whenever it is rendered; `check --determinism` verifies that ([rules](/docs/determinism)). It is the engine behind [ContentFries](https://contentfries.com), which turns one long video into a week of clips, captions and posts.
 
-## Two ways to use it
+## Three ways to use it
+
+**Programs** edit a raw recording into a finished video. One `.vf.json` holds the cut list over the takes, the shots that frame the speaker, the clips, the transitions, the captions, the sound effects and the music, with every timing a phrase of the transcript. This is the path for reels, shorts and talking-head explainers, and the one an agent should pick first. Start with [Programs](/docs/programs).
 
 **Scenes** are JSON documents with layers of VIDEO, IMAGE, TEXT, SUBTITLES, SHAPE, GIF and AUDIO components. You mount a scene in a Svelte app with `createSceneBuilder`, edit it live, and render it headless. This is how the ContentFries editor works. Start with [Scenes in an app](/docs/scenes).
 

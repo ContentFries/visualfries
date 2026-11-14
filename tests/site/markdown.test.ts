@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { pages } from '../../src/site/docs';
-import { outsideFences, pageMarkdown } from '../../src/site/markdown';
+import {
+	articleMarkdown,
+	articlePages,
+	llmsTxt,
+	outsideFences,
+	pageMarkdown,
+	sitemapEntries
+} from '../../src/site/markdown';
 
 const sources = import.meta.glob('/src/routes/docs/**/+page.md', {
 	query: '?raw',
@@ -38,5 +45,79 @@ describe('docs markdown twins', () => {
 		const out = outsideFences(md, (p) => p.replace(/<script[\s\S]*?<\/script>\n?/g, ''));
 		expect(out).not.toContain('import X');
 		expect(out).toContain('const a = 1;');
+	});
+});
+
+describe('use-case and comparison pages', () => {
+	const sample = {
+		'/src/routes/for/reels/+page.md':
+			'---\ntitle: Reels\ndescription: Short.\nupdated: 2026-11-14\n---\nBody',
+		'/src/routes/alternatives/+page.md':
+			'---\ntitle: Hub\ndescription: All of them.\nupdated: 2026-11-14\n---\nBody',
+		'/src/routes/alternatives/other-tool/+page.md':
+			"---\ntitle: 'An alternative: us'\ndescription: Why.\nupdated: 2026-11-01\nfaq:\n  - q: One?\n    a: Yes.\n---\nBody"
+	};
+
+	it('reads path, title, description and date from each page', () => {
+		expect(articlePages('for', sample)).toEqual([
+			{ path: '/for/reels', title: 'Reels', description: 'Short.', updated: '2026-11-14' }
+		]);
+		expect(articlePages('alternatives', sample)).toEqual([
+			{ path: '/alternatives', title: 'Hub', description: 'All of them.', updated: '2026-11-14' },
+			{
+				path: '/alternatives/other-tool',
+				title: 'An alternative: us',
+				description: 'Why.',
+				updated: '2026-11-01'
+			}
+		]);
+	});
+
+	it('keeps frontmatter values free of a colon followed by a space', () => {
+		// Unquoted YAML reads "a: b: c" as a nested map; the page then renders without its layout.
+		const pages = import.meta.glob(
+			['/src/routes/for/**/+page.md', '/src/routes/alternatives/**/+page.md'],
+			{ query: '?raw', import: 'default', eager: true }
+		) as Record<string, string>;
+		for (const [file, raw] of Object.entries(pages)) {
+			const head = /^---\n([\s\S]*?)\n---/.exec(raw)?.[1] ?? '';
+			for (const line of head.split('\n')) {
+				const value = /^\s*(?:- )?\w+:\s(.*)$/.exec(line)?.[1] ?? '';
+				if (/^['"]/.test(value)) continue;
+				expect(value, `${file}: ${line.slice(0, 60)}`).not.toMatch(/:\s/);
+			}
+		}
+	});
+
+	it('gives every article a Markdown twin with its heading, text and questions', () => {
+		const md = articleMarkdown('/for/shorts-and-reels');
+		expect(md).toMatch(/^# Shorts and reels, cut by the words you said\n/);
+		expect(md).toContain('Source: https://www.visualfries.com/for/shorts-and-reels');
+		expect(md).toContain('## What is in the edit');
+		expect(md).toContain('## Questions people ask');
+		expect(md).toContain('### Which caption styles are built in?');
+		expect(md).toContain('Five presets, bold, karaoke, pill, punch and neon');
+		expect(md).toContain('https://www.instagram.com/andywinsonofficial/reel/DfcdR_gkZT2/');
+		expect(md).not.toMatch(/<video|<figure|<div|^layout:/m);
+		expect(articleMarkdown('/alternatives')).toMatch(/^# VisualFries vs HyperFrames vs Remotion\n/);
+		expect(articleMarkdown('/for/nothing-here')).toBeUndefined();
+	});
+
+	it('lists the real pages in llms.txt and the sitemap entries', () => {
+		const real = [...articlePages('for'), ...articlePages('alternatives')];
+		expect(articlePages('for').length).toBeGreaterThanOrEqual(4);
+		expect(articlePages('alternatives').length).toBeGreaterThanOrEqual(3);
+		for (const p of real) {
+			expect(p.title, p.path).not.toBe('');
+			expect(p.description.length, p.path).toBeGreaterThan(80);
+			expect(p.updated, p.path).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+			expect(llmsTxt()).toContain(`https://www.visualfries.com${p.path}.md)`);
+			expect(articleMarkdown(p.path), p.path).toBeTruthy();
+		}
+		const urls = sitemapEntries().map((e) => e.loc);
+		expect(urls).toContain('https://www.visualfries.com/');
+		expect(urls).toContain('https://www.visualfries.com/docs/programs');
+		for (const p of real) expect(urls).toContain(`https://www.visualfries.com${p.path}`);
+		expect(new Set(urls).size).toBe(urls.length);
 	});
 });

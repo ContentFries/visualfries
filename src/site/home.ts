@@ -3,13 +3,16 @@
  * the brief tabs, and the exploded layer stack (scroll-driven, pointer-tilted).
  * Framework-free; returns a cleanup function.
  */
+import { mayAutoStart, pauseTracker, startVideo } from './lazy-video';
+
 const AGENT_PROMPT = `Install VisualFries: npm install visualfries svelte playwright && npx playwright install chromium && npx visualfries doctor.
 Before writing anything, read https://www.visualfries.com/docs/programs.md, https://www.visualfries.com/docs/shots-and-transitions.md and https://www.visualfries.com/docs/program-sound.md (the same guide ships in the package as node_modules/visualfries/docs/MOTION.md, "Programs", and the agent skill as node_modules/visualfries/skills/visualfries/SKILL.md). Start from the worked example static/demo/reel in https://github.com/ContentFries/visualfries.
 Then: edit take.mp4 (with its word-level transcript, take.transcript.json) into a 9:16 reel as one program. Make the matte with visualfries matte. Cut the pauses and the failed tries, put the key word of the hook behind my head, a strip with a checklist where I list things, a whip to a card for the one thing worth showing, captions low on the chest, a sound on every move and a music bed that ends on a bar.
 Loop: program -> check --determinism -> still -> render. Show me the stills before you render.`;
 
 export function initHome(root: HTMLElement): () => void {
-	const $ = <T extends Element = HTMLElement>(s: string, r: ParentNode = root) => r.querySelector(s) as T | null;
+	const $ = <T extends Element = HTMLElement>(s: string, r: ParentNode = root) =>
+		r.querySelector(s) as T | null;
 	const $$ = <T extends Element = HTMLElement>(s: string, r: ParentNode = root) =>
 		Array.from(r.querySelectorAll(s)) as T[];
 	const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -41,7 +44,9 @@ export function initHome(root: HTMLElement): () => void {
 			const text = id === 'agent-prompt' ? AGENT_PROMPT : ($('#' + id)?.textContent ?? '');
 			try {
 				await navigator.clipboard.writeText(text);
-				say(id === 'agent-prompt' ? 'Agent prompt copied. Paste it into your coding agent.' : 'Copied');
+				say(
+					id === 'agent-prompt' ? 'Agent prompt copied. Paste it into your coding agent.' : 'Copied'
+				);
 			} catch {
 				say('Copy failed');
 			}
@@ -72,11 +77,16 @@ export function initHome(root: HTMLElement): () => void {
 
 	// ---- videos: play only when visible, each with a pause button; never autoplay with reduced motion ----
 	const vids = $$<HTMLVideoElement>('video');
-	const paused = new Set<HTMLVideoElement>();
-	const PAUSE = '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg>';
+	const track = pauseTracker<HTMLVideoElement>();
+	const PAUSE =
+		'<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg>';
 	const PLAY = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>';
-	const play = (v: HTMLVideoElement) => {
-		if (!reduce && !paused.has(v)) v.play().catch(() => {});
+	const syncs = new Map<HTMLVideoElement, () => void>();
+	// A browser may refuse to start a video: it then gets the native controls and its button says Play.
+	const play = (v: HTMLVideoElement) => void startVideo(v).then(() => syncs.get(v)?.());
+	// The page starts a video only when motion is allowed and the visitor did not pause it.
+	const autoPlay = (v: HTMLVideoElement) => {
+		if (mayAutoStart({ reduce, held: track.held(v) })) play(v);
 	};
 	vids.forEach((v) => {
 		if (reduce) {
@@ -86,21 +96,24 @@ export function initHome(root: HTMLElement): () => void {
 		const b = document.createElement('button');
 		b.type = 'button';
 		b.className = 'vpause';
+		// The button shows what the video does, whoever started or stopped it.
 		const sync = () => {
-			const off = paused.has(v);
-			b.innerHTML = off ? PLAY : PAUSE;
-			b.setAttribute('aria-label', off ? 'Play video' : 'Pause video');
+			b.innerHTML = v.paused ? PLAY : PAUSE;
+			b.setAttribute('aria-label', v.paused ? 'Play video' : 'Pause video');
 		};
 		sync();
-		on(b, 'click', () => {
-			if (paused.has(v)) {
-				paused.delete(v);
-				play(v);
-			} else {
-				paused.add(v);
-				v.pause();
-			}
+		syncs.set(v, sync);
+		on(v, 'play', () => {
+			track.played(v);
 			sync();
+		});
+		on(v, 'pause', () => {
+			track.paused(v);
+			sync();
+		});
+		on(b, 'click', () => {
+			if (v.paused) play(v);
+			else v.pause();
 		});
 		v.after(b);
 		cleanups.push(() => b.remove());
@@ -110,8 +123,8 @@ export function initHome(root: HTMLElement): () => void {
 			(es) =>
 				es.forEach((e) => {
 					const v = e.target as HTMLVideoElement;
-					if (e.isIntersecting) play(v);
-					else v.pause();
+					if (!e.isIntersecting) track.leave(v);
+					else autoPlay(v);
 				}),
 			{ threshold: 0.25 }
 		);
@@ -132,7 +145,8 @@ export function initHome(root: HTMLElement): () => void {
 			tl.style.setProperty('--p', p.toFixed(4));
 			if (inner && tl.scrollWidth > tl.clientWidth + 1) {
 				const lab = parseFloat(getComputedStyle(tl).getPropertyValue('--lab')) || 0;
-				const left = inner.getBoundingClientRect().left - tl.getBoundingClientRect().left + tl.scrollLeft;
+				const left =
+					inner.getBoundingClientRect().left - tl.getBoundingClientRect().left + tl.scrollLeft;
 				const x = left + lab + (inner.offsetWidth - lab) * p;
 				const view = tl.clientWidth;
 				if (x < tl.scrollLeft + 40 || x > tl.scrollLeft + view - 40) tl.scrollLeft = x - view / 2;
@@ -177,7 +191,7 @@ export function initHome(root: HTMLElement): () => void {
 			const active = p.dataset.brief === t.dataset.brief;
 			p.classList.toggle('on', active);
 			p.hidden = !active;
-			$$<HTMLVideoElement>('video', p).forEach((v) => (active ? play(v) : v.pause()));
+			$$<HTMLVideoElement>('video', p).forEach((v) => (active ? autoPlay(v) : track.leave(v)));
 		});
 	};
 	tabs.forEach((t, i) => {
@@ -185,11 +199,15 @@ export function initHome(root: HTMLElement): () => void {
 		on(t, 'keydown', (ev) => {
 			const k = (ev as KeyboardEvent).key;
 			const to =
-				k === 'ArrowRight' ? (i + 1) % tabs.length
-				: k === 'ArrowLeft' ? (i - 1 + tabs.length) % tabs.length
-				: k === 'Home' ? 0
-				: k === 'End' ? tabs.length - 1
-				: -1;
+				k === 'ArrowRight'
+					? (i + 1) % tabs.length
+					: k === 'ArrowLeft'
+						? (i - 1 + tabs.length) % tabs.length
+						: k === 'Home'
+							? 0
+							: k === 'End'
+								? tabs.length - 1
+								: -1;
 			if (to < 0) return;
 			ev.preventDefault();
 			select(tabs[to], true);

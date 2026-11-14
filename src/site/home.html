@@ -2,11 +2,11 @@
 <section class="hero" aria-labelledby="h1">
 	<div class="wrap">
 		<div>
-			<h1 id="h1">Your AI video editor, motion designer and graphic designer. <em>One engine.</em></h1>
+			<h1 id="h1">Your AI agent is <em>your editor now.</em></h1>
 			<p class="lead">
-				Hand your coding agent a raw take. It writes one project: the cut list, the shots, what lands behind your head,
-				the transitions, the captions and the sound, all timed to the words you said. VisualFries renders the finished
-				reel, frame-exact, in every format you ask for.
+				Give it anything spoken: a camera recording, an AI voiceover, an avatar video. It cuts, animates and enriches
+				it into the finished YouTube video, the shorts and the reels, timed to the words, then makes the covers, the
+				carousels and the quote posts from the same project. VisualFries is the open-source engine it edits with.
 			</p>
 			<div class="cta">
 				<a class="btn" href="/docs/quickstart"
@@ -33,7 +33,7 @@
 				><span>New</span>We benchmarked two models on one Zuck clip. The result is 921 to 1.</a
 			>
 			<div class="facts">
-				<span>Raw take to finished reel</span><span>Timed by transcript words</span><span>Deterministic frames</span
+				<span>YouTube, shorts, reels, posts, ads</span><span>Edited by your AI agent</span><span>Timed by transcript words</span><span>Deterministic frames</span
 				><span>Best with Claude Opus 5.5</span><span>Open source, MIT</span><span>The engine behind ContentFries</span>
 			</div>
 		</div>
@@ -59,7 +59,7 @@
 
 <div class="ticker" aria-hidden="true">
 	<div class="row" id="ticker">
-		<span>Raw takes to finished reels</span><span>Cut lists</span><span>Punch · strip · window · behind · whip · cutout</span><span
+		<span>Your agent is the editor</span><span>YouTube videos, shorts, reels</span><span>Promos and openers</span><span>Cut lists</span><span>Punch · strip · window · behind · whip · cutout</span><span
 			>Transitions with sound</span
 		><span>Music that ends on the bar</span><span>−14 LUFS mix</span><span>Word-timed captions</span><span
 			>Posts and carousels</span
@@ -145,7 +145,7 @@
 	<div class="wrap">
 		<div class="sec-head rv">
 			<div>
-				<h2 id="h-prog">One raw take. One project. <em>A finished reel.</em></h2>
+				<h2 id="h-prog">One program holds <em>the whole edit.</em></h2>
 			</div>
 			<p class="lead">
 				A program is a whole edit in one <code>.vf.json</code>: the cut list over the raw take, how each section is
@@ -153,57 +153,40 @@
 				a phrase you said, so a retake renders again without touching the edit.
 			</p>
 		</div>
-		<div class="prog rv">
-			<figure class="prog-reel">
-				<div class="media" data-name="reel-9x16.mp4">
+		<div class="prog one rv">
+			<figure class="prog-wide">
+				<div class="media" data-name="cf053-demo.mp4" style="--ar:16/9">
 					<video
 						id="reel"
-						src="/media/v3/reel-9x16.mp4"
-						poster="/media/v3/reel-9x16.jpg"
+						src="/media/v4/cf053-demo.mp4"
+						poster="/media/v4/cf053-demo.jpg"
 						muted
 						loop
 						playsinline
-						controls
 						preload="none"
-						aria-label="A talking-head reel cut from one 45-second phone take: a word slams in behind the speaker, a strip opens with a checklist, a second word behind the head, a punch-in, a whip to a full-screen card and back, and a window with an end card."
+						aria-label="A passage of a YouTube episode made only of explainer animation: ten questions rain in and a bracket wraps them into one call, a sorting machine throws product tags into bins while a counter runs and speed and cost meters swing, then a wall of thousands of tiles that a human colours one by one before the model fills it in a wave. Captions translate the voice."
 					></video>
 				</div>
-				<figcaption>9:16, 716 frames, mixed to −14 LUFS. Turn the sound on.</figcaption>
+				<figcaption>
+					28 seconds of a CodingFry YouTube episode, edited by an agent. The episode is in Slovak; for this page the
+					same program was rendered again with English text on screen, and the captions translate the voice.
+				</figcaption>
 			</figure>
-			<div class="prog-side">
-				<figure class="prog-wide">
-					<div class="media" data-name="reel-16x9.mp4" style="--ar:16/9">
-						<video
-							src="/media/v3/reel-16x9.mp4"
-							poster="/media/v3/reel-16x9.jpg"
-							muted
-							loop
-							playsinline
-							controls
-							preload="none"
-							aria-label="The same reel rendered at 16:9 from the same project: the strip becomes camera left and checklist right, the window sits in a corner."
-						></video>
-					</div>
-					<figcaption>The same project at 16:9: <code>render --format 1920x1080</code>. The shots lay out per format.</figcaption>
-				</figure>
-				<div class="tl" id="tl" role="img" aria-label="The program of the reel: 5 cuts, 10 shots, 5 clips plus captions, 2 transitions, 14 sounds and a music bed, over 716 frames">
-					<div class="tl-in">
-						<i class="ph" id="ph" aria-hidden="true"></i>
-						<div class="tl-row"><b>cuts</b><div class="tl-track"><span class="it cut" style="left:0.00%;width:15.22%">hook</span><span class="it cut" style="left:15.22%;width:6.15%" title="take: the third try">take 3</span><span class="it cut" style="left:21.37%;width:39.25%">list</span><span class="it cut" style="left:60.61%;width:18.02%">tools</span><span class="it cut" style="left:78.63%;width:21.37%">cta</span><span class="tr" style="left:13.55%;width:3.35%" title="wipe, frames 97–120"></span><span class="tr" style="left:59.50%;width:2.37%" title="push, frames 426–442"></span></div></div>
-						<div class="tl-row"><b>shots</b><div class="tl-track"><span class="it s-full" style="left:0.00%;width:4.61%" title="full">full</span><span class="it s-behind" style="left:4.61%;width:10.61%" title="behind">behind</span><span class="it s-strip" style="left:15.22%;width:22.77%" title="strip">strip</span><span class="it s-behind" style="left:37.99%;width:8.66%" title="behind">behind</span><span class="it s-full" style="left:46.65%;width:3.35%" title="full">full</span><span class="it s-punch" style="left:50.00%;width:6.98%" title="punch">punch</span><span class="it s-full" style="left:56.98%;width:7.54%" title="full">full</span><span class="it s-whip" style="left:64.53%;width:13.97%" title="whip">whip</span><span class="it s-full" style="left:78.49%;width:6.98%" title="full">full</span><span class="it s-window" style="left:85.47%;width:14.53%" title="window">window</span></div></div>
-						<div class="tl-row"><b>behind</b><div class="tl-track"><span class="it w" style="left:4.61%;width:10.47%">“AI”</span><span class="it w" style="left:37.99%;width:8.66%">“all”</span></div></div>
-						<div class="tl-row"><b>slots</b><div class="tl-track"><span class="it p" style="left:15.22%;width:24.58%">checklist · panel</span><span class="it p" style="left:64.53%;width:15.78%">prompt card</span><span class="it p" style="left:85.47%;width:14.53%">end card</span></div></div>
-						<div class="tl-row"><b>captions</b><div class="tl-track"><span class="it c" style="left:0.00%;width:15.22%">captions</span><span class="it c" style="left:37.99%;width:47.49%">captions</span></div></div>
-						<div class="tl-row"><b>sfx</b><div class="tl-track"><i class="hit" style="left:5.82%"></i><i class="hit" style="left:12.12%"></i><i class="hit" style="left:14.05%"></i><i class="hit" style="left:18.54%"></i><i class="hit" style="left:25.38%"></i><i class="hit" style="left:33.21%"></i><i class="hit" style="left:39.59%"></i><i class="hit" style="left:49.81%"></i><i class="hit" style="left:60.31%"></i><i class="hit" style="left:65.02%"></i><i class="hit" style="left:69.94%"></i><i class="hit" style="left:74.69%"></i><i class="hit" style="left:79.26%"></i><i class="hit" style="left:86.60%"></i></div></div>
-						<div class="tl-row"><b>music</b><div class="tl-track"><span class="it m" style="left:0.00%;width:100.00%">music · ends on bar 11</span></div></div>
-						<div class="tl-row tl-axis"><b></b><div class="tl-track"><span style="left:0.00%">0s</span><span style="left:20.95%">5s</span><span style="left:41.90%">10s</span><span style="left:62.85%">15s</span><span style="left:83.80%">20s</span></div></div>
-					</div>
+			<div class="tl" id="tl" role="img" aria-label="The program of this passage: one cut, 3 blocks, 18 cues on spoken phrases and 15 sounds over 28 seconds">
+				<div class="tl-in">
+					<i class="ph" id="ph" aria-hidden="true"></i>
+					<div class="tl-row"><b>cut</b><div class="tl-track"><span class="it cut" style="left:0.00%;width:100.00%">one range of the take</span></div></div>
+					<div class="tl-row"><b>blocks</b><div class="tl-track"><span class="it p" style="left:0.00%;width:10.88%">ten questions</span><span class="it p" style="left:10.88%;width:37.01%">sorting machine</span><span class="it p" style="left:47.88%;width:52.12%">human vs model</span></div></div>
+					<div class="tl-row"><b>cues</b><div class="tl-track"><i class="hit cue" style="left:3.28%"></i><i class="hit cue" style="left:7.10%"></i><i class="hit cue" style="left:9.43%"></i><i class="hit cue" style="left:23.06%"></i><i class="hit cue" style="left:26.66%"></i><i class="hit cue" style="left:30.69%"></i><i class="hit cue" style="left:38.95%"></i><i class="hit cue" style="left:41.28%"></i><i class="hit cue" style="left:52.72%"></i><i class="hit cue" style="left:59.71%"></i><i class="hit cue" style="left:64.58%"></i><i class="hit cue" style="left:70.09%"></i><i class="hit cue" style="left:72.42%"></i><i class="hit cue" style="left:76.87%"></i><i class="hit cue" style="left:80.26%"></i><i class="hit cue" style="left:82.80%"></i><i class="hit cue" style="left:87.89%"></i><i class="hit cue" style="left:92.97%"></i></div></div>
+					<div class="tl-row"><b>sfx</b><div class="tl-track"><i class="hit" style="left:6.76%"></i><i class="hit" style="left:9.31%"></i><i class="hit" style="left:10.70%"></i><i class="hit" style="left:21.83%"></i><i class="hit" style="left:30.35%"></i><i class="hit" style="left:30.87%"></i><i class="hit" style="left:41.22%"></i><i class="hit" style="left:47.30%"></i><i class="hit" style="left:68.73%"></i><i class="hit" style="left:70.02%"></i><i class="hit" style="left:72.16%"></i><i class="hit" style="left:80.07%"></i><i class="hit" style="left:82.61%"></i><i class="hit" style="left:87.70%"></i><i class="hit" style="left:92.64%"></i></div></div>
+					<div class="tl-row tl-axis"><b></b><div class="tl-track"><span style="left:0.00%">0s</span><span style="left:17.66%">5s</span><span style="left:35.31%">10s</span><span style="left:52.97%">15s</span><span style="left:70.62%">20s</span><span style="left:88.28%">25s</span></div></div>
 				</div>
-				<p class="tl-cap">
-					The real program behind the reel, from <code>visualfries program</code>: 5 cuts over one take, 10 shots, 5
-					blocks plus captions, 2 transitions, 14 sounds and a music bed. The yellow line follows the 9:16 video.
-				</p>
 			</div>
+			<p class="tl-cap">
+				The real program behind this passage, from <code>visualfries program</code>: one cut over the take, 3 blocks
+				written for the episode, 18 cues that fire on spoken phrases and 15 sounds. The yellow line follows the
+				video.
+			</p>
 		</div>
 		<div class="feats">
 			<div class="feat rv">
@@ -254,9 +237,9 @@
 
 <span class="y">$</span> visualfries render reel.vf.json --output out/
 mix in 2.1 s: speech -20.39 LUFS, delivered -14.05 LUFS and -1.08 dBTP after 7.02 dB (limiter -5.38 dB)
-<span class="g">seg1: frames 0–152 cached (fd4539815ca5)</span>
-seg2: frames 153–562 rendered in 35.9 s (11.4 fps)
-seg3: frames 563–720 rendered in 13.1 s (12.1 fps)
+<span class="g">seg1: frames 0-152 cached (fd4539815ca5)</span>
+seg2: frames 153-562 rendered in 35.9 s (11.4 fps)
+seg3: frames 563-720 rendered in 13.1 s (12.1 fps)
 final encode: 721 frames in 33.6 s</code></pre>
 		</div>
 		<div class="demos">
@@ -296,6 +279,91 @@ final encode: 721 frames in 33.6 s</code></pre>
 		<p class="fine rv">
 			Hero photo of Jean-Claude Van Damme: U.S. Air Force photo / Robbin Cresswell (public domain), Wikimedia Commons.
 			The Claude logo is a trademark of Anthropic, used here as parody.
+		</p>
+	</div>
+</section>
+
+<!-- ================= SHOWCASE ================= -->
+<section class="showcase" id="showcase" aria-labelledby="h-show">
+	<div class="wrap">
+		<div class="sec-head rv">
+			<div>
+				<h2 id="h-show">No voice? <em>It makes promos too.</em></h2>
+			</div>
+			<p class="lead">
+				Work that shipped, made by an agent with VisualFries for Andy Winson's academy. Two promos with no speech at
+				all, cut to music: the agent gathered the material itself, and once the look was tuned, one or two prompts
+				were enough. Two seminar reels with over 100,000 views each on Instagram. Sound is off here.
+			</p>
+		</div>
+		<div class="show rv">
+			<div class="show-wide">
+				<figure>
+					<div class="media" data-name="promo-diary.mp4" style="--ar:16/9">
+						<video
+							src="/media/v4/promo-diary.mp4"
+							poster="/media/v4/promo-diary.jpg"
+							muted
+							loop
+							playsinline
+							preload="none"
+							aria-label="A 35-second product promo for a paper planner: b-roll of a woman at a desk, large serif letters R, A and D over close-ups of handwriting, kinetic lines of Slovak text, and an end card with the three planners."
+						></video><span class="lab">product promo · 35 s · no voice</span>
+					</div>
+					<figcaption>Product promo for a yearly planner<small>generated b-roll, kinetic type, music</small></figcaption>
+				</figure>
+				<figure>
+					<div class="media" data-name="promo-opener.mp4" style="--ar:16/9">
+						<video
+							src="/media/v4/promo-opener.mp4"
+							poster="/media/v4/promo-opener.jpg"
+							muted
+							loop
+							playsinline
+							preload="none"
+							aria-label="An excerpt of an event opener: silhouettes in a dark hall, serif lines of Slovak text, the speaker on stage with a flipchart and with raised arms, and a gold end card."
+						></video><span class="lab">event opener · excerpt of 58 s</span>
+					</div>
+					<figcaption>Opener for a three-day live training<small>event footage, type, music</small></figcaption>
+				</figure>
+			</div>
+			<figure>
+				<div class="media" data-name="reel-andy-3.mp4">
+					<video
+						src="/media/v4/reel-andy-3.mp4"
+						poster="/media/v4/reel-andy-3.jpg"
+						muted
+						loop
+						playsinline
+						preload="none"
+						aria-label="The first seconds of a seminar reel: the speaker on stage tells a story, illustrated stills of a couple appear, yellow captions follow each line."
+					></video><span class="lab">seminar reel · 100k+ views</span>
+				</div>
+				<figcaption>
+					<a href="https://www.instagram.com/andywinsonofficial/reel/DfcdR_gkZT2/">Watch it on Instagram</a>
+				</figcaption>
+			</figure>
+			<figure>
+				<div class="media" data-name="reel-andy-6.mp4">
+					<video
+						src="/media/v4/reel-andy-6.mp4"
+						poster="/media/v4/reel-andy-6.jpg"
+						muted
+						loop
+						playsinline
+						preload="none"
+						aria-label="The first seconds of a seminar reel: a warning triangle blinks behind the speaker, story stills, then counters with amounts of money over the footage."
+					></video><span class="lab">seminar reel · 100k+ views</span>
+				</div>
+				<figcaption>
+					<a href="https://www.instagram.com/andywinsonofficial/reel/DfXbYnygbeK/">Watch it on Instagram</a>
+				</figcaption>
+			</figure>
+		</div>
+		<p class="tl-cap rv">
+			The hook and the taste of the reels are the editor's. VisualFries gave them what holds attention: story stills,
+			counters, a sign behind the speaker, captions held line by line. More on
+			<a href="/for/promo-videos">promo videos</a> and <a href="/for/shorts-and-reels">shorts and reels</a>.
 		</p>
 	</div>
 </section>
@@ -606,15 +674,15 @@ final encode: 721 frames in 33.6 s</code></pre>
 				<h3>Resolved, measured, then rendered</h3>
 				<pre><code><span class="y">$</span> visualfries program reel.vf.json
 program mode  1080x1920 (portrait)  716 frames  23.87s  30 fps
-cut take       3.63s  44 frames  talk 17.87s–19.33s
+cut take       3.63s  44 frames  talk 17.87s-19.33s
 shot tools-whip 15.40s  100 frames  whip  morph 13 frames power3.inOut
-transition push into tools  frames 426–442 (cut 434)
+transition push into tools  frames 426-442 (cut 434)
 <span class="s">WARNING list cuts[2].out: cut 3: the voice is still sounding where the cut's sound stops (28.90 s of "talk"); move "out" 0.13 s later.</span>
 <span class="y">$</span> visualfries check reel.vf.json --determinism
 mix: speech -20.37 LUFS, -14 LUFS and -1.05 dBTP before encoding (6.8 dB, limiter -4.66 dB)
-<span class="g">ok   seg1  frames 0–152  (html-in-canvas)</span>
-<span class="g">ok   seg2  frames 153–562  (html-in-canvas)</span>
-<span class="g">ok   seg3  frames 563–715  (html-in-canvas)</span>
+<span class="g">ok   seg1  frames 0-152  (html-in-canvas)</span>
+<span class="g">ok   seg2  frames 153-562  (html-in-canvas)</span>
+<span class="g">ok   seg3  frames 563-715  (html-in-canvas)</span>
 <span class="g">All 3 segments pass.</span>
 <span class="y">$</span> visualfries still reel.vf.json --at f95 --at f107 --output sheet.png
 <span class="y">$</span> visualfries render reel.vf.json --output out/
@@ -887,5 +955,17 @@ mix: speech -20.37 LUFS, -14 LUFS and -1.05 dBTP before encoding (6.8 dB, limite
 		</div>
 	</div>
 </section>
+
+<!-- ================= CONTENTFRIES ================= -->
+<aside class="cf-note" aria-label="ContentFries">
+	<div class="wrap">
+		<p>
+			<b>Want a visual timeline and cloud render?</b> ContentFries is built on VisualFries. It adds a timeline you can
+			see, comments on any block that your agent acts on, and rendering on its servers, so your computer stays free.
+			The new version is on its way.
+		</p>
+		<a href="https://www.contentfries.com/?utm_source=visualfries&amp;utm_medium=site&amp;utm_campaign=v3">See ContentFries</a>
+	</div>
+</aside>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>

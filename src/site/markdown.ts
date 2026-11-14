@@ -16,6 +16,13 @@ const exampleScenes = import.meta.glob('/src/lib/examples/0*.json', {
 	eager: true
 }) as Record<string, string>;
 
+// Use-case pages (src/routes/for) and comparison pages (src/routes/alternatives) describe
+// themselves in their frontmatter.
+const articleSources = import.meta.glob(
+	['/src/routes/for/**/+page.md', '/src/routes/alternatives/**/+page.md'],
+	{ query: '?raw', import: 'default', eager: true }
+) as Record<string, string>;
+
 const fence = '```';
 
 // Pages written in Svelte (live demos) describe themselves here.
@@ -82,11 +89,80 @@ export function pageDescription(page: DocPage): string {
 		: (svelteOnly[page.slug]?.description ?? '');
 }
 
+export type ArticlePage = { path: string; title: string; description: string; updated: string };
+
+/** Pages under one top-level folder with what their frontmatter says, ordered by path. */
+export function articlePages(
+	folder: 'for' | 'alternatives',
+	sources: Record<string, string> = articleSources
+): ArticlePage[] {
+	return Object.entries(sources)
+		.filter(([file]) => file.startsWith(`/src/routes/${folder}/`))
+		.map(([file, raw]) => {
+			const { data } = frontmatter(raw);
+			return {
+				path: file.replace(/^\/src\/routes/, '').replace(/\/\+page\.md$/, ''),
+				title: data.title ?? '',
+				description: data.description ?? '',
+				updated: data.updated ?? ''
+			};
+		})
+		.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** The questions of an article, from the `faq` list in its frontmatter. */
+function articleFaq(raw: string): { q: string; a: string }[] {
+	const head = /^---\n([\s\S]*?)\n---/.exec(raw)?.[1] ?? '';
+	return Array.from(head.matchAll(/^\s*- q: (.*)\n\s+a: (.*)$/gm), (m) => ({ q: m[1], a: m[2] }));
+}
+
+/** Prose of an article without its players: a linked caption stays as a Markdown link. */
+function withoutPlayers(prose: string): string {
+	return prose
+		.replace(/<figcaption><a href="([^"]+)">([^<]+)<\/a><\/figcaption>/g, '\n- [$2]($1)\n')
+		.replace(/<video[^>]*><\/video>/g, '')
+		.replace(/<\/?(?:figure|div)[^>]*>/g, '')
+		.replace(/\n{3,}/g, '\n\n');
+}
+
+/** A use-case or comparison page as Markdown, or undefined when there is no such page. */
+export function articleMarkdown(
+	path: string,
+	sources: Record<string, string> = articleSources
+): string | undefined {
+	const raw = sources[`/src/routes${path}/+page.md`];
+	if (!raw) return undefined;
+	const { data, body } = frontmatter(raw);
+	const faq = articleFaq(raw);
+	const questions = faq.length
+		? `\n\n## Questions people ask\n\n${faq.map((f) => `### ${f.q}\n\n${f.a}`).join('\n\n')}`
+		: '';
+	const head = `# ${data.heading ?? data.title ?? ''}\n\n> ${data.description ?? ''}\n\nSource: ${SITE}${path}\n`;
+	return `${head}\n${outsideFences(body, withoutPlayers).trim()}${questions}\n`;
+}
+
+const ARTICLE_SECTIONS = [
+	{ folder: 'for', label: 'Use cases' },
+	{ folder: 'alternatives', label: 'Comparisons' }
+] as const;
+
+/** Every indexable URL of the site: the homepage, the docs and the comparison pages. */
+export function sitemapEntries(): { loc: string; lastmod?: string }[] {
+	return [
+		{ loc: `${SITE}/` },
+		...pages.map((p) => ({ loc: `${SITE}${pageUrl(p.slug)}` })),
+		...ARTICLE_SECTIONS.flatMap((s) => articlePages(s.folder)).map((p) => ({
+			loc: `${SITE}${p.path}`,
+			lastmod: p.updated || undefined
+		}))
+	];
+}
+
 export function llmsTxt(): string {
 	const lines = [
 		'# VisualFries',
 		'',
-		'> Open-source (MIT) Svelte 5 engine for visual social-media content. A JSON document describes blocks (Svelte components), time (transcript words or seconds) and surfaces. Scene documents mount live in an editor; motion projects time animations by the words of a transcript and render frame by frame in headless Chromium.',
+		'> The open-source (MIT) engine for social media content, built for AI agents to drive. Anything spoken (a camera recording, an AI voiceover, an avatar video) and a JSON program in; finished YouTube videos, shorts and reels out, plus stills (covers, posts, carousel slides) from the same blocks. A program holds the cut list, the shots that frame the speaker, clips (Svelte components), transitions, captions and sound, all anchored to the words of a transcript, and renders frame by frame in headless Chromium. Motion projects time inserts the same way; scene documents mount live in an editor. Built for AI agents to drive.',
 		'',
 		'Every page below is available as Markdown by appending `.md` to its URL. The whole documentation in one file: ' +
 			`${SITE}/llms-full.txt`,
@@ -103,6 +179,13 @@ export function llmsTxt(): string {
 			`- [${p.title}](${SITE}${pageUrl(p.slug)}.md): ${pageDescription(p)}${p.planned ? ' (planned)' : ''}`
 		);
 		if (pages[pages.indexOf(p) + 1]?.section !== p.section) lines.push('');
+	}
+	for (const s of ARTICLE_SECTIONS) {
+		const list = articlePages(s.folder);
+		if (!list.length) continue;
+		lines.push(`## ${s.label}`, '');
+		for (const p of list) lines.push(`- [${p.title}](${SITE}${p.path}.md): ${p.description}`);
+		lines.push('');
 	}
 	lines.push(
 		'## Optional',

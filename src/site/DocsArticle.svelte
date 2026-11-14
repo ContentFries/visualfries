@@ -40,7 +40,12 @@
 			{
 				'@type': 'BreadcrumbList',
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Docs', item: 'https://www.visualfries.com/docs' },
+					{
+						'@type': 'ListItem',
+						position: 1,
+						name: 'Docs',
+						item: 'https://www.visualfries.com/docs'
+					},
 					{
 						'@type': 'ListItem',
 						position: 2,

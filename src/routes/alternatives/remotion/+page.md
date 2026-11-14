@@ -55,7 +55,7 @@ For captions, Remotion offers `@remotion/captions` and four ways to transcribe, 
 
 **The engine knows where the speaker is.** Seven built-in shots (`full`, `punch`, `strip`, `window`, `behind`, `whip`, `cutout`), words behind the head through a matte, and gags that work on the body.
 
-**One program, every format.** 9:16, 4:5, 1:1 and 16:9 render from the same project, with safe zones per platform.
+**One program, every format.** 9:16, 4:5, 1:1 and 16:9 render from the same project with one flag, and safe zones per platform are built in.
 
 ## Where Remotion wins
 
@@ -69,21 +69,21 @@ For captions, Remotion offers `@remotion/captions` and four ways to transcribe, 
 
 ## Side by side
 
-|                    | VisualFries                                                                                                                  | Remotion                                                     |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Built for          | Social content: videos edited from anything spoken, motion promos cut to music, and stills (covers, carousel slides, quotes) | Any video written in React                                   |
-| You write          | One JSON program plus Svelte blocks                                                                                          | React components in TypeScript                               |
-| Timing             | Phrases of the transcript; seconds, frames and beats also work                                                               | Frame numbers [5]                                            |
-| Cutting a raw take | Cut list: takes, retakes, order, handles                                                                                     | Sequences and trims you write                                |
-| After a retake     | Pass the new transcript, the edit follows                                                                                    | Update the timings in code                                   |
-| Captions           | Built-in block, word-timed, presets                                                                                          | `@remotion/captions` plus your component [5]                 |
-| Speaker framing    | Seven built-in shots, face-aware checks                                                                                      | Layout you write                                             |
-| Sound              | Effects on words, music on bars, -14 LUFS mix                                                                                | Audio components you place                                   |
-| Formats            | 9:16, 4:5, 1:1, 16:9 from one program                                                                                        | One composition per size                                     |
-| Editor GUI         | None for programs                                                                                                            | Remotion Studio [1]                                          |
-| Rendering          | Local headless Chromium, CPU only                                                                                            | Local, server, AWS Lambda [7]                                |
-| Agent support      | Skill in the package, `llms.txt`, loud CLI checks                                                                            | Official agent skills [2]                                    |
-| Licence            | MIT                                                                                                                          | Remotion licence: free up to 3 employees, paid above [3] [4] |
+|                    | VisualFries                                                                                                                  | Remotion                                                                                               |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Built for          | Social content: videos edited from anything spoken, motion promos cut to music, and stills (covers, carousel slides, quotes) | Any video written in React                                                                             |
+| You write          | One JSON program plus Svelte blocks                                                                                          | React components in TypeScript                                                                         |
+| Timing             | Phrases of the transcript; seconds, frames and beats also work                                                               | Frame numbers [5]                                                                                      |
+| Cutting a raw take | Cut list: takes, retakes, order, handles                                                                                     | Sequences and trims you write; the Recorder template trims silence at the ends of takes [9]            |
+| After a retake     | Pass the new transcript, the edit follows                                                                                    | Captions follow new caption data; other timings are yours to update                                    |
+| Captions           | Built-in block, word-timed, presets                                                                                          | `@remotion/captions` plus your component [5]                                                           |
+| Speaker framing    | Seven built-in shots, face-aware checks                                                                                      | Layout you write                                                                                       |
+| Sound              | Effects on words, music on bars, -14 LUFS mix                                                                                | Audio components you place, with volume per frame [10]                                                 |
+| Formats            | 9:16, 4:5, 1:1, 16:9 from one program, with safe zones per platform                                                          | One composition can take its size from its input props; the layout for each size is yours to write [8] |
+| Editor GUI         | None for programs                                                                                                            | Remotion Studio [1]                                                                                    |
+| Rendering          | Local headless Chromium, CPU only                                                                                            | Local, server, AWS Lambda [7]                                                                          |
+| Agent support      | Skill in the package, `llms.txt`, loud CLI checks                                                                            | Official agent skills [2]                                                                              |
+| Licence            | MIT                                                                                                                          | Remotion licence: free up to 3 employees, paid above [3] [4]                                           |
 
 ## Coming from Remotion
 
@@ -105,3 +105,6 @@ Facts about Remotion come from its own pages, read on 14 November 2026. Tools an
 5. [Remotion docs: captions](https://www.remotion.dev/docs/captions), with [transcribing](https://www.remotion.dev/docs/captions/transcribing) and [displaying](https://www.remotion.dev/docs/captions/displaying)
 6. [Remotion docs: Player](https://www.remotion.dev/docs/player)
 7. [Remotion docs: Lambda](https://www.remotion.dev/docs/lambda)
+8. [Remotion docs: variable duration and dimensions](https://www.remotion.dev/docs/dynamic-metadata)
+9. [Remotion docs: Recorder](https://www.remotion.dev/docs/recorder)
+10. [Remotion docs: audio](https://www.remotion.dev/docs/audio)

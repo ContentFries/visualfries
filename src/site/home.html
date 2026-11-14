@@ -237,9 +237,9 @@
 
 <span class="y">$</span> visualfries render reel.vf.json --output out/
 mix in 2.1 s: speech -20.39 LUFS, delivered -14.05 LUFS and -1.08 dBTP after 7.02 dB (limiter -5.38 dB)
-<span class="g">seg1: frames 0–152 cached (fd4539815ca5)</span>
-seg2: frames 153–562 rendered in 35.9 s (11.4 fps)
-seg3: frames 563–720 rendered in 13.1 s (12.1 fps)
+<span class="g">seg1: frames 0-152 cached (fd4539815ca5)</span>
+seg2: frames 153-562 rendered in 35.9 s (11.4 fps)
+seg3: frames 563-720 rendered in 13.1 s (12.1 fps)
 final encode: 721 frames in 33.6 s</code></pre>
 		</div>
 		<div class="demos">
@@ -674,15 +674,15 @@ final encode: 721 frames in 33.6 s</code></pre>
 				<h3>Resolved, measured, then rendered</h3>
 				<pre><code><span class="y">$</span> visualfries program reel.vf.json
 program mode  1080x1920 (portrait)  716 frames  23.87s  30 fps
-cut take       3.63s  44 frames  talk 17.87s–19.33s
+cut take       3.63s  44 frames  talk 17.87s-19.33s
 shot tools-whip 15.40s  100 frames  whip  morph 13 frames power3.inOut
-transition push into tools  frames 426–442 (cut 434)
+transition push into tools  frames 426-442 (cut 434)
 <span class="s">WARNING list cuts[2].out: cut 3: the voice is still sounding where the cut's sound stops (28.90 s of "talk"); move "out" 0.13 s later.</span>
 <span class="y">$</span> visualfries check reel.vf.json --determinism
 mix: speech -20.37 LUFS, -14 LUFS and -1.05 dBTP before encoding (6.8 dB, limiter -4.66 dB)
-<span class="g">ok   seg1  frames 0–152  (html-in-canvas)</span>
-<span class="g">ok   seg2  frames 153–562  (html-in-canvas)</span>
-<span class="g">ok   seg3  frames 563–715  (html-in-canvas)</span>
+<span class="g">ok   seg1  frames 0-152  (html-in-canvas)</span>
+<span class="g">ok   seg2  frames 153-562  (html-in-canvas)</span>
+<span class="g">ok   seg3  frames 563-715  (html-in-canvas)</span>
 <span class="g">All 3 segments pass.</span>
 <span class="y">$</span> visualfries still reel.vf.json --at f95 --at f107 --output sheet.png
 <span class="y">$</span> visualfries render reel.vf.json --output out/

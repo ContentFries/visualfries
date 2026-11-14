@@ -94,7 +94,7 @@ Seven built-in shots frame the speaker (`full`, `punch`, `strip`, `window`, `beh
 </script>
 
 <blockquote style:opacity={clip.p(0, 0.8)}>Nothing is matched silently.</blockquote>
-<figcaption style:opacity={clip.p('hit')}>— lights up when "silently" is said</figcaption>
+<figcaption style:opacity={clip.p('hit')}>Lights up when "silently" is said</figcaption>
 ```
 
 A new voiceover re-times every clip with one flag. A phrase that is no longer said fails with a suggestion ("Did you mean …"), never silently.

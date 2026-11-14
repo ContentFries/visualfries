@@ -9,7 +9,8 @@ Then: edit take.mp4 (with its word-level transcript, take.transcript.json) into 
 Loop: program -> check --determinism -> still -> render. Show me the stills before you render.`;
 
 export function initHome(root: HTMLElement): () => void {
-	const $ = <T extends Element = HTMLElement>(s: string, r: ParentNode = root) => r.querySelector(s) as T | null;
+	const $ = <T extends Element = HTMLElement>(s: string, r: ParentNode = root) =>
+		r.querySelector(s) as T | null;
 	const $$ = <T extends Element = HTMLElement>(s: string, r: ParentNode = root) =>
 		Array.from(r.querySelectorAll(s)) as T[];
 	const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -41,7 +42,9 @@ export function initHome(root: HTMLElement): () => void {
 			const text = id === 'agent-prompt' ? AGENT_PROMPT : ($('#' + id)?.textContent ?? '');
 			try {
 				await navigator.clipboard.writeText(text);
-				say(id === 'agent-prompt' ? 'Agent prompt copied. Paste it into your coding agent.' : 'Copied');
+				say(
+					id === 'agent-prompt' ? 'Agent prompt copied. Paste it into your coding agent.' : 'Copied'
+				);
 			} catch {
 				say('Copy failed');
 			}
@@ -73,7 +76,8 @@ export function initHome(root: HTMLElement): () => void {
 	// ---- videos: play only when visible, each with a pause button; never autoplay with reduced motion ----
 	const vids = $$<HTMLVideoElement>('video');
 	const paused = new Set<HTMLVideoElement>();
-	const PAUSE = '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg>';
+	const PAUSE =
+		'<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg>';
 	const PLAY = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>';
 	const play = (v: HTMLVideoElement) => {
 		if (!reduce && !paused.has(v)) v.play().catch(() => {});
@@ -132,7 +136,8 @@ export function initHome(root: HTMLElement): () => void {
 			tl.style.setProperty('--p', p.toFixed(4));
 			if (inner && tl.scrollWidth > tl.clientWidth + 1) {
 				const lab = parseFloat(getComputedStyle(tl).getPropertyValue('--lab')) || 0;
-				const left = inner.getBoundingClientRect().left - tl.getBoundingClientRect().left + tl.scrollLeft;
+				const left =
+					inner.getBoundingClientRect().left - tl.getBoundingClientRect().left + tl.scrollLeft;
 				const x = left + lab + (inner.offsetWidth - lab) * p;
 				const view = tl.clientWidth;
 				if (x < tl.scrollLeft + 40 || x > tl.scrollLeft + view - 40) tl.scrollLeft = x - view / 2;
@@ -185,11 +190,15 @@ export function initHome(root: HTMLElement): () => void {
 		on(t, 'keydown', (ev) => {
 			const k = (ev as KeyboardEvent).key;
 			const to =
-				k === 'ArrowRight' ? (i + 1) % tabs.length
-				: k === 'ArrowLeft' ? (i - 1 + tabs.length) % tabs.length
-				: k === 'Home' ? 0
-				: k === 'End' ? tabs.length - 1
-				: -1;
+				k === 'ArrowRight'
+					? (i + 1) % tabs.length
+					: k === 'ArrowLeft'
+						? (i - 1 + tabs.length) % tabs.length
+						: k === 'Home'
+							? 0
+							: k === 'End'
+								? tabs.length - 1
+								: -1;
 			if (to < 0) return;
 			ev.preventDefault();
 			select(tabs[to], true);

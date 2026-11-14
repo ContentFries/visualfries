@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { videoAction } from '../../src/site/lazy-video';
+import { startVideo, videoAction } from '../../src/site/lazy-video';
 
 describe('videoAction', () => {
 	it('plays a video that is near the viewport', () => {
@@ -21,5 +21,19 @@ describe('videoAction', () => {
 	it('never starts playback with reduced motion', () => {
 		expect(videoAction({ near: true, reduce: true, paused: true })).toBe('none');
 		expect(videoAction({ near: false, reduce: true, paused: false })).toBe('pause');
+	});
+});
+
+describe('startVideo', () => {
+	it('shows the controls when the browser refuses to start playback', async () => {
+		const video = { controls: false, play: () => Promise.reject(new Error('NotAllowedError')) };
+		await startVideo(video);
+		expect(video.controls).toBe(true);
+	});
+
+	it('leaves the controls off when playback starts', async () => {
+		const video = { controls: false, play: () => Promise.resolve() };
+		await startVideo(video);
+		expect(video.controls).toBe(false);
 	});
 });

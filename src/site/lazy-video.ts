@@ -11,6 +11,22 @@ export function videoAction({ near, reduce, paused }: VideoState): 'play' | 'pau
 	return 'play';
 }
 
+/**
+ * Start a video. A browser may refuse (autoplay blocked, data saver): the visitor then gets the
+ * native controls, so the poster never stays a dead picture.
+ */
+export function startVideo(video: {
+	play: () => Promise<unknown>;
+	controls: boolean;
+}): Promise<void> {
+	return video.play().then(
+		() => {},
+		() => {
+			video.controls = true;
+		}
+	);
+}
+
 /** Watch every video under `root`; returns the cleanup. Runs in the browser only. */
 export function watchVideos(root: ParentNode, margin = '200px'): () => void {
 	const videos = Array.from(root.querySelectorAll('video'));
@@ -24,7 +40,7 @@ export function watchVideos(root: ParentNode, margin = '200px'): () => void {
 			entries.forEach((e) => {
 				const v = e.target as HTMLVideoElement;
 				const action = videoAction({ near: e.isIntersecting, reduce, paused: v.paused });
-				if (action === 'play') v.play().catch(() => {});
+				if (action === 'play') void startVideo(v);
 				else if (action === 'pause') v.pause();
 			}),
 		{ rootMargin: margin }

@@ -110,6 +110,37 @@ export function articlePages(
 		.sort((a, b) => a.path.localeCompare(b.path));
 }
 
+/** The questions of an article, from the `faq` list in its frontmatter. */
+function articleFaq(raw: string): { q: string; a: string }[] {
+	const head = /^---\n([\s\S]*?)\n---/.exec(raw)?.[1] ?? '';
+	return Array.from(head.matchAll(/^\s*- q: (.*)\n\s+a: (.*)$/gm), (m) => ({ q: m[1], a: m[2] }));
+}
+
+/** Prose of an article without its players: a linked caption stays as a Markdown link. */
+function withoutPlayers(prose: string): string {
+	return prose
+		.replace(/<figcaption><a href="([^"]+)">([^<]+)<\/a><\/figcaption>/g, '\n- [$2]($1)\n')
+		.replace(/<video[^>]*><\/video>/g, '')
+		.replace(/<\/?(?:figure|div)[^>]*>/g, '')
+		.replace(/\n{3,}/g, '\n\n');
+}
+
+/** A use-case or comparison page as Markdown, or undefined when there is no such page. */
+export function articleMarkdown(
+	path: string,
+	sources: Record<string, string> = articleSources
+): string | undefined {
+	const raw = sources[`/src/routes${path}/+page.md`];
+	if (!raw) return undefined;
+	const { data, body } = frontmatter(raw);
+	const faq = articleFaq(raw);
+	const questions = faq.length
+		? `\n\n## Questions people ask\n\n${faq.map((f) => `### ${f.q}\n\n${f.a}`).join('\n\n')}`
+		: '';
+	const head = `# ${data.heading ?? data.title ?? ''}\n\n> ${data.description ?? ''}\n\nSource: ${SITE}${path}\n`;
+	return `${head}\n${outsideFences(body, withoutPlayers).trim()}${questions}\n`;
+}
+
 const ARTICLE_SECTIONS = [
 	{ folder: 'for', label: 'Use cases' },
 	{ folder: 'alternatives', label: 'Comparisons' }
@@ -153,7 +184,7 @@ export function llmsTxt(): string {
 		const list = articlePages(s.folder);
 		if (!list.length) continue;
 		lines.push(`## ${s.label}`, '');
-		for (const p of list) lines.push(`- [${p.title}](${SITE}${p.path}): ${p.description}`);
+		for (const p of list) lines.push(`- [${p.title}](${SITE}${p.path}.md): ${p.description}`);
 		lines.push('');
 	}
 	lines.push(

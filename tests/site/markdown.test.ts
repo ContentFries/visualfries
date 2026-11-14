@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { pages } from '../../src/site/docs';
 import {
+	articleMarkdown,
 	articlePages,
 	llmsTxt,
 	outsideFences,
@@ -88,6 +89,20 @@ describe('use-case and comparison pages', () => {
 		}
 	});
 
+	it('gives every article a Markdown twin with its heading, text and questions', () => {
+		const md = articleMarkdown('/for/shorts-and-reels');
+		expect(md).toMatch(/^# Shorts and reels, cut by the words you said\n/);
+		expect(md).toContain('Source: https://www.visualfries.com/for/shorts-and-reels');
+		expect(md).toContain('## What is in the edit');
+		expect(md).toContain('## Questions people ask');
+		expect(md).toContain('### Which caption styles are built in?');
+		expect(md).toContain('Five presets, bold, karaoke, pill, punch and neon');
+		expect(md).toContain('https://www.instagram.com/andywinsonofficial/reel/DfcdR_gkZT2/');
+		expect(md).not.toMatch(/<video|<figure|<div|^layout:/m);
+		expect(articleMarkdown('/alternatives')).toMatch(/^# VisualFries vs HyperFrames vs Remotion\n/);
+		expect(articleMarkdown('/for/nothing-here')).toBeUndefined();
+	});
+
 	it('lists the real pages in llms.txt and the sitemap entries', () => {
 		const real = [...articlePages('for'), ...articlePages('alternatives')];
 		expect(articlePages('for').length).toBeGreaterThanOrEqual(4);
@@ -96,7 +111,8 @@ describe('use-case and comparison pages', () => {
 			expect(p.title, p.path).not.toBe('');
 			expect(p.description.length, p.path).toBeGreaterThan(80);
 			expect(p.updated, p.path).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-			expect(llmsTxt()).toContain(`https://www.visualfries.com${p.path})`);
+			expect(llmsTxt()).toContain(`https://www.visualfries.com${p.path}.md)`);
+			expect(articleMarkdown(p.path), p.path).toBeTruthy();
 		}
 		const urls = sitemapEntries().map((e) => e.loc);
 		expect(urls).toContain('https://www.visualfries.com/');

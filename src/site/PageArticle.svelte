@@ -94,6 +94,7 @@
 	<title>{title}</title>
 	<meta name="description" content={description} />
 	<link rel="canonical" href={url} />
+	<link rel="alternate" type="text/markdown" href="{path}.md" />
 	<meta property="og:type" content="article" />
 	<meta property="og:title" content={title} />
 	<meta property="og:description" content={description} />
@@ -147,6 +148,7 @@
 			<a href="https://github.com/ContentFries/visualfries/issues"
 				>Something wrong or out of date? Tell us</a
 			>
+			<a href="{path}.md">Raw Markdown</a>
 		</div>
 	</article>
 </main>

@@ -87,7 +87,8 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     [--threads n] (RobustVideoMatting, local on the CPU, no key; needs uv and
                     ffmpeg, downloads torch and the model once). Cleaner edges on hair and
                     microphones, paid: --provider fal (BiRefNet v2 on fal.ai, FAL_KEY;
-                    --model Matting, --resolution 1024x1024). Any local tool:
+                    --model Matting, --resolution 1024x1024; either flag alone means fal).
+                    Any local tool:
                     --command "tool --in {input} --out {output}" [--command-output luma|alpha]
                     [--command-ext .webm] [--max-frames n]. Long videos are split, checked
                     and joined frame-exact.
@@ -2029,13 +2030,17 @@ async function matteCommand(args) {
 	const output = readFlag(args, '--output');
 	if (!input || !output)
 		throw new Error(
-			'Usage: visualfries matte <video> --output <matte.mp4> [--provider rvm|fal|command] [--threads n] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs 3]'
+			'Usage: visualfries matte <video> --output <matte.mp4> [--provider rvm|fal|command] [--threads n] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs n]'
 		);
-	const { createSubjectMatte, falBiRefNet, commandMatte, rvmMatte } = await import(
-		'../dist/motion/matte.js'
-	);
+	const { createSubjectMatte, falBiRefNet, commandMatte, rvmMatte, matteProviderName } =
+		await import('../dist/motion/matte.js');
 	const command = readFlag(args, '--command');
-	const providerName = readFlag(args, '--provider', command ? 'command' : 'rvm');
+	const providerName = matteProviderName({
+		provider: readFlag(args, '--provider'),
+		command,
+		model: readFlag(args, '--model'),
+		resolution: readFlag(args, '--resolution')
+	});
 	let provider;
 	if (providerName === 'fal') {
 		provider = falBiRefNet({

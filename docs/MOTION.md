@@ -118,7 +118,9 @@ Its old name `styles` is still read the same way (not both at once); `style` is 
 Transcripts: Soniox-style `{ "words": [{ "text", "startMs", "endMs" }] }` or
 `[{ "text", "start", "end" }]` in seconds. Word timestamps decide how tightly everything lands:
 Soniox is the recommended service (accurate word times in many languages, inexpensive); WhisperX
-(forced alignment) is the local, free option. Plain Whisper estimates word times and can drift.
+(forced alignment) is the local, free option. Convert either tool's output to one of these two
+formats first (Soniox returns sub-word tokens, WhisperX `word_segments`). Plain Whisper estimates
+word times and can drift.
 
 ## Blocks
 

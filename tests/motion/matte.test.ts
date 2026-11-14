@@ -7,6 +7,7 @@ import {
 	commandMatte,
 	createSubjectMatte,
 	falBiRefNet,
+	matteProviderName,
 	rvmMatte
 } from '../../src/lib/motion/matte.js';
 import { probeVideo } from '../../src/lib/motion/node.js';
@@ -39,6 +40,31 @@ async function fakeUv(dir: string) {
 	);
 	return bin;
 }
+
+describe('matteProviderName', () => {
+	it('is rvm (local) unless something asks for another provider', () => {
+		expect(matteProviderName({})).toBe('rvm');
+	});
+	it('takes an explicit provider', () => {
+		expect(matteProviderName({ provider: 'fal' })).toBe('fal');
+		expect(matteProviderName({ provider: 'rvm', model: 'Portrait' })).toBe('rvm');
+	});
+	it('is command when a command is given', () => {
+		expect(matteProviderName({ command: 'tool {input} {output}' })).toBe('command');
+	});
+	it('is fal when a fal-only flag is given', () => {
+		expect(matteProviderName({ model: 'Portrait' })).toBe('fal');
+		expect(matteProviderName({ resolution: '2048x2048' })).toBe('fal');
+	});
+});
+
+describe('createSubjectMatte options', () => {
+	it('rejects the removed fal options instead of running locally', async () => {
+		await expect(
+			createSubjectMatte('talk.mp4', { output: 'm.mp4', falKey: 'k' } as never)
+		).rejects.toThrow(/provider: falBiRefNet/);
+	});
+});
 
 describe('rvmMatte', () => {
 	it('is a local provider running the bundled script through uv', () => {
@@ -113,6 +139,7 @@ describe('rvmMatte', () => {
 			const args = (await fs.readFile(log, 'utf8')).trim().split('\n');
 			const script = args[args.indexOf('python') + 1];
 			expect(args.slice(0, 2)).toEqual(['run', '-q']);
+			expect(args).toEqual(expect.arrayContaining(['--no-project', '--no-config']));
 			expect(args).toEqual(expect.arrayContaining(['--with', 'torch', 'torchvision', 'numpy']));
 			expect(path.basename(script)).toBe('rvm-matte.py');
 			await expect(fs.access(script)).resolves.toBeUndefined();
@@ -192,6 +219,31 @@ describe('rvmMatte', () => {
 				else delete process.env.VF_FAKE_UV_LOG;
 				await fs.rm(dir, { recursive: true, force: true });
 			}
+		},
+		60_000
+	);
+
+	it.skipIf(!hasFfmpeg || process.platform === 'win32')(
+		'says how to get uv when it is missing',
+		async () => {
+			const dir = await tempDir();
+			const input = path.join(dir, 'talk.mp4');
+			ffmpeg([
+				'-f',
+				'lavfi',
+				'-i',
+				'testsrc2=size=160x90:rate=25:duration=1',
+				'-pix_fmt',
+				'yuv420p',
+				input
+			]);
+			await expect(
+				createSubjectMatte(input, {
+					output: path.join(dir, 'm.mp4'),
+					provider: rvmMatte({ uv: path.join(dir, 'no-such-uv') })
+				})
+			).rejects.toThrow(/uv not found.*--provider fal/s);
+			await fs.rm(dir, { recursive: true, force: true });
 		},
 		60_000
 	);

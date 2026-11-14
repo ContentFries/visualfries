@@ -93,7 +93,7 @@ Work like an editor, in this order; each step ends on its criterion:
    whole take (`ffmpeg -i take.mov -vf fps=30 … talk.mp4`, which `matte` needs) and its matte
    (`visualfries matte talk.mp4 --output talk.matte.mp4`, local by default) when anything goes
    behind the speaker. Transcribe the take with word timestamps (Soniox recommended; WhisperX
-   locally), read every word, and write the outline: the ranges you keep
+   locally; convert to the word format in docs/transcripts), read every word, and write the outline: the ranges you keep
    (whole sentences; the best try of a repeated one), then per section the shot, the move on its
    key word, the transition into it and its sound. Done when every second of the kept speech has
    a planned frame and no stretch holds a still frame longer than about two seconds.

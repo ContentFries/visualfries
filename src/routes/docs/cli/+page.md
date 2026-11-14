@@ -109,6 +109,7 @@ Prints the size of the project's `.visualfries/` cache: extracted footage frames
 npx visualfries matte talk.mp4 --output talk.matte.mp4 [--threads 8]
 
 # BiRefNet v2 on fal.ai: paid, cleaner edges on hair and microphones
+# (--model or --resolution without --provider also means fal)
 FAL_KEY=… npx visualfries matte talk.mp4 --output talk.matte.mp4 --provider fal [--model Matting] [--resolution 1024x1024]
 
 # any local tool: one run per piece, with placeholders

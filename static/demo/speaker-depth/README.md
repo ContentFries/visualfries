@@ -51,7 +51,8 @@ Any greyscale video of the same size and frame count works too (white = subject)
 
 Word timestamps of `talk.mp4`, in seconds from its first frame
 (`[{ "text", "start", "end" }]` or Soniox-style `{ "words": [{ "text", "startMs", "endMs" }] }`).
-Soniox is the recommended service; WhisperX is the local, free option.
+Soniox is the recommended service; WhisperX is the local, free option. Convert either tool's
+output to this word format first.
 
 ## 4. Point the cues at your words
 

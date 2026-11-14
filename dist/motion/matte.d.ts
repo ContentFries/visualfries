@@ -76,6 +76,16 @@ export declare function rvmMatte(opts?: {
     uv?: string;
     script?: string;
 }): MatteProvider;
+/**
+ * Which provider `visualfries matte` uses: the one named, else `command` when a command is given,
+ * `fal` when a fal-only option (model, resolution) is given, else local `rvm`.
+ */
+export declare function matteProviderName(flags: {
+    provider?: string;
+    command?: string;
+    model?: string;
+    resolution?: string;
+}): string;
 export type MatteOptions = {
     output: string;
     /**

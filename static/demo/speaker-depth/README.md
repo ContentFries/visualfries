@@ -26,13 +26,20 @@ Use a stretch without cutaways: a matte of a screen recording is meaningless.
 ## 2. Make the matte
 
 ```bash
-export FAL_KEY=…        # https://fal.ai/dashboard/keys
 npx visualfries matte talk.mp4 --output talk.matte.mp4
 ```
 
-`matte` runs BiRefNet v2 on fal.ai by default (model `Matting`, good on hair and microphones),
-splits long videos into pieces and checks that the matte has exactly as many frames as the
-clip. A 17-second clip takes one to three minutes. To use your own model instead:
+`matte` runs RobustVideoMatting locally on the CPU by default (no key; needs `uv` and `ffmpeg`,
+downloads torch and the model once), splits long videos into pieces and checks that the matte
+has exactly as many frames as the clip. For cleaner edges on hair and microphones, BiRefNet v2
+on fal.ai is paid and needs a key:
+
+```bash
+export FAL_KEY=…        # https://fal.ai/dashboard/keys
+npx visualfries matte talk.mp4 --output talk.matte.mp4 --provider fal
+```
+
+To use your own model instead:
 
 ```bash
 npx visualfries matte talk.mp4 --output talk.matte.mp4 --command "python rvm.py --in {input} --out {output}"
@@ -44,6 +51,8 @@ Any greyscale video of the same size and frame count works too (white = subject)
 
 Word timestamps of `talk.mp4`, in seconds from its first frame
 (`[{ "text", "start", "end" }]` or Soniox-style `{ "words": [{ "text", "startMs", "endMs" }] }`).
+Soniox is the recommended service; WhisperX is the local, free option. Convert either tool's
+output to this word format first.
 
 ## 4. Point the cues at your words
 

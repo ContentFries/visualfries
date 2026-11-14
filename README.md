@@ -15,6 +15,8 @@ VisualFries is an engine for social media content. Give your agent anything spok
 
 A **program** is one `.vf.json` that describes the whole edit. Every timing is a phrase of the transcript, so a retake renders again without touching the edit.
 
+**Transcripts.** Word timestamps decide how tightly cuts, captions and words behind the head land. We use and recommend [Soniox](https://soniox.com) (accurate word times in many languages, inexpensive); WhisperX (forced alignment) is the local, free option. Convert either tool's output to the [word format](https://www.visualfries.com/docs/transcripts). Plain Whisper estimates word times and can drift.
+
 ```json
 {
 	"size": [1080, 1920],

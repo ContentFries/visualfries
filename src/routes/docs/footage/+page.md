@@ -82,11 +82,12 @@ The matte also says where the speaker is. VisualFries measures the subject's box
 ## Make a matte
 
 ```bash
-FAL_KEY=… npx visualfries matte talk.mp4 --output talk.matte.mp4
+npx visualfries matte talk.mp4 --output talk.matte.mp4
+FAL_KEY=… npx visualfries matte talk.mp4 --output talk.matte.mp4 --provider fal
 npx visualfries matte talk.mp4 --output talk.matte.mp4 --command "rvm --in {input} --out {output}"
 ```
 
-[`visualfries matte`](/docs/cli#matte) does the bookkeeping every segmentation model needs: it splits the video into pieces the model accepts, checks each mask's frame count, scales and joins the masks, and verifies the result is frame-exact. Who segments is a **provider**: BiRefNet v2 on fal.ai by default (model `Matting` keeps hair and microphones; a 17-second 1000×1080 clip takes one to three minutes), or any local tool through `--command`. The input must have a constant frame rate; convert a variable-frame-rate recording first.
+[`visualfries matte`](/docs/cli#matte) does the bookkeeping every segmentation model needs: it splits the video into pieces the model accepts, checks each mask's frame count, scales and joins the masks, and verifies the result is frame-exact. Who segments is a **provider**: RobustVideoMatting locally on the CPU by default (no key), BiRefNet v2 on fal.ai with `--provider fal` (paid; model `Matting` keeps hair and microphones; a 17-second 1000×1080 clip takes one to three minutes), or any local tool through `--command`. The input must have a constant frame rate; convert a variable-frame-rate recording first.
 
 A provider is a small object, so another API or model plugs in without touching the rest:
 

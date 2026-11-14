@@ -116,7 +116,11 @@ Its old name `styles` is still read the same way (not both at once); `style` is 
 (see Brand, style and format).
 
 Transcripts: Soniox-style `{ "words": [{ "text", "startMs", "endMs" }] }` or
-`[{ "text", "start", "end" }]` in seconds.
+`[{ "text", "start", "end" }]` in seconds. Word timestamps decide how tightly everything lands:
+Soniox is the recommended service (accurate word times in many languages, inexpensive); WhisperX
+(forced alignment) is the local, free option. Convert either tool's output to one of these two
+formats first (Soniox returns sub-word tokens, WhisperX `word_segments`). Plain Whisper estimates
+word times and can drift.
 
 ## Blocks
 
@@ -1036,9 +1040,9 @@ brand colours filled in and its ease; changing a key changes the hash of the seg
 is on screen in, and `check --determinism` samples the frames at and between keys. Keys have
 no effect on a project without `cuts` or `shots` (a warning).
 
-`visualfries matte talk.mp4 --output talk.matte.mp4` makes the matte: BiRefNet v2 on fal.ai
-(`FAL_KEY`) by default; `--provider rvm` runs RobustVideoMatting locally on the CPU with no key
-(about 3 fps at 1080p on 12 cores). It needs `uv` and `ffmpeg` on the PATH, nothing else: `uv`
+`visualfries matte talk.mp4 --output talk.matte.mp4` makes the matte: RobustVideoMatting locally
+on the CPU with no key by default (about 3 fps at 1080p on 12 cores); `--provider fal` runs
+BiRefNet v2 on fal.ai (`FAL_KEY`, paid) for cleaner edges on hair and microphones. It needs `uv` and `ffmpeg` on the PATH, nothing else: `uv`
 brings Python, torch, torchvision and numpy (current CPU wheels), and the first run downloads
 them, the RobustVideoMatting v1.0.0 model code and its weights from the project's GitHub release
 (checked against their SHA-256), a few hundred MB cached for later runs (`$TORCH_HOME`, default
@@ -1888,7 +1892,7 @@ visualfries check program.vf.json --export inserts               # what inserts 
 visualfries check program.vf.json --format 1080x1920             # the program in another frame size, safe zone too
 visualfries still program.vf.json --format 1080x1920 --output s.png   # its stills
 visualfries clips video.vf.json --transcript retake.json         # re-time against a new voiceover
-visualfries matte talk.mp4 --output talk.matte.mp4 --provider rvm   # subject matte (rvm local, fal.ai or --command)
+visualfries matte talk.mp4 --output talk.matte.mp4             # subject matte (rvm local by default, --provider fal, or --command)
 visualfries beats music.mp3                                      # music.beats.json (beat_this or --command)
 ```
 

@@ -91,8 +91,9 @@ Work like an editor, in this order; each step ends on its criterion:
    chosen.
 2. **Plan.** Prepare the take as the guide's step 1 says: a constant-frame-rate copy of the
    whole take (`ffmpeg -i take.mov -vf fps=30 … talk.mp4`, which `matte` needs) and its matte
-   (`visualfries matte talk.mp4 --output talk.matte.mp4 --provider rvm`) when anything goes
-   behind the speaker. Transcribe the take, read every word, and write the outline: the ranges you keep
+   (`visualfries matte talk.mp4 --output talk.matte.mp4`, local by default) when anything goes
+   behind the speaker. Transcribe the take with word timestamps (Soniox recommended; WhisperX
+   locally; convert to the word format in docs/transcripts), read every word, and write the outline: the ranges you keep
    (whole sentences; the best try of a repeated one), then per section the shot, the move on its
    key word, the transition into it and its sound. Done when every second of the kept speech has
    a planned frame and no stretch holds a still frame longer than about two seconds.
@@ -258,7 +259,7 @@ Start with the built-in block `"block": "@visualfries/speaker-depth"`: the words
 
 1. Find a stretch with only the talking head (no screen recordings or cutaways); scene detection with ffmpeg helps (`select='gt(scene,0.25)'`).
 2. Crop wider than 9:16 so the shoulders touch the left and right edges (e.g. `crop=1000:1080:x:0` from 1920×1080, face centred). Keep the sound.
-3. `FAL_KEY=… visualfries matte talk.mp4 --output talk.matte.mp4` (BiRefNet v2, model `Matting`), or a local segmentation tool with `--command "tool --in {input} --out {output}"` (`--command-output alpha` if it writes transparency). Look at one frame of the matte over a solid colour before going on.
+3. `visualfries matte talk.mp4 --output talk.matte.mp4` (RobustVideoMatting, local on the CPU, no key). Look at one frame of the matte over a solid colour before going on. When the creator asks for a cleaner edge on hair or a microphone, run it again with `--provider fal` (BiRefNet v2 on fal.ai, paid, `FAL_KEY`); another local tool plugs in with `--command "tool --in {input} --out {output}"` (`--command-output alpha` if it writes transparency).
 4. Transcript in seconds from the clip's first frame. Declare `"footage": { "talk": { "src": "talk.mp4", "matte": "talk.matte.mp4" } }` and the clip's `"audio": "talk"`.
 5. Name each beat after its word in `cues` (`{ "say": "AI", "occurrence": 2 }` for repeats, `"edge": "last"` for the last word of a phrase). Run `visualfries clips` and fix every cue that resolves to the wrong word.
 6. Block layers, back to front: backdrop → type layer → camera wrapper with `<Footage layer="plate">` (fade it out or keep it), optional `<Footage layer="subject" offset={-0.4}>` ghost, `<Footage layer="subject">` → captions on top.

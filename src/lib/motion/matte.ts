@@ -242,11 +242,14 @@ export function rvmMatte(
 		output: 'luma',
 		async segment(chunk) {
 			// No shell: the script path and the chunk paths are passed as plain arguments.
-			await run(
+			await runUv(
 				uv,
 				[
 					'run',
 					'-q',
+					// Never pick up a pyproject.toml or uv.toml from the folder the video sits in.
+					'--no-project',
+					'--no-config',
 					'--index',
 					'https://download.pytorch.org/whl/cpu',
 					'--index-strategy',
@@ -269,22 +272,59 @@ export function rvmMatte(
 	};
 }
 
+async function runUv(uv: string, args: string[], label: string): Promise<void> {
+	try {
+		await run(uv, args, label);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+		throw new Error(
+			`${label}: uv not found ("${uv}"). Install uv (https://docs.astral.sh/uv/) or use --provider fal (fal.ai, FAL_KEY).`
+		);
+	}
+}
+
+/**
+ * Which provider `visualfries matte` uses: the one named, else `command` when a command is given,
+ * `fal` when a fal-only option (model, resolution) is given, else local `rvm`.
+ */
+export function matteProviderName(flags: {
+	provider?: string;
+	command?: string;
+	model?: string;
+	resolution?: string;
+}): string {
+	if (flags.provider) return flags.provider;
+	if (flags.command) return 'command';
+	if (flags.model || flags.resolution) return 'fal';
+	return 'rvm';
+}
+
+const REMOVED_FAL_OPTIONS = ['model', 'resolution', 'falKey', 'fetch'];
+
+/** Options of the old fal.ai default; without a provider they would silently run locally. */
+function rejectRemovedFalOptions(opts: MatteOptions): void {
+	if (opts.provider) return;
+	const found = REMOVED_FAL_OPTIONS.filter((key) => key in opts);
+	if (found.length)
+		throw new Error(
+			`createSubjectMatte no longer takes ${found.join(', ')}: the default provider is local RVM. For fal.ai pass provider: falBiRefNet({ key, model, resolution }).`
+		);
+}
+
 // ---------------------------------------------------------------- pipeline
 
 export type MatteOptions = {
 	output: string;
-	/** Who segments the video. Default: `falBiRefNet({ model, resolution, key: falKey })`. */
+	/**
+	 * Who segments the video. Default: `rvmMatte()`, local on the CPU with no key. For a cleaner
+	 * edge on hair and microphones pass `falBiRefNet()` (fal.ai, paid, `FAL_KEY`).
+	 */
 	provider?: MatteProvider;
 	/** Frames per piece; at most the provider's `maxFrames`. Default: 480 or the provider limit. */
 	chunkFrames?: number;
 	/** Pieces running at once. Default: the provider's `parallel`. */
 	jobs?: number;
 	onProgress?: (message: string) => void;
-	/** For the default fal.ai provider. */
-	model?: BiRefNetModel;
-	resolution?: '1024x1024' | '2048x2048' | '2304x2304';
-	falKey?: string;
-	fetch?: typeof fetch;
 };
 
 export type MatteResult = {
@@ -373,14 +413,8 @@ async function checkAlpha(file: string, provider: string): Promise<string[]> {
  * the matte has the same size, frame rate and frame count as the input.
  */
 export async function createSubjectMatte(input: string, opts: MatteOptions): Promise<MatteResult> {
-	const provider =
-		opts.provider ??
-		falBiRefNet({
-			key: opts.falKey,
-			model: opts.model,
-			resolution: opts.resolution,
-			fetch: opts.fetch
-		});
+	rejectRemovedFalOptions(opts);
+	const provider = opts.provider ?? rvmMatte();
 	const started = Date.now();
 	const info = await probeVideo(input);
 	if (!info.constant)

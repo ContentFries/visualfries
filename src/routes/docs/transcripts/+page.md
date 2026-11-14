@@ -1,10 +1,14 @@
 ---
 title: Transcripts
 description: Transcript formats VisualFries reads for motion projects, how words are normalized for matching, and the planned speech-to-text adapters and setup.
-updated: 2026-09-27
+updated: 2026-11-14
 ---
 
 A transcript gives every spoken word a start and an end. VisualFries reads word-level JSON from speech-to-text services; it does not call those services itself.
+
+## Which service
+
+Every timing in VisualFries is a word, so word timestamps decide how tightly cuts, captions and words behind the head land. We use and recommend [Soniox](https://soniox.com): accurate word times in many languages, and inexpensive. Any tool with word-level times works once its words are converted to one of the formats below: Soniox returns sub-word tokens (`text`, `start_ms`, `end_ms`) to join into words, WhisperX lists them under `word_segments`. Plain Whisper estimates word times and can drift, so when you need a local or free option, prefer WhisperX (forced alignment) and give words it could not align a time from their neighbours. Look at a still on a cut before you render.
 
 ## Formats
 

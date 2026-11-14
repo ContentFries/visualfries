@@ -3,9 +3,9 @@
 [![npm version](https://badge.fury.io/js/visualfries.svg)](https://badge.fury.io/js/visualfries)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**The open-source engine for social media content. Raw footage in, your whole feed out.**
+**Your AI agent is your editor now. VisualFries is the open-source engine it edits with.**
 
-VisualFries is the engine your AI agent edits with. Hand it real footage and a JSON program, and it renders the finished YouTube video, short or reel: the pauses and retakes cut, the speaker framed, words behind the head, captions, motion graphics, transitions, sound effects and music, all anchored to the words that were said. The same blocks render stills at any size: covers, thumbnails, image posts and carousel slides, in 9:16, 4:5, 1:1 and 16:9 with safe zones for TikTok, Meta and YouTube. It renders frame by frame in headless Chromium, on a CPU; the edit is data, and the CLI says what to fix. Open source, MIT. It is the engine behind [ContentFries](https://contentfries.com).
+VisualFries is an engine for social media content. Give your agent anything spoken (a camera recording, an AI voiceover, an avatar video) and it writes one JSON program; VisualFries renders the finished YouTube video, short or reel: the pauses and retakes cut, the speaker framed, words behind the head, captions, motion graphics, transitions, sound effects and music, all anchored to the words that were said. The same blocks render stills at any size: covers, thumbnails, image posts and carousel slides, in 9:16, 4:5, 1:1 and 16:9 with safe zones for TikTok, Meta and YouTube. It renders frame by frame in headless Chromium, on a CPU; the edit is data, and the CLI says what to fix. Open source, MIT. It is the engine behind [ContentFries](https://contentfries.com).
 
 **Site and examples: [visualfries.com](https://www.visualfries.com)** · docs: [visualfries.com/docs](https://www.visualfries.com/docs) · for agents: [visualfries.com/llms.txt](https://www.visualfries.com/llms.txt)
 

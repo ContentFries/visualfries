@@ -2,7 +2,7 @@
 layout: page
 title: 'Open-source AI YouTube video editor for your coding agent: VisualFries'
 heading: Your AI agent edits your YouTube videos
-description: Hand your coding agent the recording and the transcript. VisualFries renders the finished YouTube video with cuts, punch-ins, graphics on your words, music and the mix. Open source, MIT.
+description: Hand your agent a recording or an AI voiceover. VisualFries renders the finished YouTube video with cuts, punch-ins, graphics on your words, music and the mix. MIT.
 updated: 2026-11-14
 faq:
   - q: Can an AI agent really edit a whole YouTube video?
@@ -17,11 +17,11 @@ faq:
     a: VisualFries is free and MIT licensed. You pay for your coding agent and your speech-to-text provider.
 ---
 
-You record. Your agent edits. VisualFries renders the finished episode: the dead air and the retakes cut, punch-ins on the claims, full-screen cards for the one thing worth showing, graphics that land on the word you say, music under the whole video and a mix at -14 LUFS.
+You talk, or your AI voice does. Your agent edits. VisualFries renders the finished episode: the dead air and the retakes cut, punch-ins on the claims, full-screen cards for the one thing worth showing, graphics that land on the word you say, music under the whole video and a mix at -14 LUFS.
 
 ## What you hand over
 
-- The recording: raw takes, or the rough cut you already made.
+- Something spoken: raw camera takes, a rough cut you already made, an AI voiceover for a fully animated video, or an avatar video.
 - A word-level transcript of it.
 - One sentence about what you want.
 

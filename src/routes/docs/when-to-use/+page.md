@@ -1,10 +1,10 @@
 ---
 title: When to use VisualFries
-description: VisualFries is the open-source engine for social media content. Use it when real footage should become finished videos and stills, when timing comes from speech, and when an agent writes the edit. How it compares with Remotion and HyperFrames.
+description: VisualFries is the open-source engine for social media content. Use it when something spoken should become finished videos and stills, when timing comes from speech, and when an agent writes the edit. How it compares with Remotion and HyperFrames.
 updated: 2026-11-14
 ---
 
-VisualFries is the right choice when social content starts from real footage: your agent edits the recording into the YouTube video, the shorts and the reels, cut by the words that were said, and makes the stills that go with them.
+VisualFries is the right choice when social content starts from something spoken, a camera recording, an AI voiceover or an avatar video: your agent edits and animates it into the YouTube video, the shorts and the reels, timed by the words that are said, and makes the stills that go with them.
 
 ## It fits when
 
@@ -25,14 +25,14 @@ VisualFries is the right choice when social content starts from real footage: yo
 
 All three render a browser page frame by frame. They differ in what the video starts from and what you write.
 
-|                    | VisualFries                                                                                     | Remotion                            | HyperFrames                     |
-| ------------------ | ----------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------- |
-| Built for          | Social content from real footage: YouTube videos, shorts, reels; covers and carousels as stills | Any video written in React          | Any video made from HTML        |
-| You write          | One JSON program plus Svelte blocks                                                             | React components                    | HTML, CSS and JavaScript        |
-| Primary timing     | Transcript phrases as anchors, plus seconds, frames, beats                                      | Frame numbers                       | Seconds in data attributes      |
-| Cutting a raw take | Cut list with takes, retakes and order                                                          | Sequences and trims you write       | Pause removal through the agent |
-| Editor GUI         | None for programs; scenes mount live in your app                                                | Remotion Studio                     | Studio app and browser editor   |
-| Rendering          | Local headless Chromium, CPU only                                                               | Local, server, AWS Lambda           | Local, Docker, cloud            |
-| Licence            | MIT                                                                                             | Own licence, paid above 3 employees | Apache 2.0                      |
+|                    | VisualFries                                                                                                                                                      | Remotion                            | HyperFrames                     |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------- |
+| Built for          | Social content from anything spoken (a recording, an AI voiceover, an avatar video): videos, shorts and reels, plus covers, carousel slides and quotes as stills | Any video written in React          | Any video made from HTML        |
+| You write          | One JSON program plus Svelte blocks                                                                                                                              | React components                    | HTML, CSS and JavaScript        |
+| Primary timing     | Transcript phrases as anchors, plus seconds, frames, beats                                                                                                       | Frame numbers                       | Seconds in data attributes      |
+| Cutting a raw take | Cut list with takes, retakes and order                                                                                                                           | Sequences and trims you write       | Pause removal through the agent |
+| Editor GUI         | None for programs; scenes mount live in your app                                                                                                                 | Remotion Studio                     | Studio app and browser editor   |
+| Rendering          | Local headless Chromium, CPU only                                                                                                                                | Local, server, AWS Lambda           | Local, Docker, cloud            |
+| Licence            | MIT                                                                                                                                                              | Own licence, paid above 3 employees | Apache 2.0                      |
 
 The full comparisons, with sources and dates: [VisualFries vs HyperFrames vs Remotion](/alternatives), [VisualFries as a HyperFrames alternative](/alternatives/hyperframes) and [VisualFries as a Remotion alternative](/alternatives/remotion).

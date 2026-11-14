@@ -14,6 +14,8 @@
 	} = $props();
 
 	const SITE = 'https://www.visualfries.com';
+	const CONTENTFRIES =
+		'https://www.contentfries.com/?utm_source=visualfries&utm_medium=site&utm_campaign=v3';
 	// mdsvex hands a bare YAML date over as an ISO timestamp; show and publish the day.
 	const checked = $derived(String(updated ?? '').slice(0, 10));
 	const HUBS: Record<string, string> = { alternatives: 'Alternatives', for: 'Use cases' };
@@ -106,14 +108,23 @@
 		</div>
 
 		<div class="next">
-			<h2>Raw footage in. <em>Your whole feed out.</em></h2>
-			<p>Install it, hand your agent a recording and ask for the first video.</p>
+			<h2>Your AI agent is <em>your editor now.</em></h2>
+			<p>Install VisualFries, hand your agent something spoken and ask for the first video.</p>
 			<div class="cta">
 				<a class="btn" href="/docs/quickstart">Quickstart</a>
 				<a class="ghost btn" href="/docs/programs">How a program works</a>
 				<a class="ghost btn" href="https://github.com/ContentFries/visualfries">GitHub</a>
 			</div>
 		</div>
+
+		<aside class="cf" aria-label="ContentFries">
+			<p>
+				<b>Want a visual timeline and cloud render?</b> ContentFries is built on VisualFries. It adds
+				a timeline you can see, comments on any block that your agent acts on, and rendering on its servers,
+				so your computer stays free. The new version is on its way.
+			</p>
+			<a href={CONTENTFRIES}>See ContentFries</a>
+		</aside>
 
 		<div class="meta">
 			{#if checked}<span>Checked {checked}</span>{/if}
@@ -167,6 +178,30 @@
 		flex-wrap: wrap;
 		gap: 10px;
 		margin-top: 18px;
+	}
+	.cf {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px 24px;
+		align-items: center;
+		justify-content: space-between;
+		margin-top: 16px;
+		padding: 16px 20px;
+		border: 1px dashed var(--line);
+		border-radius: var(--r);
+		font-size: 15px;
+		color: var(--ink-2);
+	}
+	.cf p {
+		margin: 0;
+		flex: 1 1 420px;
+	}
+	.cf b {
+		color: var(--ink);
+	}
+	.cf a {
+		color: var(--cool);
+		white-space: nowrap;
 	}
 	.meta {
 		display: flex;

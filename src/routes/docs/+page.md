@@ -1,10 +1,10 @@
 ---
 title: What is VisualFries
-description: VisualFries is the open-source engine for social media content, driven by an AI agent. Real footage and a JSON program in; YouTube videos, shorts, reels and stills out, with cuts, shots, captions and sound anchored to the words of the transcript. Motion projects and scene documents use the same engine.
+description: VisualFries is the open-source engine for social media content, driven by an AI agent. Anything spoken and a JSON program in; YouTube videos, shorts, reels and stills out, with cuts, shots, captions and sound anchored to the words of the transcript. Motion projects and scene documents use the same engine.
 updated: 2026-11-14
 ---
 
-VisualFries is the open-source (MIT) engine for social media content: your agent edits real footage into YouTube videos, shorts and reels, cut by the words that were said, and renders covers, posts and carousel slides from the same blocks. A JSON document is the source of truth, visuals are Svelte components and HTML/CSS, animation is GSAP. Motion blocks are functions of time, so with the same document, fonts and browser a frame is meant to look the same whenever it is rendered; `check --determinism` verifies that ([rules](/docs/determinism)). It is the engine behind [ContentFries](https://contentfries.com), which turns one long video into a week of clips, captions and posts.
+VisualFries is the open-source (MIT) engine for social media content: your agent edits anything spoken (a camera recording, an AI voiceover, an avatar video) into YouTube videos, shorts and reels, timed by the words that are said, and renders covers, posts and carousel slides from the same blocks. A JSON document is the source of truth, visuals are Svelte components and HTML/CSS, animation is GSAP. Motion blocks are functions of time, so with the same document, fonts and browser a frame is meant to look the same whenever it is rendered; `check --determinism` verifies that ([rules](/docs/determinism)). It is the engine behind [ContentFries](https://contentfries.com), which turns one long video into a week of clips, captions and posts.
 
 ## Three ways to use it
 

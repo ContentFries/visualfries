@@ -131,7 +131,7 @@ export function llmsTxt(): string {
 	const lines = [
 		'# VisualFries',
 		'',
-		'> The open-source (MIT) engine for social media content, built for AI agents to drive. Real footage and a JSON program in; finished YouTube videos, shorts and reels out, plus stills (covers, posts, carousel slides) from the same blocks. A program holds the cut list, the shots that frame the speaker, clips (Svelte components), transitions, captions and sound, all anchored to the words of a transcript, and renders frame by frame in headless Chromium. Motion projects time inserts the same way; scene documents mount live in an editor. Built for AI agents to drive.',
+		'> The open-source (MIT) engine for social media content, built for AI agents to drive. Anything spoken (a camera recording, an AI voiceover, an avatar video) and a JSON program in; finished YouTube videos, shorts and reels out, plus stills (covers, posts, carousel slides) from the same blocks. A program holds the cut list, the shots that frame the speaker, clips (Svelte components), transitions, captions and sound, all anchored to the words of a transcript, and renders frame by frame in headless Chromium. Motion projects time inserts the same way; scene documents mount live in an editor. Built for AI agents to drive.',
 		'',
 		'Every page below is available as Markdown by appending `.md` to its URL. The whole documentation in one file: ' +
 			`${SITE}/llms-full.txt`,

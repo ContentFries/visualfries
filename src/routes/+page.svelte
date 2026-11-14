@@ -7,9 +7,9 @@
 	let root: HTMLElement;
 	onMount(() => initHome(root));
 
-	const title = 'VisualFries: the open-source engine for social media content';
+	const title = 'VisualFries: your AI agent is your editor now';
 	const description =
-		'Raw footage in, your whole feed out. Your AI agent edits YouTube videos, shorts, reels, carousels and ads with VisualFries, the MIT engine for social content.';
+		'Your AI agent is your editor now. Give it anything spoken and it ships the video, the shorts, the reels and the carousels with VisualFries, the MIT engine.';
 	const jsonLd = {
 		'@context': 'https://schema.org',
 		'@graph': [
@@ -17,7 +17,7 @@
 				'@type': 'SoftwareSourceCode',
 				name: 'VisualFries',
 				description:
-					'The open-source engine for social media content, driven by an AI agent: real footage edited into YouTube videos, shorts and reels by the words of the transcript, plus static posts, covers, carousel slides, explainers and kinetic type. A JSON project describes clips, timed by transcript words; blocks are Svelte components; a matte cuts the speaker out so layers can sit behind them. A program describes a whole edit in one project: a cut list over raw takes, shots (full, punch, strip, window, behind, whip, cutout), transitions, keys, sound effects, music snapped to bars and a mix normalised to -14 LUFS. Built-in blocks include word-timed captions and a speaker-depth reel. The CLI resolves and checks programs, verifies determinism, writes stills and renders MP4 or ProRes 4444 alpha inserts.',
+					'The open-source engine for social media content, driven by an AI agent: anything spoken (a camera recording, an AI voiceover, an avatar video) edited and animated into YouTube videos, shorts and reels by the words of the transcript, plus static posts, covers, carousel slides, explainers and kinetic type. A JSON project describes clips, timed by transcript words; blocks are Svelte components; a matte cuts the speaker out so layers can sit behind them. A program describes a whole edit in one project: a cut list over raw takes, shots (full, punch, strip, window, behind, whip, cutout), transitions, keys, sound effects, music snapped to bars and a mix normalised to -14 LUFS. Built-in blocks include word-timed captions and a speaker-depth reel. The CLI resolves and checks programs, verifies determinism, writes stills and renders MP4 or ProRes 4444 alpha inserts.',
 				codeRepository: 'https://github.com/ContentFries/visualfries',
 				programmingLanguage: ['TypeScript', 'Svelte'],
 				license: 'https://opensource.org/licenses/MIT',
@@ -32,7 +32,7 @@
 						name: 'What is VisualFries?',
 						acceptedAnswer: {
 							'@type': 'Answer',
-							text: 'VisualFries is the open-source (MIT) engine for social media content, built for AI agents to drive. It turns real footage and a JSON program into finished YouTube videos, shorts and reels (cuts, shots, motion graphics, captions and sound anchored to the words the speaker says) and renders stills such as covers and carousel slides from the same blocks, in headless Chromium. A JSON document is the source of truth; visuals are Svelte components; text is HTML/CSS; animation is GSAP. Motion frames are designed to be deterministic, and check --determinism compares sampled frames rendered in different orders. It is the engine behind ContentFries.'
+							text: 'VisualFries is the open-source (MIT) engine for social media content, built for AI agents to drive. It turns anything spoken (a camera recording, an AI voiceover, an avatar video) and a JSON program into finished YouTube videos, shorts and reels (cuts, shots, motion graphics, captions and sound anchored to the words the speaker says) and renders stills such as covers and carousel slides from the same blocks, in headless Chromium. A JSON document is the source of truth; visuals are Svelte components; text is HTML/CSS; animation is GSAP. Motion frames are designed to be deterministic, and check --determinism compares sampled frames rendered in different orders. It is the engine behind ContentFries.'
 						}
 					},
 					{

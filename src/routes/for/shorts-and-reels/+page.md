@@ -2,7 +2,7 @@
 layout: page
 title: 'Open-source AI editor for Shorts, Reels and TikTok: VisualFries'
 heading: Shorts and reels, cut by the words you said
-description: Your AI agent turns a raw take or a passage of a long video into a finished short with captions, punch-ins, words behind your head, sound and an end card. Open source, MIT.
+description: Your AI agent turns a raw take, a passage of a long video or an AI voiceover into a finished short with captions, punch-ins, sound and an end card. MIT.
 updated: 2026-11-14
 faq:
   - q: How is this different from an auto-captions app?
@@ -17,7 +17,7 @@ faq:
     a: Yes. One program renders in any frame size with one flag, and check runs the edit in that size before you render.
 ---
 
-One raw take, or one good passage of a long video, becomes a vertical clip that holds attention: the pauses gone, a punch-in on the claim, the big word behind your head, captions on every word, a sound on the hit and an end card that sends people to the full video.
+One raw take, one good passage of a long video, or an AI voiceover becomes a vertical clip that holds attention: the pauses gone, a punch-in on the claim, the big word behind your head, captions on every word, a sound on the hit and an end card that sends people to the full video.
 
 ## What is in the edit
 

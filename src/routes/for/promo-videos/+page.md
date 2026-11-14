@@ -8,20 +8,20 @@ faq:
   - q: Does a promo need a voiceover or a transcript?
     a: No. A promo can be timed entirely by its music. VisualFries analyses the track into bars and beats, and cuts, type and photos anchor to them the same way other videos anchor to words.
   - q: Where do the photos and footage come from?
-    a: From you, or from your agent. In the two promos on this page the agent gathered the photos and b-roll itself; VisualFries places, frames and animates whatever files the program names.
+    a: From you, or from your agent. In the two promos on this page the agent gathered the material itself, and the b-roll of the planner promo is generated from the brand's own photos; VisualFries places, frames and animates whatever files the program names.
   - q: Can I get the same promo for Reels and for YouTube?
     a: Yes. One program renders at 9:16, 4:5, 1:1 and 16:9, and check runs the edit in each size before you render.
   - q: Is this a template?
     a: No. The type, the layout and the motion are Svelte blocks your agent writes for the brand, so two promos do not have to share a look.
 ---
 
-Not every video starts with someone talking. An opener for an event, a product film, a teaser for a launch: no voice, only pictures, type and music. Your agent builds those with VisualFries too, and these two shipped.
+Not every video starts with someone talking. An opener for an event, a product film, a teaser for a launch: no voice, only pictures, type and music. Your agent builds those with VisualFries too, and these two shipped. Finding the look took a few prompts. Once it was tuned, one or two prompts were enough.
 
 ## A product promo, 35 seconds
 
 <video src="/media/v4/promo-diary.mp4" poster="/media/v4/promo-diary.jpg" autoplay muted loop playsinline aria-label="A 35-second product promo for a paper planner: b-roll of a woman at a desk, large serif letters over close-ups of handwriting, kinetic lines of text and an end card with the three planners."></video>
 
-A promo for a yearly paper planner, in Slovak. B-roll, big serif letters that sit inside the picture, lines of type that land on the beat, and an end card with the product. The agent gathered the b-roll and the product shots itself. Sound is off here; the original has a music bed.
+A promo for a yearly paper planner, in Slovak. B-roll, big serif letters that sit inside the picture, lines of type that land on the beat, and an end card with the product. The b-roll is generated from the brand's own materials, and the agent gathered those itself. Sound is off here; the original has a music bed.
 
 ## An event opener
 

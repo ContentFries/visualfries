@@ -26,7 +26,7 @@ One raw take, one good passage of a long video, or an AI voiceover becomes a ver
 <figure><video src="/media/v4/reel-andy-6.mp4" poster="/media/v4/reel-andy-6.jpg" autoplay muted loop playsinline aria-label="The first seconds of a seminar reel: a warning triangle blinks behind the speaker, then counters with amounts of money over the footage."></video><figcaption><a href="https://www.instagram.com/andywinsonofficial/reel/DfXbYnygbeK/">Watch the whole reel on Instagram</a></figcaption></figure>
 </div>
 
-The first seconds of two seminar reels of Andy Winson, in Slovak, sound off. The hook and the taste are the editor's. VisualFries gave them what holds attention: story stills, counters that run with the numbers he says, a warning sign behind him, captions held line by line.
+The first seconds of two seminar reels of Andy Winson, in Slovak, sound off. Each has over 100,000 views on Instagram. The hook and the taste are the editor's. VisualFries gave them what holds attention: story stills, counters that run with the numbers he says, a warning sign behind him, captions held line by line.
 
 ## What is in the edit
 

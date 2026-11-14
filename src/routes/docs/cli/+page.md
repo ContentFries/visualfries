@@ -105,11 +105,11 @@ Prints the size of the project's `.visualfries/` cache: extracted footage frames
 ## matte
 
 ```bash
-# BiRefNet v2 on fal.ai (default provider)
-FAL_KEY=… npx visualfries matte talk.mp4 --output talk.matte.mp4 [--model Matting] [--resolution 1024x1024]
+# RobustVideoMatting on the CPU (default provider): no key, needs uv and ffmpeg
+npx visualfries matte talk.mp4 --output talk.matte.mp4 [--threads 8]
 
-# RobustVideoMatting on the CPU: no key, needs uv and ffmpeg
-npx visualfries matte talk.mp4 --output talk.matte.mp4 --provider rvm [--threads 8]
+# BiRefNet v2 on fal.ai: paid, cleaner edges on hair and microphones
+FAL_KEY=… npx visualfries matte talk.mp4 --output talk.matte.mp4 --provider fal [--model Matting] [--resolution 1024x1024]
 
 # any local tool: one run per piece, with placeholders
 npx visualfries matte talk.mp4 --output talk.matte.mp4 \
@@ -120,8 +120,8 @@ Makes a greyscale matte (white = subject) for a [footage](/docs/footage). Visual
 
 | Provider        |                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fal` (default) | BiRefNet v2 on fal.ai, `FAL_KEY`, ≤512 frames per request. Models: `Matting` (keeps hair), `Portrait`, `General Use (Light)`, `General Use (Light 2K)`, `General Use (Heavy)`, `General Use (Dynamic)`.                                                                                                                                                                                                                                                    |
-| `rvm`           | RobustVideoMatting (mobilenetv3) on the CPU, no key, temporally stable; about 3 fps at 1080p on 12 cores; `--threads` (default: the CPU count, at most 10). Needs `uv` and `ffmpeg` on the PATH: `uv` brings Python, torch, torchvision and numpy, and the first run downloads them, the model code (tag v1.0.0) and its weights from the project's GitHub release (SHA-256 checked), a few hundred MB cached in `$TORCH_HOME` (default `~/.cache/torch`). |
+| `rvm` (default) | RobustVideoMatting (mobilenetv3) on the CPU, no key, temporally stable; about 3 fps at 1080p on 12 cores; `--threads` (default: the CPU count, at most 10). Needs `uv` and `ffmpeg` on the PATH: `uv` brings Python, torch, torchvision and numpy, and the first run downloads them, the model code (tag v1.0.0) and its weights from the project's GitHub release (SHA-256 checked), a few hundred MB cached in `$TORCH_HOME` (default `~/.cache/torch`). |
+| `fal`           | BiRefNet v2 on fal.ai, `FAL_KEY`, ≤512 frames per request. Models: `Matting` (keeps hair), `Portrait`, `General Use (Light)`, `General Use (Light 2K)`, `General Use (Heavy)`, `General Use (Dynamic)`.                                                                                                                                                                                                                                                    |
 | `command`       | Your tool. Placeholders: `{input}`, `{output}` (paths, passed through environment variables so any character is safe), `{fps}`, `{width}`, `{height}`, `{frames}`. The tool writes greyscale with white = subject, or with `--command-output alpha` a video with transparency (ProRes 4444 `.mov` by default; `--command-ext .webm` for VP9 with alpha). A mask without an alpha channel is rejected.                                                      |
 
 In Node, pass any object with `name`, `maxFrames` and `segment(piece)` as `provider` to `createSubjectMatte` from `visualfries/motion/matte` ([example](/docs/footage#make-a-matte)).

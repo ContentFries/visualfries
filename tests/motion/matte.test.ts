@@ -22,6 +22,24 @@ function ffmpeg(args: string[]) {
 	if (r.status !== 0) throw new Error(String(r.stderr));
 }
 
+/** A stand-in `uv` on PATH: logs its arguments and writes a grey matte of the piece. */
+async function fakeUv(dir: string) {
+	const bin = path.join(dir, 'bin');
+	await fs.mkdir(bin);
+	await fs.writeFile(
+		path.join(bin, 'uv'),
+		[
+			'#!/bin/sh',
+			'for a; do printf \'%s\\n\' "$a"; done >> "$VF_FAKE_UV_LOG"',
+			'shift $(($# - 3))',
+			'exec ffmpeg -y -loglevel error -i "$1" -vf format=gray -pix_fmt yuv420p "$2"',
+			''
+		].join('\n'),
+		{ mode: 0o755 }
+	);
+	return bin;
+}
+
 describe('rvmMatte', () => {
 	it('is a local provider running the bundled script through uv', () => {
 		const p = rvmMatte({ threads: 4 });
@@ -100,6 +118,80 @@ describe('rvmMatte', () => {
 			await expect(fs.access(script)).resolves.toBeUndefined();
 			expect(args.at(-1)).toBe('3');
 			await fs.rm(dir, { recursive: true, force: true });
+		},
+		60_000
+	);
+
+	it.skipIf(!hasFfmpeg || process.platform === 'win32')(
+		'is the default: `visualfries matte` without --provider runs locally, with no FAL_KEY',
+		async () => {
+			const dir = await tempDir();
+			const input = path.join(dir, 'talk.mp4');
+			ffmpeg([
+				'-f',
+				'lavfi',
+				'-i',
+				'testsrc2=size=160x90:rate=25:duration=1',
+				'-pix_fmt',
+				'yuv420p',
+				input
+			]);
+			const bin = await fakeUv(dir);
+			const output = path.join(dir, 'talk.matte.mp4');
+			const env: NodeJS.ProcessEnv = {
+				...process.env,
+				PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+				VF_FAKE_UV_LOG: path.join(dir, 'uv.log')
+			};
+			delete env.FAL_KEY;
+			const r = spawnSync(
+				process.execPath,
+				[path.resolve('bin/visualfries.js'), 'matte', input, '--output', output, '--threads', '2'],
+				{ encoding: 'utf8', env }
+			);
+			expect(r.status, r.stderr).toBe(0);
+			expect(JSON.parse(r.stdout)).toMatchObject({
+				frames: 25,
+				provider: 'rvm (local CPU, 2 threads)'
+			});
+			await fs.rm(dir, { recursive: true, force: true });
+		},
+		60_000
+	);
+
+	it.skipIf(!hasFfmpeg || process.platform === 'win32')(
+		'is the default of createSubjectMatte',
+		async () => {
+			const dir = await tempDir();
+			const input = path.join(dir, 'talk.mp4');
+			ffmpeg([
+				'-f',
+				'lavfi',
+				'-i',
+				'testsrc2=size=160x90:rate=25:duration=1',
+				'-pix_fmt',
+				'yuv420p',
+				input
+			]);
+			const bin = await fakeUv(dir);
+			const saved = {
+				PATH: process.env.PATH,
+				FAL_KEY: process.env.FAL_KEY,
+				LOG: process.env.VF_FAKE_UV_LOG
+			};
+			process.env.PATH = `${bin}${path.delimiter}${process.env.PATH}`;
+			process.env.VF_FAKE_UV_LOG = path.join(dir, 'uv.log');
+			delete process.env.FAL_KEY;
+			try {
+				const result = await createSubjectMatte(input, { output: path.join(dir, 'matte.mp4') });
+				expect(result.provider).toMatch(/^rvm \(local CPU/);
+			} finally {
+				process.env.PATH = saved.PATH;
+				if (saved.FAL_KEY !== undefined) process.env.FAL_KEY = saved.FAL_KEY;
+				if (saved.LOG !== undefined) process.env.VF_FAKE_UV_LOG = saved.LOG;
+				else delete process.env.VF_FAKE_UV_LOG;
+				await fs.rm(dir, { recursive: true, force: true });
+			}
 		},
 		60_000
 	);

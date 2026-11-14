@@ -237,13 +237,7 @@ async function checkAlpha(file, provider) {
  * the matte has the same size, frame rate and frame count as the input.
  */
 export async function createSubjectMatte(input, opts) {
-    const provider = opts.provider ??
-        falBiRefNet({
-            key: opts.falKey,
-            model: opts.model,
-            resolution: opts.resolution,
-            fetch: opts.fetch
-        });
+    const provider = opts.provider ?? rvmMatte();
     const started = Date.now();
     const info = await probeVideo(input);
     if (!info.constant)

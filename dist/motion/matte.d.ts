@@ -78,18 +78,16 @@ export declare function rvmMatte(opts?: {
 }): MatteProvider;
 export type MatteOptions = {
     output: string;
-    /** Who segments the video. Default: `falBiRefNet({ model, resolution, key: falKey })`. */
+    /**
+     * Who segments the video. Default: `rvmMatte()`, local on the CPU with no key. For a cleaner
+     * edge on hair and microphones pass `falBiRefNet()` (fal.ai, paid, `FAL_KEY`).
+     */
     provider?: MatteProvider;
     /** Frames per piece; at most the provider's `maxFrames`. Default: 480 or the provider limit. */
     chunkFrames?: number;
     /** Pieces running at once. Default: the provider's `parallel`. */
     jobs?: number;
     onProgress?: (message: string) => void;
-    /** For the default fal.ai provider. */
-    model?: BiRefNetModel;
-    resolution?: '1024x1024' | '2048x2048' | '2304x2304';
-    falKey?: string;
-    fetch?: typeof fetch;
 };
 export type MatteResult = {
     output: string;

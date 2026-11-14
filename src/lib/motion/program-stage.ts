@@ -82,6 +82,7 @@ import {
 	subjectDrawn
 } from './stage-decisions.js';
 import { PANEL_TEXT_SHARE, captionsInMoveMessage, moveAtStart, shotMoves } from './shot-moves.js';
+import { PLAIN_CANVAS } from './drawable.js';
 
 /**
  * The program's layer tree on one stage, for a segment of the program:
@@ -673,9 +674,9 @@ export function createProgramScene(
 	applyLook(stage, seg);
 	// HTML-in-Canvas leaves a 2D canvas out of the captured frame unless it sits at the stage's
 	// top left corner or contains its own paint: every canvas the stage, a hole or a block draws
-	// contains it (a `<canvas layoutsubtree>` is left alone: it samples its own children).
+	// contains it (a drawable canvas is left alone: it samples its own children).
 	const canvases = document.createElement('style');
-	canvases.textContent = '#vf-stage canvas:not([layoutsubtree]){contain:paint}';
+	canvases.textContent = `#vf-stage ${PLAIN_CANVAS}{contain:paint}`;
 	stage.appendChild(canvases);
 	const a = side(stage, 'a');
 	// Side b shows only inside a cut or shot transition window.

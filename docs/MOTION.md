@@ -195,11 +195,16 @@ for one-off setup), text layout measured after mount (fonts are loaded
 before blocks mount). Svelte drops leading whitespace inside an element: write
 `<span>{' / FCPXML'}</span>`, not `<span> / FCPXML</span>`.
 
-A block can own a WebGL canvas, also a `<canvas layoutsubtree>` whose shader samples the
-block's own HTML: in `useFrame`, `requestPaint()` the canvas and await its `paint` event, then
-`texElementImage2D` and draw (`tests/motion/fixtures/webgl-block`). Put no CSS `filter` or
-`mask` on such a canvas or any element around it (Chromium crashes on that, so the frame fails
-with the element's name); filter its children or in the shader instead. Without a GPU WebGL runs
+A block can own a WebGL canvas, also a drawable one whose shader samples the block's own HTML:
+`<canvas layoutsubtree content="drawable">` with a `drawable` child sized in CSS (current
+Chromium lays the children out statically, so `inset: 0` does not size them). In `useFrame`,
+`requestPaint()` the canvas and await its `paint` event, then upload the child and draw:
+`texImage2D` with `null` to allocate, then `texElementSubImage2D(TEXTURE_2D, 0, 0, 0, child)`,
+or `texElementImage2D(TEXTURE_2D, RGBA8, child)` on Chromium 156 and older
+(`tests/motion/fixtures/webgl-block`). The stage adds whichever canvas attribute a block leaves
+out. Put no CSS `filter` or `mask` on such a canvas or any element around it (Chromium 156 and
+older crash on that, so the frame fails with the element's name); filter its children or in the
+shader instead. Without a GPU WebGL runs
 on the CPU (see 3D blocks for the cost).
 
 ### Packages in blocks
@@ -272,7 +277,7 @@ running on its own; set the poses from `t` or `clip.map`, then render).
 - `preserveDrawingBuffer: true`: the capture itself does not need it (frames rendered with
   and without it come out identical, through HTML-in-Canvas and in programs), but it keeps the
   frame in the canvas after the browser has shown it, so anything that reads the canvas later
-  (`drawImage` or `texElementImage2D` of it, `toDataURL`, a GPU driver that clears the buffer
+  (`drawImage` or `texElementSubImage2D` of it, `toDataURL`, a GPU driver that clears the buffer
   once it is shown) still gets this frame instead of an empty one. One frame per capture makes
   it free.
 - `camera.setViewOffset(…)` moves the scene in the frame (beside a speaker, above captions)
@@ -2061,12 +2066,14 @@ them into the manifest. A render that was killed leaves its partial encode
 
 ## How frames are made
 
-The page renders the block into a `<canvas layoutsubtree>` and captures it with HTML-in-Canvas
-(`drawElementImage`, Chromium flag `CanvasDrawElement`). Without it the stage falls back to DOM
+The page renders the block into a drawable canvas and captures it with HTML-in-Canvas
+(`drawElementImage`, Chromium flag `CanvasDrawElement`). The canvas carries both opt-in
+attributes, `layoutsubtree` (Chromium 156 and older) and `content="drawable"` (the current
+explainer, Chromium 158), and the stage element inside it `drawable` (`src/lib/motion/drawable.ts`). Without it the stage falls back to DOM
 screenshots. Each frame: set time → flush Svelte → seek GSAP timelines → run `useFrame`
 callbacks and wait for the promises they return (footage frames) → force a fresh raster (a
 filter toggled on the stage, or re-inserting the stage before the seek when a block nests a
-`<canvas layoutsubtree>`) → wait for the paint (an error after 2 s, never a silent timeout) →
+drawable canvas) → wait for the paint (an error after 2 s, never a silent timeout) →
 capture. A page that crashes or stops answering fails the render with the clip and frame; it
 never hangs it. The page loads the bundle, fonts and footage from one origin served from disk,
 because HTML-in-Canvas leaves cross-origin images out of the capture. Any frame can be rendered

@@ -62,7 +62,7 @@ VisualFries owns the timeline: it is paused, primed once so every tween records 
 
 The CF004 example drives a hand-written filmstrip engine this way, unchanged, and maps its internal time onto the voice with `clip.map`.
 
-A block can also own a WebGL canvas. To run a shader over the block's own HTML, make it a `<canvas layoutsubtree>` with the HTML inside; in `useFrame`, call `canvas.requestPaint()`, await its `paint` event, upload the children with `gl.texElementImage2D(gl.TEXTURE_2D, gl.RGBA8, element)` and draw. Keep CSS `filter` and `mask` off that canvas and every element around it: Chromium crashes on them, so the frame fails and names the element. Filter the canvas's children or do the effect in the shader. On a server without a GPU, WebGL runs on the CPU (see 3D blocks below for the cost).
+A block can also own a WebGL canvas. To run a shader over the block's own HTML, make it a `<canvas layoutsubtree content="drawable">` with the HTML inside in an element marked `drawable` and sized in CSS (current Chromium lays a drawable canvas's children out statically). In `useFrame`, call `canvas.requestPaint()`, await its `paint` event, allocate the texture with `gl.texImage2D(..., null)`, copy the element in with `gl.texElementSubImage2D(gl.TEXTURE_2D, 0, 0, 0, element)` (Chromium 156 and older: `gl.texElementImage2D(gl.TEXTURE_2D, gl.RGBA8, element)`) and draw. Keep CSS `filter` and `mask` off that canvas and every element around it: Chromium 156 and older crash on them, so the frame fails and names the element. Filter the canvas's children or do the effect in the shader. On a server without a GPU, WebGL runs on the CPU (see 3D blocks below for the cost).
 
 ## 3D blocks
 

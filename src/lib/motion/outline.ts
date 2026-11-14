@@ -11,7 +11,7 @@
 // green that shows (the outline) and repaints it in the outline colour.
 //
 // Apply it to the text element itself, never to an ancestor of a nested canvas: Chromium
-// crashes when an ancestor of a `<canvas layoutsubtree>` has a CSS filter or mask.
+// crashes when an ancestor of a drawable `<canvas>` has a CSS filter or mask.
 
 export type OutlineMode = 'hollow' | 'filled';
 

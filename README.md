@@ -3,15 +3,50 @@
 [![npm version](https://badge.fury.io/js/visualfries.svg)](https://badge.fury.io/js/visualfries)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**One document. Every surface.**
+**The engine for talking-head video. One raw take in, a finished reel out.**
 
-VisualFries is an open-source Svelte 5 engine for visual content for social media. A JSON document describes what is on screen, when, and in which format; visuals are Svelte components and real HTML/CSS; animation is GSAP. Scene documents mount live in an editor, motion clips are timed by the words of a transcript and render frame by frame in headless Chromium. It is the engine behind [ContentFries](https://contentfries.com).
+Hand VisualFries a raw recording and a JSON program, and it renders the finished edit: the pauses and retakes cut, the speaker framed, words behind the head, captions, transitions, sound effects and music, all anchored to the words that were said. It renders frame by frame in headless Chromium, on a CPU, and it is built for AI agents to drive: the edit is data, and the CLI says what to fix. Open source, MIT. It is the engine behind [ContentFries](https://contentfries.com).
 
-**Docs: [visualfries.com/docs](https://www.visualfries.com/docs)** · for agents: [visualfries.com/llms.txt](https://www.visualfries.com/llms.txt)
+**Site and examples: [visualfries.com](https://www.visualfries.com)** · docs: [visualfries.com/docs](https://www.visualfries.com/docs) · for agents: [visualfries.com/llms.txt](https://www.visualfries.com/llms.txt)
 
-> VisualFries is in alpha. Scenes power a production app today; motion projects are new and experimental. APIs may change.
+> VisualFries is in alpha. Scenes power a production app today; programs and motion projects are new. APIs may change.
 
-## Two ways to use it
+## From a raw take to a finished reel
+
+A **program** is one `.vf.json` that describes the whole edit. Every timing is a phrase of the transcript, so a retake renders again without touching the edit.
+
+```json
+{
+	"size": [1080, 1920],
+	"fps": 30,
+	"footage": {
+		"talk": { "src": "talk.mp4", "matte": "talk.matte.mp4", "transcript": "take.transcript.json" }
+	},
+	"cuts": [{ "id": "hook", "source": "talk", "in": "today we fix", "out": "the slow export" }],
+	"shots": [{ "id": "claim", "shot": "punch", "from": "today we fix", "until": "slow export" }],
+	"clips": [
+		{
+			"id": "captions",
+			"block": "@visualfries/captions",
+			"from": 0,
+			"until": "end",
+			"words": { "captions": "clip" }
+		}
+	],
+	"sfx": [{ "at": "slow export", "sound": "sfx/pop.wav", "gain": -5 }]
+}
+```
+
+```bash
+npx visualfries program reel.vf.json                 # resolve the edit, measure every edit point
+npx visualfries check   reel.vf.json --determinism   # every segment, in seconds
+npx visualfries still   reel.vf.json --at 7.5s --output qa/sheet.png
+npx visualfries render  reel.vf.json --output out/   # one MP4; add --format 1920x1080 for 16:9
+```
+
+Seven built-in shots frame the speaker (`full`, `punch`, `strip`, `window`, `behind`, `whip`, `cutout`), six transitions hand the frame over, and the mix lands at -14 LUFS. Guide: [Programs](https://www.visualfries.com/docs/programs). Worked example: [`static/demo/reel`](static/demo/reel).
+
+## Two more ways to use it
 
 **Scenes** are JSON documents with layers of VIDEO, IMAGE, TEXT, SUBTITLES, SHAPE, GIF and AUDIO components. Mount one in a Svelte app, edit it live, render it headless. This is how the ContentFries editor works.
 
@@ -92,16 +127,21 @@ npx visualfries render scene.json --output out.mp4
 
 ## Documentation
 
-|                                                                                                                 |                                                |
-| --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| [Quickstart](https://www.visualfries.com/docs/quickstart)                                                           | A motion project from zero to MP4 in six steps |
-| [Time and cues](https://www.visualfries.com/docs/time-and-cues)                                                     | Anchoring clips to spoken phrases              |
+|                                                                                                                         |                                                |
+| ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| [Programs](https://www.visualfries.com/docs/programs)                                                                   | From a raw take to a finished reel             |
+| [Quickstart](https://www.visualfries.com/docs/quickstart)                                                               | A motion project from zero to MP4 in six steps |
+| [Time and cues](https://www.visualfries.com/docs/time-and-cues)                                                         | Anchoring clips to spoken phrases              |
 | [Motion blocks](https://www.visualfries.com/docs/blocks) · [The clip object](https://www.visualfries.com/docs/clip-api) | Writing blocks                                 |
 | [Scenes in an app](https://www.visualfries.com/docs/scenes) · [Composer API](https://www.visualfries.com/docs/composer) | Scene JSON, live editing                       |
 | [CLI](https://www.visualfries.com/docs/cli) · [Scene CLI](https://www.visualfries.com/docs/scene-cli)                   | Commands                                       |
-| [VisualFries for agents](https://www.visualfries.com/docs/agents)                                                   | How an AI agent should work with VisualFries   |
+| [VisualFries for agents](https://www.visualfries.com/docs/agents)                                                       | How an AI agent should work with VisualFries   |
 
 The docs site lives in this repository (`src/routes`); every page is also available as Markdown by appending `.md` to its URL. Deeper notes for contributors are in [`docs/`](docs).
+
+## Made with VisualFries
+
+Every video on [visualfries.com](https://www.visualfries.com) was rendered by VisualFries. If you publish something made with it, add `Edited with VisualFries (visualfries.com)` to the description and tell us in an issue: we link the good ones.
 
 ## Roadmap
 

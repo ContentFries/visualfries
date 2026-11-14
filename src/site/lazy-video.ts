@@ -11,6 +11,11 @@ export type VideoState = {
 	held: boolean;
 };
 
+/** Whether the page may start a video without the visitor asking for it. */
+export function mayAutoStart({ reduce, held }: { reduce: boolean; held: boolean }): boolean {
+	return !reduce && !held;
+}
+
 /** What to do with one video when its place on the page or its state changes. */
 export function videoAction({ near, reduce, paused, held }: VideoState): 'play' | 'pause' | 'none' {
 	if (!near) return paused ? 'none' : 'pause';

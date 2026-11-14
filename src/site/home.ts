@@ -3,7 +3,7 @@
  * the brief tabs, and the exploded layer stack (scroll-driven, pointer-tilted).
  * Framework-free; returns a cleanup function.
  */
-import { pauseTracker, startVideo } from './lazy-video';
+import { mayAutoStart, pauseTracker, startVideo } from './lazy-video';
 
 const AGENT_PROMPT = `Install VisualFries: npm install visualfries svelte playwright && npx playwright install chromium && npx visualfries doctor.
 Before writing anything, read https://www.visualfries.com/docs/programs.md, https://www.visualfries.com/docs/shots-and-transitions.md and https://www.visualfries.com/docs/program-sound.md (the same guide ships in the package as node_modules/visualfries/docs/MOTION.md, "Programs", and the agent skill as node_modules/visualfries/skills/visualfries/SKILL.md). Start from the worked example static/demo/reel in https://github.com/ContentFries/visualfries.
@@ -84,6 +84,10 @@ export function initHome(root: HTMLElement): () => void {
 	const syncs = new Map<HTMLVideoElement, () => void>();
 	// A browser may refuse to start a video: it then gets the native controls and its button says Play.
 	const play = (v: HTMLVideoElement) => void startVideo(v).then(() => syncs.get(v)?.());
+	// The page starts a video only when motion is allowed and the visitor did not pause it.
+	const autoPlay = (v: HTMLVideoElement) => {
+		if (mayAutoStart({ reduce, held: track.held(v) })) play(v);
+	};
 	vids.forEach((v) => {
 		if (reduce) {
 			v.controls = true;
@@ -120,7 +124,7 @@ export function initHome(root: HTMLElement): () => void {
 				es.forEach((e) => {
 					const v = e.target as HTMLVideoElement;
 					if (!e.isIntersecting) track.leave(v);
-					else if (!track.held(v)) play(v);
+					else autoPlay(v);
 				}),
 			{ threshold: 0.25 }
 		);
@@ -187,7 +191,7 @@ export function initHome(root: HTMLElement): () => void {
 			const active = p.dataset.brief === t.dataset.brief;
 			p.classList.toggle('on', active);
 			p.hidden = !active;
-			$$<HTMLVideoElement>('video', p).forEach((v) => (active ? play(v) : v.pause()));
+			$$<HTMLVideoElement>('video', p).forEach((v) => (active ? autoPlay(v) : track.leave(v)));
 		});
 	};
 	tabs.forEach((t, i) => {

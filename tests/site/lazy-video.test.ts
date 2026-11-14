@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	mayAutoStart,
 	pauseTracker,
 	settleForReducedMotion,
 	startVideo,
@@ -126,5 +127,19 @@ describe('settleForReducedMotion', () => {
 		settleForReducedMotion(videos, false);
 		expect(videos[0].paused).toBe(false);
 		expect(videos[0].controls).toBe(false);
+	});
+});
+
+describe('mayAutoStart', () => {
+	it('lets a video start by itself when motion is allowed and the visitor did not pause it', () => {
+		expect(mayAutoStart({ reduce: false, held: false })).toBe(true);
+	});
+
+	it('never starts a video by itself with reduced motion', () => {
+		expect(mayAutoStart({ reduce: true, held: false })).toBe(false);
+	});
+
+	it('never restarts a video the visitor paused', () => {
+		expect(mayAutoStart({ reduce: false, held: true })).toBe(false);
 	});
 });

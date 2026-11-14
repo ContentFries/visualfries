@@ -25,9 +25,9 @@ A promo for a yearly paper planner, in Slovak. B-roll, big serif letters that si
 
 ## An event opener
 
-<video src="/media/v4/promo-opener.mp4" poster="/media/v4/promo-opener.jpg" preload="none" muted loop playsinline aria-label="An excerpt of an event opener: silhouettes in a dark hall, serif lines of text, the speaker on stage, and a gold end card."></video>
+<video src="/media/v4/promo-opener.mp4" poster="/media/v4/promo-opener.jpg" preload="none" muted loop playsinline aria-label="An excerpt of an event opener: a streak of light and silhouettes in a dark hall, gold serif lines of text, the speaker on stage beside a large gold number 3, and a gold end card."></video>
 
-An excerpt of the 58-second opener that started a three-day live training. Event footage and photos with slow camera moves, serif type that builds line by line, and a gold end card. The agent found the material itself. The full opener also introduces the guest speakers; this page shows the parts without them.
+An excerpt of the 58-second opener that started a three-day live training. Event footage and photos behind gold serif type that builds line by line, a large gold 3 that draws itself beside the speaker, and a gold end card. The agent found the material itself. The full opener also introduces the guest speakers; this page shows the parts without them.
 
 ## What your agent works with
 

@@ -1,8 +1,8 @@
 ---
-layout: comparison
-title: 'Remotion alternative for talking-head video: VisualFries (MIT)'
-heading: The Remotion alternative that edits your talking-head video
-description: Looking for a Remotion alternative? VisualFries is MIT with no seats and turns one raw talking-head recording into a finished reel. Fair, sourced comparison.
+layout: page
+title: 'Remotion alternative for editing real footage: VisualFries (MIT)'
+heading: The Remotion alternative that edits your real footage
+description: Looking for a Remotion alternative? VisualFries is MIT with no seats. Your AI agent edits real footage into YouTube videos, shorts and reels. Fair, sourced.
 updated: 2026-11-14
 faq:
   - q: Is VisualFries an open-source alternative to Remotion?
@@ -10,20 +10,20 @@ faq:
   - q: Do I need React to use VisualFries?
     a: No. The edit is a JSON program. Custom visuals are Svelte 5 components, and built-in blocks cover captions, end cards and speaker effects without writing any component.
   - q: Can VisualFries do everything Remotion does?
-    a: No. Remotion is a general framework for any video written in React, with a Studio, a Player you can embed in an app and rendering on AWS Lambda. VisualFries does one thing, editing recordings of a person talking, and has no hosted renderer or embeddable player for programs.
+    a: No. Remotion is a general framework for any video written in React, with a Studio, a Player you can embed in an app and rendering on AWS Lambda. VisualFries edits real footage into social content and has no hosted renderer or embeddable player for programs.
   - q: How are captions and animations timed in VisualFries?
     a: By phrases of a word-level transcript. A clip starts when a phrase is said and a cue fires on a word. Seconds, frames and music beats work too. After a retake you pass the new transcript and every timing follows.
   - q: Can I move a Remotion project to VisualFries?
-    a: There is no converter. The models differ, React code against a JSON program, so a move means rebuilding the edit. For a talking-head video that is usually faster than porting, because the cut list, shots, captions and mix are built in.
+    a: There is no converter. The models differ, React code against a JSON program, so a move means rebuilding the edit. For a video cut from real footage that is usually faster than porting, because the cut list, shots, captions and mix are built in.
 ---
 
-Remotion is the most established way to make video with code, and its code is React. VisualFries is the MIT engine for one kind of video: a person talking to a camera. Hand it the raw recording and a program, and it renders the finished edit, timed by the words that were said.
+Remotion is the most established way to make video with code, and its code is React. VisualFries is the MIT engine for social content made from real footage: your agent hands it the recording and one program, and it renders the finished YouTube video, short or reel, timed by the words that were said.
 
 ## The short version
 
-- **Pick VisualFries** when you want a finished talking-head video from a raw take, when your agent should write data instead of an app, or when a per-seat licence is a blocker.
+- **Pick VisualFries** when you want finished social content from real footage (a YouTube episode, shorts, reels, their covers and carousel slides), when your agent should write data instead of an app, or when a per-seat licence is a blocker.
 - **Pick Remotion** when your team writes React, when the video lives inside a product (a player, a template editor, renders at scale on Lambda), or when you need its ecosystem.
-- VisualFries is narrower and newer. On its one job it does more out of the box.
+- VisualFries is newer and smaller. On editing real footage it does more out of the box.
 
 ## What Remotion is
 
@@ -64,26 +64,26 @@ For captions, Remotion offers `@remotion/captions` and four ways to transcribe, 
 - **Video inside a product.** The Remotion Player embeds a composition in a web app with live props. [6] VisualFries programs render to files.
 - **Rendering at scale.** Remotion Lambda is a documented, widely used way to render in parallel in the cloud. [7] VisualFries renders on the machine you run it on.
 - **A visual Studio.** Preview, scrub and edit props in the browser. [1] VisualFries programs have stills and contact sheets, no timeline GUI.
-- **Any video.** Data-driven videos, personalised videos at volume, music visualisers. VisualFries is for recordings of people talking.
+- **Videos made from data.** Personalised videos at volume, data-driven videos, music visualisers. VisualFries is strongest when there is footage and speech to edit.
 - **Transcription included.** Remotion ships packages that run or call speech-to-text. [5] VisualFries reads the word-level transcript you bring.
 
 ## Side by side
 
-|                    | VisualFries                                                    | Remotion                                                     |
-| ------------------ | -------------------------------------------------------------- | ------------------------------------------------------------ |
-| Built for          | Talking-head video: raw recording to finished edit             | Any video written in React                                   |
-| You write          | One JSON program plus Svelte blocks                            | React components in TypeScript                               |
-| Timing             | Phrases of the transcript; seconds, frames and beats also work | Frame numbers [5]                                            |
-| Cutting a raw take | Cut list: takes, retakes, order, handles                       | Sequences and trims you write                                |
-| After a retake     | Pass the new transcript, the edit follows                      | Update the timings in code                                   |
-| Captions           | Built-in block, word-timed, presets                            | `@remotion/captions` plus your component [5]                 |
-| Speaker framing    | Seven built-in shots, face-aware checks                        | Layout you write                                             |
-| Sound              | Effects on words, music on bars, -14 LUFS mix                  | Audio components you place                                   |
-| Formats            | 9:16, 4:5, 1:1, 16:9 from one program                          | One composition per size                                     |
-| Editor GUI         | None for programs                                              | Remotion Studio [1]                                          |
-| Rendering          | Local headless Chromium, CPU only                              | Local, server, AWS Lambda [7]                                |
-| Agent support      | Skill in the package, `llms.txt`, loud CLI checks              | Official agent skills [2]                                    |
-| Licence            | MIT                                                            | Remotion licence: free up to 3 employees, paid above [3] [4] |
+|                    | VisualFries                                                                                     | Remotion                                                     |
+| ------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Built for          | Social content from real footage: YouTube videos, shorts, reels; covers and carousels as stills | Any video written in React                                   |
+| You write          | One JSON program plus Svelte blocks                                                             | React components in TypeScript                               |
+| Timing             | Phrases of the transcript; seconds, frames and beats also work                                  | Frame numbers [5]                                            |
+| Cutting a raw take | Cut list: takes, retakes, order, handles                                                        | Sequences and trims you write                                |
+| After a retake     | Pass the new transcript, the edit follows                                                       | Update the timings in code                                   |
+| Captions           | Built-in block, word-timed, presets                                                             | `@remotion/captions` plus your component [5]                 |
+| Speaker framing    | Seven built-in shots, face-aware checks                                                         | Layout you write                                             |
+| Sound              | Effects on words, music on bars, -14 LUFS mix                                                   | Audio components you place                                   |
+| Formats            | 9:16, 4:5, 1:1, 16:9 from one program                                                           | One composition per size                                     |
+| Editor GUI         | None for programs                                                                               | Remotion Studio [1]                                          |
+| Rendering          | Local headless Chromium, CPU only                                                               | Local, server, AWS Lambda [7]                                |
+| Agent support      | Skill in the package, `llms.txt`, loud CLI checks                                               | Official agent skills [2]                                    |
+| Licence            | MIT                                                                                             | Remotion licence: free up to 3 employees, paid above [3] [4] |
 
 ## Coming from Remotion
 

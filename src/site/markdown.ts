@@ -16,12 +16,12 @@ const exampleScenes = import.meta.glob('/src/lib/examples/0*.json', {
 	eager: true
 }) as Record<string, string>;
 
-// Comparison pages (src/routes/alternatives) describe themselves in their frontmatter.
-const comparisonSources = import.meta.glob('/src/routes/alternatives/**/+page.md', {
-	query: '?raw',
-	import: 'default',
-	eager: true
-}) as Record<string, string>;
+// Use-case pages (src/routes/for) and comparison pages (src/routes/alternatives) describe
+// themselves in their frontmatter.
+const articleSources = import.meta.glob(
+	['/src/routes/for/**/+page.md', '/src/routes/alternatives/**/+page.md'],
+	{ query: '?raw', import: 'default', eager: true }
+) as Record<string, string>;
 
 const fence = '```';
 
@@ -89,13 +89,15 @@ export function pageDescription(page: DocPage): string {
 		: (svelteOnly[page.slug]?.description ?? '');
 }
 
-export type ComparisonPage = { path: string; title: string; description: string; updated: string };
+export type ArticlePage = { path: string; title: string; description: string; updated: string };
 
-/** Every comparison page with what its frontmatter says, ordered by path. */
-export function comparisonPages(
-	sources: Record<string, string> = comparisonSources
-): ComparisonPage[] {
+/** Pages under one top-level folder with what their frontmatter says, ordered by path. */
+export function articlePages(
+	folder: 'for' | 'alternatives',
+	sources: Record<string, string> = articleSources
+): ArticlePage[] {
 	return Object.entries(sources)
+		.filter(([file]) => file.startsWith(`/src/routes/${folder}/`))
 		.map(([file, raw]) => {
 			const { data } = frontmatter(raw);
 			return {
@@ -108,12 +110,20 @@ export function comparisonPages(
 		.sort((a, b) => a.path.localeCompare(b.path));
 }
 
+const ARTICLE_SECTIONS = [
+	{ folder: 'for', label: 'Use cases' },
+	{ folder: 'alternatives', label: 'Comparisons' }
+] as const;
+
 /** Every indexable URL of the site: the homepage, the docs and the comparison pages. */
 export function sitemapEntries(): { loc: string; lastmod?: string }[] {
 	return [
 		{ loc: `${SITE}/` },
 		...pages.map((p) => ({ loc: `${SITE}${pageUrl(p.slug)}` })),
-		...comparisonPages().map((p) => ({ loc: `${SITE}${p.path}`, lastmod: p.updated || undefined }))
+		...ARTICLE_SECTIONS.flatMap((s) => articlePages(s.folder)).map((p) => ({
+			loc: `${SITE}${p.path}`,
+			lastmod: p.updated || undefined
+		}))
 	];
 }
 
@@ -121,7 +131,7 @@ export function llmsTxt(): string {
 	const lines = [
 		'# VisualFries',
 		'',
-		'> The open-source (MIT) engine for talking-head video: one raw recording and a JSON program in, a finished reel out. A program holds the cut list, the shots that frame the speaker, clips (Svelte components), transitions, captions and sound, all anchored to the words of a transcript, and renders frame by frame in headless Chromium. Motion projects time inserts the same way; scene documents mount live in an editor. Built for AI agents to drive.',
+		'> The open-source (MIT) engine for social media content, built for AI agents to drive. Real footage and a JSON program in; finished YouTube videos, shorts and reels out, plus stills (covers, posts, carousel slides) from the same blocks. A program holds the cut list, the shots that frame the speaker, clips (Svelte components), transitions, captions and sound, all anchored to the words of a transcript, and renders frame by frame in headless Chromium. Motion projects time inserts the same way; scene documents mount live in an editor. Built for AI agents to drive.',
 		'',
 		'Every page below is available as Markdown by appending `.md` to its URL. The whole documentation in one file: ' +
 			`${SITE}/llms-full.txt`,
@@ -139,10 +149,11 @@ export function llmsTxt(): string {
 		);
 		if (pages[pages.indexOf(p) + 1]?.section !== p.section) lines.push('');
 	}
-	const comparisons = comparisonPages();
-	if (comparisons.length) {
-		lines.push('## Comparisons', '');
-		for (const p of comparisons) lines.push(`- [${p.title}](${SITE}${p.path}): ${p.description}`);
+	for (const s of ARTICLE_SECTIONS) {
+		const list = articlePages(s.folder);
+		if (!list.length) continue;
+		lines.push(`## ${s.label}`, '');
+		for (const p of list) lines.push(`- [${p.title}](${SITE}${p.path}): ${p.description}`);
 		lines.push('');
 	}
 	lines.push(

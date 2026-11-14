@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { pages } from '../../src/site/docs';
 import {
-	comparisonPages,
+	articlePages,
 	llmsTxt,
 	outsideFences,
 	pageMarkdown,
@@ -47,8 +47,10 @@ describe('docs markdown twins', () => {
 	});
 });
 
-describe('comparison pages', () => {
+describe('use-case and comparison pages', () => {
 	const sample = {
+		'/src/routes/for/reels/+page.md':
+			'---\ntitle: Reels\ndescription: Short.\nupdated: 2026-11-14\n---\nBody',
 		'/src/routes/alternatives/+page.md':
 			'---\ntitle: Hub\ndescription: All of them.\nupdated: 2026-11-14\n---\nBody',
 		'/src/routes/alternatives/other-tool/+page.md':
@@ -56,7 +58,10 @@ describe('comparison pages', () => {
 	};
 
 	it('reads path, title, description and date from each page', () => {
-		expect(comparisonPages(sample)).toEqual([
+		expect(articlePages('for', sample)).toEqual([
+			{ path: '/for/reels', title: 'Reels', description: 'Short.', updated: '2026-11-14' }
+		]);
+		expect(articlePages('alternatives', sample)).toEqual([
 			{ path: '/alternatives', title: 'Hub', description: 'All of them.', updated: '2026-11-14' },
 			{
 				path: '/alternatives/other-tool',
@@ -68,8 +73,9 @@ describe('comparison pages', () => {
 	});
 
 	it('lists the real pages in llms.txt and the sitemap entries', () => {
-		const real = comparisonPages();
-		expect(real.length).toBeGreaterThanOrEqual(3);
+		const real = [...articlePages('for'), ...articlePages('alternatives')];
+		expect(articlePages('for').length).toBeGreaterThanOrEqual(3);
+		expect(articlePages('alternatives').length).toBeGreaterThanOrEqual(3);
 		for (const p of real) {
 			expect(p.title, p.path).not.toBe('');
 			expect(p.description.length, p.path).toBeGreaterThan(80);

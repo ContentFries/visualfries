@@ -1,4 +1,4 @@
-<!-- mdsvex layout for the comparison pages: title, SEO, FAQ and the way on. -->
+<!-- mdsvex layout for the use-case and comparison pages: title, SEO, FAQ and the way on. -->
 <script lang="ts">
 	import { page } from '$app/state';
 	import './docs.css';
@@ -16,9 +16,11 @@
 	const SITE = 'https://www.visualfries.com';
 	// mdsvex hands a bare YAML date over as an ISO timestamp; show and publish the day.
 	const checked = $derived(String(updated ?? '').slice(0, 10));
-	const HUB = '/alternatives';
+	const HUBS: Record<string, string> = { alternatives: 'Alternatives', for: 'Use cases' };
 	const path = $derived(page.url.pathname.replace(/\/$/, '') || '/');
 	const url = $derived(`${SITE}${path}`);
+	const HUB = $derived(`/${path.split('/')[1]}`);
+	const hubName = $derived(HUBS[path.split('/')[1]] ?? 'VisualFries');
 	const isHub = $derived(path === HUB);
 
 	const jsonLd = $derived({
@@ -48,7 +50,7 @@
 				'@type': 'BreadcrumbList',
 				itemListElement: [
 					{ '@type': 'ListItem', position: 1, name: 'VisualFries', item: `${SITE}/` },
-					{ '@type': 'ListItem', position: 2, name: 'Alternatives', item: `${SITE}${HUB}` },
+					{ '@type': 'ListItem', position: 2, name: hubName, item: `${SITE}${HUB}` },
 					...(isHub
 						? []
 						: [{ '@type': 'ListItem', position: 3, name: heading || title, item: url }])
@@ -87,7 +89,7 @@
 	<article class="doc">
 		<nav class="crumbs" aria-label="Breadcrumb">
 			<a href="/">VisualFries</a><span>/</span>
-			{#if isHub}<span>Alternatives</span>{:else}<a href={HUB}>Alternatives</a>{/if}
+			{#if isHub}<span>{hubName}</span>{:else}<a href={HUB}>{hubName}</a>{/if}
 		</nav>
 		<h1>{heading || title}</h1>
 
@@ -104,8 +106,8 @@
 		</div>
 
 		<div class="next">
-			<h2>One raw take in. <em>A finished reel out.</em></h2>
-			<p>Install it, hand your agent a recording and ask for the first reel.</p>
+			<h2>Raw footage in. <em>Your whole feed out.</em></h2>
+			<p>Install it, hand your agent a recording and ask for the first video.</p>
 			<div class="cta">
 				<a class="btn" href="/docs/quickstart">Quickstart</a>
 				<a class="ghost btn" href="/docs/programs">How a program works</a>

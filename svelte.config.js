@@ -44,8 +44,9 @@ const mdsvexOptions = {
 	extensions: ['.md'],
 	layout: {
 		_: fileURLToPath(new URL('./src/site/DocsArticle.svelte', import.meta.url)),
-		// Comparison pages (src/routes/alternatives) choose this one with `layout: comparison`.
-		comparison: fileURLToPath(new URL('./src/site/ComparisonArticle.svelte', import.meta.url))
+		// Use-case and comparison pages (src/routes/for, src/routes/alternatives) choose this one
+		// with `layout: page`.
+		page: fileURLToPath(new URL('./src/site/PageArticle.svelte', import.meta.url))
 	},
 	rehypePlugins: [headingIds],
 	highlight: {

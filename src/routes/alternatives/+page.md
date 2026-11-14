@@ -2,7 +2,7 @@
 layout: comparison
 title: 'VisualFries vs HyperFrames vs Remotion: which engine for which video'
 heading: VisualFries vs HyperFrames vs Remotion
-description: Three ways to make video with code and an AI agent, compared fairly. Remotion is React, HyperFrames is HTML, VisualFries is the MIT engine that turns one raw talking-head recording into a finished reel. What each is best at, with sources.
+description: Remotion is React, HyperFrames is HTML, VisualFries turns a raw talking-head recording into a finished reel. A fair comparison of the three, with sources.
 updated: 2026-11-14
 faq:
   - q: What is the best alternative to HyperFrames or Remotion for talking-head videos?

@@ -2,7 +2,7 @@
 layout: comparison
 title: 'Remotion alternative for talking-head video: VisualFries (MIT)'
 heading: The Remotion alternative that edits your talking-head video
-description: Looking for a Remotion alternative? VisualFries is MIT licensed with no seats, and it turns one raw recording into a finished reel from a JSON program your agent writes, timed by the words you said. A fair, sourced comparison with Remotion.
+description: Looking for a Remotion alternative? VisualFries is MIT with no seats and turns one raw talking-head recording into a finished reel. Fair, sourced comparison.
 updated: 2026-11-14
 faq:
   - q: Is VisualFries an open-source alternative to Remotion?

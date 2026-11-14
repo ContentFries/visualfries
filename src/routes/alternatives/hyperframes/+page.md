@@ -2,7 +2,7 @@
 layout: comparison
 title: 'HyperFrames alternative for talking-head video: VisualFries'
 heading: The HyperFrames alternative built for talking-head video
-description: Looking for a HyperFrames alternative? VisualFries is the MIT engine that turns one raw recording into a finished reel, with cuts, shots, captions and sound anchored to the words you said. A fair, sourced comparison with HyperFrames.
+description: Looking for a HyperFrames alternative? VisualFries is the MIT engine that turns one raw talking-head recording into a finished reel. Fair, sourced comparison.
 updated: 2026-11-14
 faq:
   - q: Is VisualFries a drop-in replacement for HyperFrames?

@@ -221,8 +221,9 @@ export function createMotionStage(options) {
         });
     }
     /**
-     * Refreshes `nested`: the drawable canvases inside the stage's own canvas. Each gets the opt-in
-     * attribute it lacks, so a block written for either Chromium draws on both.
+     * Refreshes `nested`: the drawable canvases inside the stage's own canvas. Each gets whichever
+     * of `layoutsubtree` and `content="drawable"` it lacks; nothing else. Marking the uploaded
+     * child `drawable` and the WebGL upload call stay the block's job (docs/MOTION.md).
      */
     function findNestedCanvases() {
         nested = canvas && stage ? [...stage.querySelectorAll(DRAWABLE_CANVAS)] : [];

@@ -3,6 +3,8 @@
  * the brief tabs, and the exploded layer stack (scroll-driven, pointer-tilted).
  * Framework-free; returns a cleanup function.
  */
+import { startVideo } from './lazy-video';
+
 const AGENT_PROMPT = `Install VisualFries: npm install visualfries svelte playwright && npx playwright install chromium && npx visualfries doctor.
 Before writing anything, read https://www.visualfries.com/docs/programs.md, https://www.visualfries.com/docs/shots-and-transitions.md and https://www.visualfries.com/docs/program-sound.md (the same guide ships in the package as node_modules/visualfries/docs/MOTION.md, "Programs", and the agent skill as node_modules/visualfries/skills/visualfries/SKILL.md). Start from the worked example static/demo/reel in https://github.com/ContentFries/visualfries.
 Then: edit take.mp4 (with its word-level transcript, take.transcript.json) into a 9:16 reel as one program. Make the matte with visualfries matte. Cut the pauses and the failed tries, put the key word of the hook behind my head, a strip with a checklist where I list things, a whip to a card for the one thing worth showing, captions low on the chest, a sound on every move and a music bed that ends on a bar.
@@ -79,8 +81,15 @@ export function initHome(root: HTMLElement): () => void {
 	const PAUSE =
 		'<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg>';
 	const PLAY = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>';
+	const syncs = new Map<HTMLVideoElement, () => void>();
+	// A browser may refuse to start a video: it then gets the native controls and its button says Play.
 	const play = (v: HTMLVideoElement) => {
-		if (!reduce && !paused.has(v)) v.play().catch(() => {});
+		if (reduce || paused.has(v)) return;
+		void startVideo(v).then((started) => {
+			if (started) return;
+			paused.add(v);
+			syncs.get(v)?.();
+		});
 	};
 	vids.forEach((v) => {
 		if (reduce) {
@@ -96,6 +105,7 @@ export function initHome(root: HTMLElement): () => void {
 			b.setAttribute('aria-label', off ? 'Play video' : 'Pause video');
 		};
 		sync();
+		syncs.set(v, sync);
 		on(b, 'click', () => {
 			if (paused.has(v)) {
 				paused.delete(v);

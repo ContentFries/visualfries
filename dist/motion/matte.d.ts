@@ -37,7 +37,18 @@ export type MatteProvider = {
     output?: 'luma' | 'alpha';
     /** File extension of the mask the provider writes. Default `.mp4`, `.mov` for alpha. */
     extension?: string;
+    /**
+     * Whether a frame's mask depends on the frames before it (a recurrent model). Pieces of a
+     * partial matte then start a second early and those frames are thrown away. Default true;
+     * false for a model that segments every frame on its own (nothing extra is segmented).
+     */
+    recurrent?: boolean;
     segment(chunk: MatteChunk): Promise<void>;
+    /**
+     * Segments several pieces in one run (the model loads once). Each piece is segmented on its
+     * own, from a fresh start, so its mask is the one `segment` would give. Optional.
+     */
+    segmentMany?(chunks: MatteChunk[]): Promise<void>;
 };
 export type BiRefNetModel = 'Matting' | 'Portrait' | 'General Use (Light)' | 'General Use (Light 2K)' | 'General Use (Heavy)' | 'General Use (Dynamic)';
 /** @deprecated Use BiRefNetModel. */
@@ -66,6 +77,8 @@ export declare function commandMatte(template: string, opts?: {
     parallel?: number;
     output?: 'luma' | 'alpha';
     extension?: string;
+    /** False when the tool segments every frame on its own (no warm-up). Default true. */
+    recurrent?: boolean;
 }): MatteProvider;
 /**
  * Local matte with RobustVideoMatting (mobilenetv3) on the CPU: no API key, no account, temporally
@@ -133,6 +146,13 @@ export declare function planMatteChunks(frames: number, size: number, max?: numb
     last: number;
 }[];
 /**
+ * Writes frames `first`–`last` of `input` (its own frames) to `output`. A fast seek to a few
+ * seconds before the frames, then `trim` by frame count from there, so a piece late in a long
+ * video does not decode it from the start. The seek goes to half a frame before a frame start,
+ * so the first frame kept is exactly that frame; `trim` counts the rest frame-exact.
+ */
+export declare function extractFrames(input: string, fps: number, first: number, last: number, output: string): Promise<void>;
+/**
  * Makes a greyscale matte video of `input` (white = subject) with a matte provider: splits the
  * video into pieces the provider accepts, checks and normalises every mask and joins them, so
  * the matte has the same size, frame rate and frame count as the input. A ranges file a partial
@@ -176,6 +196,7 @@ export type RangeMatteResult = MatteResult & {
 export declare function fileFingerprint(file: string): Promise<string>;
 /** Cache key of one block's mask: the input's content, the block, the warm-up and the provider. */
 export declare function blockMaskKey(input: {
+    version: number;
     source: string;
     frames: number;
     fps: number;

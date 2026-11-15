@@ -12,6 +12,9 @@ import {
 	matteLayout,
 	matteProviderFromFlags,
 	fileFingerprint,
+	extractFrames,
+	falBiRefNet,
+	rvmMatte,
 	type MatteChunk,
 	type MatteProvider
 } from '../../src/lib/motion/matte.js';
@@ -321,6 +324,166 @@ describe.skipIf(!hasFfmpeg)('createRangeMatte', () => {
 			)
 		});
 		await expect(fs.access(`${output}.ranges.json`)).rejects.toThrow();
+	}, 120_000);
+
+	it('segments every block in one provider run when the provider takes several', async () => {
+		const many: MatteChunk[][] = [];
+		const single: MatteChunk[] = [];
+		const base = passThrough();
+		const provider: MatteProvider = {
+			...base,
+			id: 'batch',
+			async segment(chunk) {
+				single.push(chunk);
+				await base.segment(chunk);
+			},
+			async segmentMany(chunks) {
+				many.push(chunks);
+				for (const c of chunks) await base.segment(c);
+			}
+		};
+		const output = path.join(dir, 'batch.mp4');
+		const result = await createRangeMatte(input, {
+			output,
+			provider,
+			ranges,
+			warmup: 5,
+			blockFrames: 10,
+			cacheDir: path.join(dir, 'batch-cache')
+		});
+		expect(result).toMatchObject({ matted: 30, covered: 30 });
+		expect(single).toEqual([]);
+		expect(many).toHaveLength(1);
+		// Blocks 20-29, 30-39 and 80-89, each from 5 frames before it, in pieces of at most 8.
+		expect(many[0].map((c) => c.first)).toEqual([15, 23, 25, 33, 75, 83]);
+		const m = means(output);
+		for (const f of [20, 29, 30, 39, 80, 89])
+			expect(Math.abs(m[f] - source[f]), `frame ${f}`).toBeLessThan(0.9);
+		expect(m[19]).toBeLessThan(2);
+	}, 120_000);
+
+	it.skipIf(process.platform === 'win32')(
+		'runs rvm once for every block of a partial matte (the model loads once)',
+		async () => {
+			const uv = path.join(dir, 'fake-uv');
+			const log = path.join(dir, 'fake-uv.log');
+			await fs.writeFile(
+				uv,
+				[
+					'#!/bin/sh',
+					`echo run >> "${log}"`,
+					'while [ "$1" != "--batch" ]; do shift; done',
+					'shift 2',
+					'while [ $# -gt 0 ]; do',
+					'  ffmpeg -y -loglevel error -i "$1" -vf format=gray -pix_fmt yuv420p "$2" || exit 1',
+					'  shift 2',
+					'done',
+					''
+				].join('\n'),
+				{ mode: 0o755 }
+			);
+			const result = await createRangeMatte(input, {
+				output: path.join(dir, 'rvm-batch.mp4'),
+				provider: rvmMatte({ uv, threads: 2, maxFrames: 8 }),
+				ranges,
+				warmup: 5,
+				blockFrames: 10,
+				cacheDir: path.join(dir, 'rvm-batch-cache')
+			});
+			expect(result.matted).toBe(30);
+			expect((await fs.readFile(log, 'utf8')).trim().split('\n')).toEqual(['run']);
+		},
+		120_000
+	);
+
+	it('keeps the blocks that finished when a later one fails, and redoes only the rest', async () => {
+		const failing: MatteProvider = {
+			...passThrough(),
+			id: 'flaky',
+			async segment(chunk) {
+				if (chunk.first >= 75) throw new Error('provider down');
+				await passThrough().segment(chunk);
+			}
+		};
+		const opts = {
+			output: path.join(dir, 'flaky.mp4'),
+			ranges,
+			warmup: 5,
+			blockFrames: 10,
+			cacheDir: path.join(dir, 'flaky-cache')
+		};
+		await expect(createRangeMatte(input, { ...opts, provider: failing })).rejects.toThrow(
+			/provider down/
+		);
+		const retry = { ...passThrough(), id: 'flaky' };
+		const result = await createRangeMatte(input, { ...opts, provider: retry });
+		expect(result.matted).toBe(10);
+		expect(retry.calls.every((c) => c.first >= 75)).toBe(true);
+	}, 120_000);
+
+	it('adds no warm-up for a provider that segments every frame on its own', async () => {
+		const provider = { ...passThrough(), id: 'per-frame', recurrent: false };
+		await createRangeMatte(input, {
+			output: path.join(dir, 'per-frame.mp4'),
+			provider,
+			ranges,
+			blockFrames: 10,
+			cacheDir: path.join(dir, 'per-frame-cache')
+		});
+		expect(provider.calls.map((c) => c.first)).toEqual([20, 28, 30, 38, 80, 88]);
+		expect(falBiRefNet({ key: 'k' }).recurrent).toBe(false);
+		expect(rvmMatte().recurrent).toBe(true);
+	}, 120_000);
+
+	it('makes a black matte again when the recording of an unread footage is replaced', async () => {
+		const src = path.join(dir, 'unread.mp4');
+		const output = path.join(dir, 'unread.matte.mp4');
+		countingVideo(src);
+		const opts = { output, ranges: [], provider: passThrough(), cacheDir: path.join(dir, 'u') };
+		await createRangeMatte(src, opts);
+		countingVideo(src, "geq=lum='200-N':cb=128:cr=128");
+		const again = await createRangeMatte(src, opts);
+		expect(again.written).toBe(true);
+		const file = JSON.parse(await fs.readFile(`${output}.ranges.json`, 'utf8'));
+		expect(file.source.fingerprint).toBe(await fileFingerprint(src));
+	}, 120_000);
+});
+
+describe.skipIf(!hasFfmpeg)('extractFrames', () => {
+	it('cuts the same frames with a seek as decoding from the start, keyframes or not', async () => {
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-seek-'));
+		const input = path.join(dir, 'long.mp4');
+		// 10 s at 30 fps, a keyframe every 15 frames, brightness 20 + 0.7 × frame.
+		ffmpeg([
+			'-f',
+			'lavfi',
+			'-i',
+			`color=black:s=${W}x${H}:r=30:d=10`,
+			'-vf',
+			"geq=lum='20+0.7*N':cb=128:cr=128",
+			'-c:v',
+			'libx264',
+			'-crf',
+			'1',
+			'-g',
+			'15',
+			'-bf',
+			'2',
+			'-pix_fmt',
+			'yuv420p',
+			input
+		]);
+		const source = means(input);
+		for (const first of [0, 1, 37, 90, 151, 289]) {
+			const out = path.join(dir, `piece-${first}.mp4`);
+			await extractFrames(input, 30, first, first + 6, out);
+			const m = means(out);
+			expect(m, `from ${first}`).toHaveLength(7);
+			m.forEach((v, k) =>
+				expect(Math.abs(v - source[first + k]), `frame ${first + k}`).toBeLessThan(0.3)
+			);
+		}
+		await fs.rm(dir, { recursive: true, force: true });
 	}, 120_000);
 });
 

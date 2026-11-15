@@ -666,6 +666,8 @@ type SegmentOptions = Pick<MatteOptions, 'jobs' | 'onProgress'> & {
 	onMask?: (i: number, file: string) => Promise<void>;
 	/** Several pieces in one provider run when it can (`segmentMany`). */
 	batch?: boolean;
+	/** Pieces in one provider run at most (default 64). */
+	batchPieces?: number;
 };
 
 /**
@@ -729,7 +731,6 @@ async function segmentBatch(
 	opts: SegmentOptions
 ): Promise<string[]> {
 	const pieces = chunks.map((c, i) => chunkFor(work, i, c, info, provider));
-	for (const p of pieces) await extractFrames(input, info.fps, p.first, p.last, p.input);
 	const done: string[] = new Array(chunks.length);
 	const take = async (i: number, failed: boolean) => {
 		if (done[i] || (failed && !existsSync(pieces[i].output))) return;
@@ -744,18 +745,43 @@ async function segmentBatch(
 			`matte: frames ${chunks[i].first}–${chunks[i].last} done (${i + 1}/${chunks.length})`
 		);
 	};
-	// Masks taken one after another while the provider goes on with the next pieces.
+	// Runs of at most `batchPieces` pieces: the command line stays bounded and only one run's
+	// pieces sit on disk at a time.
+	const size = opts.batchPieces ?? BATCH_PIECES;
+	for (let from = 0; from < pieces.length; from += size) {
+		const group = pieces.slice(from, from + size);
+		for (const p of group) await extractFrames(input, info.fps, p.first, p.last, p.input);
+		await segmentGroup(group, from, provider, take);
+	}
+	return done;
+}
+
+/** Pieces in one provider run at most: a long batch is split so its arguments stay bounded. */
+const BATCH_PIECES = 64;
+
+/**
+ * One `segmentMany` run over `group` (pieces `from`… of the batch). Masks are taken one after
+ * another while the provider goes on; a failure to keep one is held until the run ends, so it
+ * never surfaces as an unhandled rejection.
+ */
+async function segmentGroup(
+	group: MatteChunk[],
+	from: number,
+	provider: MatteProvider,
+	take: (i: number, failed: boolean) => Promise<void>
+): Promise<void> {
 	let taking: Promise<unknown> = Promise.resolve();
-	const run = await provider.segmentMany!(pieces, (i) => {
-		if (i >= 0 && i < pieces.length) taking = taking.then(() => take(i, true));
+	const run = await provider.segmentMany!(group, (i) => {
+		if (i < 0 || i >= group.length) return;
+		taking = taking.then(() => take(from + i, true));
+		taking.catch(() => {});
 	}).then(
 		() => null,
 		(error: unknown) => ({ error })
 	);
 	await taking;
-	for (const i of chunks.keys()) await take(i, !!run);
+	for (const i of group.keys()) await take(from + i, !!run);
 	if (run) throw run.error;
-	return done;
 }
 
 /**
@@ -884,6 +910,8 @@ export type RangeMatteOptions = MatteOptions & {
 	 * that grows mattes only its new blocks. Default: four seconds (each block is matted from a second before it).
 	 */
 	blockFrames?: number;
+	/** Pieces in one provider run at most, for providers that take several (default 64). */
+	batchPieces?: number;
 	/** Folder that keeps each block's mask, so a block matted before is not matted again. */
 	cacheDir: string;
 };

@@ -493,8 +493,6 @@ async function segmentChunks(input, info, chunks, provider, work, opts) {
  */
 async function segmentBatch(input, info, chunks, provider, work, opts) {
     const pieces = chunks.map((c, i) => chunkFor(work, i, c, info, provider));
-    for (const p of pieces)
-        await extractFrames(input, info.fps, p.first, p.last, p.input);
     const done = new Array(chunks.length);
     const take = async (i, failed) => {
         if (done[i] || (failed && !existsSync(pieces[i].output)))
@@ -510,18 +508,37 @@ async function segmentBatch(input, info, chunks, provider, work, opts) {
         await opts.onMask?.(i, mask);
         opts.onProgress?.(`matte: frames ${chunks[i].first}–${chunks[i].last} done (${i + 1}/${chunks.length})`);
     };
-    // Masks taken one after another while the provider goes on with the next pieces.
+    // Runs of at most `batchPieces` pieces: the command line stays bounded and only one run's
+    // pieces sit on disk at a time.
+    const size = opts.batchPieces ?? BATCH_PIECES;
+    for (let from = 0; from < pieces.length; from += size) {
+        const group = pieces.slice(from, from + size);
+        for (const p of group)
+            await extractFrames(input, info.fps, p.first, p.last, p.input);
+        await segmentGroup(group, from, provider, take);
+    }
+    return done;
+}
+/** Pieces in one provider run at most: a long batch is split so its arguments stay bounded. */
+const BATCH_PIECES = 64;
+/**
+ * One `segmentMany` run over `group` (pieces `from`… of the batch). Masks are taken one after
+ * another while the provider goes on; a failure to keep one is held until the run ends, so it
+ * never surfaces as an unhandled rejection.
+ */
+async function segmentGroup(group, from, provider, take) {
     let taking = Promise.resolve();
-    const run = await provider.segmentMany(pieces, (i) => {
-        if (i >= 0 && i < pieces.length)
-            taking = taking.then(() => take(i, true));
+    const run = await provider.segmentMany(group, (i) => {
+        if (i < 0 || i >= group.length)
+            return;
+        taking = taking.then(() => take(from + i, true));
+        taking.catch(() => { });
     }).then(() => null, (error) => ({ error }));
     await taking;
-    for (const i of chunks.keys())
-        await take(i, !!run);
+    for (const i of group.keys())
+        await take(from + i, !!run);
     if (run)
         throw run.error;
-    return done;
 }
 /**
  * Joins mask videos into `output` at the input's rate, frame after frame (`skip` frames of the

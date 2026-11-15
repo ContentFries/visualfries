@@ -373,6 +373,79 @@ describe.skipIf(!hasFfmpeg)('createRangeMatte', () => {
 		expect(m[19]).toBeLessThan(2);
 	}, 120_000);
 
+	it('splits a long batch into provider runs of at most batchPieces pieces', async () => {
+		const many: number[][] = [];
+		const base = passThrough();
+		const provider: MatteProvider = {
+			...base,
+			id: 'batch-groups',
+			async segmentMany(chunks, onPiece) {
+				many.push(chunks.map((c) => c.first));
+				for (const [i, c] of chunks.entries()) {
+					await base.segment(c);
+					onPiece?.(i);
+				}
+			}
+		};
+		const output = path.join(dir, 'batch-groups.mp4');
+		const result = await createRangeMatte(input, {
+			output,
+			provider,
+			ranges,
+			warmup: 5,
+			blockFrames: 10,
+			batchPieces: 4,
+			cacheDir: path.join(dir, 'batch-groups-cache')
+		});
+		expect(result).toMatchObject({ matted: 30, covered: 30 });
+		// The six pieces of the test above, four and then two per run.
+		expect(many).toEqual([
+			[15, 23, 25, 33],
+			[75, 83]
+		]);
+		const m = means(output);
+		for (const f of [20, 29, 30, 39, 80, 89])
+			expect(Math.abs(m[f] - source[f]), `frame ${f}`).toBeLessThan(0.9);
+	}, 120_000);
+
+	it('fails cleanly when keeping a finished piece fails while the provider goes on', async () => {
+		const base = passThrough();
+		const unhandled: unknown[] = [];
+		const onUnhandled = (reason: unknown) => unhandled.push(reason);
+		process.on('unhandledRejection', onUnhandled);
+		const cacheDir = path.join(dir, 'batch-fail-cache');
+		const provider: MatteProvider = {
+			...base,
+			id: 'batch-fail',
+			async segmentMany(chunks, onPiece) {
+				for (const [i, c] of chunks.entries()) {
+					await base.segment(c);
+					// The cache folder turns unwritable after the first piece is reported.
+					if (i === 1) await fs.chmod(cacheDir, 0o500);
+					onPiece?.(i);
+					await new Promise((r) => setTimeout(r, 50));
+				}
+			}
+		};
+		try {
+			await expect(
+				createRangeMatte(input, {
+					output: path.join(dir, 'batch-fail.mp4'),
+					provider,
+					ranges,
+					warmup: 5,
+					blockFrames: 10,
+					cacheDir
+				})
+			).rejects.toThrow();
+			await new Promise((r) => setTimeout(r, 100));
+			expect(unhandled).toEqual([]);
+		} finally {
+			process.off('unhandledRejection', onUnhandled);
+			await fs.chmod(cacheDir, 0o700).catch(() => {});
+		}
+	}, 120_000);
+
 	it.skipIf(process.platform === 'win32')(
 		'runs rvm once for every block of a partial matte (the model loads once)',
 		async () => {

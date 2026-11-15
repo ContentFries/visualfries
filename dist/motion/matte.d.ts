@@ -178,6 +178,8 @@ export type RangeMatteOptions = MatteOptions & {
      * that grows mattes only its new blocks. Default: four seconds (each block is matted from a second before it).
      */
     blockFrames?: number;
+    /** Pieces in one provider run at most, for providers that take several (default 64). */
+    batchPieces?: number;
     /** Folder that keeps each block's mask, so a block matted before is not matted again. */
     cacheDir: string;
 };

@@ -1,8 +1,10 @@
 <footer>
 	<div class="wrap">
 		<span
-			>VisualFries · MIT · built by <a href="https://www.contentfries.com">ContentFries</a>, which
-			also does it for you</span
+			>VisualFries · MIT · built by <a
+				href="https://www.contentfries.com/?utm_source=visualfries&amp;utm_medium=site&amp;utm_content=footer"
+				>ContentFries</a
+			>, which also does it for you</span
 		>
 		<span class="grow"></span>
 		<a href="/docs">Docs</a>

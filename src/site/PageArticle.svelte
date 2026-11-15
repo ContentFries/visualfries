@@ -31,7 +31,7 @@
 
 	const SITE = 'https://www.visualfries.com';
 	const CONTENTFRIES =
-		'https://www.contentfries.com/?utm_source=visualfries&utm_medium=site&utm_campaign=v3';
+		'https://www.contentfries.com/waitlist?utm_source=visualfries&utm_medium=site&utm_campaign=cf3&utm_content=article';
 	// mdsvex hands a bare YAML date over as an ISO timestamp; show and publish the day.
 	const checked = $derived(String(updated ?? '').slice(0, 10));
 	const HUBS: Record<string, string> = { alternatives: 'Alternatives', for: 'Use cases' };
@@ -138,9 +138,9 @@
 			<p>
 				<b>Want a visual timeline and cloud render?</b> ContentFries is built on VisualFries. It adds
 				a timeline you can see, comments on any block that your agent acts on, and rendering on its servers,
-				so your computer stays free. The new version is on its way.
+				so your computer stays free. ContentFries 3 is on its way: join the waitlist for early access.
 			</p>
-			<a href={CONTENTFRIES}>See ContentFries</a>
+			<a href={CONTENTFRIES}>Join the waitlist</a>
 		</aside>
 
 		<div class="meta">

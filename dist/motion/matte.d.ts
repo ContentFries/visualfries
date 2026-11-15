@@ -46,9 +46,10 @@ export type MatteProvider = {
     segment(chunk: MatteChunk): Promise<void>;
     /**
      * Segments several pieces in one run (the model loads once). Each piece is segmented on its
-     * own, from a fresh start, so its mask is the one `segment` would give. Optional.
+     * own, from a fresh start, so its mask is the one `segment` would give. Calls `onPiece` with
+     * a piece's position in `chunks` once its mask is written, if it can tell. Optional.
      */
-    segmentMany?(chunks: MatteChunk[]): Promise<void>;
+    segmentMany?(chunks: MatteChunk[], onPiece?: (index: number) => void): Promise<void>;
 };
 export type BiRefNetModel = 'Matting' | 'Portrait' | 'General Use (Light)' | 'General Use (Light 2K)' | 'General Use (Heavy)' | 'General Use (Dynamic)';
 /** @deprecated Use BiRefNetModel. */

@@ -61,7 +61,18 @@ function countingVideo(file: string, filter = "geq=lum='30+1.6*N':cb=128:cr=128"
 
 /** Mean brightness of every frame of a video. */
 function means(file: string): number[] {
-	const raw = ffmpeg(['-i', file, '-vf', 'format=gray', '-f', 'rawvideo', '-']);
+	// Every decoded frame once, in order: no frames made up to fill a late start.
+	const raw = ffmpeg([
+		'-i',
+		file,
+		'-vf',
+		'format=gray',
+		'-fps_mode',
+		'passthrough',
+		'-f',
+		'rawvideo',
+		'-'
+	]);
 	const size = W * H;
 	const out: number[] = [];
 	for (let i = 0; i + size <= raw.length; i += size) {
@@ -374,24 +385,45 @@ describe.skipIf(!hasFfmpeg)('createRangeMatte', () => {
 					`echo run >> "${log}"`,
 					'while [ "$1" != "--batch" ]; do shift; done',
 					'shift 2',
+					'n=0',
 					'while [ $# -gt 0 ]; do',
+					'  [ -n "$VF_FAKE_STOP" ] && [ "$n" = "$VF_FAKE_STOP" ] && exit 1',
 					'  ffmpeg -y -loglevel error -i "$1" -vf format=gray -pix_fmt yuv420p "$2" || exit 1',
+					'  echo "VF_PIECE_DONE $n"',
+					'  n=$((n + 1))',
 					'  shift 2',
 					'done',
+					// Before it exits: how many blocks are cached already (finished pieces are kept
+					// while the run goes on, so a run killed now would keep them).
+					'sleep 2',
+					`ls "${path.join(dir, 'rvm-batch-cache')}" | grep -c "mp4$" >> "${log}"`,
 					''
 				].join('\n'),
 				{ mode: 0o755 }
 			);
-			const result = await createRangeMatte(input, {
+			const opts = {
 				output: path.join(dir, 'rvm-batch.mp4'),
 				provider: rvmMatte({ uv, threads: 2, maxFrames: 8 }),
 				ranges,
 				warmup: 5,
 				blockFrames: 10,
 				cacheDir: path.join(dir, 'rvm-batch-cache')
-			});
-			expect(result.matted).toBe(30);
-			expect((await fs.readFile(log, 'utf8')).trim().split('\n')).toEqual(['run']);
+			};
+			// Stopped after the two pieces of block 20-29: that block is cached all the same.
+			process.env.VF_FAKE_STOP = '2';
+			try {
+				await expect(createRangeMatte(input, opts)).rejects.toThrow(/RVM matte failed/);
+			} finally {
+				delete process.env.VF_FAKE_STOP;
+			}
+			const result = await createRangeMatte(input, opts);
+			expect(result.matted).toBe(20);
+			// The first run stopped after one block; the second found it and cached two more.
+			expect((await fs.readFile(log, 'utf8')).trim().split('\n')).toEqual(['run', 'run', '3']);
+			// The work folder sits next to the cache and is gone after the run.
+			expect(await fs.readdir(path.join(dir, 'rvm-batch-cache', 'tmp')).catch(() => [])).toEqual(
+				[]
+			);
 		},
 		120_000
 	);
@@ -482,6 +514,55 @@ describe.skipIf(!hasFfmpeg)('extractFrames', () => {
 			m.forEach((v, k) =>
 				expect(Math.abs(v - source[first + k]), `frame ${first + k}`).toBeLessThan(0.3)
 			);
+		}
+		await fs.rm(dir, { recursive: true, force: true });
+	}, 120_000);
+
+	it('cuts the right frames when the video starts after the sound', async () => {
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-offset-'));
+		for (const offset of ['0.0667', '0.5']) {
+			const input = path.join(dir, `late-${offset}.mp4`);
+			ffmpeg([
+				'-itsoffset',
+				offset,
+				'-f',
+				'lavfi',
+				'-i',
+				`color=black:s=${W}x${H}:r=30:d=8`,
+				'-f',
+				'lavfi',
+				'-i',
+				'sine=frequency=440:duration=9',
+				'-map',
+				'0:v',
+				'-map',
+				'1:a',
+				'-vf',
+				"geq=lum='20+0.7*N':cb=128:cr=128",
+				'-c:v',
+				'libx264',
+				'-crf',
+				'1',
+				'-g',
+				'15',
+				'-bf',
+				'2',
+				'-pix_fmt',
+				'yuv420p',
+				'-c:a',
+				'aac',
+				input
+			]);
+			const source = means(input);
+			for (const first of [0, 37, 151, 230]) {
+				const out = path.join(dir, `piece-${offset}-${first}.mp4`);
+				await extractFrames(input, 30, first, first + 4, out);
+				means(out).forEach((v, k) =>
+					expect(Math.abs(v - source[first + k]), `${offset} s: frame ${first + k}`).toBeLessThan(
+						0.3
+					)
+				);
+			}
 		}
 		await fs.rm(dir, { recursive: true, force: true });
 	}, 120_000);

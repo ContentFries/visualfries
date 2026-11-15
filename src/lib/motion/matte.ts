@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { probeVideo, type VideoInfo } from './node.js';
 import type { FrameRange } from './footage-map.js';
 import { MATTE_PLAN, rangesFileOf, type MatteRangesFile } from './matte-use.js';
+import { removeOrphans } from './partials.js';
 
 // ---------------------------------------------------------------- providers
 
@@ -59,9 +60,10 @@ export type MatteProvider = {
 	segment(chunk: MatteChunk): Promise<void>;
 	/**
 	 * Segments several pieces in one run (the model loads once). Each piece is segmented on its
-	 * own, from a fresh start, so its mask is the one `segment` would give. Optional.
+	 * own, from a fresh start, so its mask is the one `segment` would give. Calls `onPiece` with
+	 * a piece's position in `chunks` once its mask is written, if it can tell. Optional.
 	 */
-	segmentMany?(chunks: MatteChunk[]): Promise<void>;
+	segmentMany?(chunks: MatteChunk[], onPiece?: (index: number) => void): Promise<void>;
 };
 
 export type BiRefNetModel =
@@ -271,10 +273,19 @@ export function rvmMatte(
 			// No shell: the script path and the chunk paths are passed as plain arguments.
 			await runUv(uv, [...uvArgs(script), chunk.input, chunk.output, String(threads)], 'RVM matte');
 		},
-		async segmentMany(chunks) {
-			// One process, the model loaded once; the script starts each piece afresh.
+		async segmentMany(chunks, onPiece) {
+			// One process, the model loaded once; the script starts each piece afresh and says
+			// when each one is written, so it is kept even when the run is stopped later.
 			const pairs = chunks.flatMap((c) => [c.input, c.output]);
-			await runUv(uv, [...uvArgs(script), '--batch', String(threads), ...pairs], 'RVM matte');
+			await runUv(
+				uv,
+				[...uvArgs(script), '--batch', String(threads), ...pairs],
+				'RVM matte',
+				(line) => {
+					const done = /^VF_PIECE_DONE (\d+)$/.exec(line.trim());
+					if (done) onPiece?.(Number(done[1]));
+				}
+			);
 		}
 	};
 }
@@ -302,9 +313,14 @@ function uvArgs(script: string): string[] {
 	];
 }
 
-async function runUv(uv: string, args: string[], label: string): Promise<void> {
+async function runUv(
+	uv: string,
+	args: string[],
+	label: string,
+	onLine?: (line: string) => void
+): Promise<void> {
 	try {
-		await run(uv, args, label);
+		await run(uv, args, label, {}, onLine);
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
 		throw new Error(
@@ -417,12 +433,23 @@ function run(
 	cmd: string,
 	args: string[],
 	label = cmd,
-	options: { env?: NodeJS.ProcessEnv; windowsVerbatimArguments?: boolean } = {}
+	options: { env?: NodeJS.ProcessEnv; windowsVerbatimArguments?: boolean } = {},
+	onLine?: (line: string) => void
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
-		const p = spawn(cmd, args, { stdio: ['ignore', 'ignore', 'pipe'], ...options });
+		const p = spawn(cmd, args, {
+			stdio: ['ignore', onLine ? 'pipe' : 'ignore', 'pipe'],
+			...options
+		});
 		let err = '';
-		p.stderr.on('data', (d) => (err += d));
+		let out = '';
+		p.stdout?.on('data', (d) => {
+			out += d;
+			const lines = out.split('\n');
+			out = lines.pop()!;
+			for (const line of lines) onLine!(line);
+		});
+		p.stderr?.on('data', (d) => (err += d));
 		p.on('error', reject);
 		p.on('close', (code) =>
 			code === 0 ? resolve() : reject(new Error(`${label} failed (${code}): ${err.slice(-600)}`))
@@ -471,6 +498,41 @@ async function checkAlpha(file: string, provider: string): Promise<string[]> {
 /** Frames `first`–`last` of the input to segment. */
 type ChunkPlan = { first: number; last: number };
 
+/**
+ * Seconds from the start of `input` (the earliest of its streams, often the sound) to its first
+ * picture: an input seek counts from the former. Null when ffprobe cannot tell, and the piece
+ * is then decoded from the start rather than risk a shift.
+ */
+async function videoLead(input: string): Promise<number | null> {
+	const text = await new Promise<string>((resolve) => {
+		const p = spawn(process.env.FFPROBE_PATH || 'ffprobe', [
+			'-v',
+			'error',
+			'-select_streams',
+			'v:0',
+			'-show_entries',
+			'format=start_time:stream=start_time',
+			'-of',
+			'json',
+			input
+		]);
+		let out = '';
+		p.stdout.on('data', (d) => (out += d));
+		p.on('error', () => resolve(''));
+		p.on('close', (code) => resolve(code === 0 ? out : ''));
+	});
+	const info = (() => {
+		try {
+			return JSON.parse(text);
+		} catch {
+			return null;
+		}
+	})();
+	const video = Number(info?.streams?.[0]?.start_time);
+	const start = Number(info?.format?.start_time);
+	return Number.isFinite(video) && Number.isFinite(start) && video >= start ? video - start : null;
+}
+
 /** Seconds of the input decoded before a piece, so the seek lands on a keyframe before it. */
 const SEEK_LEAD = 3;
 
@@ -487,8 +549,11 @@ export async function extractFrames(
 	last: number,
 	output: string
 ): Promise<void> {
-	const from = Math.max(0, first - Math.round(SEEK_LEAD * fps));
-	const seek = from > 0 ? ['-ss', ((from - 0.5) / fps).toFixed(6)] : [];
+	let from = Math.max(0, first - Math.round(SEEK_LEAD * fps));
+	// The seek counts from the file's start (often the sound's): add where the picture starts.
+	const lead = from > 0 ? await videoLead(input) : 0;
+	if (lead === null) from = 0;
+	const seek = from > 0 ? ['-ss', ((lead ?? 0) + (from - 0.5) / fps).toFixed(6)] : [];
 	await ffmpeg([
 		...seek,
 		'-i',
@@ -571,6 +636,9 @@ async function normaliseMask(
 		fixed
 	]);
 	await fs.rm(frameDir, { recursive: true, force: true });
+	// The piece and the provider's mask are not needed any more.
+	await fs.rm(path.join(work, `part-${i}.mp4`), { force: true });
+	await fs.rm(raw, { force: true });
 	return fixed;
 }
 
@@ -647,8 +715,10 @@ async function segmentChunks(
 }
 
 /**
- * `segmentChunks` in one provider run: every piece is cut first, then segmented together, and
- * each mask the run wrote is kept, also when the run failed on a later one.
+ * `segmentChunks` in one provider run: every piece is cut first, then segmented together. Each
+ * mask is kept as soon as the provider says it is written (`onPiece`), so a run stopped later
+ * keeps it; masks of a provider that does not say are taken when the run ends, also when it
+ * failed on a later piece.
  */
 async function segmentBatch(
 	input: string,
@@ -660,22 +730,30 @@ async function segmentBatch(
 ): Promise<string[]> {
 	const pieces = chunks.map((c, i) => chunkFor(work, i, c, info, provider));
 	for (const p of pieces) await extractFrames(input, info.fps, p.first, p.last, p.input);
-	const run = await provider.segmentMany!(pieces).then(
+	const done: string[] = new Array(chunks.length);
+	const take = async (i: number, failed: boolean) => {
+		if (done[i] || (failed && !existsSync(pieces[i].output))) return;
+		const mask = await normaliseMask(work, i, chunks[i], info, provider).catch((error) => {
+			if (!failed) throw error;
+			return null;
+		});
+		if (!mask) return;
+		done[i] = mask;
+		await opts.onMask?.(i, mask);
+		opts.onProgress?.(
+			`matte: frames ${chunks[i].first}–${chunks[i].last} done (${i + 1}/${chunks.length})`
+		);
+	};
+	// Masks taken one after another while the provider goes on with the next pieces.
+	let taking: Promise<unknown> = Promise.resolve();
+	const run = await provider.segmentMany!(pieces, (i) => {
+		if (i >= 0 && i < pieces.length) taking = taking.then(() => take(i, true));
+	}).then(
 		() => null,
 		(error: unknown) => ({ error })
 	);
-	const done: string[] = new Array(chunks.length);
-	for (const [i, c] of chunks.entries()) {
-		if (run && !existsSync(pieces[i].output)) continue;
-		const mask = await normaliseMask(work, i, c, info, provider).catch((error) => {
-			if (!run) throw error;
-			return null;
-		});
-		if (!mask) continue;
-		done[i] = mask;
-		await opts.onMask?.(i, mask);
-		opts.onProgress?.(`matte: frames ${c.first}–${c.last} done (${i + 1}/${chunks.length})`);
-	}
+	await taking;
+	for (const i of chunks.keys()) await take(i, !!run);
 	if (run) throw run.error;
 	return done;
 }
@@ -973,9 +1051,13 @@ async function matteBlocks(
 	});
 	const pieceOf = new Map(pieces.flatMap((p) => p.chunks.map((i) => [i, p] as const)));
 	const masks: string[] = [];
-	const work = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-'));
+	// The work folder sits next to the cache (not in a small temporary file system); folders a
+	// killed run left are removed first.
+	const tmpRoot = path.join(plan.dirname, 'tmp');
+	await removeOrphans(tmpRoot, ORPHAN_WORK);
+	const work = path.join(tmpRoot, `run.tmp-${process.pid}-${randomUUID()}`);
+	await fs.mkdir(work, { recursive: true });
 	try {
-		await fs.mkdir(plan.dirname, { recursive: true });
 		const onMask = async (i: number, file: string) => {
 			masks[i] = file;
 			const p = pieceOf.get(i)!;
@@ -985,12 +1067,17 @@ async function matteBlocks(
 			const frames = p.block.last - p.block.first + 1;
 			await joinMasks(own, tmp, info.fps, frames, work, p.block.first - p.start);
 			await fs.rename(tmp, plan.file(p.k));
+			for (const mask of own) await fs.rm(mask, { force: true });
 		};
 		await segmentChunks(input, info, chunks, provider, work, { ...opts, onMask, batch: true });
 	} finally {
 		await fs.rm(work, { recursive: true, force: true });
+		await fs.rmdir(tmpRoot).catch(() => {});
 	}
 }
+
+/** Work folders of matte runs (`run.tmp-<pid>-<uuid>`), removed once their process is gone. */
+const ORPHAN_WORK = /\.tmp-(\d+)-[0-9a-f-]{36}$/;
 
 /**
  * Makes a full-length matte of `input` that covers `ranges` in whole blocks (black, no subject,

@@ -125,8 +125,10 @@ def main(argv):
         pairs = [(argv[1], argv[2])]
     torch.set_num_threads(threads)
     model = load_model(torch)
-    for inp, out in pairs:
+    for n, (inp, out) in enumerate(pairs):
         matte_one(model, torch, np, inp, out)
+        # The caller keeps each matte as soon as this line says it is written.
+        print(f"VF_PIECE_DONE {n}", flush=True)
 
 
 if __name__ == "__main__":

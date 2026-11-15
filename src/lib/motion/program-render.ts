@@ -23,6 +23,7 @@ import type { ProgramChunk } from './chunks.js';
 import { removeOrphans, trackPartial } from './partials.js';
 import { STEMS, encodeProgramMix, writeWav, type MixReport, type StemName } from './audio.js';
 import { assertProgramRenders, openSegment } from './program-node.js';
+import { assertMatteCovers } from './matte-project.js';
 
 /**
  * `render --export video`: the whole program as one video. Each chunk of the grid (see
@@ -128,6 +129,7 @@ export async function renderProgramVideo(
 		write: true
 	});
 	assertProgramRenders(program);
+	await assertMatteCovers(loaded, program, opts.format);
 	// Saved as resolved: bundling attaches extracted footage to the clips.
 	const resolved = JSON.stringify(program, null, 2) + '\n';
 	const [w, h] = program.format.size;

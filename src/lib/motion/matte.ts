@@ -3,8 +3,11 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { probeVideo } from './node.js';
+import { probeVideo, type VideoInfo } from './node.js';
+import type { FrameRange } from './footage-map.js';
+import { MATTE_PLAN, rangesFileOf, type MatteRangesFile } from './matte-use.js';
 
 // ---------------------------------------------------------------- providers
 
@@ -31,6 +34,11 @@ export type MatteChunk = {
  */
 export type MatteProvider = {
 	name: string;
+	/**
+	 * What decides the masks (model and settings, not speed): partial mattes cache each range
+	 * under it. Default: `name`.
+	 */
+	id?: string;
 	/** Longest piece the provider accepts, in frames. */
 	maxFrames: number;
 	/** Pieces worth running at once. */
@@ -116,6 +124,7 @@ export function falBiRefNet(
 
 	return {
 		name: `fal.ai BiRefNet v2 (${model})`,
+		id: `fal-birefnet-v2:${model}:${opts.resolution ?? '1024x1024'}`,
 		maxFrames: 512,
 		parallel: 3,
 		output: 'luma',
@@ -182,6 +191,7 @@ export function commandMatte(
 	const variable = (name: string) => (windows ? `"%${name}%"` : `"$${name}"`);
 	return {
 		name: `command: ${template}`,
+		id: `command:${opts.output ?? 'luma'}:${opts.extension ?? ''}:${template}`,
 		maxFrames: opts.maxFrames ?? Number.POSITIVE_INFINITY,
 		parallel: opts.parallel ?? 1,
 		output: opts.output ?? 'luma',
@@ -237,6 +247,7 @@ export function rvmMatte(
 	const uv = opts.uv ?? 'uv';
 	return {
 		name: `rvm (local CPU, ${threads} threads)`,
+		id: 'rvm:mobilenetv3:v1.0.0',
 		maxFrames: opts.maxFrames ?? 480,
 		parallel: 1,
 		output: 'luma',
@@ -297,6 +308,37 @@ export function matteProviderName(flags: {
 	if (flags.command) return 'command';
 	if (flags.model || flags.resolution) return 'fal';
 	return 'rvm';
+}
+
+/** The provider the flags of `visualfries matte` ask for (see `matteProviderName`). */
+export function matteProviderFromFlags(flags: {
+	provider?: string;
+	command?: string;
+	commandOutput?: string;
+	commandExt?: string;
+	model?: string;
+	resolution?: string;
+	threads?: number;
+	maxFrames?: number;
+	jobs?: number;
+}): MatteProvider {
+	const name = matteProviderName(flags);
+	if (name === 'fal')
+		return falBiRefNet({
+			model: flags.model as BiRefNetModel | undefined,
+			resolution: flags.resolution as '1024x1024' | '2048x2048' | '2304x2304' | undefined
+		});
+	if (name === 'rvm') return rvmMatte({ threads: flags.threads, maxFrames: flags.maxFrames });
+	if (name !== 'command')
+		throw new Error(`Unknown matte provider "${name}". Use rvm, fal or command.`);
+	if (!flags.command)
+		throw new Error('--provider command needs --command "tool {input} {output}".');
+	return commandMatte(flags.command, {
+		output: (flags.commandOutput ?? 'luma') as 'luma' | 'alpha',
+		extension: flags.commandExt,
+		maxFrames: flags.maxFrames,
+		parallel: flags.jobs
+	});
 }
 
 const REMOVED_FAL_OPTIONS = ['model', 'resolution', 'falKey', 'fetch'];
@@ -407,152 +449,189 @@ async function checkAlpha(file: string, provider: string): Promise<string[]> {
 	return vp9Alpha ? ['-c:v', 'libvpx-vp9'] : [];
 }
 
+type ChunkPlan = { first: number; last: number };
+
+/**
+ * Segments frames `chunks` of `input` with the provider (in pieces at once as `jobs` allows) and
+ * returns each piece's checked, normalised mask: greyscale H.264 at the input's size and rate,
+ * exactly as many frames as the piece.
+ */
+async function segmentChunks(
+	input: string,
+	info: VideoInfo,
+	chunks: ChunkPlan[],
+	provider: MatteProvider,
+	work: string,
+	opts: Pick<MatteOptions, 'jobs' | 'onProgress'>
+): Promise<string[]> {
+	const log = opts.onProgress ?? (() => {});
+	const extract = provider.output === 'alpha' ? 'format=rgba,alphaextract' : 'format=gray';
+	const done: string[] = new Array(chunks.length);
+	let next = 0;
+	let failed = false;
+	const worker = async () => {
+		while (next < chunks.length && !failed) {
+			const i = next++;
+			const { first, last } = chunks[i];
+			const count = last - first + 1;
+			const part = path.join(work, `part-${i}.mp4`);
+			await ffmpeg([
+				'-i',
+				input,
+				'-vf',
+				`trim=start_frame=${first}:end_frame=${last + 1},setpts=PTS-STARTPTS`,
+				'-an',
+				'-c:v',
+				'libx264',
+				'-crf',
+				'12',
+				'-pix_fmt',
+				'yuv420p',
+				part
+			]);
+			const raw = path.join(
+				work,
+				`mask-raw-${i}${provider.extension ?? (provider.output === 'alpha' ? '.mov' : '.mp4')}`
+			);
+			await provider.segment({
+				input: part,
+				output: raw,
+				index: i,
+				first,
+				last,
+				frames: count,
+				fps: info.fps,
+				width: info.width,
+				height: info.height
+			});
+			const alphaDecoder = provider.output === 'alpha' ? await checkAlpha(raw, provider.name) : [];
+			// Mask frame n belongs to piece frame n whatever rate or time base the provider wrote,
+			// so the masks are decoded to numbered images and rebuilt at the piece's rate.
+			const frameDir = path.join(work, `mask-frames-${i}`);
+			await fs.mkdir(frameDir);
+			await ffmpeg([
+				...alphaDecoder,
+				'-i',
+				raw,
+				'-vf',
+				`scale=${info.width}:${info.height},${extract}`,
+				'-fps_mode',
+				'passthrough',
+				path.join(frameDir, '%06d.png')
+			]);
+			const decoded = (await fs.readdir(frameDir)).filter((f) => f.endsWith('.png')).sort();
+			// Up to two missing frames are normal and hold the last one; more means a wrong mask.
+			if (decoded.length < count - 2 || decoded.length > count + 2)
+				throw new Error(
+					`${provider.name}: mask for frames ${first}–${last} has ${decoded.length} frames, expected ${count}.`
+				);
+			for (let n = decoded.length + 1; n <= count; n++)
+				await fs.copyFile(
+					path.join(frameDir, decoded[decoded.length - 1]),
+					path.join(frameDir, `${String(n).padStart(6, '0')}.png`)
+				);
+			const fixed = path.join(work, `mask-${i}.mp4`);
+			await ffmpeg([
+				'-framerate',
+				String(info.fps),
+				'-i',
+				path.join(frameDir, '%06d.png'),
+				'-frames:v',
+				String(count),
+				'-c:v',
+				'libx264',
+				'-crf',
+				'10',
+				'-pix_fmt',
+				'yuv420p',
+				fixed
+			]);
+			await fs.rm(frameDir, { recursive: true, force: true });
+			done[i] = fixed;
+			log(`matte: frames ${first}–${last} done (${i + 1}/${chunks.length})`);
+		}
+	};
+	// The first failure stops the other workers from starting more (possibly paid) pieces;
+	// the caller removes the work folder only after every worker has stopped.
+	const results = await Promise.allSettled(
+		Array.from({ length: Math.min(opts.jobs ?? provider.parallel ?? 1, chunks.length) }, () =>
+			worker().catch((error) => {
+				failed = true;
+				throw error;
+			})
+		)
+	);
+	const rejected = results.find((r) => r.status === 'rejected');
+	if (rejected) throw (rejected as PromiseRejectedResult).reason;
+	return done;
+}
+
+/**
+ * Joins mask videos into `output` at the input's rate, frame after frame (`skip` frames of the
+ * first one left out), and checks the frame count.
+ */
+async function joinMasks(
+	parts: string[],
+	output: string,
+	fps: number,
+	frames: number,
+	work: string,
+	skip = 0
+): Promise<void> {
+	const list = path.join(work, `list-${randomUUID()}.txt`);
+	await fs.writeFile(list, parts.map((f) => `file '${f.replace(/'/g, "'\\''")}'`).join('\n'));
+	await fs.mkdir(path.dirname(path.resolve(output)), { recursive: true });
+	// Every frame gets its place by count, so pieces of any time base line up frame-exact.
+	const retime = `setpts=N/(${fps}*TB)`;
+	await ffmpeg([
+		'-f',
+		'concat',
+		'-safe',
+		'0',
+		'-i',
+		list,
+		'-vf',
+		skip ? `trim=start_frame=${skip},${retime}` : retime,
+		'-r',
+		String(fps),
+		'-frames:v',
+		String(frames),
+		'-c:v',
+		'libx264',
+		'-crf',
+		'10',
+		'-pix_fmt',
+		'yuv420p',
+		'-movflags',
+		'+faststart',
+		output
+	]);
+	const out = await probeVideo(output);
+	if (out.frames !== frames)
+		throw new Error(`Matte has ${out.frames} frames, the input has ${frames}.`);
+}
+
 /**
  * Makes a greyscale matte video of `input` (white = subject) with a matte provider: splits the
  * video into pieces the provider accepts, checks and normalises every mask and joins them, so
- * the matte has the same size, frame rate and frame count as the input.
+ * the matte has the same size, frame rate and frame count as the input. A ranges file a partial
+ * matte left at `output` (see `createRangeMatte`) is removed: this matte covers every frame.
  */
 export async function createSubjectMatte(input: string, opts: MatteOptions): Promise<MatteResult> {
 	rejectRemovedFalOptions(opts);
 	const provider = opts.provider ?? rvmMatte();
 	const started = Date.now();
-	const info = await probeVideo(input);
-	if (!info.constant)
-		throw new Error(
-			`${input} has a variable frame rate. Convert it first, e.g. ffmpeg -i in.mp4 -vf fps=30 -c:a copy out.mp4.`
-		);
+	const info = await constantVideo(input);
 	const size = opts.chunkFrames ?? Math.min(480, provider.maxFrames, info.frames);
 	const chunks = planMatteChunks(info.frames, size, provider.maxFrames);
 	const work = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-'));
-	const log = opts.onProgress ?? (() => {});
-	const extract = provider.output === 'alpha' ? 'format=rgba,alphaextract' : 'format=gray';
 	try {
-		const done: string[] = new Array(chunks.length);
-		let next = 0;
-		let failed = false;
-		const worker = async () => {
-			while (next < chunks.length && !failed) {
-				const i = next++;
-				const { first, last } = chunks[i];
-				const count = last - first + 1;
-				const part = path.join(work, `part-${i}.mp4`);
-				await ffmpeg([
-					'-i',
-					input,
-					'-vf',
-					`trim=start_frame=${first}:end_frame=${last + 1},setpts=PTS-STARTPTS`,
-					'-an',
-					'-c:v',
-					'libx264',
-					'-crf',
-					'12',
-					'-pix_fmt',
-					'yuv420p',
-					part
-				]);
-				const raw = path.join(
-					work,
-					`mask-raw-${i}${provider.extension ?? (provider.output === 'alpha' ? '.mov' : '.mp4')}`
-				);
-				await provider.segment({
-					input: part,
-					output: raw,
-					index: i,
-					first,
-					last,
-					frames: count,
-					fps: info.fps,
-					width: info.width,
-					height: info.height
-				});
-				const alphaDecoder =
-					provider.output === 'alpha' ? await checkAlpha(raw, provider.name) : [];
-				// Mask frame n belongs to piece frame n whatever rate or time base the provider wrote,
-				// so the masks are decoded to numbered images and rebuilt at the piece's rate.
-				const frameDir = path.join(work, `mask-frames-${i}`);
-				await fs.mkdir(frameDir);
-				await ffmpeg([
-					...alphaDecoder,
-					'-i',
-					raw,
-					'-vf',
-					`scale=${info.width}:${info.height},${extract}`,
-					'-fps_mode',
-					'passthrough',
-					path.join(frameDir, '%06d.png')
-				]);
-				const decoded = (await fs.readdir(frameDir)).filter((f) => f.endsWith('.png')).sort();
-				// Up to two missing frames are normal and hold the last one; more means a wrong mask.
-				if (decoded.length < count - 2 || decoded.length > count + 2)
-					throw new Error(
-						`${provider.name}: mask for frames ${first}–${last} has ${decoded.length} frames, expected ${count}.`
-					);
-				for (let n = decoded.length + 1; n <= count; n++)
-					await fs.copyFile(
-						path.join(frameDir, decoded[decoded.length - 1]),
-						path.join(frameDir, `${String(n).padStart(6, '0')}.png`)
-					);
-				const fixed = path.join(work, `mask-${i}.mp4`);
-				await ffmpeg([
-					'-framerate',
-					String(info.fps),
-					'-i',
-					path.join(frameDir, '%06d.png'),
-					'-frames:v',
-					String(count),
-					'-c:v',
-					'libx264',
-					'-crf',
-					'10',
-					'-pix_fmt',
-					'yuv420p',
-					fixed
-				]);
-				await fs.rm(frameDir, { recursive: true, force: true });
-				done[i] = fixed;
-				log(`matte: frames ${first}–${last} done (${i + 1}/${chunks.length})`);
-			}
-		};
-		// The first failure stops the other workers from starting more (possibly paid) pieces;
-		// the work folder is removed only after every worker has stopped.
-		const results = await Promise.allSettled(
-			Array.from({ length: Math.min(opts.jobs ?? provider.parallel ?? 1, chunks.length) }, () =>
-				worker().catch((error) => {
-					failed = true;
-					throw error;
-				})
-			)
-		);
-		const rejected = results.find((r) => r.status === 'rejected');
-		if (rejected) throw (rejected as PromiseRejectedResult).reason;
-		const list = path.join(work, 'list.txt');
-		await fs.writeFile(list, done.map((f) => `file '${f.replace(/'/g, "'\\''")}'`).join('\n'));
-		await fs.mkdir(path.dirname(path.resolve(opts.output)), { recursive: true });
-		await ffmpeg([
-			'-f',
-			'concat',
-			'-safe',
-			'0',
-			'-i',
-			list,
-			'-r',
-			String(info.fps),
-			'-c:v',
-			'libx264',
-			'-crf',
-			'10',
-			'-pix_fmt',
-			'yuv420p',
-			'-movflags',
-			'+faststart',
-			opts.output
-		]);
-		const out = await probeVideo(opts.output);
-		if (out.frames !== info.frames)
-			throw new Error(`Matte has ${out.frames} frames, the input has ${info.frames}.`);
+		const done = await segmentChunks(input, info, chunks, provider, work, opts);
+		await joinMasks(done, opts.output, info.fps, info.frames, work);
+		await fs.rm(rangesFileOf(opts.output), { force: true });
 		return {
 			output: opts.output,
-			frames: out.frames,
+			frames: info.frames,
 			fps: info.fps,
 			width: info.width,
 			height: info.height,
@@ -563,4 +642,238 @@ export async function createSubjectMatte(input: string, opts: MatteOptions): Pro
 	} finally {
 		await fs.rm(work, { recursive: true, force: true });
 	}
+}
+
+/** Probes `input` and throws unless it has a constant frame rate. */
+async function constantVideo(input: string): Promise<VideoInfo> {
+	const info = await probeVideo(input);
+	if (!info.constant)
+		throw new Error(
+			`${input} has a variable frame rate. Convert it first, e.g. ffmpeg -i in.mp4 -vf fps=30 -c:a copy out.mp4.`
+		);
+	return info;
+}
+
+// ---------------------------------------------------------------- partial mattes
+
+export type RangeMatteOptions = MatteOptions & {
+	/** Frames of the input (its own rate) to matte, as sorted inclusive ranges. */
+	ranges: FrameRange[];
+	/**
+	 * Frames matted before each range and thrown away, so a recurrent model has settled by the
+	 * range's first frame. Default: one second.
+	 */
+	warmup?: number;
+	/** Folder that keeps each range's mask, so a range matted before is not matted again. */
+	cacheDir: string;
+};
+
+export type RangeMatteResult = MatteResult & {
+	/** Frames the matte covers (outside them it is black), and how many of them were matted now. */
+	covered: number;
+	matted: number;
+	ranges: FrameRange[];
+	/** False when the matte at `output` already was this one and was left alone. */
+	written: boolean;
+};
+
+/** Cache key of one range's mask: the input file, the range, the warm-up and the provider. */
+export function rangeMaskKey(input: {
+	file: string;
+	size: number;
+	mtimeMs: number;
+	frames: number;
+	fps: number;
+	range: FrameRange;
+	warmup: number;
+	provider: string;
+	chunkFrames: number;
+}): string {
+	return createHash('sha1').update(JSON.stringify(input)).digest('hex').slice(0, 16);
+}
+
+/** The pieces of a full-length matte: masks of `ranges` and the black gaps between them. */
+export function matteLayout(
+	ranges: readonly FrameRange[],
+	total: number
+): ({ range: number } | { gap: number })[] {
+	const out: ({ range: number } | { gap: number })[] = [];
+	let at = 0;
+	ranges.forEach((r, i) => {
+		if (r.first > at) out.push({ gap: r.first - at });
+		out.push({ range: i });
+		at = r.last + 1;
+	});
+	if (at < total) out.push({ gap: total - at });
+	return out;
+}
+
+/** Throws unless `ranges` are sorted, apart, and inside `total` frames. */
+function checkRanges(ranges: readonly FrameRange[], total: number) {
+	let previous = -1;
+	for (const r of ranges) {
+		if (!(Number.isInteger(r.first) && Number.isInteger(r.last)) || r.first > r.last)
+			throw new Error(`Bad matte range ${r.first}–${r.last}.`);
+		if (r.first <= previous || r.last >= total)
+			throw new Error(
+				`Matte ranges must be sorted, apart and inside the video's ${total} frames; got ${r.first}–${r.last}.`
+			);
+		previous = r.last;
+	}
+}
+
+/** A black greyscale video of `frames` frames (no subject). */
+async function blackVideo(file: string, info: VideoInfo, frames: number) {
+	await ffmpeg([
+		'-f',
+		'lavfi',
+		'-i',
+		`color=c=black:s=${info.width}x${info.height}:r=${info.fps}`,
+		'-frames:v',
+		String(frames),
+		'-c:v',
+		'libx264',
+		'-crf',
+		'10',
+		'-pix_fmt',
+		'yuv420p',
+		file
+	]);
+}
+
+/**
+ * The mask of one range from the cache, or matted now (from `warmup` frames earlier, those
+ * left out) and kept there. Returns the file and whether it was matted now.
+ */
+async function rangeMask(
+	input: string,
+	info: VideoInfo,
+	range: FrameRange,
+	key: string,
+	provider: MatteProvider,
+	opts: RangeMatteOptions & { warmup: number; chunkFrames: number }
+): Promise<{ file: string; matted: boolean }> {
+	const file = path.join(opts.cacheDir, `${key}.mp4`);
+	if (existsSync(file)) return { file, matted: false };
+	const start = Math.max(0, range.first - opts.warmup);
+	const chunks = planMatteChunks(range.last - start + 1, opts.chunkFrames, provider.maxFrames).map(
+		(c) => ({ first: c.first + start, last: c.last + start })
+	);
+	const work = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-'));
+	try {
+		const parts = await segmentChunks(input, info, chunks, provider, work, opts);
+		const tmp = path.join(work, 'range.mp4');
+		await joinMasks(parts, tmp, info.fps, range.last - range.first + 1, work, range.first - start);
+		await fs.mkdir(opts.cacheDir, { recursive: true });
+		await fs.copyFile(tmp, `${file}.tmp-${process.pid}`);
+		await fs.rename(`${file}.tmp-${process.pid}`, file);
+		return { file, matted: true };
+	} finally {
+		await fs.rm(work, { recursive: true, force: true });
+	}
+}
+
+/**
+ * Makes a full-length matte of `input` that covers only `ranges` (black, no subject, elsewhere)
+ * and writes its ranges file next to it (see `MatteRangesFile`), so `check` and `render` know
+ * which frames it covers. Each range's mask is cached in `cacheDir`: running it again after an
+ * edit mattes only new or changed ranges, and leaves a matte that would not change alone.
+ */
+export async function createRangeMatte(
+	input: string,
+	opts: RangeMatteOptions
+): Promise<RangeMatteResult> {
+	rejectRemovedFalOptions(opts);
+	const provider = opts.provider ?? rvmMatte();
+	const started = Date.now();
+	const info = await constantVideo(input);
+	checkRanges(opts.ranges, info.frames);
+	const warmup = opts.warmup ?? Math.round(MATTE_PLAN.warmup * info.fps);
+	const chunkFrames = opts.chunkFrames ?? Math.min(480, provider.maxFrames);
+	const stat = await fs.stat(input);
+	const keys = opts.ranges.map((range) =>
+		rangeMaskKey({
+			file: path.basename(input),
+			size: stat.size,
+			mtimeMs: stat.mtimeMs,
+			frames: info.frames,
+			fps: info.fps,
+			range,
+			warmup,
+			provider: provider.id ?? provider.name,
+			chunkFrames
+		})
+	);
+	const key = createHash('sha1')
+		.update(JSON.stringify({ keys, frames: info.frames }))
+		.digest('hex')
+		.slice(0, 16);
+	const covered = opts.ranges.reduce((n, r) => n + r.last - r.first + 1, 0);
+	const result = (matted: number, written: boolean): RangeMatteResult => ({
+		output: opts.output,
+		frames: info.frames,
+		fps: info.fps,
+		width: info.width,
+		height: info.height,
+		chunks: opts.ranges.length,
+		provider: provider.name,
+		seconds: (Date.now() - started) / 1000,
+		covered,
+		matted,
+		ranges: opts.ranges.map((r) => ({ ...r })),
+		written
+	});
+	if (await upToDate(opts.output, key)) return result(0, false);
+	const settings = { ...opts, warmup, chunkFrames };
+	let matted = 0;
+	const masks: string[] = [];
+	for (const [i, range] of opts.ranges.entries()) {
+		const mask = await rangeMask(input, info, range, keys[i], provider, settings);
+		if (mask.matted) matted += range.last - range.first + 1;
+		masks.push(mask.file);
+	}
+	const work = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-'));
+	try {
+		const pieces: string[] = [];
+		for (const [n, piece] of matteLayout(opts.ranges, info.frames).entries()) {
+			if ('range' in piece) {
+				pieces.push(masks[piece.range]);
+				continue;
+			}
+			const gap = path.join(work, `gap-${n}.mp4`);
+			await blackVideo(gap, info, piece.gap);
+			pieces.push(gap);
+		}
+		const tmp = path.join(work, `matte${path.extname(opts.output) || '.mp4'}`);
+		await joinMasks(pieces, tmp, info.fps, info.frames, work);
+		await fs.mkdir(path.dirname(path.resolve(opts.output)), { recursive: true });
+		await fs.copyFile(tmp, opts.output);
+	} finally {
+		await fs.rm(work, { recursive: true, force: true });
+	}
+	const file: MatteRangesFile = {
+		version: 1,
+		source: {
+			file: path.basename(input),
+			size: stat.size,
+			frames: info.frames,
+			fps: info.fps
+		},
+		matte: { size: (await fs.stat(opts.output)).size },
+		ranges: opts.ranges.map((r) => [r.first, r.last]),
+		provider: provider.name,
+		key
+	};
+	await fs.writeFile(rangesFileOf(opts.output), JSON.stringify(file, null, '\t') + '\n');
+	return result(matted, true);
+}
+
+/** Whether the matte at `output` is the one its ranges file says `key` made, unchanged. */
+async function upToDate(output: string, key: string): Promise<boolean> {
+	const file = await fs
+		.readFile(rangesFileOf(output), 'utf8')
+		.then((text) => JSON.parse(text) as MatteRangesFile)
+		.catch(() => null);
+	const stat = await fs.stat(output).catch(() => null);
+	return !!file && !!stat && file.key === key && file.matte?.size === stat.size;
 }

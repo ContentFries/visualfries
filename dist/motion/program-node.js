@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { bundleMotionProject, frameForAt, launch, openStagePage } from './node.js';
 import { resolveProgram } from './program.js';
 import { resolveMoment } from './moment.js';
+import { assertMatteCovers } from './matte-project.js';
 import { cutoutEdgeMessage, cutoutEdges, cutoutPanelMessage, cutoutPanels, headCropMessage, headCrops } from './framing.js';
 import { textBehindClip, textOverFaceClip } from './text-over-face.js';
 import { flashFrames, nested3dClip } from './flash-frames.js';
@@ -40,6 +41,7 @@ export function assertProgramRenders(program) {
 async function prepareProgram(loaded, format, excerpt) {
     const program = resolveProgram(loaded.project, loaded.inputs, { format, excerpt });
     assertProgramRenders(program);
+    await assertMatteCovers(loaded, program, format);
     const bundle = await bundleMotionProject(loaded, program.clips, excerpt === undefined ? undefined : program);
     return { program, bundle };
 }
@@ -177,6 +179,7 @@ export async function checkProgram(loaded, opts = {}) {
             r.errors.push({ message: 'The program has errors (listed above), so it was not drawn.' });
         return results;
     }
+    await assertMatteCovers(loaded, program, opts.format);
     const bundle = await bundleMotionProject(loaded, program.clips, opts.excerpt === undefined ? undefined : program);
     // Frames the clean plate could not be built for belong to the footage, not to a segment:
     // they are told once, with the first segment checked.

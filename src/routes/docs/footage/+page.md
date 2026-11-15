@@ -109,6 +109,8 @@ await createSubjectMatte('talk.mp4', { output: 'talk.matte.mp4', provider: myMod
 
 A matte made anywhere else works too, as long as it has the same size, frame rate and frame count as the video.
 
+In a [program](/docs/programs#mattes-for-a-program), `npx visualfries matte project.vf.json` mattes only the frames the program reads (shots and clips behind or cut out of the speaker, framing that follows the head) and leaves the rest black, which turns hours into minutes on a long talk. Run it again after edits; `check` and `render` say when it is needed.
+
 ## Speaker depth without writing a block
 
 The built-in block `@visualfries/speaker-depth` does the whole edit from JSON: the room falls away, words slam in behind the head on cues, an optional grey echo of the speaker, a mood change and captions on top. Words are placed under the top of the head automatically, from the matte.

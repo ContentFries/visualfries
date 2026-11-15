@@ -18,6 +18,7 @@ import {
 	type RenderedClip
 } from './node.js';
 import { assertProgramRenders } from './program-node.js';
+import { assertMatteCovers } from './matte-project.js';
 import { removeOrphans, trackPartial } from './partials.js';
 import { resolveProgram } from './program.js';
 import { insertNotes, insertStage, planInserts, type InsertPlan } from './inserts.js';
@@ -43,6 +44,7 @@ export async function renderProgramInserts(
 	assertJobs(opts.jobs);
 	const program = resolveProgram(loaded.project, loaded.inputs);
 	assertProgramRenders(program);
+	await assertMatteCovers(loaded, program);
 	const plans = planInserts(program, loaded.project, { handles: opts.handles, clips: opts.clips });
 	if (!plans.length) throw new Error('The program has no clips, so it has no inserts.');
 	const single = assertInsertsOutput(opts.output, plans, program.format.size);

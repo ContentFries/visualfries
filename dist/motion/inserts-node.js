@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { bundleMotionProject, ffmpegFramePipe, FramePipeError, framesThenEncode, H264_FINAL, launch, openStagePage, PARTIAL_CLIP, pipeFrames, PRORES_4444, writeRenderManifest } from './node.js';
 import { assertProgramRenders } from './program-node.js';
+import { assertMatteCovers } from './matte-project.js';
 import { removeOrphans, trackPartial } from './partials.js';
 import { resolveProgram } from './program.js';
 import { insertNotes, insertStage, planInserts } from './inserts.js';
@@ -15,6 +16,7 @@ export async function renderProgramInserts(loaded, opts) {
     assertJobs(opts.jobs);
     const program = resolveProgram(loaded.project, loaded.inputs);
     assertProgramRenders(program);
+    await assertMatteCovers(loaded, program);
     const plans = planInserts(program, loaded.project, { handles: opts.handles, clips: opts.clips });
     if (!plans.length)
         throw new Error('The program has no clips, so it has no inserts.');

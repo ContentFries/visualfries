@@ -1050,6 +1050,47 @@ them, the RobustVideoMatting v1.0.0 model code and its weights from the project'
 `--command "tool {input} {output}"`, and any `MatteProvider` in Node. It splits, checks and
 joins the pieces frame-exact. Worked example: `static/demo/speaker-depth`.
 
+**Matte only what the program reads.** A local matte runs at a few frames a second, so a whole
+15-minute talk takes hours. Once the program is written, `visualfries matte project.vf.json`
+mattes each footage's `matte` only where the program reads it, with the same provider flags:
+
+```sh
+npx visualfries matte project.vf.json                    # every footage with a "matte"
+npx visualfries matte project.vf.json --format 1080x1920 # also what render --format 1080x1920 reads
+```
+
+The program reads a matte where it draws the speaker cut out (`behind` and `cutout` shots, a room
+dimmed or blurred, a clip with `"layer": "behind"`, a subject layer, a block that uses
+`<Subject>`, `<Footage layer="subject">` or `clip.subject()`, an `away` range) and where the
+framing follows the head. The framing is not a list of shot kinds: the engine lays every frame out
+for a few made-up speakers, and a frame whose layout changes with the speaker reads the matte. A
+`full` shot of footage at the frame's own aspect ratio does not; a `punch`, `strip` or `window`, a
+shot with keys that scale or turn about the face, and every frame of 16:9 footage in a 9:16 frame
+do, over the whole shot (a shot frames one head size measured over all its frames). Each read
+gets the half second the subject is smoothed over, then one second on each side; a bound that
+lands inside a word of the footage's `transcript` moves out into the pause next to it, ranges
+less than three seconds apart are matted as one, and each range starts matting a second early
+so a recurrent model has settled by its first frame (those frames are thrown away). The excerpts
+are included; another frame size only with `--format`.
+
+The result is one matte at the footage's `matte` path, as long as the footage and frame-exact
+with it, black (no speaker) outside the ranges, and `<matte>.ranges.json` next to it: the
+footage it was made from and the frames it covers. Each range's mask is cached in
+`.visualfries/matte/<footage>/`, so running it again after an edit mattes only new or changed
+ranges, and a matte that would not change is left alone (the program's segments stay cached).
+It prints what it covered and matted and how long every frame would have taken.
+
+`check`, `still` and `render` refuse a matte whose ranges file does not cover a frame the program
+reads (an edit added a `behind` shot, moved a cut, changed the format): the error names the
+seconds of the footage and says to run `visualfries matte project.vf.json` again. A matte
+without a ranges file covers every frame, as before; `visualfries matte talk.mp4 --output …`
+makes such a matte and removes a ranges file left at that path. Outside the covered frames
+`check` sees no speaker, so its face warnings (text over the face, a head cut by the frame)
+only look at the covered frames.
+
+`visualfries matte talk.mp4 --output talk.matte.mp4 --ranges 12.5-20,31-40` mattes chosen seconds
+of one video the same way (black elsewhere, with its ranges file).
+
 ## Subject layers
 
 A matte cuts out the whole speaker. A **subject layer** takes a part of the speaker, a

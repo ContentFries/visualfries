@@ -91,7 +91,14 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     Any local tool:
                     --command "tool --in {input} --out {output}" [--command-output luma|alpha]
                     [--command-ext .webm] [--max-frames n]. Long videos are split, checked
-                    and joined frame-exact.
+                    and joined frame-exact. --ranges 12.5-20,31-40 mattes only those seconds
+                    (black elsewhere).
+  visualfries matte <project.vf.json> [--format <WxH>]... [--json] [provider options]
+                    mattes each footage's "matte" only where the program reads it (behind and
+                    cutout shots, clips behind the speaker, subject layers, framing that follows
+                    the head), with margins out of words; black elsewhere, cached per range.
+                    Run it after writing the program and again after edits; check and render
+                    stop when the program reads the matte where it was not made.
   visualfries beats <music> [--output <music.beats.json>] [--model final0|small0] [--threads 4]
                     beats, downbeats, tempo and energy per bar of a music file, analysed once;
                     beat anchors, check and render read only this file. Default analyzer:
@@ -2025,52 +2032,70 @@ async function cacheCommand(args) {
 	}
 }
 
-async function matteCommand(args) {
-	const input = args[0];
-	const output = readFlag(args, '--output');
-	if (!input || !output)
-		throw new Error(
-			'Usage: visualfries matte <video> --output <matte.mp4> [--provider rvm|fal|command] [--threads n] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs n]'
-		);
-	const { createSubjectMatte, falBiRefNet, commandMatte, rvmMatte, matteProviderName } =
-		await import('../dist/motion/matte.js');
-	const command = readFlag(args, '--command');
-	const providerName = matteProviderName({
+const MATTE_USAGE =
+	'Usage: visualfries matte <project.vf.json> [--format <WxH>]... [--json] [provider options]\n       visualfries matte <video> --output <matte.mp4> [--ranges 12.5-20,31-40] [provider options]\nProvider options: [--provider rvm|fal|command] [--threads n] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs n]';
+
+/** The matte provider and piece settings the flags of `visualfries matte` ask for. */
+async function matteSettings(args) {
+	const { matteProviderFromFlags } = await import('../dist/motion/matte.js');
+	const provider = matteProviderFromFlags({
 		provider: readFlag(args, '--provider'),
-		command,
+		command: readFlag(args, '--command'),
+		commandOutput: readFlag(args, '--command-output'),
+		commandExt: readFlag(args, '--command-ext'),
 		model: readFlag(args, '--model'),
-		resolution: readFlag(args, '--resolution')
+		resolution: readFlag(args, '--resolution'),
+		threads: numberFlag(args, '--threads'),
+		maxFrames: numberFlag(args, '--max-frames'),
+		jobs: numberFlag(args, '--jobs')
 	});
-	let provider;
-	if (providerName === 'fal') {
-		provider = falBiRefNet({
-			model: readFlag(args, '--model'),
-			resolution: readFlag(args, '--resolution')
-		});
-	} else if (providerName === 'command') {
-		if (!command) throw new Error('--provider command needs --command "tool {input} {output}".');
-		provider = commandMatte(command, {
-			output: readFlag(args, '--command-output', 'luma'),
-			extension: readFlag(args, '--command-ext'),
-			maxFrames: numberFlag(args, '--max-frames'),
-			parallel: numberFlag(args, '--jobs')
-		});
-	} else if (providerName === 'rvm') {
-		provider = rvmMatte({
-			threads: numberFlag(args, '--threads'),
-			maxFrames: numberFlag(args, '--max-frames')
-		});
-	} else {
-		throw new Error(`Unknown matte provider "${providerName}". Use rvm, fal or command.`);
-	}
-	const result = await createSubjectMatte(input, {
-		output,
+	return {
 		provider,
 		chunkFrames: numberFlag(args, '--chunk-frames'),
 		jobs: numberFlag(args, '--jobs'),
 		onProgress: (msg) => console.error(msg)
+	};
+}
+
+async function matteCommand(args) {
+	const input = args[0];
+	if (input && /\.json$/i.test(input)) return matteProjectCommand(input, args);
+	const output = readFlag(args, '--output');
+	if (!input || !output) throw new Error(MATTE_USAGE);
+	const settings = await matteSettings(args);
+	const ranges = readFlag(args, '--ranges');
+	if (ranges === undefined) {
+		const { createSubjectMatte } = await import('../dist/motion/matte.js');
+		console.log(JSON.stringify(await createSubjectMatte(input, { output, ...settings }), null, 2));
+		return;
+	}
+	const { createRangeMatte } = await import('../dist/motion/matte.js');
+	const { parseRangesFlag } = await import('../dist/motion/matte-project.js');
+	const { probeVideo } = await motionModule();
+	const info = await probeVideo(input);
+	const result = await createRangeMatte(input, {
+		output,
+		...settings,
+		ranges: parseRangesFlag(ranges, info.fps, info.frames),
+		cacheDir: path.join(path.dirname(path.resolve(output)), '.visualfries', 'matte')
 	});
 	console.log(JSON.stringify(result, null, 2));
+}
+
+/** `visualfries matte <project>`: mattes only the frames the program reads each matte at. */
+async function matteProjectCommand(file, args) {
+	const { loadMotionProject } = await motionModule();
+	const { matteProject, matteReportLines } = await import('../dist/motion/matte-project.js');
+	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
+	const reports = await matteProject(loaded, {
+		...(await matteSettings(args)),
+		formats: readAllFlags(args, '--format')
+	});
+	console.log(
+		hasFlag(args, '--json')
+			? JSON.stringify(reports, null, 2)
+			: matteReportLines(reports).join('\n')
+	);
 }
 
 async function beatsCommand(args) {

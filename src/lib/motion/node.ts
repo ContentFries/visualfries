@@ -982,7 +982,7 @@ const BUILTIN_BLOCKS: Record<string, string> = {
 	subject: 'SubjectLayer.svelte'
 };
 
-function blockFile(dir: string, block: string): string {
+export function blockFile(dir: string, block: string): string {
 	if (!block.startsWith(BUILTIN_PREFIX)) return path.resolve(dir, block);
 	const file = BUILTIN_BLOCKS[block.slice(BUILTIN_PREFIX.length)];
 	return file ? path.join(HERE, 'blocks', file) : path.join(HERE, 'blocks', '__missing__');
@@ -1549,7 +1549,7 @@ async function serveAllowed(
 
 // ---------------------------------------------------------------- footage
 
-type VideoInfo = {
+export type VideoInfo = {
 	width: number;
 	height: number;
 	fps: number;
@@ -1686,7 +1686,7 @@ async function cleanHashInput(clean: NonNullable<MotionFootage['clean']>, dir: s
 }
 
 /** Default seconds extracted around the clips, for `offset` and delayed copies. */
-const FOOTAGE_MARGIN_SECONDS = 2;
+export const FOOTAGE_MARGIN_SECONDS = 2;
 
 function edgeFrame(clips: ResolvedClip[], startFrame: number, total: number) {
 	if (total <= 0) return { first: 0, last: 0 };

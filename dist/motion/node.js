@@ -744,7 +744,7 @@ const BUILTIN_BLOCKS = {
     'speaker-depth': 'SpeakerDepth.svelte',
     subject: 'SubjectLayer.svelte'
 };
-function blockFile(dir, block) {
+export function blockFile(dir, block) {
     if (!block.startsWith(BUILTIN_PREFIX))
         return path.resolve(dir, block);
     const file = BUILTIN_BLOCKS[block.slice(BUILTIN_PREFIX.length)];
@@ -1312,7 +1312,7 @@ async function cleanHashInput(clean, dir) {
     };
 }
 /** Default seconds extracted around the clips, for `offset` and delayed copies. */
-const FOOTAGE_MARGIN_SECONDS = 2;
+export const FOOTAGE_MARGIN_SECONDS = 2;
 function edgeFrame(clips, startFrame, total) {
     if (total <= 0)
         return { first: 0, last: 0 };

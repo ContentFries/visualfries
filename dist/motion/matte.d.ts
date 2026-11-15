@@ -1,3 +1,4 @@
+import type { FrameRange } from './footage-map.js';
 /** One piece of the input video to segment. */
 export type MatteChunk = {
     /** Constant-frame-rate H.264 MP4 of this piece, without sound. */
@@ -20,6 +21,11 @@ export type MatteChunk = {
  */
 export type MatteProvider = {
     name: string;
+    /**
+     * What decides the masks (model and settings, not speed): partial mattes cache each range
+     * under it. Default: `name`.
+     */
+    id?: string;
     /** Longest piece the provider accepts, in frames. */
     maxFrames: number;
     /** Pieces worth running at once. */
@@ -86,6 +92,18 @@ export declare function matteProviderName(flags: {
     model?: string;
     resolution?: string;
 }): string;
+/** The provider the flags of `visualfries matte` ask for (see `matteProviderName`). */
+export declare function matteProviderFromFlags(flags: {
+    provider?: string;
+    command?: string;
+    commandOutput?: string;
+    commandExt?: string;
+    model?: string;
+    resolution?: string;
+    threads?: number;
+    maxFrames?: number;
+    jobs?: number;
+}): MatteProvider;
 export type MatteOptions = {
     output: string;
     /**
@@ -117,6 +135,51 @@ export declare function planMatteChunks(frames: number, size: number, max?: numb
 /**
  * Makes a greyscale matte video of `input` (white = subject) with a matte provider: splits the
  * video into pieces the provider accepts, checks and normalises every mask and joins them, so
- * the matte has the same size, frame rate and frame count as the input.
+ * the matte has the same size, frame rate and frame count as the input. A ranges file a partial
+ * matte left at `output` (see `createRangeMatte`) is removed: this matte covers every frame.
  */
 export declare function createSubjectMatte(input: string, opts: MatteOptions): Promise<MatteResult>;
+export type RangeMatteOptions = MatteOptions & {
+    /** Frames of the input (its own rate) to matte, as sorted inclusive ranges. */
+    ranges: FrameRange[];
+    /**
+     * Frames matted before each range and thrown away, so a recurrent model has settled by the
+     * range's first frame. Default: one second.
+     */
+    warmup?: number;
+    /** Folder that keeps each range's mask, so a range matted before is not matted again. */
+    cacheDir: string;
+};
+export type RangeMatteResult = MatteResult & {
+    /** Frames the matte covers (outside them it is black), and how many of them were matted now. */
+    covered: number;
+    matted: number;
+    ranges: FrameRange[];
+    /** False when the matte at `output` already was this one and was left alone. */
+    written: boolean;
+};
+/** Cache key of one range's mask: the input file, the range, the warm-up and the provider. */
+export declare function rangeMaskKey(input: {
+    file: string;
+    size: number;
+    mtimeMs: number;
+    frames: number;
+    fps: number;
+    range: FrameRange;
+    warmup: number;
+    provider: string;
+    chunkFrames: number;
+}): string;
+/** The pieces of a full-length matte: masks of `ranges` and the black gaps between them. */
+export declare function matteLayout(ranges: readonly FrameRange[], total: number): ({
+    range: number;
+} | {
+    gap: number;
+})[];
+/**
+ * Makes a full-length matte of `input` that covers only `ranges` (black, no subject, elsewhere)
+ * and writes its ranges file next to it (see `MatteRangesFile`), so `check` and `render` know
+ * which frames it covers. Each range's mask is cached in `cacheDir`: running it again after an
+ * edit mattes only new or changed ranges, and leaves a matte that would not change alone.
+ */
+export declare function createRangeMatte(input: string, opts: RangeMatteOptions): Promise<RangeMatteResult>;

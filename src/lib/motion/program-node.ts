@@ -13,6 +13,7 @@ import {
 } from './node.js';
 import { resolveProgram, type ProgramSegment, type ResolvedProgram } from './program.js';
 import { resolveMoment } from './moment.js';
+import { assertMatteCovers } from './matte-project.js';
 import {
 	cutoutEdgeMessage,
 	cutoutEdges,
@@ -88,6 +89,7 @@ export function assertProgramRenders(program: ResolvedProgram) {
 async function prepareProgram(loaded: LoadedMotionProject, format?: string, excerpt?: string) {
 	const program = resolveProgram(loaded.project, loaded.inputs, { format, excerpt });
 	assertProgramRenders(program);
+	await assertMatteCovers(loaded, program, format);
 	const bundle = await bundleMotionProject(
 		loaded,
 		program.clips,
@@ -245,6 +247,7 @@ export async function checkProgram(
 			r.errors.push({ message: 'The program has errors (listed above), so it was not drawn.' });
 		return results;
 	}
+	await assertMatteCovers(loaded, program, opts.format);
 	const bundle = await bundleMotionProject(
 		loaded,
 		program.clips,

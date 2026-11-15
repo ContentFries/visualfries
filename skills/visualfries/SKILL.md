@@ -90,16 +90,22 @@ Work like an editor, in this order; each step ends on its criterion:
    becomes a giant numeral, a list becomes a ticking checklist). Done when one direction is
    chosen.
 2. **Plan.** Prepare the take as the guide's step 1 says: a constant-frame-rate copy of the
-   whole take (`ffmpeg -i take.mov -vf fps=30 … talk.mp4`, which `matte` needs) and its matte
-   (`visualfries matte talk.mp4 --output talk.matte.mp4`, local by default) when anything goes
-   behind the speaker. Transcribe the take with word timestamps (Soniox recommended; WhisperX
+   whole take (`ffmpeg -i take.mov -vf fps=30 … talk.mp4`, which `matte` needs). When anything
+   goes behind the speaker, declare `"matte": "talk.matte.mp4"` on the footage now and make the
+   matte in step 3, once the program is written. Transcribe the take with word timestamps (Soniox recommended; WhisperX
    locally; convert to the word format in docs/transcripts), read every word, and write the outline: the ranges you keep
    (whole sentences; the best try of a repeated one), then per section the shot, the move on its
    key word, the transition into it and its sound. Done when every second of the kept speech has
    a planned frame and no stretch holds a still frame longer than about two seconds.
 3. **Build.** Cut list first (`visualfries program` until every cut resolves), then shots, then
    clips, captions, `sfx`, music. Every timing is a phrase, never source seconds. Start from the
-   blocks of the worked example; write a new block only for a look they cannot give.
+   blocks of the worked example; write a new block only for a look they cannot give. Then make
+   the matte: `visualfries matte <project>` mattes only the frames the program reads (behind
+   and cutout shots, behind clips, subject layers, framing that follows the head) and leaves the
+   rest black, minutes instead of hours on a long take. Run it again after every edit that adds
+   or moves a matte-reading shot or clip, or moves a cut under one; `check` and `render` stop
+   and name the seconds when it is needed. Add `--format <WxH>` for each extra frame size you
+   render. A 9:16 frame from 16:9 footage follows the head everywhere, so it mattes every frame.
 4. **Check.** Run `visualfries program <project>` and `visualfries check <project>
 --determinism`. Done when `program` prints no error, you can say why each warning is
    acceptable, and `check` reports every segment as passing.

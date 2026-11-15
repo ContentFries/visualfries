@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -645,9 +645,23 @@ export async function createSubjectMatte(input: string, opts: MatteOptions): Pro
 	}
 }
 
+/**
+ * The real path of `file` with symlinks resolved: of the file when it exists, else of the
+ * nearest folder above it that does, with the rest of the path as written.
+ */
+export function realPath(file: string): string {
+	const abs = path.resolve(file);
+	try {
+		return realpathSync(abs);
+	} catch {
+		const parent = path.dirname(abs);
+		return parent === abs ? abs : path.join(realPath(parent), path.basename(abs));
+	}
+}
+
 /** Throws when the matte would be written over the video it is made of. */
 function refuseOverwrite(input: string, output: string) {
-	if (path.resolve(input) === path.resolve(output))
+	if (realPath(input) === realPath(output))
 		throw new Error(
 			`The matte would overwrite the video it is made of (${output}). Give it another name.`
 		);
@@ -675,7 +689,7 @@ export type RangeMatteOptions = MatteOptions & {
 	warmup?: number;
 	/**
 	 * Frames of the blocks the masks are cached in. The matte covers whole blocks, so a range
-	 * that grows mattes only its new blocks. Default: two seconds.
+	 * that grows mattes only its new blocks. Default: four seconds (each block is matted from a second before it).
 	 */
 	blockFrames?: number;
 	/** Folder that keeps each block's mask, so a block matted before is not matted again. */
@@ -817,47 +831,44 @@ type BlockPlan = {
 };
 
 /**
- * Mattes a run of blocks in one go (from `warmup` frames before its first block, those left
- * out) and cuts the mask into one cached file per block.
+ * Mattes `blocks`, each on its own from `warmup` frames before it (those left out), so a block's
+ * mask never depends on which blocks were matted with it or before it, and keeps one cached
+ * file per block. Every piece goes to the provider in one batch (as many at once as it allows).
  */
 async function matteBlocks(
 	input: string,
 	info: VideoInfo,
-	run: FrameRange,
+	blocks: number[],
 	provider: MatteProvider,
 	plan: BlockPlan,
 	opts: Pick<MatteOptions, 'jobs' | 'onProgress'>
 ): Promise<void> {
-	const first = blockFramesOf(run.first, plan.size, info.frames).first;
-	const last = blockFramesOf(run.last, plan.size, info.frames).last;
-	const start = Math.max(0, first - plan.warmup);
-	const chunks = planMatteChunks(last - start + 1, plan.chunkFrames, provider.maxFrames).map(
-		(c) => ({ first: c.first + start, last: c.last + start })
-	);
+	const pieces = blocks.map((k) => {
+		const block = blockFramesOf(k, plan.size, info.frames);
+		const start = Math.max(0, block.first - plan.warmup);
+		const chunks = planMatteChunks(
+			block.last - start + 1,
+			plan.chunkFrames,
+			provider.maxFrames
+		).map((c) => ({ first: c.first + start, last: c.last + start }));
+		return { k, block, start, chunks };
+	});
 	const work = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-'));
 	try {
-		const parts = await segmentChunks(input, info, chunks, provider, work, opts);
-		const span = path.join(work, 'span.mp4');
-		await joinMasks(parts, span, info.fps, last - first + 1, work, first - start);
+		const parts = await segmentChunks(
+			input,
+			info,
+			pieces.flatMap((p) => p.chunks),
+			provider,
+			work,
+			opts
+		);
 		await fs.mkdir(plan.dirname, { recursive: true });
-		for (let k = run.first; k <= run.last; k++) {
-			const block = blockFramesOf(k, plan.size, info.frames);
+		let at = 0;
+		for (const { k, block, start, chunks } of pieces) {
+			const own = parts.slice(at, (at += chunks.length));
 			const tmp = `${plan.file(k)}.tmp-${process.pid}-${randomUUID()}.mp4`;
-			await ffmpeg([
-				'-ss',
-				((block.first - first) / info.fps).toFixed(6),
-				'-i',
-				span,
-				'-frames:v',
-				String(block.last - block.first + 1),
-				'-c:v',
-				'libx264',
-				'-crf',
-				'10',
-				'-pix_fmt',
-				'yuv420p',
-				tmp
-			]);
+			await joinMasks(own, tmp, info.fps, block.last - block.first + 1, work, block.first - start);
 			await fs.rename(tmp, plan.file(k));
 		}
 	} finally {
@@ -885,6 +896,8 @@ export async function createRangeMatte(
 	checkRanges(opts.ranges, info.frames);
 	const source = await fileFingerprint(input);
 	const size = opts.blockFrames ?? Math.round(MATTE_PLAN.block * info.fps);
+	if (!(Number.isInteger(size) && size > 0))
+		throw new Error(`The block size must be a whole number of frames above 0, got ${size}.`);
 	const warmup = opts.warmup ?? Math.round(MATTE_PLAN.warmup * info.fps);
 	const chunkFrames = opts.chunkFrames ?? Math.min(480, provider.maxFrames);
 	const blocks = blocksOf(opts.ranges, size);
@@ -930,7 +943,7 @@ export async function createRangeMatte(
 	});
 	if (await upToDate(opts.output, key)) return result(0, false);
 	const missing = blocks.filter((k) => !existsSync(plan.file(k)));
-	for (const run of blockRuns(missing)) await matteBlocks(input, info, run, provider, plan, opts);
+	if (missing.length) await matteBlocks(input, info, missing, provider, plan, opts);
 	const matted = missing.reduce((n, k) => {
 		const b = blockFramesOf(k, size, info.frames);
 		return n + b.last - b.first + 1;

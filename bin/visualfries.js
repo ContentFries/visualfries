@@ -98,7 +98,7 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     mattes each footage's "matte" only where the program reads it (behind and
                     cutout shots, clips behind the speaker, subject layers, transitions,
                     framing that follows the head), with margins out of words; black elsewhere,
-                    cached in 2 s blocks, keeping what earlier runs covered. Run it after
+                    cached in 4 s blocks, keeping what earlier runs covered. Run it after
                     writing the program and again after edits; check and render stop when the
                     program reads the matte where it was not made.
   visualfries beats <music> [--output <music.beats.json>] [--model final0|small0] [--threads 4]

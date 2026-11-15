@@ -139,6 +139,11 @@ export declare function planMatteChunks(frames: number, size: number, max?: numb
  * matte left at `output` (see `createRangeMatte`) is removed: this matte covers every frame.
  */
 export declare function createSubjectMatte(input: string, opts: MatteOptions): Promise<MatteResult>;
+/**
+ * The real path of `file` with symlinks resolved: of the file when it exists, else of the
+ * nearest folder above it that does, with the rest of the path as written.
+ */
+export declare function realPath(file: string): string;
 export type RangeMatteOptions = MatteOptions & {
     /** Frames of the input (its own rate) to matte, as sorted inclusive ranges. */
     ranges: FrameRange[];
@@ -149,7 +154,7 @@ export type RangeMatteOptions = MatteOptions & {
     warmup?: number;
     /**
      * Frames of the blocks the masks are cached in. The matte covers whole blocks, so a range
-     * that grows mattes only its new blocks. Default: two seconds.
+     * that grows mattes only its new blocks. Default: four seconds (each block is matted from a second before it).
      */
     blockFrames?: number;
     /** Folder that keeps each block's mask, so a block matted before is not matted again. */

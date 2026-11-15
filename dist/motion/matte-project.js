@@ -5,7 +5,7 @@ import { mergeRanges } from './footage-map.js';
 import { matteReads, planMatteRanges, rangeSeconds, rangesFileOf, rangesFileProblem, toFootageFrames, uncovered } from './matte-use.js';
 import { blockFile, FOOTAGE_MARGIN_SECONDS, probeVideo } from './node.js';
 import { resolveProgram } from './program.js';
-import { createRangeMatte, fileFingerprint } from './matte.js';
+import { createRangeMatte, fileFingerprint, realPath } from './matte.js';
 import { DEFAULT_INSERT_HANDLES } from './inserts.js';
 /**
  * Partial mattes of a project's footage, in Node: which frames `visualfries matte <project>`
@@ -107,11 +107,11 @@ function refuseOverwrites(loaded) {
             ['sound', typeof spec.audio === 'string' ? spec.audio : undefined]
         ])
             if (file)
-                used.set(path.resolve(loaded.dir, file), `the ${what} of footage "${name}"`);
+                used.set(realPath(path.resolve(loaded.dir, file)), `the ${what} of footage "${name}"`);
     for (const [name, spec] of footage) {
         if (!spec.matte)
             continue;
-        const matte = path.resolve(loaded.dir, spec.matte);
+        const matte = realPath(path.resolve(loaded.dir, spec.matte));
         const taken = used.get(matte);
         if (taken)
             throw new Error(`Footage "${name}": its matte ${spec.matte} would overwrite ${taken}. Give the matte its own file name.`);
@@ -272,6 +272,10 @@ async function coveredBefore(plan) {
         return [];
     return (await coveredFrames(plan).catch(() => null)) ?? [];
 }
+/** Whether the matte has a ranges file that does not belong to it or its video any more. */
+async function staleRangesFile(plan) {
+    return coveredFrames(plan).then(() => false, () => true);
+}
 /**
  * `visualfries matte <project>`: for each footage with a `matte`, mattes only the frames the
  * program reads it at (see `projectMattePlan`), plus what an earlier run covered, into one
@@ -291,7 +295,9 @@ export async function matteProject(loaded, opts) {
 /** One footage of `matteProject`. */
 async function mattePlan(loaded, plan, opts) {
     const base = { footage: plan.name, matte: plan.matte, frames: plan.frames, fps: plan.fps };
-    if (!plan.ranges.length && existsSync(plan.matte)) {
+    // A matte nothing reads stays as it is, unless its ranges file no longer matches it (a new
+    // recording, a run stopped half way): then it is made again, so running this recovers.
+    if (!plan.ranges.length && existsSync(plan.matte) && !(await staleRangesFile(plan))) {
         opts.onProgress?.(`matte: footage "${plan.name}": the program reads none of it; ${plan.matte} stays as it is`);
         const ranges = await coveredBefore(plan);
         const covered = ranges.reduce((n, r) => n + r.last - r.first + 1, 0);

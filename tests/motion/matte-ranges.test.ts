@@ -38,14 +38,14 @@ function ffmpeg(args: string[]): Buffer {
 }
 
 /** Four seconds at 30 fps (120 frames) whose brightness tells the frame: 30 + 1.6 × n. */
-function countingVideo(file: string) {
+function countingVideo(file: string, filter = "geq=lum='30+1.6*N':cb=128:cr=128") {
 	ffmpeg([
 		'-f',
 		'lavfi',
 		'-i',
 		`color=black:s=${W}x${H}:r=30:d=4`,
 		'-vf',
-		"geq=lum='30+1.6*N':cb=128:cr=128",
+		filter,
 		'-c:v',
 		'libx264',
 		'-crf',
@@ -234,7 +234,67 @@ describe.skipIf(!hasFfmpeg)('createRangeMatte', () => {
 		await expect(
 			createSubjectMatte(input, { output: input, provider: passThrough() })
 		).rejects.toThrow(/would overwrite the video/);
+		// Through a symlinked folder too.
+		const link = path.join(dir, 'linked');
+		await fs.symlink(dir, link);
+		await expect(
+			createRangeMatte(input, {
+				output: path.join(link, 'talk.mp4'),
+				ranges,
+				provider: passThrough(),
+				cacheDir: path.join(dir, 'cache')
+			})
+		).rejects.toThrow(/would overwrite the video/);
 	});
+
+	it('rejects a block size that is not a positive whole number', async () => {
+		for (const blockFrames of [0, -5, 2.5])
+			await expect(
+				createRangeMatte(input, {
+					output: path.join(dir, 'x.mp4'),
+					ranges,
+					blockFrames,
+					provider: passThrough(),
+					cacheDir: path.join(dir, 'cache')
+				})
+			).rejects.toThrow(/block size/);
+	});
+
+	it('mattes a block the same whatever was matted around it before', async () => {
+		// A recurrent model that needs 3 frames to settle (black until then) in pieces of 8.
+		const settling = (): MatteProvider => ({
+			...passThrough(),
+			id: 'settling',
+			async segment(chunk) {
+				ffmpeg([
+					'-i',
+					chunk.input,
+					'-vf',
+					"format=gray,geq=lum='if(lt(N,3),0,lum(X,Y))'",
+					'-pix_fmt',
+					'yuv420p',
+					chunk.output
+				]);
+			}
+		});
+		const run = (cache: string, output: string, last: number) =>
+			createRangeMatte(input, {
+				output: path.join(dir, output),
+				ranges: [{ first: 0, last }],
+				provider: settling(),
+				warmup: 5,
+				blockFrames: 10,
+				chunkFrames: 8,
+				cacheDir: path.join(dir, cache)
+			});
+		await run('grow', 'grown.mp4', 19);
+		await run('grow', 'grown.mp4', 39);
+		await run('fresh', 'fresh.mp4', 39);
+		const grown = means(path.join(dir, 'grown.mp4'));
+		const fresh = means(path.join(dir, 'fresh.mp4'));
+		for (let f = 0; f < 40; f++)
+			expect(Math.abs(grown[f] - fresh[f]), `frame ${f}`).toBeLessThan(0.9);
+	}, 120_000);
 
 	it('rejects ranges out of order or past the end', async () => {
 		const opts = { output: path.join(dir, 'x.mp4'), cacheDir: dir, provider: passThrough() };
@@ -434,6 +494,31 @@ describe.skipIf(!hasFfmpeg)('matteProject edge cases', () => {
 		await fs.rm(dir, { recursive: true, force: true });
 	});
 
+	it('refuses a matte path that reaches the recording through a symlinked folder', async () => {
+		const { dir, write } = await setup({ matte: 'linked/talk.mp4' });
+		await fs.symlink(dir, path.join(dir, 'linked'));
+		await expect(projectMattePlan(await write())).rejects.toThrow(/would overwrite the video/);
+		await fs.rm(dir, { recursive: true, force: true });
+	});
+
+	it('recovers a stale matte when the program no longer reads it', async () => {
+		const { dir, write } = await setup(
+			{ matte: 'talk.matte.mp4' },
+			{ shots: [{ id: 'b', shot: 'behind', from: 1, until: 1.5 }] }
+		);
+		await run(await write());
+		// The recording is replaced and the last shot that read the matte is gone.
+		countingVideo(path.join(dir, 'talk.mp4'), "geq=lum='200-N':cb=128:cr=128");
+		const loaded = await write({ shots: [] });
+		const [fixed] = await run(loaded);
+		expect(fixed).toMatchObject({ covered: 0, written: true, ranges: [] });
+		const { resolveProgram } = await import('../../src/lib/motion/program.js');
+		await expect(
+			assertMatteCovers(loaded, resolveProgram(loaded.project, loaded.inputs))
+		).resolves.toBeUndefined();
+		await fs.rm(dir, { recursive: true, force: true });
+	}, 120_000);
+
 	it('writes a black matte when the program reads none of it, and leaves an existing one alone', async () => {
 		const { dir, write } = await setup({ matte: 'talk.matte.mp4' });
 		const [first] = await run(await write());
@@ -614,11 +699,11 @@ describe.skipIf(!hasFfmpeg)('matteProject', () => {
 		expect(existsSync(path.join(dir, 'talk.matte.mp4.ranges.json'))).toBe(true);
 		const v = cli(['talk.mp4', '--output', 'part.mp4', '--ranges', '1-2', ...command]);
 		expect(v.status, v.stderr).toBe(0);
-		// Seconds 1-2 are frames 30-59; the matte covers the whole two-second block holding them.
+		// Seconds 1-2 are frames 30-59; the matte covers the whole four-second block holding them.
 		expect(JSON.parse(v.stdout)).toMatchObject({
 			frames: 120,
-			covered: 60,
-			ranges: [{ first: 0, last: 59 }]
+			covered: 120,
+			ranges: [{ first: 0, last: 119 }]
 		});
 		await fs.rm(dir, { recursive: true, force: true });
 	}, 120_000);

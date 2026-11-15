@@ -55,7 +55,7 @@ export declare const MATTE_PLAN: {
     readonly margin: 1;
     readonly gap: 3;
     readonly warmup: 1;
-    readonly block: 2;
+    readonly block: 4;
 };
 /**
  * Converts source frames at the project rate to frames of a footage at its own rate, rounding

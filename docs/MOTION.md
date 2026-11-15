@@ -1078,10 +1078,11 @@ handles are included for 10 frames; for more, pass the export's `--handles` to `
 The result is one matte at the footage's `matte` path, as long as the footage and frame-exact
 with it, black (no speaker) outside the covered frames, and `<matte>.ranges.json` next to it: the
 footage it was made from (a fingerprint of its content), the matte it belongs to and the frames
-it covers. Masks are cached in blocks of two seconds in `.visualfries/matte/<footage>/`; the
-matte covers whole blocks, a run of new blocks is matted in one go from a second earlier (the
-warm-up frames are thrown away, so a recurrent model has settled), and running it again after
-an edit mattes only blocks it has not matted before. Frames an earlier run covered stay covered
+it covers. Masks are cached in blocks of four seconds in `.visualfries/matte/<footage>/`; the
+matte covers whole blocks, each block is matted on its own from a second before it (the
+warm-up frames are thrown away, so a recurrent model has settled, and a block's mask never
+depends on what was matted around it), and running it again after an edit mattes only blocks
+it has not matted before. Frames an earlier run covered stay covered
 (another `--format`, an earlier version of the edit), and a matte that would not change is left
 alone (the program's segments stay cached). A footage whose matte the program does not read
 gets an all-black matte when the file does not exist yet, and an existing one is left as it is.

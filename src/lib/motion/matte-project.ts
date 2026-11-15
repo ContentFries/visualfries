@@ -14,7 +14,7 @@ import {
 } from './matte-use.js';
 import { blockFile, FOOTAGE_MARGIN_SECONDS, probeVideo, type LoadedMotionProject } from './node.js';
 import { resolveProgram, type ResolvedProgram } from './program.js';
-import { createRangeMatte, fileFingerprint, type RangeMatteOptions } from './matte.js';
+import { createRangeMatte, fileFingerprint, realPath, type RangeMatteOptions } from './matte.js';
 import { DEFAULT_INSERT_HANDLES } from './inserts.js';
 
 /**
@@ -138,10 +138,11 @@ function refuseOverwrites(loaded: LoadedMotionProject) {
 			['transcript', spec.transcript],
 			['sound', typeof spec.audio === 'string' ? spec.audio : undefined]
 		] as const)
-			if (file) used.set(path.resolve(loaded.dir, file), `the ${what} of footage "${name}"`);
+			if (file)
+				used.set(realPath(path.resolve(loaded.dir, file)), `the ${what} of footage "${name}"`);
 	for (const [name, spec] of footage) {
 		if (!spec.matte) continue;
-		const matte = path.resolve(loaded.dir, spec.matte);
+		const matte = realPath(path.resolve(loaded.dir, spec.matte));
 		const taken = used.get(matte);
 		if (taken)
 			throw new Error(
@@ -358,6 +359,14 @@ async function coveredBefore(plan: FootageMattePlan): Promise<FrameRange[]> {
 	return (await coveredFrames(plan).catch(() => null)) ?? [];
 }
 
+/** Whether the matte has a ranges file that does not belong to it or its video any more. */
+async function staleRangesFile(plan: FootageMattePlan): Promise<boolean> {
+	return coveredFrames(plan).then(
+		() => false,
+		() => true
+	);
+}
+
 type RunOptions = Omit<RangeMatteOptions, 'output' | 'ranges' | 'cacheDir'>;
 
 /**
@@ -388,7 +397,9 @@ async function mattePlan(
 	opts: RunOptions
 ): Promise<ProjectMatteReport> {
 	const base = { footage: plan.name, matte: plan.matte, frames: plan.frames, fps: plan.fps };
-	if (!plan.ranges.length && existsSync(plan.matte)) {
+	// A matte nothing reads stays as it is, unless its ranges file no longer matches it (a new
+	// recording, a run stopped half way): then it is made again, so running this recovers.
+	if (!plan.ranges.length && existsSync(plan.matte) && !(await staleRangesFile(plan))) {
 		opts.onProgress?.(
 			`matte: footage "${plan.name}": the program reads none of it; ${plan.matte} stays as it is`
 		);

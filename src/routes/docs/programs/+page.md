@@ -138,7 +138,7 @@ npx visualfries matte project.vf.json
 
 For each footage with a `"matte"` it finds the frames the program reads the matte at: `behind` and `cutout` shots, clips with `"layer": "behind"`, subject layers, blocks that use `<Subject>`, `<Footage layer="subject">`, the clean plate or `clip.subject()`, `away` ranges, transition windows (they centre on the face), and every shot whose framing follows the head. The engine finds the framing reads itself, by laying each frame out for a few made-up speakers: a `full` shot of 16:9 footage in a 16:9 frame does not read the matte, while a `punch`, a `strip`, keys that scale about the face, or 16:9 footage in a 9:16 frame do (over the whole shot). It writes one full-length matte, black outside those frames, and `talk.matte.mp4.ranges.json` beside it.
 
-Run it again after an edit that adds a matte-reading shot or clip or moves the cuts under one: masks are cached in two-second blocks, only new blocks are matted, and what earlier runs covered stays covered. Until then `check`, `still` and `render` stop and name the seconds the matte misses. `--format 1080x1920` also mattes what `render --format 1080x1920` reads. A whole-video matte (`visualfries matte talk.mp4 --output talk.matte.mp4`) still works everywhere.
+Run it again after an edit that adds a matte-reading shot or clip or moves the cuts under one: masks are cached in four-second blocks, only new blocks are matted, and what earlier runs covered stays covered. Until then `check`, `still` and `render` stop and name the seconds the matte misses. `--format 1080x1920` also mattes what `render --format 1080x1920` reads. A whole-video matte (`visualfries matte talk.mp4 --output talk.matte.mp4`) still works everywhere.
 
 ## Build it in this order
 

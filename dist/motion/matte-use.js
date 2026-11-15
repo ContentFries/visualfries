@@ -187,7 +187,7 @@ function addExcerptReads(program, drawn, add) {
  * Default seconds kept around every read, merged across, matted before a stretch to warm up, and
  * per cached block.
  */
-export const MATTE_PLAN = { margin: 1, gap: 3, warmup: 1, block: 2 };
+export const MATTE_PLAN = { margin: 1, gap: 3, warmup: 1, block: 4 };
 /**
  * Converts source frames at the project rate to frames of a footage at its own rate, rounding
  * outward so every frame the conversion may pick is inside.

@@ -11,6 +11,7 @@ import type { FootageFrames, SubjectBox } from './resolve.js';
 import { clipShowRange, segmentStage, wholeProgram } from './segments.js';
 import { shotAt, shotModule, type ShotLayout } from './shots/index.js';
 import { SUBJECT_SMOOTH } from './shots/layout.js';
+import { transitionModule } from './transitions/index.js';
 
 /**
  * Where a program reads the mattes of its footage, so `visualfries matte <project>` mattes only
@@ -30,6 +31,8 @@ export type MatteReadOptions = {
 	readsSubject: (block: string) => boolean;
 	/** Source frames around what a subject-reading clip shows (its `offset` reach), by source. */
 	margins?: Record<string, number>;
+	/** More program frames whose picture reads the matte (an inserts export's holdout handles). */
+	extra?: { startFrame: number; frames: number }[];
 };
 
 type Program = Pick<
@@ -56,8 +59,9 @@ const PROBES: (SubjectBox | null)[] = [
 /** Program frames as a sorted, merged list of ranges. */
 class FrameSet {
 	private frames = new Set<number>();
+	constructor(private end: number) {}
 	add(first: number, last: number) {
-		for (let f = first; f <= last; f++) this.frames.add(f);
+		for (let f = Math.max(0, first); f <= Math.min(this.end - 1, last); f++) this.frames.add(f);
 	}
 	has(f: number) {
 		return this.frames.has(f);
@@ -98,7 +102,7 @@ function framingReads(program: Program, map: FootageMap) {
 	const probes = PROBES.map((box) =>
 		programFraming({ ...seg, footage: probeFootage(program, box) })
 	);
-	const drawn = new FrameSet();
+	const drawn = new FrameSet(program.frames);
 	const shots = new Set<string>();
 	const byId = new Map(seg.shots.map((s) => [s.id, s]));
 	for (let f = 0; f < program.frames; f++) {
@@ -131,6 +135,16 @@ function framingReads(program: Program, map: FootageMap) {
 	return { drawn, shots };
 }
 
+/**
+ * Source frames on each side of a read that the subject's measures reach: the smoothing window,
+ * twice over when a shot keeps the head in (how high the head gets is a smoothed low percentile
+ * of tops already taken over a window, see `headTopOf` in framing.ts).
+ */
+function smoothReach(program: Program): number {
+	const w = Math.round(SUBJECT_SMOOTH * program.fps);
+	return program.shots.some((s) => typeof s.params.headroom === 'number') ? 2 * w : w;
+}
+
 /** Program frames a clip is on screen, transitions included. */
 function shownFrames(clip: { id: string; startFrame: number; frames: number }, program: Program) {
 	const show = clipShowRange(clip, program.transitions);
@@ -149,8 +163,14 @@ export function matteReads(program: Program, opts: MatteReadOptions): Record<str
 	if (!matted.length) return {};
 	const totals = Object.fromEntries(matted.map((n) => [n, program.sources[n].frames!]));
 	const map = footageMap(program, totals);
-	const smooth = Math.round(SUBJECT_SMOOTH * program.fps);
+	const smooth = smoothReach(program);
 	const { drawn, shots } = framingReads(program, map);
+	// The stage centres every drawn transition on the face of each side it shows (`focusOf` in
+	// the program stage), whatever the transition then does with it.
+	for (const t of program.transitions)
+		if (transitionModule(t.type)) drawn.add(Math.max(0, t.startFrame), t.startFrame + t.frames - 1);
+	for (const span of opts.extra ?? [])
+		drawn.add(Math.max(0, span.startFrame), span.startFrame + span.frames - 1);
 	const byShot = (s: Pick<ProgramShot, 'startFrame' | 'frames'>) =>
 		drawn.add(Math.max(0, s.startFrame), Math.min(program.frames, s.startFrame + s.frames) - 1);
 	for (const s of program.shots) if (shots.has(s.id) || shotModule(s.shot)?.needsMatte) byShot(s);
@@ -221,8 +241,11 @@ export type MattePlanOptions = {
 	words?: readonly Word[] | null;
 };
 
-/** Default seconds kept around every read, merged across, and matted before a range to warm up. */
-export const MATTE_PLAN = { margin: 1, gap: 3, warmup: 1 } as const;
+/**
+ * Default seconds kept around every read, merged across, matted before a stretch to warm up, and
+ * per cached block.
+ */
+export const MATTE_PLAN = { margin: 1, gap: 3, warmup: 1, block: 2 } as const;
 
 /**
  * Converts source frames at the project rate to frames of a footage at its own rate, rounding
@@ -305,15 +328,15 @@ export function uncovered(
 
 /**
  * What `visualfries matte <project>` writes next to a matte it made for part of a footage
- * (`<matte>.ranges.json`): the footage it was made from and the frames it covers. Outside them
- * the matte is black. A matte without this file covers the whole footage.
+ * (`<matte>.ranges.json`): the footage it was made from, the matte it describes and the frames
+ * it covers. Outside them the matte is black. A matte without this file covers the whole footage.
  */
 export type MatteRangesFile = {
-	version: 1;
-	/** The footage file (its name), its size in bytes, frame count and frame rate. */
-	source: { file: string; size: number; frames: number; fps: number };
-	/** Size in bytes of the matte this file describes: another size means the matte changed. */
-	matte: { size: number };
+	version: 2;
+	/** The footage file (its name), its fingerprint (see `fileFingerprint`), frames and rate. */
+	source: { file: string; fingerprint: string; frames: number; fps: number };
+	/** Fingerprint of the matte this file describes: any other file at that path is not it. */
+	matte: { fingerprint: string };
 	/** Frames of the footage (its own rate) the matte covers, as inclusive `[first, last]`. */
 	ranges: [number, number][];
 	provider: string;
@@ -326,15 +349,15 @@ export const rangesFileOf = (matte: string) => `${matte}.ranges.json`;
 /** Checks a parsed ranges file; returns the problem, or null when it can be used. */
 export function rangesFileProblem(
 	file: unknown,
-	now: { source: { size: number; frames: number }; matte: { size: number } }
+	now: { source: { fingerprint: string; frames: number }; matte: { fingerprint: string } }
 ): string | null {
 	const f = file as Partial<MatteRangesFile> | null;
-	if (!f || f.version !== 1 || !Array.isArray(f.ranges) || !f.source || !f.matte)
+	if (!f || f.version !== 2 || !Array.isArray(f.ranges) || !f.source || !f.matte)
 		return 'it is not a ranges file this version of VisualFries reads';
-	if (f.matte.size !== now.matte.size)
-		return 'the matte changed after it was written (another size)';
-	if (f.source.size !== now.source.size || f.source.frames !== now.source.frames)
-		return `it was made from another video (${f.source.frames} frames, ${f.source.size} bytes; this one has ${now.source.frames} frames, ${now.source.size} bytes)`;
+	if (f.matte.fingerprint !== now.matte.fingerprint)
+		return 'the matte changed after it was written (or a run was stopped half way)';
+	if (f.source.fingerprint !== now.source.fingerprint || f.source.frames !== now.source.frames)
+		return `it was made from another video (${f.source.frames} frames; this one has ${now.source.frames}, or other content)`;
 	return null;
 }
 

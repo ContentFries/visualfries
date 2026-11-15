@@ -3,6 +3,7 @@ import { programFraming } from './framing.js';
 import { clipShowRange, segmentStage, wholeProgram } from './segments.js';
 import { shotAt, shotModule } from './shots/index.js';
 import { SUBJECT_SMOOTH } from './shots/layout.js';
+import { transitionModule } from './transitions/index.js';
 /** Made-up subjects the framing is laid out for: one left and small, one right and tall, none. */
 const PROBES = [
     { x: 0.1, y: 0.1, width: 0.4, height: 0.9, headX: 0.3, headY: 0.1, headHeight: 0.2 },
@@ -11,9 +12,13 @@ const PROBES = [
 ];
 /** Program frames as a sorted, merged list of ranges. */
 class FrameSet {
+    end;
     frames = new Set();
+    constructor(end) {
+        this.end = end;
+    }
     add(first, last) {
-        for (let f = first; f <= last; f++)
+        for (let f = Math.max(0, first); f <= Math.min(this.end - 1, last); f++)
             this.frames.add(f);
     }
     has(f) {
@@ -51,7 +56,7 @@ const drawsSubject = (layout) => !!layout.room || (layout.cutout ?? 0) > 0;
 function framingReads(program, map) {
     const seg = segmentStage(program, wholeProgram(program), { frames: {}, map });
     const probes = PROBES.map((box) => programFraming({ ...seg, footage: probeFootage(program, box) }));
-    const drawn = new FrameSet();
+    const drawn = new FrameSet(program.frames);
     const shots = new Set();
     const byId = new Map(seg.shots.map((s) => [s.id, s]));
     for (let f = 0; f < program.frames; f++) {
@@ -88,6 +93,15 @@ function framingReads(program, map) {
     }
     return { drawn, shots };
 }
+/**
+ * Source frames on each side of a read that the subject's measures reach: the smoothing window,
+ * twice over when a shot keeps the head in (how high the head gets is a smoothed low percentile
+ * of tops already taken over a window, see `headTopOf` in framing.ts).
+ */
+function smoothReach(program) {
+    const w = Math.round(SUBJECT_SMOOTH * program.fps);
+    return program.shots.some((s) => typeof s.params.headroom === 'number') ? 2 * w : w;
+}
 /** Program frames a clip is on screen, transitions included. */
 function shownFrames(clip, program) {
     const show = clipShowRange(clip, program.transitions);
@@ -106,8 +120,15 @@ export function matteReads(program, opts) {
         return {};
     const totals = Object.fromEntries(matted.map((n) => [n, program.sources[n].frames]));
     const map = footageMap(program, totals);
-    const smooth = Math.round(SUBJECT_SMOOTH * program.fps);
+    const smooth = smoothReach(program);
     const { drawn, shots } = framingReads(program, map);
+    // The stage centres every drawn transition on the face of each side it shows (`focusOf` in
+    // the program stage), whatever the transition then does with it.
+    for (const t of program.transitions)
+        if (transitionModule(t.type))
+            drawn.add(Math.max(0, t.startFrame), t.startFrame + t.frames - 1);
+    for (const span of opts.extra ?? [])
+        drawn.add(Math.max(0, span.startFrame), span.startFrame + span.frames - 1);
     const byShot = (s) => drawn.add(Math.max(0, s.startFrame), Math.min(program.frames, s.startFrame + s.frames) - 1);
     for (const s of program.shots)
         if (shots.has(s.id) || shotModule(s.shot)?.needsMatte)
@@ -162,8 +183,11 @@ function addExcerptReads(program, drawn, add) {
         for (const run of runs)
             add(run.source, run.frame, run.held ? run.frame : run.frame + run.frames - 1);
 }
-/** Default seconds kept around every read, merged across, and matted before a range to warm up. */
-export const MATTE_PLAN = { margin: 1, gap: 3, warmup: 1 };
+/**
+ * Default seconds kept around every read, merged across, matted before a stretch to warm up, and
+ * per cached block.
+ */
+export const MATTE_PLAN = { margin: 1, gap: 3, warmup: 1, block: 2 };
 /**
  * Converts source frames at the project rate to frames of a footage at its own rate, rounding
  * outward so every frame the conversion may pick is inside.
@@ -236,12 +260,12 @@ export const rangesFileOf = (matte) => `${matte}.ranges.json`;
 /** Checks a parsed ranges file; returns the problem, or null when it can be used. */
 export function rangesFileProblem(file, now) {
     const f = file;
-    if (!f || f.version !== 1 || !Array.isArray(f.ranges) || !f.source || !f.matte)
+    if (!f || f.version !== 2 || !Array.isArray(f.ranges) || !f.source || !f.matte)
         return 'it is not a ranges file this version of VisualFries reads';
-    if (f.matte.size !== now.matte.size)
-        return 'the matte changed after it was written (another size)';
-    if (f.source.size !== now.source.size || f.source.frames !== now.source.frames)
-        return `it was made from another video (${f.source.frames} frames, ${f.source.size} bytes; this one has ${now.source.frames} frames, ${now.source.size} bytes)`;
+    if (f.matte.fingerprint !== now.matte.fingerprint)
+        return 'the matte changed after it was written (or a run was stopped half way)';
+    if (f.source.fingerprint !== now.source.fingerprint || f.source.frames !== now.source.frames)
+        return `it was made from another video (${f.source.frames} frames; this one has ${now.source.frames}, or other content)`;
     return null;
 }
 /** Inclusive frame ranges as readable seconds, "12.40–13.10 s, 20.00–21.00 s". */

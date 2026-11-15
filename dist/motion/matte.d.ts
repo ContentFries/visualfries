@@ -143,33 +143,47 @@ export type RangeMatteOptions = MatteOptions & {
     /** Frames of the input (its own rate) to matte, as sorted inclusive ranges. */
     ranges: FrameRange[];
     /**
-     * Frames matted before each range and thrown away, so a recurrent model has settled by the
-     * range's first frame. Default: one second.
+     * Frames matted before each stretch and thrown away, so a recurrent model has settled by
+     * its first frame. Default: one second.
      */
     warmup?: number;
-    /** Folder that keeps each range's mask, so a range matted before is not matted again. */
+    /**
+     * Frames of the blocks the masks are cached in. The matte covers whole blocks, so a range
+     * that grows mattes only its new blocks. Default: two seconds.
+     */
+    blockFrames?: number;
+    /** Folder that keeps each block's mask, so a block matted before is not matted again. */
     cacheDir: string;
 };
 export type RangeMatteResult = MatteResult & {
-    /** Frames the matte covers (outside them it is black), and how many of them were matted now. */
+    /** Frames the matte covers (outside them it is black), and how many were matted now. */
     covered: number;
     matted: number;
+    /** The frames covered, as sorted inclusive ranges (whole blocks). */
     ranges: FrameRange[];
     /** False when the matte at `output` already was this one and was left alone. */
     written: boolean;
 };
-/** Cache key of one range's mask: the input file, the range, the warm-up and the provider. */
-export declare function rangeMaskKey(input: {
-    file: string;
-    size: number;
-    mtimeMs: number;
+/**
+ * A cheap fingerprint of a file's content: its size and a hash of its first and last MiB. It
+ * survives copying and renaming, and changes when the file is replaced by another.
+ */
+export declare function fileFingerprint(file: string): Promise<string>;
+/** Cache key of one block's mask: the input's content, the block, the warm-up and the provider. */
+export declare function blockMaskKey(input: {
+    source: string;
     frames: number;
     fps: number;
-    range: FrameRange;
+    block: number;
+    blockFrames: number;
     warmup: number;
     provider: string;
     chunkFrames: number;
 }): string;
+/** The blocks of `size` frames that hold any frame of `ranges`, in order. */
+export declare function blocksOf(ranges: readonly FrameRange[], size: number): number[];
+/** Runs of consecutive block numbers, as inclusive `{ first, last }` blocks. */
+export declare function blockRuns(blocks: readonly number[]): FrameRange[];
 /** The pieces of a full-length matte: masks of `ranges` and the black gaps between them. */
 export declare function matteLayout(ranges: readonly FrameRange[], total: number): ({
     range: number;
@@ -177,9 +191,11 @@ export declare function matteLayout(ranges: readonly FrameRange[], total: number
     gap: number;
 })[];
 /**
- * Makes a full-length matte of `input` that covers only `ranges` (black, no subject, elsewhere)
- * and writes its ranges file next to it (see `MatteRangesFile`), so `check` and `render` know
- * which frames it covers. Each range's mask is cached in `cacheDir`: running it again after an
- * edit mattes only new or changed ranges, and leaves a matte that would not change alone.
+ * Makes a full-length matte of `input` that covers `ranges` in whole blocks (black, no subject,
+ * elsewhere) and writes its ranges file next to it (see `MatteRangesFile`), so `check` and
+ * `render` know which frames it covers. Each block's mask is cached in `cacheDir`: running it
+ * again after an edit mattes only new blocks, and leaves a matte that would not change alone.
+ * The matte and its ranges file are published by renaming, the ranges file first and naming
+ * the new matte's fingerprint, so a run stopped half way never passes for another matte.
  */
 export declare function createRangeMatte(input: string, opts: RangeMatteOptions): Promise<RangeMatteResult>;

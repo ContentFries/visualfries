@@ -101,7 +101,8 @@ Work like an editor, in this order; each step ends on its criterion:
    clips, captions, `sfx`, music. Every timing is a phrase, never source seconds. Start from the
    blocks of the worked example; write a new block only for a look they cannot give. Then make
    the matte: `visualfries matte <project>` mattes only the frames the program reads (behind
-   and cutout shots, behind clips, subject layers, framing that follows the head) and leaves the
+   and cutout shots, behind clips, subject layers, transitions, framing that follows the head;
+   add `--handles <n>` when you export inserts with more than 10 frames of handle) and leaves the
    rest black, minutes instead of hours on a long take. Run it again after every edit that adds
    or moves a matte-reading shot or clip, or moves a cut under one; `check` and `render` stop
    and name the seconds when it is needed. Add `--format <WxH>` for each extra frame size you

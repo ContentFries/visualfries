@@ -17,6 +17,11 @@ export type MatteReadOptions = {
     readsSubject: (block: string) => boolean;
     /** Source frames around what a subject-reading clip shows (its `offset` reach), by source. */
     margins?: Record<string, number>;
+    /** More program frames whose picture reads the matte (an inserts export's holdout handles). */
+    extra?: {
+        startFrame: number;
+        frames: number;
+    }[];
 };
 type Program = Pick<ResolvedProgram, 'fps' | 'frames' | 'format' | 'background' | 'sources' | 'cuts' | 'shots' | 'clips' | 'transitions' | 'excerpt'>;
 /**
@@ -42,11 +47,15 @@ export type MattePlanOptions = {
     /** The footage's transcript: bounds move out of words into the pause before or after. */
     words?: readonly Word[] | null;
 };
-/** Default seconds kept around every read, merged across, and matted before a range to warm up. */
+/**
+ * Default seconds kept around every read, merged across, matted before a stretch to warm up, and
+ * per cached block.
+ */
 export declare const MATTE_PLAN: {
     readonly margin: 1;
     readonly gap: 3;
     readonly warmup: 1;
+    readonly block: 2;
 };
 /**
  * Converts source frames at the project rate to frames of a footage at its own rate, rounding
@@ -63,21 +72,21 @@ export declare function planMatteRanges(reads: readonly FrameRange[], opts: Matt
 export declare function uncovered(needed: readonly FrameRange[], covered: readonly FrameRange[]): FrameRange[];
 /**
  * What `visualfries matte <project>` writes next to a matte it made for part of a footage
- * (`<matte>.ranges.json`): the footage it was made from and the frames it covers. Outside them
- * the matte is black. A matte without this file covers the whole footage.
+ * (`<matte>.ranges.json`): the footage it was made from, the matte it describes and the frames
+ * it covers. Outside them the matte is black. A matte without this file covers the whole footage.
  */
 export type MatteRangesFile = {
-    version: 1;
-    /** The footage file (its name), its size in bytes, frame count and frame rate. */
+    version: 2;
+    /** The footage file (its name), its fingerprint (see `fileFingerprint`), frames and rate. */
     source: {
         file: string;
-        size: number;
+        fingerprint: string;
         frames: number;
         fps: number;
     };
-    /** Size in bytes of the matte this file describes: another size means the matte changed. */
+    /** Fingerprint of the matte this file describes: any other file at that path is not it. */
     matte: {
-        size: number;
+        fingerprint: string;
     };
     /** Frames of the footage (its own rate) the matte covers, as inclusive `[first, last]`. */
     ranges: [number, number][];
@@ -89,11 +98,11 @@ export declare const rangesFileOf: (matte: string) => string;
 /** Checks a parsed ranges file; returns the problem, or null when it can be used. */
 export declare function rangesFileProblem(file: unknown, now: {
     source: {
-        size: number;
+        fingerprint: string;
         frames: number;
     };
     matte: {
-        size: number;
+        fingerprint: string;
     };
 }): string | null;
 /** Inclusive frame ranges as readable seconds, "12.40–13.10 s, 20.00–21.00 s". */

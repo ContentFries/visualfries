@@ -131,15 +131,15 @@ In Node, pass any object with `name`, `maxFrames` and `segment(piece)` as `provi
 
 ```bash
 # after the program is written, and again after edits that add or move matte-reading shots and clips
-npx visualfries matte project.vf.json [--format 1080x1920]... [--json] [provider flags]
+npx visualfries matte project.vf.json [--format 1080x1920]... [--handles 24] [--json] [provider flags]
 
 # chosen seconds of one video
 npx visualfries matte talk.mp4 --output talk.matte.mp4 --ranges 12.5-20,31-40
 ```
 
-Given a project, `matte` mattes each footage's `matte` only where the program reads it: `behind` and `cutout` shots, clips with `"layer": "behind"`, subject layers and blocks that use the subject, and shots whose framing follows the head (a `punch`, a `strip`, keys that scale about the face, 16:9 footage in a 9:16 frame). Each read gets a margin of about a second and a half, bounds move out of words into pauses of the footage's transcript, close ranges join, and each range starts a second early so the model settles first. It writes one full-length, frame-exact matte at the footage's `matte` path (black outside the ranges) and `<matte>.ranges.json` beside it, caches each range in `.visualfries/matte/`, and prints frames covered and matted and how long every frame would have taken. The project's excerpts are included; `--format` adds a frame size `render --format` draws.
+Given a project, `matte` mattes each footage's `matte` only where the program reads it: `behind` and `cutout` shots, clips with `"layer": "behind"`, subject layers and blocks that use the subject or the clean plate, transition windows (they centre on the face), and shots whose framing follows the head (a `punch`, a `strip`, keys that scale about the face, 16:9 footage in a 9:16 frame). Each read gets a margin of about a second and a half, bounds move out of words into pauses of the footage's transcript, and close ranges join. Masks are cached in two-second blocks in `.visualfries/matte/` (a run of new blocks starts a second early so the model settles first), so after an edit only new blocks are matted, and frames covered by earlier runs stay covered. It writes one full-length, frame-exact matte at the footage's `matte` path (black outside the covered blocks) and `<matte>.ranges.json` beside it, both renamed into place, and prints frames covered and matted and how long every frame would have taken. The project's excerpts are included; `--format` adds a frame size `render --format` draws, and `--handles` the handles of `render --export inserts` beyond the default 10 frames. A matte path that is a footage's video, transcript or sound is refused.
 
-`check`, `still` and `render` stop with an error when the program reads a partial matte at a frame it does not cover and name the seconds; run `visualfries matte project.vf.json` again, and only the new ranges are matted. A matte without a ranges file covers every frame. See [Programs](/docs/programs#mattes-for-a-program) for what counts as a read.
+`check`, `still` and `render` (inserts exports and projects without cuts too) stop with an error when they read a partial matte at a frame it does not cover, or when its ranges file does not belong to the matte present, and name the seconds; run `visualfries matte project.vf.json` again. A matte without a ranges file covers every frame. Delete `.visualfries/matte/` to free the cached blocks. See [Programs](/docs/programs#mattes-for-a-program) for what counts as a read.
 
 ## beats
 

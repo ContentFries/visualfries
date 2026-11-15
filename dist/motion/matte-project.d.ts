@@ -8,6 +8,12 @@ import { type RangeMatteOptions } from './matte.js';
  * names it. Files of VisualFries itself are not followed (only its subject blocks name it).
  */
 export declare function blockReadsSubject(dir: string, block: string): Promise<boolean>;
+/** Matte reads of `program` by footage, in source frames at the project rate. */
+/** What else a render draws that reads the matte: an inserts export's handles. */
+type ReadsExtra = {
+    /** Frames of handle around each insert (`render --export inserts --handles`). */
+    handles?: number;
+};
 /** One footage with a matte: its files and its frame count and rate. */
 type MattedFootage = {
     name: string;
@@ -25,18 +31,27 @@ export type FootageMattePlan = MattedFootage & {
 /**
  * What `visualfries matte <project>` mattes of each footage with a matte: the frames the program
  * reads it at, in the project's frame size, in each excerpt and in each of `formats` (frame sizes
- * `render --format` draws), widened by a margin, moved out of words and joined. A project
+ * `render --format` draws, with each excerpt in them too), with the handles of an inserts export
+ * (`handles`, default 10 frames), widened by a margin, moved out of words and joined. A project
  * without cuts or shots (inserts mode) reads every frame.
  */
 export declare function projectMattePlan(loaded: LoadedMotionProject, opts?: {
     formats?: string[];
-} & Pick<MattePlanOptions, 'margin' | 'gap'>): Promise<FootageMattePlan[]>;
+} & ReadsExtra & Pick<MattePlanOptions, 'margin' | 'gap'>): Promise<FootageMattePlan[]>;
 /**
  * Throws when `program` reads a partial matte (one `visualfries matte <project>` made) at a
  * frame it does not cover, where it is black: the program changed since. Mattes without a
- * ranges file cover the whole footage and pass.
+ * ranges file cover the whole footage and pass. `format` and `handles` (an inserts export's)
+ * say how the program is drawn, for the reads and for the command the error suggests.
  */
-export declare function assertMatteCovers(loaded: LoadedMotionProject, program: ResolvedProgram, format?: string): Promise<void>;
+export declare function assertMatteCovers(loaded: LoadedMotionProject, program: ResolvedProgram, opts?: {
+    format?: string;
+} & ReadsExtra): Promise<void>;
+/**
+ * Throws when a project without cuts or shots (inserts mode, every footage frame can be drawn)
+ * has a partial matte that does not cover its whole footage.
+ */
+export declare function assertClipsMatteCovers(loaded: LoadedMotionProject): Promise<void>;
 export type ProjectMatteReport = {
     footage: string;
     matte: string;
@@ -51,15 +66,17 @@ export type ProjectMatteReport = {
     fullSeconds: number | null;
     written: boolean;
 };
+type RunOptions = Omit<RangeMatteOptions, 'output' | 'ranges' | 'cacheDir'>;
 /**
  * `visualfries matte <project>`: for each footage with a `matte`, mattes only the frames the
- * program reads it at (see `projectMattePlan`) into one full-length matte at that path, black
- * elsewhere, with its ranges file. Ranges matted before are reused from
- * `.visualfries/matte/<footage>/`.
+ * program reads it at (see `projectMattePlan`), plus what an earlier run covered, into one
+ * full-length matte at that path, black elsewhere, with its ranges file. Blocks matted before
+ * are reused from `.visualfries/matte/<footage>/`. A footage whose matte the program never reads
+ * gets a black matte when it has none, and an existing matte is left as it is.
  */
-export declare function matteProject(loaded: LoadedMotionProject, opts: Omit<RangeMatteOptions, 'output' | 'ranges' | 'cacheDir'> & {
+export declare function matteProject(loaded: LoadedMotionProject, opts: RunOptions & {
     formats?: string[];
-}): Promise<ProjectMatteReport[]>;
+} & ReadsExtra): Promise<ProjectMatteReport[]>;
 /** What `matteProject` did, one line per footage for the terminal. */
 export declare function matteReportLines(reports: ProjectMatteReport[]): string[];
 /**

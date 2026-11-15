@@ -93,12 +93,14 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     [--command-ext .webm] [--max-frames n]. Long videos are split, checked
                     and joined frame-exact. --ranges 12.5-20,31-40 mattes only those seconds
                     (black elsewhere).
-  visualfries matte <project.vf.json> [--format <WxH>]... [--json] [provider options]
+  visualfries matte <project.vf.json> [--format <WxH>]... [--handles <frames>] [--json]
+                    [provider options]
                     mattes each footage's "matte" only where the program reads it (behind and
-                    cutout shots, clips behind the speaker, subject layers, framing that follows
-                    the head), with margins out of words; black elsewhere, cached per range.
-                    Run it after writing the program and again after edits; check and render
-                    stop when the program reads the matte where it was not made.
+                    cutout shots, clips behind the speaker, subject layers, transitions,
+                    framing that follows the head), with margins out of words; black elsewhere,
+                    cached in 2 s blocks, keeping what earlier runs covered. Run it after
+                    writing the program and again after edits; check and render stop when the
+                    program reads the matte where it was not made.
   visualfries beats <music> [--output <music.beats.json>] [--model final0|small0] [--threads 4]
                     beats, downbeats, tempo and energy per bar of a music file, analysed once;
                     beat anchors, check and render read only this file. Default analyzer:
@@ -2033,7 +2035,7 @@ async function cacheCommand(args) {
 }
 
 const MATTE_USAGE =
-	'Usage: visualfries matte <project.vf.json> [--format <WxH>]... [--json] [provider options]\n       visualfries matte <video> --output <matte.mp4> [--ranges 12.5-20,31-40] [provider options]\nProvider options: [--provider rvm|fal|command] [--threads n] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs n]';
+	'Usage: visualfries matte <project.vf.json> [--format <WxH>]... [--handles <frames>] [--json] [provider options]\n       visualfries matte <video> --output <matte.mp4> [--ranges 12.5-20,31-40] [provider options]\nProvider options: [--provider rvm|fal|command] [--threads n] [--command "tool {input} {output}"] [--command-output luma|alpha] [--command-ext .webm] [--model Matting] [--resolution 1024x1024] [--chunk-frames 480] [--jobs n]';
 
 /** The matte provider and piece settings the flags of `visualfries matte` ask for. */
 async function matteSettings(args) {
@@ -2089,7 +2091,8 @@ async function matteProjectCommand(file, args) {
 	const loaded = await loadMotionProject(file, { transcript: readFlag(args, '--transcript') });
 	const reports = await matteProject(loaded, {
 		...(await matteSettings(args)),
-		formats: readAllFlags(args, '--format')
+		formats: readAllFlags(args, '--format'),
+		handles: numberFlag(args, '--handles')
 	});
 	console.log(
 		hasFlag(args, '--json')

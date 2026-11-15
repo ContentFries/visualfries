@@ -619,6 +619,7 @@ async function joinMasks(
  */
 export async function createSubjectMatte(input: string, opts: MatteOptions): Promise<MatteResult> {
 	rejectRemovedFalOptions(opts);
+	refuseOverwrite(input, opts.output);
 	const provider = opts.provider ?? rvmMatte();
 	const started = Date.now();
 	const info = await constantVideo(input);
@@ -644,6 +645,14 @@ export async function createSubjectMatte(input: string, opts: MatteOptions): Pro
 	}
 }
 
+/** Throws when the matte would be written over the video it is made of. */
+function refuseOverwrite(input: string, output: string) {
+	if (path.resolve(input) === path.resolve(output))
+		throw new Error(
+			`The matte would overwrite the video it is made of (${output}). Give it another name.`
+		);
+}
+
 /** Probes `input` and throws unless it has a constant frame rate. */
 async function constantVideo(input: string): Promise<VideoInfo> {
 	const info = await probeVideo(input);
@@ -660,37 +669,93 @@ export type RangeMatteOptions = MatteOptions & {
 	/** Frames of the input (its own rate) to matte, as sorted inclusive ranges. */
 	ranges: FrameRange[];
 	/**
-	 * Frames matted before each range and thrown away, so a recurrent model has settled by the
-	 * range's first frame. Default: one second.
+	 * Frames matted before each stretch and thrown away, so a recurrent model has settled by
+	 * its first frame. Default: one second.
 	 */
 	warmup?: number;
-	/** Folder that keeps each range's mask, so a range matted before is not matted again. */
+	/**
+	 * Frames of the blocks the masks are cached in. The matte covers whole blocks, so a range
+	 * that grows mattes only its new blocks. Default: two seconds.
+	 */
+	blockFrames?: number;
+	/** Folder that keeps each block's mask, so a block matted before is not matted again. */
 	cacheDir: string;
 };
 
 export type RangeMatteResult = MatteResult & {
-	/** Frames the matte covers (outside them it is black), and how many of them were matted now. */
+	/** Frames the matte covers (outside them it is black), and how many were matted now. */
 	covered: number;
 	matted: number;
+	/** The frames covered, as sorted inclusive ranges (whole blocks). */
 	ranges: FrameRange[];
 	/** False when the matte at `output` already was this one and was left alone. */
 	written: boolean;
 };
 
-/** Cache key of one range's mask: the input file, the range, the warm-up and the provider. */
-export function rangeMaskKey(input: {
-	file: string;
-	size: number;
-	mtimeMs: number;
+/** Bytes read from each end of a file for its fingerprint. */
+const FINGERPRINT_BYTES = 1 << 20;
+
+/**
+ * A cheap fingerprint of a file's content: its size and a hash of its first and last MiB. It
+ * survives copying and renaming, and changes when the file is replaced by another.
+ */
+export async function fileFingerprint(file: string): Promise<string> {
+	const handle = await fs.open(file, 'r');
+	try {
+		const { size } = await handle.stat();
+		const head = Buffer.alloc(Math.min(size, FINGERPRINT_BYTES));
+		await handle.read(head, 0, head.length, 0);
+		const tail = Buffer.alloc(Math.min(FINGERPRINT_BYTES, size - head.length));
+		await handle.read(tail, 0, tail.length, size - tail.length);
+		return createHash('sha1')
+			.update(String(size))
+			.update(head)
+			.update(tail)
+			.digest('hex')
+			.slice(0, 16);
+	} finally {
+		await handle.close();
+	}
+}
+
+/** Cache key of one block's mask: the input's content, the block, the warm-up and the provider. */
+export function blockMaskKey(input: {
+	source: string;
 	frames: number;
 	fps: number;
-	range: FrameRange;
+	block: number;
+	blockFrames: number;
 	warmup: number;
 	provider: string;
 	chunkFrames: number;
 }): string {
 	return createHash('sha1').update(JSON.stringify(input)).digest('hex').slice(0, 16);
 }
+
+/** The blocks of `size` frames that hold any frame of `ranges`, in order. */
+export function blocksOf(ranges: readonly FrameRange[], size: number): number[] {
+	const out = new Set<number>();
+	for (const r of ranges)
+		for (let k = Math.floor(r.first / size); k <= Math.floor(r.last / size); k++) out.add(k);
+	return [...out].sort((a, b) => a - b);
+}
+
+/** Runs of consecutive block numbers, as inclusive `{ first, last }` blocks. */
+export function blockRuns(blocks: readonly number[]): FrameRange[] {
+	const runs: FrameRange[] = [];
+	for (const k of blocks) {
+		const last = runs[runs.length - 1];
+		if (last && k === last.last + 1) last.last = k;
+		else runs.push({ first: k, last: k });
+	}
+	return runs;
+}
+
+/** The frames of block `k` of `size` frames in a video of `total` frames. */
+const blockFramesOf = (k: number, size: number, total: number): FrameRange => ({
+	first: k * size,
+	last: Math.min(total, (k + 1) * size) - 1
+});
 
 /** The pieces of a full-length matte: masks of `ranges` and the black gaps between them. */
 export function matteLayout(
@@ -741,131 +806,191 @@ async function blackVideo(file: string, info: VideoInfo, frames: number) {
 	]);
 }
 
+type BlockPlan = {
+	size: number;
+	/** The cache folder. */
+	dirname: string;
+	warmup: number;
+	chunkFrames: number;
+	/** Cache file of each block. */
+	file: (k: number) => string;
+};
+
 /**
- * The mask of one range from the cache, or matted now (from `warmup` frames earlier, those
- * left out) and kept there. Returns the file and whether it was matted now.
+ * Mattes a run of blocks in one go (from `warmup` frames before its first block, those left
+ * out) and cuts the mask into one cached file per block.
  */
-async function rangeMask(
+async function matteBlocks(
 	input: string,
 	info: VideoInfo,
-	range: FrameRange,
-	key: string,
+	run: FrameRange,
 	provider: MatteProvider,
-	opts: RangeMatteOptions & { warmup: number; chunkFrames: number }
-): Promise<{ file: string; matted: boolean }> {
-	const file = path.join(opts.cacheDir, `${key}.mp4`);
-	if (existsSync(file)) return { file, matted: false };
-	const start = Math.max(0, range.first - opts.warmup);
-	const chunks = planMatteChunks(range.last - start + 1, opts.chunkFrames, provider.maxFrames).map(
+	plan: BlockPlan,
+	opts: Pick<MatteOptions, 'jobs' | 'onProgress'>
+): Promise<void> {
+	const first = blockFramesOf(run.first, plan.size, info.frames).first;
+	const last = blockFramesOf(run.last, plan.size, info.frames).last;
+	const start = Math.max(0, first - plan.warmup);
+	const chunks = planMatteChunks(last - start + 1, plan.chunkFrames, provider.maxFrames).map(
 		(c) => ({ first: c.first + start, last: c.last + start })
 	);
 	const work = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-'));
 	try {
 		const parts = await segmentChunks(input, info, chunks, provider, work, opts);
-		const tmp = path.join(work, 'range.mp4');
-		await joinMasks(parts, tmp, info.fps, range.last - range.first + 1, work, range.first - start);
-		await fs.mkdir(opts.cacheDir, { recursive: true });
-		await fs.copyFile(tmp, `${file}.tmp-${process.pid}`);
-		await fs.rename(`${file}.tmp-${process.pid}`, file);
-		return { file, matted: true };
+		const span = path.join(work, 'span.mp4');
+		await joinMasks(parts, span, info.fps, last - first + 1, work, first - start);
+		await fs.mkdir(plan.dirname, { recursive: true });
+		for (let k = run.first; k <= run.last; k++) {
+			const block = blockFramesOf(k, plan.size, info.frames);
+			const tmp = `${plan.file(k)}.tmp-${process.pid}-${randomUUID()}.mp4`;
+			await ffmpeg([
+				'-ss',
+				((block.first - first) / info.fps).toFixed(6),
+				'-i',
+				span,
+				'-frames:v',
+				String(block.last - block.first + 1),
+				'-c:v',
+				'libx264',
+				'-crf',
+				'10',
+				'-pix_fmt',
+				'yuv420p',
+				tmp
+			]);
+			await fs.rename(tmp, plan.file(k));
+		}
 	} finally {
 		await fs.rm(work, { recursive: true, force: true });
 	}
 }
 
 /**
- * Makes a full-length matte of `input` that covers only `ranges` (black, no subject, elsewhere)
- * and writes its ranges file next to it (see `MatteRangesFile`), so `check` and `render` know
- * which frames it covers. Each range's mask is cached in `cacheDir`: running it again after an
- * edit mattes only new or changed ranges, and leaves a matte that would not change alone.
+ * Makes a full-length matte of `input` that covers `ranges` in whole blocks (black, no subject,
+ * elsewhere) and writes its ranges file next to it (see `MatteRangesFile`), so `check` and
+ * `render` know which frames it covers. Each block's mask is cached in `cacheDir`: running it
+ * again after an edit mattes only new blocks, and leaves a matte that would not change alone.
+ * The matte and its ranges file are published by renaming, the ranges file first and naming
+ * the new matte's fingerprint, so a run stopped half way never passes for another matte.
  */
 export async function createRangeMatte(
 	input: string,
 	opts: RangeMatteOptions
 ): Promise<RangeMatteResult> {
 	rejectRemovedFalOptions(opts);
+	refuseOverwrite(input, opts.output);
 	const provider = opts.provider ?? rvmMatte();
 	const started = Date.now();
 	const info = await constantVideo(input);
 	checkRanges(opts.ranges, info.frames);
+	const source = await fileFingerprint(input);
+	const size = opts.blockFrames ?? Math.round(MATTE_PLAN.block * info.fps);
 	const warmup = opts.warmup ?? Math.round(MATTE_PLAN.warmup * info.fps);
 	const chunkFrames = opts.chunkFrames ?? Math.min(480, provider.maxFrames);
-	const stat = await fs.stat(input);
-	const keys = opts.ranges.map((range) =>
-		rangeMaskKey({
-			file: path.basename(input),
-			size: stat.size,
-			mtimeMs: stat.mtimeMs,
+	const blocks = blocksOf(opts.ranges, size);
+	const keyOf = (block: number) =>
+		blockMaskKey({
+			source,
 			frames: info.frames,
 			fps: info.fps,
-			range,
+			block,
+			blockFrames: size,
 			warmup,
 			provider: provider.id ?? provider.name,
 			chunkFrames
-		})
-	);
+		});
+	const plan: BlockPlan = {
+		size,
+		warmup,
+		chunkFrames,
+		dirname: opts.cacheDir,
+		file: (k) => path.join(opts.cacheDir, `${keyOf(k)}.mp4`)
+	};
+	const covered = blockRuns(blocks).map((run) => ({
+		first: blockFramesOf(run.first, size, info.frames).first,
+		last: blockFramesOf(run.last, size, info.frames).last
+	}));
 	const key = createHash('sha1')
-		.update(JSON.stringify({ keys, frames: info.frames }))
+		.update(JSON.stringify({ blocks: blocks.map(keyOf), frames: info.frames }))
 		.digest('hex')
 		.slice(0, 16);
-	const covered = opts.ranges.reduce((n, r) => n + r.last - r.first + 1, 0);
 	const result = (matted: number, written: boolean): RangeMatteResult => ({
 		output: opts.output,
 		frames: info.frames,
 		fps: info.fps,
 		width: info.width,
 		height: info.height,
-		chunks: opts.ranges.length,
+		chunks: blocks.length,
 		provider: provider.name,
 		seconds: (Date.now() - started) / 1000,
-		covered,
+		covered: covered.reduce((n, r) => n + r.last - r.first + 1, 0),
 		matted,
-		ranges: opts.ranges.map((r) => ({ ...r })),
+		ranges: covered,
 		written
 	});
 	if (await upToDate(opts.output, key)) return result(0, false);
-	const settings = { ...opts, warmup, chunkFrames };
-	let matted = 0;
-	const masks: string[] = [];
-	for (const [i, range] of opts.ranges.entries()) {
-		const mask = await rangeMask(input, info, range, keys[i], provider, settings);
-		if (mask.matted) matted += range.last - range.first + 1;
-		masks.push(mask.file);
-	}
-	const work = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-'));
-	try {
-		const pieces: string[] = [];
-		for (const [n, piece] of matteLayout(opts.ranges, info.frames).entries()) {
-			if ('range' in piece) {
-				pieces.push(masks[piece.range]);
-				continue;
-			}
-			const gap = path.join(work, `gap-${n}.mp4`);
-			await blackVideo(gap, info, piece.gap);
-			pieces.push(gap);
-		}
-		const tmp = path.join(work, `matte${path.extname(opts.output) || '.mp4'}`);
-		await joinMasks(pieces, tmp, info.fps, info.frames, work);
-		await fs.mkdir(path.dirname(path.resolve(opts.output)), { recursive: true });
-		await fs.copyFile(tmp, opts.output);
-	} finally {
-		await fs.rm(work, { recursive: true, force: true });
-	}
-	const file: MatteRangesFile = {
-		version: 1,
-		source: {
-			file: path.basename(input),
-			size: stat.size,
-			frames: info.frames,
-			fps: info.fps
-		},
-		matte: { size: (await fs.stat(opts.output)).size },
-		ranges: opts.ranges.map((r) => [r.first, r.last]),
+	const missing = blocks.filter((k) => !existsSync(plan.file(k)));
+	for (const run of blockRuns(missing)) await matteBlocks(input, info, run, provider, plan, opts);
+	const matted = missing.reduce((n, k) => {
+		const b = blockFramesOf(k, size, info.frames);
+		return n + b.last - b.first + 1;
+	}, 0);
+	const masks = blockRuns(blocks).map((run) =>
+		Array.from({ length: run.last - run.first + 1 }, (_, i) => plan.file(run.first + i))
+	);
+	await publishMatte(info, masks, covered, opts.output, {
+		version: 2,
+		source: { file: path.basename(input), fingerprint: source, frames: info.frames, fps: info.fps },
+		matte: { fingerprint: '' },
+		ranges: covered.map((r) => [r.first, r.last]),
 		provider: provider.name,
 		key
-	};
-	await fs.writeFile(rangesFileOf(opts.output), JSON.stringify(file, null, '\t') + '\n');
+	});
 	return result(matted, true);
+}
+
+/**
+ * Joins the block masks and black gaps into the full-length matte next to `output`, then
+ * publishes it: the ranges file (naming the new matte's fingerprint) is renamed into place
+ * first, the matte second, so a run stopped between the two leaves a ranges file that the
+ * matte present does not match (an error, never a silent black matte).
+ */
+async function publishMatte(
+	info: VideoInfo,
+	masks: string[][],
+	covered: FrameRange[],
+	output: string,
+	file: MatteRangesFile
+): Promise<void> {
+	const work = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-'));
+	const tag = `tmp-${process.pid}-${randomUUID()}`;
+	const tmpMatte = `${output}.${tag}${path.extname(output) || '.mp4'}`;
+	const tmpRanges = `${rangesFileOf(output)}.${tag}`;
+	try {
+		const pieces: string[] = [];
+		for (const [n, piece] of matteLayout(covered, info.frames).entries()) {
+			if ('gap' in piece) {
+				const gap = path.join(work, `gap-${n}.mp4`);
+				await blackVideo(gap, info, piece.gap);
+				pieces.push(gap);
+				continue;
+			}
+			// A covered run is its blocks, in order.
+			pieces.push(...masks[piece.range]);
+		}
+		const joined = path.join(work, `matte${path.extname(output) || '.mp4'}`);
+		await joinMasks(pieces, joined, info.fps, info.frames, work);
+		await fs.mkdir(path.dirname(path.resolve(output)), { recursive: true });
+		await fs.copyFile(joined, tmpMatte);
+		const written = { ...file, matte: { fingerprint: await fileFingerprint(tmpMatte) } };
+		await fs.writeFile(tmpRanges, JSON.stringify(written, null, '\t') + '\n');
+		await fs.rename(tmpRanges, rangesFileOf(output));
+		await fs.rename(tmpMatte, output);
+	} finally {
+		await fs.rm(work, { recursive: true, force: true });
+		await fs.rm(tmpMatte, { force: true });
+		await fs.rm(tmpRanges, { force: true });
+	}
 }
 
 /** Whether the matte at `output` is the one its ranges file says `key` made, unchanged. */
@@ -874,6 +999,6 @@ async function upToDate(output: string, key: string): Promise<boolean> {
 		.readFile(rangesFileOf(output), 'utf8')
 		.then((text) => JSON.parse(text) as MatteRangesFile)
 		.catch(() => null);
-	const stat = await fs.stat(output).catch(() => null);
-	return !!file && !!stat && file.key === key && file.matte?.size === stat.size;
+	if (!file || file.key !== key || !existsSync(output)) return false;
+	return file.matte?.fingerprint === (await fileFingerprint(output));
 }

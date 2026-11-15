@@ -889,6 +889,9 @@ function missingPackages(error, dir, nodePaths) {
  * decides which footage frames are extracted.
  */
 export async function bundleMotionProject(loaded, clips, program) {
+    // A project without cuts or shots can draw any footage frame: a partial matte must cover all
+    // of them (programs check their own reads before they bundle).
+    await (await import('./matte-project.js')).assertClipsMatteCovers(loaded);
     const { esbuild, options } = await bundleOptions();
     const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-motion-'));
     const stageModule = ownModule('stage');

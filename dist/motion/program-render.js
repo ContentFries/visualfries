@@ -39,7 +39,7 @@ export async function renderProgramVideo(loaded, opts) {
         write: true
     });
     assertProgramRenders(program);
-    await assertMatteCovers(loaded, program, opts.format);
+    await assertMatteCovers(loaded, program, { format: opts.format });
     // Saved as resolved: bundling attaches extracted footage to the clips.
     const resolved = JSON.stringify(program, null, 2) + '\n';
     const [w, h] = program.format.size;

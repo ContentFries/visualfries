@@ -11,6 +11,7 @@ import {
 	createSubjectMatte,
 	matteLayout,
 	matteProviderFromFlags,
+	fileFingerprint,
 	type MatteChunk,
 	type MatteProvider
 } from '../../src/lib/motion/matte.js';
@@ -127,6 +128,7 @@ describe.skipIf(!hasFfmpeg)('createRangeMatte', () => {
 			provider,
 			ranges,
 			warmup: 5,
+			blockFrames: 10,
 			cacheDir: path.join(dir, 'cache')
 		});
 		expect(result).toMatchObject({ frames: 120, covered: 30, matted: 30, written: true });
@@ -144,7 +146,7 @@ describe.skipIf(!hasFfmpeg)('createRangeMatte', () => {
 		expect(provider.calls.some((c) => c.first <= 0)).toBe(false);
 		const file = JSON.parse(await fs.readFile(`${output}.ranges.json`, 'utf8'));
 		expect(file).toMatchObject({
-			version: 1,
+			version: 2,
 			source: { file: 'talk.mp4', frames: 120, fps: 30 },
 			ranges: [
 				[20, 39],
@@ -152,7 +154,10 @@ describe.skipIf(!hasFfmpeg)('createRangeMatte', () => {
 			],
 			provider: 'pass-through'
 		});
-		expect(file.matte.size).toBe((await fs.stat(output)).size);
+		expect(file.matte.fingerprint).toBe(await fileFingerprint(output));
+		expect(file.source.fingerprint).toBe(await fileFingerprint(input));
+		// Published by rename: no temporary files are left next to the matte.
+		expect((await fs.readdir(dir)).filter((f) => f.includes('.tmp'))).toEqual([]);
 	}, 120_000);
 
 	it('mattes nothing again, and leaves the matte alone, when nothing changed', async () => {
@@ -164,6 +169,7 @@ describe.skipIf(!hasFfmpeg)('createRangeMatte', () => {
 			provider,
 			ranges,
 			warmup: 5,
+			blockFrames: 10,
 			cacheDir: path.join(dir, 'cache')
 		});
 		expect(result).toMatchObject({ matted: 0, written: false });
@@ -180,6 +186,7 @@ describe.skipIf(!hasFfmpeg)('createRangeMatte', () => {
 			provider,
 			ranges: more,
 			warmup: 5,
+			blockFrames: 10,
 			cacheDir: path.join(dir, 'cache')
 		});
 		expect(result).toMatchObject({ matted: 10, covered: 40, written: true });
@@ -189,6 +196,45 @@ describe.skipIf(!hasFfmpeg)('createRangeMatte', () => {
 		expect(Math.abs(m[30] - source[30])).toBeLessThan(0.9);
 		expect(m[95]).toBeLessThan(2);
 	}, 120_000);
+
+	it('mattes only the new blocks of a range that grew', async () => {
+		const provider = passThrough();
+		const output = path.join(dir, 'talk.matte.mp4');
+		const grown = [
+			{ first: 20, last: 45 },
+			{ first: 80, last: 89 },
+			{ first: 100, last: 109 }
+		];
+		const result = await createRangeMatte(input, {
+			output,
+			provider,
+			ranges: grown,
+			warmup: 5,
+			blockFrames: 10,
+			cacheDir: path.join(dir, 'cache')
+		});
+		// Blocks of 10 frames: only 40–49 is new; the matte covers whole blocks.
+		expect(result).toMatchObject({ matted: 10, covered: 50, written: true });
+		expect(provider.calls.every((c) => c.first >= 35 && c.last <= 49)).toBe(true);
+		const m = means(output);
+		expect(Math.abs(m[44] - source[44])).toBeLessThan(0.9);
+		expect(Math.abs(m[49] - source[49])).toBeLessThan(0.9);
+		expect(m[50]).toBeLessThan(2);
+	}, 120_000);
+
+	it('never writes the matte over its own video', async () => {
+		await expect(
+			createRangeMatte(input, {
+				output: input,
+				ranges,
+				provider: passThrough(),
+				cacheDir: path.join(dir, 'cache')
+			})
+		).rejects.toThrow(/would overwrite the video/);
+		await expect(
+			createSubjectMatte(input, { output: input, provider: passThrough() })
+		).rejects.toThrow(/would overwrite the video/);
+	});
 
 	it('rejects ranges out of order or past the end', async () => {
 		const opts = { output: path.join(dir, 'x.mp4'), cacheDir: dir, provider: passThrough() };
@@ -252,6 +298,7 @@ describe.skipIf(!hasFfmpeg)('partial mattes of a project', () => {
 			ranges: plan.ranges,
 			provider: passThrough(),
 			warmup: 3,
+			blockFrames: 6,
 			cacheDir: path.join(dir, 'cache')
 		});
 		return plan;
@@ -281,12 +328,13 @@ describe.skipIf(!hasFfmpeg)('partial mattes of a project', () => {
 			clips: [{ id: 'w', block: 'World.svelte', from: 3, until: 3.5, layer: 'behind' }]
 		});
 		await expect(assertMatteCovers(edited, await program(edited))).rejects.toThrow(
-			/Footage "talk": the program reads its matte at 2\.90–4\.00 s.*\n.*Run visualfries matte .*p\.vf\.json again/
+			/Footage "talk": the program reads its matte at 3\.00–4\.00 s.*\n.*Run visualfries matte .*p\.vf\.json again: it keeps what it matted before/
 		);
 	});
 
 	it('fails when the matte changed after its ranges were written', async () => {
 		const loaded = await write();
+		await matte(loaded);
 		await fs.appendFile(path.join(dir, 'talk.matte.mp4'), Buffer.from([0]));
 		await expect(assertMatteCovers(loaded, await program(loaded))).rejects.toThrow(
 			/talk\.matte\.mp4\.ranges\.json cannot be used: the matte changed/
@@ -300,6 +348,119 @@ describe.skipIf(!hasFfmpeg)('partial mattes of a project', () => {
 		});
 		await expect(assertMatteCovers(edited, await program(edited))).resolves.toBeUndefined();
 	});
+
+	it('never certifies a matte its ranges file was not written for (a run killed half way)', async () => {
+		const loaded = await write();
+		await matte(loaded);
+		const old = await fs.readFile(path.join(dir, 'talk.matte.mp4'));
+		const edited = await write({
+			clips: [{ id: 'w', block: 'World.svelte', from: 3, until: 3.5, layer: 'behind' }]
+		});
+		await matte(edited);
+		// The new ranges file is in place, the old matte is back: as if killed between the two.
+		await fs.writeFile(path.join(dir, 'talk.matte.mp4'), old);
+		await expect(assertMatteCovers(edited, await program(edited))).rejects.toThrow(
+			/the matte changed/
+		);
+	}, 120_000);
+
+	it('fails when an inserts export draws a behind clip over handles the matte misses', async () => {
+		const loaded = await write({
+			clips: [{ id: 'w', block: 'World.svelte', from: 1, until: 1.5, layer: 'behind' }]
+		});
+		await matte(loaded);
+		const { renderProgramInserts } = await import('../../src/lib/motion/inserts-node.js');
+		await expect(
+			renderProgramInserts(loaded, { output: path.join(dir, 'inserts'), handles: 60 })
+		).rejects.toThrow(/reads its matte at .*\n.*--handles 60/);
+	}, 120_000);
+
+	it('checks a project without cuts (inserts mode) against the whole footage', async () => {
+		const file = path.join(dir, 'clips.vf.json');
+		await fs.writeFile(
+			file,
+			JSON.stringify({
+				size: [W, H],
+				fps: 30,
+				footage: { talk: { src: 'talk.mp4', matte: 'talk.matte.mp4' } },
+				clips: [{ id: 'w', block: 'World.svelte', from: 0, until: 2 }]
+			})
+		);
+		await createRangeMatte(path.join(dir, 'talk.mp4'), {
+			output: path.join(dir, 'talk.matte.mp4'),
+			ranges: [{ first: 0, last: 9 }],
+			provider: passThrough(),
+			blockFrames: 10,
+			cacheDir: path.join(dir, 'cache')
+		});
+		const { checkMotionProject } = await import('../../src/lib/motion/node.js');
+		await expect(checkMotionProject(await loadMotionProject(file))).rejects.toThrow(
+			/the program reads its matte at 0\.33–4\.00 s/
+		);
+	}, 120_000);
+});
+
+describe.skipIf(!hasFfmpeg)('matteProject edge cases', () => {
+	const setup = async (footage: object, more: object = {}) => {
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-matte-edge-'));
+		countingVideo(path.join(dir, 'talk.mp4'));
+		await fs.writeFile(path.join(dir, 'World.svelte'), '<div></div>\n');
+		const file = path.join(dir, 'p.vf.json');
+		const write = async (extra: object = {}) => {
+			await fs.writeFile(
+				file,
+				JSON.stringify({
+					size: [W, H],
+					fps: 30,
+					footage: { talk: { src: 'talk.mp4', ...footage } },
+					cuts: [{ source: 'talk', in: 0, out: 4 }],
+					clips: [],
+					...more,
+					...extra
+				})
+			);
+			return loadMotionProject(file);
+		};
+		return { dir, write };
+	};
+	const run = (loaded: Awaited<ReturnType<typeof loadMotionProject>>) =>
+		matteProject(loaded, { provider: passThrough(), warmup: 3, blockFrames: 6 });
+
+	it('refuses a matte path that is the recording itself', async () => {
+		const { dir, write } = await setup({ matte: 'talk.mp4' });
+		await expect(projectMattePlan(await write())).rejects.toThrow(
+			/its matte talk\.mp4 would overwrite the video of footage "talk"/
+		);
+		await fs.rm(dir, { recursive: true, force: true });
+	});
+
+	it('writes a black matte when the program reads none of it, and leaves an existing one alone', async () => {
+		const { dir, write } = await setup({ matte: 'talk.matte.mp4' });
+		const [first] = await run(await write());
+		expect(first).toMatchObject({ covered: 0, matted: 0, written: true, ranges: [] });
+		expect(means(path.join(dir, 'talk.matte.mp4')).every((m) => m < 2)).toBe(true);
+		await fs.writeFile(path.join(dir, 'talk.matte.mp4'), 'mine');
+		await fs.rm(path.join(dir, 'talk.matte.mp4.ranges.json'));
+		const [again] = await run(await write());
+		expect(again).toMatchObject({ covered: 0, matted: 0, written: false });
+		expect(await fs.readFile(path.join(dir, 'talk.matte.mp4'), 'utf8')).toBe('mine');
+		await fs.rm(dir, { recursive: true, force: true });
+	}, 120_000);
+
+	it('keeps the frames it covered before (another format or an earlier edit)', async () => {
+		const { dir, write } = await setup(
+			{ matte: 'talk.matte.mp4' },
+			{ shots: [{ id: 'b', shot: 'behind', from: 0.5, until: 1 }] }
+		);
+		const [first] = await run(await write());
+		const [moved] = await run(
+			await write({ shots: [{ id: 'b', shot: 'behind', from: 3, until: 3.5 }] })
+		);
+		for (const r of first.ranges)
+			expect(moved.ranges.some((m) => m.first <= r.first && m.last >= r.last)).toBe(true);
+		expect(moved.ranges.some((m) => m.first <= 95 && m.last >= 100)).toBe(true);
+		await fs.rm(dir, { recursive: true, force: true });
+	}, 120_000);
 });
 
 describe('matteProviderFromFlags', () => {
@@ -368,6 +529,13 @@ describe('blockReadsSubject', () => {
 			path.join(dir, 'parts', 'Part.svelte'),
 			'<script>import { Subject } from "visualfries/motion";</script><Subject />\n'
 		);
+		await fs.writeFile(path.join(dir, 'Hole.svelte'), '<Footage name="talk" layer="clean" />\n');
+		await fs.writeFile(
+			path.join(dir, 'Canvas.svelte'),
+			"<script>const p = clip.picture('clean');</script>\n"
+		);
+		expect(await blockReadsSubject(dir, 'Hole.svelte')).toBe(true);
+		expect(await blockReadsSubject(dir, 'Canvas.svelte')).toBe(true);
 		expect(await blockReadsSubject(dir, 'Plain.svelte')).toBe(false);
 		expect(await blockReadsSubject(dir, 'Deep.svelte')).toBe(true);
 		expect(await blockReadsSubject(dir, 'Missing.svelte')).toBe(false);
@@ -401,17 +569,19 @@ describe.skipIf(!hasFfmpeg)('matteProject', () => {
 	it('mattes each footage with a matte where the program reads it, then nothing new', async () => {
 		const { dir, loaded } = await project(
 			{ matte: 'talk.matte.mp4' },
-			{ shots: [{ id: 'b', shot: 'behind', from: 1, until: 1.5 }] }
+			{ shots: [{ id: 'b', shot: 'behind', from: 0.2, until: 0.4 }] }
 		);
-		const [first] = await matteProject(loaded, { provider: passThrough(), warmup: 3 });
+		const settings = { provider: passThrough(), warmup: 3, blockFrames: 30 };
+		const [first] = await matteProject(loaded, settings);
 		expect(first).toMatchObject({ footage: 'talk', frames: 120, written: true });
 		expect(first.matted).toBe(first.covered);
 		expect(first.covered).toBeLessThan(120);
 		expect(first.fullSeconds).toBeGreaterThan(0);
+		// One cached mask per block of 30 frames covered.
 		await expect(fs.readdir(path.join(dir, '.visualfries', 'matte', 'talk'))).resolves.toHaveLength(
-			1
+			first.covered / 30
 		);
-		const [again] = await matteProject(loaded, { provider: passThrough(), warmup: 3 });
+		const [again] = await matteProject(loaded, { ...settings, provider: passThrough() });
 		expect(again).toMatchObject({ matted: 0, written: false, fullSeconds: null });
 		await fs.rm(dir, { recursive: true, force: true });
 	}, 120_000);
@@ -444,10 +614,11 @@ describe.skipIf(!hasFfmpeg)('matteProject', () => {
 		expect(existsSync(path.join(dir, 'talk.matte.mp4.ranges.json'))).toBe(true);
 		const v = cli(['talk.mp4', '--output', 'part.mp4', '--ranges', '1-2', ...command]);
 		expect(v.status, v.stderr).toBe(0);
+		// Seconds 1-2 are frames 30-59; the matte covers the whole two-second block holding them.
 		expect(JSON.parse(v.stdout)).toMatchObject({
 			frames: 120,
-			covered: 30,
-			ranges: [{ first: 30, last: 59 }]
+			covered: 60,
+			ranges: [{ first: 0, last: 59 }]
 		});
 		await fs.rm(dir, { recursive: true, force: true });
 	}, 120_000);

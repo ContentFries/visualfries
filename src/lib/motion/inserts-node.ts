@@ -44,9 +44,10 @@ export async function renderProgramInserts(
 	assertJobs(opts.jobs);
 	const program = resolveProgram(loaded.project, loaded.inputs);
 	assertProgramRenders(program);
-	await assertMatteCovers(loaded, program);
 	const plans = planInserts(program, loaded.project, { handles: opts.handles, clips: opts.clips });
 	if (!plans.length) throw new Error('The program has no clips, so it has no inserts.');
+	// Holdouts cut the speaker out over the handles too.
+	await assertMatteCovers(loaded, program, { handles: opts.handles });
 	const single = assertInsertsOutput(opts.output, plans, program.format.size);
 	await fs.mkdir(single ? path.dirname(single) : opts.output, { recursive: true });
 	// Partial encodes left by a render that was killed before it could clean up.

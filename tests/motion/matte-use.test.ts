@@ -102,6 +102,45 @@ describe('matteReads: where a program reads a matte', () => {
 		expect(holds(talk, 60, 120 + after.morphFrames - 1 + 15)).toBe(true);
 	});
 
+	it('reads a transition window: the stage centres transitions on the face of each side', () => {
+		const p = program({
+			cuts: [
+				{ id: 'a', source: 'talk', in: 0, out: 4 },
+				{ id: 'b', source: 'talk', in: 6, out: 10, transition: 'zoom-through' }
+			]
+		});
+		const t = p.transitions.find((x) => x.owner === 'b')!;
+		const { talk } = matteReads(p, { readsSubject: () => false });
+		// Both sides of the window: the end of cut a and the start of cut b, with smoothing.
+		const out = t.startFrame;
+		expect(holds(talk, out - 15, out + 15)).toBe(true);
+		expect(holds(talk, 180, 180 + (t.startFrame + t.frames - t.cutFrame) - 1)).toBe(true);
+		expect(reads1(talk, 30)).toBe(false);
+	});
+
+	it('reads a clip transition window', () => {
+		const { talk } = reads({
+			clips: [{ id: 'c', block: 'Card.svelte', from: 5, until: 6, transition: 'zoom-through' }]
+		});
+		expect(reads1(talk, 150)).toBe(true);
+		expect(reads1(talk, 30)).toBe(false);
+	});
+
+	it('reads twice the smoothing window around a shot that keeps the head in', () => {
+		// "headroom" takes how high the head gets from tops smoothed over a smoothed window.
+		const { talk } = reads({
+			shots: [{ id: 'h', shot: 'punch', from: 2, until: 4, params: { headroom: 0.1 } }]
+		});
+		expect(holds(talk, 30, 149)).toBe(true);
+	});
+
+	it('reads the windows of the given program frames (an insert export draws over handles)', () => {
+		const p = program({});
+		expect(
+			matteReads(p, { readsSubject: () => false, extra: [{ startFrame: 100, frames: 10 }] })
+		).toEqual({ talk: [{ first: 85, last: 124 }] });
+	});
+
 	it('reads every frame where a narrower frame follows the head', () => {
 		expect(reads({ size: [1080, 1920] })).toEqual({ talk: [{ first: 0, last: 299 }] });
 	});
@@ -230,11 +269,11 @@ describe('uncovered', () => {
 });
 
 describe('rangesFileProblem', () => {
-	const now = { source: { size: 100, frames: 30 }, matte: { size: 50 } };
+	const now = { source: { fingerprint: 'src-a', frames: 30 }, matte: { fingerprint: 'matte-a' } };
 	const file = {
-		version: 1,
-		source: { file: 'talk.mp4', size: 100, frames: 30, fps: 30 },
-		matte: { size: 50 },
+		version: 2,
+		source: { file: 'talk.mp4', fingerprint: 'src-a', frames: 30, fps: 30 },
+		matte: { fingerprint: 'matte-a' },
 		ranges: [[0, 9]],
 		provider: 'x',
 		key: 'k'
@@ -243,10 +282,16 @@ describe('rangesFileProblem', () => {
 		expect(rangesFileProblem(file, now)).toBeNull();
 	});
 	it('rejects a changed matte, another video and an unknown file', () => {
-		expect(rangesFileProblem({ ...file, matte: { size: 51 } }, now)).toMatch(/matte changed/);
+		expect(rangesFileProblem({ ...file, matte: { fingerprint: 'matte-b' } }, now)).toMatch(
+			/matte changed/
+		);
 		expect(rangesFileProblem({ ...file, source: { ...file.source, frames: 31 } }, now)).toMatch(
 			/another video/
 		);
-		expect(rangesFileProblem({ version: 2 }, now)).toMatch(/not a ranges file/);
+		// Same frame count and size, other content.
+		expect(
+			rangesFileProblem({ ...file, source: { ...file.source, fingerprint: 'src-b' } }, now)
+		).toMatch(/another video/);
+		expect(rangesFileProblem({ version: 1 }, now)).toMatch(/not a ranges file/);
 	});
 });

@@ -1083,8 +1083,8 @@ matte covers whole blocks, each block is matted on its own from a second before 
 warm-up frames are thrown away, so a recurrent model has settled, and a block's mask never
 depends on what was matted around it; a model that segments every frame on its own, such as
 `--provider fal`, gets no warm-up). Each piece is cut from the video with a seek (frame-exact,
-also when the picture starts after the sound), all pieces go to local RVM in one run (the model
-loads once), each block enters the cache as soon as its piece is written (a run that fails or is
+also when the picture starts after the sound), pieces go to local RVM in runs of up to 64 (the model
+loads once per run), each block enters the cache as soon as its piece is written (a run that fails or is
 stopped keeps the finished ones; work files sit in `.visualfries/matte/<footage>/tmp` meanwhile), and running it again after an edit mattes only
 blocks it has not matted before. Frames an earlier run covered stay covered
 (another `--format`, an earlier version of the edit), and a matte that would not change is left

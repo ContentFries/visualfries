@@ -597,6 +597,8 @@ async function normaliseMask(
 	// Mask frame n belongs to piece frame n whatever rate or time base the provider wrote,
 	// so the masks are decoded to numbered images and rebuilt at the piece's rate.
 	const frameDir = path.join(work, `mask-frames-${i}`);
+	// A streamed attempt that failed may have left it behind; start clean.
+	await fs.rm(frameDir, { recursive: true, force: true });
 	await fs.mkdir(frameDir);
 	await ffmpeg([
 		...alphaDecoder,
@@ -1129,6 +1131,9 @@ export async function createRangeMatte(
 	const size = opts.blockFrames ?? Math.round(MATTE_PLAN.block * info.fps);
 	if (!(Number.isInteger(size) && size > 0))
 		throw new Error(`The block size must be a whole number of frames above 0, got ${size}.`);
+	const pieces = opts.batchPieces;
+	if (pieces !== undefined && !(Number.isInteger(pieces) && pieces > 0))
+		throw new Error(`batchPieces must be a whole number above 0, got ${pieces}.`);
 	// A model that segments every frame on its own needs no warm-up (nor pays for one).
 	const warmup =
 		opts.warmup ?? (provider.recurrent === false ? 0 : Math.round(MATTE_PLAN.warmup * info.fps));

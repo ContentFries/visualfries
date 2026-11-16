@@ -408,6 +408,20 @@ describe.skipIf(!hasFfmpeg)('createRangeMatte', () => {
 			expect(Math.abs(m[f] - source[f]), `frame ${f}`).toBeLessThan(0.9);
 	}, 120_000);
 
+	it('refuses a batchPieces that is not a whole number above 0', async () => {
+		for (const batchPieces of [0, -1, 1.5])
+			await expect(
+				createRangeMatte(input, {
+					output: path.join(dir, 'batch-bad.mp4'),
+					provider: passThrough(),
+					ranges,
+					batchPieces,
+					cacheDir: path.join(dir, 'batch-bad-cache')
+				}),
+				`batchPieces ${batchPieces}`
+			).rejects.toThrow(/whole number/);
+	});
+
 	it('fails cleanly when keeping a finished piece fails while the provider goes on', async () => {
 		const base = passThrough();
 		const unhandled: unknown[] = [];

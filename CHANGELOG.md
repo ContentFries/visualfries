@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.13.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.12.0...visualfries-v0.13.0) (2026-11-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **matte:** `visualfries matte` without `--provider` no longer calls fal.ai.
+
+### Features
+
+* **matte:** local matting by default, fal.ai on request; Soniox recommended for transcripts ([#143](https://github.com/ContentFries/visualfries/issues/143)) ([e27d46c](https://github.com/ContentFries/visualfries/commit/e27d46c45868ab246f164332af04bf1469ce8a26))
+
+
+### Bug Fixes
+
+* **text:** render legacy em shadows and outlines again ([#147](https://github.com/ContentFries/visualfries/issues/147)) ([ae2e377](https://github.com/ContentFries/visualfries/commit/ae2e377ccf67ab0e78708dad04330bcc476615cb))
+
 ## [0.12.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.11.1...visualfries-v0.12.0) (2026-11-14)
 
 

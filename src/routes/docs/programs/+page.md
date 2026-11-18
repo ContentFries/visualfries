@@ -125,13 +125,24 @@ Only the source ranges the program shows are extracted, plus each footage's `mar
 
 ```bash
 ffmpeg -i IMG_0001.MOV -vf fps=30 -c:v libx264 -crf 14 -pix_fmt yuv420p -c:a copy talk.mp4
-npx visualfries matte talk.mp4 --output talk.matte.mp4 --provider rvm
 npx visualfries beats music/bed.mp3
 ```
 
+### Mattes for a program
+
+A local matte runs at a few frames a second, so matte a long take after the program is written, and only where the program reads it:
+
+```bash
+npx visualfries matte project.vf.json
+```
+
+For each footage with a `"matte"` it finds the frames the program reads the matte at: `behind` and `cutout` shots, clips with `"layer": "behind"`, subject layers, blocks that use `<Subject>`, `<Footage layer="subject">`, the clean plate or `clip.subject()`, `away` ranges, transition windows (they centre on the face), and every shot whose framing follows the head. The engine finds the framing reads itself, by laying each frame out for a few made-up speakers: a `full` shot of 16:9 footage in a 16:9 frame does not read the matte, while a `punch`, a `strip`, keys that scale about the face, or 16:9 footage in a 9:16 frame do (over the whole shot). It writes one full-length matte, black outside those frames, and `talk.matte.mp4.ranges.json` beside it.
+
+Run it again after an edit that adds a matte-reading shot or clip or moves the cuts under one: masks are cached in four-second blocks, only new blocks are matted, and what earlier runs covered stays covered. Until then `check`, `still` and `render` stop and name the seconds the matte misses. `--format 1080x1920` also mattes what `render --format 1080x1920` reads. A whole-video matte (`visualfries matte talk.mp4 --output talk.matte.mp4`) still works everywhere.
+
 ## Build it in this order
 
-1. **Prepare the take.** Keep each take as one file; the cut list picks the ranges. Transcribe it into words with times ([Transcripts](/docs/transcripts)) and correct misheard names in the transcript itself, because captions show the transcript's words. Make the matte if anything goes behind the speaker, and analyse the music once.
+1. **Prepare the take.** Keep each take as one file; the cut list picks the ranges. Transcribe it into words with times ([Transcripts](/docs/transcripts)) and correct misheard names in the transcript itself, because captions show the transcript's words. Analyse the music once. When anything goes behind the speaker, the matte comes after the program is written (see [Mattes for a program](#mattes-for-a-program)).
 2. **Plan.** Read the transcript and write the outline before the JSON: the hook, the sections, and which phrase each move lands on. Plan one move per spoken beat; no stretch should hold a still frame longer than about two seconds.
 3. **Cut list.** One cut per kept range, `in` and `out` as phrases. Run `visualfries program` until every cut resolves.
 4. **Shots.** Chain them end to start: the next shot's `from` gets the same anchor as the previous shot's `until`. A gap of a few frames between two shots is a `full` shot of its own, and the move into it is squeezed into those frames. Give shots that hold longer than about two seconds `keys` that keep the camera moving. See [Shots and transitions](/docs/shots-and-transitions).

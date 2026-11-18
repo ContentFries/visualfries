@@ -41,6 +41,7 @@ A **program** is one `.vf.json` that describes the whole edit. Every timing is a
 
 ```bash
 npx visualfries program reel.vf.json                 # resolve the edit, measure every edit point
+npx visualfries matte   reel.vf.json                 # matte the speaker only where the edit reads it
 npx visualfries check   reel.vf.json --determinism   # every segment, in seconds
 npx visualfries still   reel.vf.json --at 7.5s --output qa/sheet.png
 npx visualfries render  reel.vf.json --output out/   # one MP4; add --format 1920x1080 for 16:9

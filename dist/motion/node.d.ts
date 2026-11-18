@@ -147,6 +147,7 @@ export type BundleResult = {
      */
     props: Record<string, Record<string, unknown>>;
 };
+export declare function blockFile(dir: string, block: string): string;
 /**
  * Compile the project's blocks together with the stage runtime into one page. `program` is the
  * program the pages draw when it is not the project's own (an excerpt): its footage map then
@@ -227,7 +228,7 @@ export declare function openStagePage(browser: BrowserLike, bundle: Pick<BundleR
     invalidate?: string;
     timeout?: number;
 }): Promise<MotionPage>;
-type VideoInfo = {
+export type VideoInfo = {
     width: number;
     height: number;
     fps: number;
@@ -238,6 +239,8 @@ type VideoInfo = {
     constant: boolean;
 };
 export declare function probeVideo(file: string): Promise<VideoInfo>;
+/** Default seconds extracted around the clips, for `offset` and delayed copies. */
+export declare const FOOTAGE_MARGIN_SECONDS = 2;
 /**
  * Cache key of one extracted range: source, matte, their sizes and times, frame rate and range.
  * Inserts mode has always used it for its one range, so existing caches stay valid.

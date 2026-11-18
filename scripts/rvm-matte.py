@@ -1,6 +1,7 @@
 """RobustVideoMatting (mobilenetv3, CPU) -> greyscale matte video, white = subject.
 
 usage: python rvm-matte.py <input video> <output matte.mp4> [threads]
+       python rvm-matte.py --batch <threads> <input> <output> [<input> <output>]...
 
 Used by `visualfries matte --provider rvm`, which runs it through `uv` with torch, torchvision and
 numpy (CPU wheels, current releases). The model code comes once through torch.hub from
@@ -76,13 +77,8 @@ def load_model(torch):
     return torch.hub.load(HUB_REPO, "mobilenetv3", trust_repo=True).eval()
 
 
-def main(argv):
-    import numpy as np
-    import torch
-
-    inp, out = argv[1], argv[2]
-    torch.set_num_threads(int(argv[3]) if len(argv) > 3 else 6)
-    model = load_model(torch)
+def matte_one(model, torch, np, inp, out):
+    """Mattes one video from a fresh recurrent state and writes its matte to `out`."""
 
     def probe(entry):
         return subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", f"stream={entry}",
@@ -111,6 +107,28 @@ def main(argv):
     if enc.wait() or dec.wait():
         sys.exit("ffmpeg failed")
     print(f"{n} frames in {time.time() - t0:.1f} s ({n / max(1e-9, time.time() - t0):.2f} fps)", file=sys.stderr)
+
+
+def main(argv):
+    """`<input> <output> [threads]`, or `--batch <threads> <input> <output> [<input> <output>]...`:
+    several videos with the model loaded once, each matted on its own from a fresh state."""
+    import numpy as np
+    import torch
+
+    if len(argv) > 1 and argv[1] == "--batch":
+        threads, rest = int(argv[2]), argv[3:]
+        if not rest or len(rest) % 2:
+            sys.exit("--batch needs <threads> and pairs of <input> <output>")
+        pairs = list(zip(rest[0::2], rest[1::2]))
+    else:
+        threads = int(argv[3]) if len(argv) > 3 else 6
+        pairs = [(argv[1], argv[2])]
+    torch.set_num_threads(threads)
+    model = load_model(torch)
+    for n, (inp, out) in enumerate(pairs):
+        matte_one(model, torch, np, inp, out)
+        # The caller keeps each matte as soon as this line says it is written.
+        print(f"VF_PIECE_DONE {n}", flush=True)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ import {
 	type RenderedClip
 } from './node.js';
 import { assertProgramRenders } from './program-node.js';
+import { assertMatteCovers } from './matte-project.js';
 import { removeOrphans, trackPartial } from './partials.js';
 import { resolveProgram } from './program.js';
 import { insertNotes, insertStage, planInserts, type InsertPlan } from './inserts.js';
@@ -45,6 +46,8 @@ export async function renderProgramInserts(
 	assertProgramRenders(program);
 	const plans = planInserts(program, loaded.project, { handles: opts.handles, clips: opts.clips });
 	if (!plans.length) throw new Error('The program has no clips, so it has no inserts.');
+	// Holdouts cut the speaker out over the handles too.
+	await assertMatteCovers(loaded, program, { handles: opts.handles });
 	const single = assertInsertsOutput(opts.output, plans, program.format.size);
 	await fs.mkdir(single ? path.dirname(single) : opts.output, { recursive: true });
 	// Partial encodes left by a render that was killed before it could clean up.

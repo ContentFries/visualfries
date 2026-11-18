@@ -10,6 +10,7 @@ import { H264_FINAL, bundleMotionProject, chromiumExecutable, ffmpegFramePipe, l
 import { removeOrphans, trackPartial } from './partials.js';
 import { STEMS, encodeProgramMix, writeWav } from './audio.js';
 import { assertProgramRenders, openSegment } from './program-node.js';
+import { assertMatteCovers } from './matte-project.js';
 /**
  * `render --export video`: the whole program as one video. Each chunk of the grid (see
  * `programChunks`) is drawn part by part on pages of its segments and encoded once, with the
@@ -38,6 +39,7 @@ export async function renderProgramVideo(loaded, opts) {
         write: true
     });
     assertProgramRenders(program);
+    await assertMatteCovers(loaded, program, { format: opts.format });
     // Saved as resolved: bundling attaches extracted footage to the clips.
     const resolved = JSON.stringify(program, null, 2) + '\n';
     const [w, h] = program.format.size;

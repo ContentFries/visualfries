@@ -1,9 +1,15 @@
-import type { Component, TextComponent, Appearance, TextAppearance, ComponentEffect } from '$lib/index.js';
+import type {
+	Component,
+	TextComponent,
+	Appearance,
+	TextAppearance,
+	ComponentEffect
+} from '$lib/index.js';
 import { AppearanceStyleProcessor } from './processors/AppearanceStyleProcessor.js';
 import { TextAppearanceStyleProcessor } from './processors/TextAppearanceStyleProcessor.js';
 import { TextEffectsStyleProcessor } from './processors/TextEffectsStyleProcessor.js';
 import type { StyleProcessor } from './StyleProcessor.js';
-import { TextEffectPresetName } from './TextShadowBuilder.js';
+import { textOutlineEffect, textShadowEffect } from './textAppearanceEffects.js';
 
 // This type might be better placed in a shared types file or alongside StyleProcessor.ts
 // For now, removing export as TextEffectsStyleProcessor defines it locally.
@@ -65,27 +71,16 @@ export class StyleBuilder {
 			const textAppearance = appearance?.text;
 
 			if (textAppearance?.shadow) {
-				component.effects.map['textShadow'] = {
-					structured: true,
-					enabled: textAppearance.shadow.enabled ? true : false,
-					color: textAppearance.shadow.color ?? '#000000',
-					size: textAppearance.shadow.size,
-					blur: textAppearance.shadow.blur ?? 0,
-					offsetX: textAppearance.shadow.offsetX ?? 0,
-					offsetY: textAppearance.shadow.offsetY ?? 0,
-					opacity: textAppearance.shadow.opacity ?? 1,
-					type: 'textShadow'
-				} as unknown as ComponentEffect;
+				component.effects.map['textShadow'] = textShadowEffect(
+					textAppearance.shadow,
+					textAppearance.color
+				) as unknown as ComponentEffect;
 			}
 
 			if (textAppearance?.outline) {
-				component.effects.map['textOutline'] = {
-					structured: true,
-					enabled: textAppearance.outline.enabled ? true : false,
-					size: textAppearance.outline.size,
-					color: textAppearance.outline.color,
-					opacity: textAppearance.outline.opacity ?? 1
-				} as unknown as ComponentEffect;
+				component.effects.map['textOutline'] = textOutlineEffect(
+					textAppearance.outline
+				) as unknown as ComponentEffect;
 			}
 
 			return component as TextComponent;

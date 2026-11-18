@@ -66,8 +66,7 @@ describe('text appearance shadow', () => {
 			preset: TextEffectPresetName.DEFAULT,
 			enabled: true,
 			color: 'rgb(255, 255, 255)',
-			size: 0.5,
-			opacity: 1
+			size: 0.5
 		});
 		expect(textShadowEffect({ size: 1 }, { colors: ['#ff0000', '#00ff00'] })).toMatchObject({
 			enabled: false,
@@ -76,10 +75,19 @@ describe('text appearance shadow', () => {
 		expect(textShadowEffect({ size: 1 }, null).color).toBeUndefined();
 	});
 
-	it('keeps a legacy shadow preset and colour', () => {
+	it('draws a legacy shadow as 0.1.13 did, whatever preset, colour or opacity it carries', () => {
 		expect(
-			textShadowEffect({ enabled: true, preset: 'neon', color: '#00ffff', size: 1 }, '#fff')
-		).toMatchObject({ preset: 'neon', color: '#00ffff' });
+			textShadowEffect(
+				{ enabled: true, preset: 'soft', color: '#00ffff', opacity: 0.4, size: 1 },
+				'#ffffff'
+			)
+		).toEqual({
+			type: 'textShadow',
+			preset: TextEffectPresetName.DEFAULT,
+			enabled: true,
+			color: '#ffffff',
+			size: 1
+		});
 	});
 
 	it('renders the ContentFries glow again', () => {
@@ -99,7 +107,8 @@ describe('text appearance shadow', () => {
 });
 
 describe('text appearance outline', () => {
-	it('is structured from one pixel up, unless it names a preset', () => {
+	it('is structured with a stroke style or from one pixel up, unless it names a preset', () => {
+		expect(isStructuredOutline({ size: 0.5, style: 'solid' })).toBe(true);
 		expect(isStructuredOutline({ size: 2 })).toBe(true);
 		expect(isStructuredOutline({ size: 1 })).toBe(true);
 		expect(isStructuredOutline({ size: 0.18 })).toBe(false);
@@ -120,8 +129,7 @@ describe('text appearance outline', () => {
 			type: 'textOutline',
 			enabled: false,
 			size: 0.18,
-			color: '#000',
-			opacity: 0.5
+			color: '#000'
 		});
 	});
 

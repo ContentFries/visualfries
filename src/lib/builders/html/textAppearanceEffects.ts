@@ -6,8 +6,9 @@ import { TextEffectPresetName } from './TextShadowBuilder.js';
 // described by blur and offsets, e.g. { color, blur: 12, offsetY: 4 }.
 //
 // Legacy (written by the ContentFries editor and stored in its scenes): sizes in em.
-// A shadow is { preset?, size } and glows in the text colour unless it names one; an
-// outline is { color, size } with size around 0.09–0.26.
+// A shadow is { size } and an outline { color, size } with size around 0.09–0.26.
+// They render as 0.1.13 drew them: the shadow as the default glow in the text colour,
+// both fully opaque, whatever preset, colour or opacity the object also carries.
 
 type TextColor = string | { colors?: string[] } | null | undefined;
 
@@ -28,6 +29,7 @@ type OutlineInput = {
 	color?: string;
 	size?: number;
 	opacity?: number;
+	style?: string;
 };
 
 const isNumber = (value: unknown): value is number => typeof value === 'number';
@@ -36,9 +38,10 @@ const isNumber = (value: unknown): value is number => typeof value === 'number';
 export const isStructuredShadow = (shadow: ShadowInput): boolean =>
 	isNumber(shadow.blur) || isNumber(shadow.offsetX) || isNumber(shadow.offsetY);
 
-// A structured outline is at least one pixel wide; legacy em sizes stay below 1.
+// A structured outline names a stroke style or is at least one pixel wide; legacy em
+// sizes stay below 1 and never name a style.
 export const isStructuredOutline = (outline: OutlineInput): boolean =>
-	!outline.preset && isNumber(outline.size) && outline.size >= 1;
+	Boolean(outline.style) || (!outline.preset && isNumber(outline.size) && outline.size >= 1);
 
 const firstTextColor = (color: TextColor): string | undefined => {
 	if (typeof color === 'string') return color;
@@ -62,21 +65,20 @@ export function textShadowEffect(shadow: ShadowInput, textColor: TextColor) {
 	}
 	return {
 		type: 'textShadow',
-		preset: shadow.preset ?? TextEffectPresetName.DEFAULT,
+		preset: TextEffectPresetName.DEFAULT,
 		enabled,
-		color: shadow.color ?? firstTextColor(textColor),
-		size: shadow.size,
-		opacity: shadow.opacity
+		color: firstTextColor(textColor),
+		size: shadow.size
 	};
 }
 
 export function textOutlineEffect(outline: OutlineInput) {
-	return {
+	const effect = {
 		type: 'textOutline',
-		...(isStructuredOutline(outline) ? { structured: true } : {}),
 		enabled: outline.enabled ? true : false,
 		size: outline.size,
-		color: outline.color,
-		opacity: outline.opacity ?? 1
+		color: outline.color
 	};
+	if (!isStructuredOutline(outline)) return effect;
+	return { ...effect, structured: true, opacity: outline.opacity ?? 1 };
 }

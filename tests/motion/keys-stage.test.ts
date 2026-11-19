@@ -21,6 +21,7 @@ import { resolveProgram } from '../../src/lib/motion/program.js';
 import { scrambled } from '../../src/lib/motion/segments.js';
 import { NEUTRAL_BRAND } from '../../src/lib/motion/brand.js';
 import { mixColors, parseColor, gamutMapToSrgb } from '../../src/lib/motion/color.js';
+import { rgba as decodePng } from './png.js';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -40,7 +41,7 @@ function ffmpeg(args: string[], input?: Buffer): Buffer {
 }
 
 function rgba(png: Buffer, width: number) {
-	const raw = ffmpeg(['-i', 'pipe:0', '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'], png);
+	const raw = decodePng(png);
 	const at = (x: number, y: number) => [
 		...raw.subarray((y * width + x) * 4, (y * width + x) * 4 + 3)
 	];

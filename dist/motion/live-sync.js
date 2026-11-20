@@ -42,20 +42,54 @@ export function audioCorrection(clock, sound, slack = AUDIO_SLACK) {
 export const RESYNC = 0.25;
 const RATE_SPAN = 0.1;
 /**
+ * Where a video should stand for `want` at clock `t`: on the middle of the frame paused or on a
+ * held frame, between frames while it plays.
+ */
+export function wantedTime(want, t, fps, playing) {
+    if (!playing || want.held)
+        return (want.frame + 0.5) / fps;
+    return (want.frame + (t * fps - want.programFrame)) / fps;
+}
+/** Frames a video may be off the time wanted and still count as showing it, paused / playing. */
+const SHOWN_SLACK = { paused: 0.6, playing: 1 };
+/**
+ * Whether a video shows what the clock wants at `t` (`want` null: nothing on screen wants it):
+ * its frame decoded, not seeking, within a frame of the time wanted. `failed` once it cannot.
+ */
+export function proxySettled(video, want, t, fps, playing) {
+    if (video.failed)
+        return 'failed';
+    if (!want)
+        return 'ready';
+    if (video.seeking || video.readyState < 2)
+        return 'wait';
+    const target = wantedTime(want, t, fps, playing);
+    const slack = playing && !want.held ? SHOWN_SLACK.playing : SHOWN_SLACK.paused;
+    return Math.abs(video.currentTime - target) * fps <= slack ? 'ready' : 'wait';
+}
+/**
+ * Where an explicit seek puts a video at once, or null when it is already there: playing too,
+ * so the picture does not have to catch up by playing faster (see `followClock`).
+ */
+export function alignTo(video, want, t, fps, playing) {
+    const target = wantedTime(want, t, fps, playing);
+    return Math.abs(video.currentTime - target) * fps <= 0.5 ? null : target;
+}
+/**
  * Keeps a video on the program clock. Playing, it plays at a rate that pulls it towards where
  * it should be (0.9–1.1) and is seeked only when far off; paused, or on a held frame, it stands
  * on the middle of the frame wanted.
  */
 export function followClock(video, want, t, fps, playing) {
     if (!playing || want.held) {
-        const target = (want.frame + 0.5) / fps;
+        const target = wantedTime(want, t, fps, false);
         const off = Math.abs(video.currentTime - target) > 0.4 / fps && !video.seeking;
         if (!video.paused)
             return { kind: 'pause', seek: off ? target : null };
         return off ? { kind: 'seek', time: target, play: false, resync: false } : { kind: 'none' };
     }
     // Where the source should be now, between frames too.
-    const expected = (want.frame + (t * fps - want.programFrame)) / fps;
+    const expected = wantedTime(want, t, fps, true);
     if (video.paused) {
         if (Math.abs(video.currentTime - expected) > 0.5 / fps)
             return { kind: 'seek', time: expected, play: true, resync: false };
@@ -159,7 +193,79 @@ export function plateDraw(size, shownHeight, look, videoWidth, packed) {
         sourceWidth: packed ? videoWidth / 2 : videoWidth
     };
 }
-/** True when the clock follows the sound: playing, with the sound playing and ready. */
-export const soundLeads = (playing, sound) => playing && !!sound && !sound.paused && sound.readyState >= 3;
+export function soundStep(playing, sound, clock) {
+    if (!playing || !sound || sound.paused)
+        return { kind: 'free' };
+    if (sound.readyState < 3)
+        return { kind: 'hold', time: sound.currentTime };
+    return {
+        kind: 'follow',
+        jump: audioCorrection(clock, sound.currentTime),
+        sound: sound.currentTime
+    };
+}
+/**
+ * Tokens for starting playback, which waits for the sound: `begin` takes one, `cancel` (pause,
+ * destroy) makes every token taken so far stale, so a start that comes back late does nothing.
+ */
+export function createStarts() {
+    let n = 0;
+    return {
+        begin: () => ++n,
+        cancel() {
+            n++;
+        },
+        current: (token) => token === n
+    };
+}
+/**
+ * Waits polled once per animation frame (`schedule`, `cancel`), that `end` settles at once:
+ * after it nothing polls any more and every wait, pending or new, resolves. A check returns
+ * true when done, an Error to reject the wait with, or false to look again; a wait still
+ * pending after `timeout` ms resolves anyway (a seek reports, it does not hang).
+ */
+export function createWaits(schedule, cancel, now, timeout = 5000) {
+    const pending = new Map();
+    let ended = false;
+    let next = 0;
+    return {
+        get pending() {
+            return pending.size;
+        },
+        until(check) {
+            const key = next++;
+            const start = now();
+            return new Promise((resolve, reject) => {
+                let id = 0;
+                const done = () => {
+                    pending.delete(key);
+                    resolve();
+                };
+                const step = () => {
+                    if (ended)
+                        return done();
+                    const r = check();
+                    if (r instanceof Error) {
+                        pending.delete(key);
+                        return reject(r);
+                    }
+                    if (r || now() - start >= timeout)
+                        return done();
+                    id = schedule(step);
+                    pending.set(key, () => {
+                        cancel(id);
+                        done();
+                    });
+                };
+                step();
+            });
+        },
+        end() {
+            ended = true;
+            for (const settle of [...pending.values()])
+                settle();
+        }
+    };
+}
 /** Program frames passed over between the frame shown before (`shown`, -1: none) and `f`. */
 export const skippedFrames = (playing, shown, f) => playing && shown >= 0 && f > shown ? f - shown - 1 : 0;

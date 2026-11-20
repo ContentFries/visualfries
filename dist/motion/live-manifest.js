@@ -51,9 +51,10 @@ export function resolveLiveManifest(manifest, base) {
 }
 /**
  * Footage frames for the stage from proxies and ranges instead of extracted files: no URLs (the
- * live pictures draw from the videos), the same ranges and subject boxes as extraction.
+ * live pictures draw from the videos), the same ranges and subject boxes as extraction. Blocks
+ * get their frames from `pictures`.
  */
-export function liveFootageFrames(footage, boxes = {}) {
+export function liveFootageFrames(footage, boxes = {}, pictures) {
     const frames = {};
     for (const [name, source] of Object.entries(footage)) {
         const ranges = (boxes[name] ?? []).map((r) => ({
@@ -72,7 +73,10 @@ export function liveFootageFrames(footage, boxes = {}) {
             height: source.height,
             startFrame: 0,
             subject: source.packed,
-            boxes: ranges[0]?.boxes
+            boxes: ranges[0]?.boxes,
+            ...(pictures
+                ? { picture: (frame, layer) => pictures(name, frame, layer) }
+                : {})
         };
     }
     return frames;
@@ -80,10 +84,11 @@ export function liveFootageFrames(footage, boxes = {}) {
 const isSegment = (input) => 'footageMap' in input && 'size' in input;
 /**
  * The segment a live player draws: a stage segment as it is, or a whole resolved program as one
- * segment (`brand` its tokens), with the footage frames of the proxies.
+ * segment (`brand` its tokens), with the footage frames of the proxies (blocks draw them with
+ * `pictures`).
  */
-export function liveSegment(input, footage, boxes, brand) {
-    const frames = liveFootageFrames(footage, boxes);
+export function liveSegment(input, footage, boxes, brand, pictures) {
+    const frames = liveFootageFrames(footage, boxes, pictures);
     if (isSegment(input))
         return { ...input, footage: frames };
     const totals = Object.fromEntries(Object.entries(footage).map(([n, f]) => [n, f.total]));

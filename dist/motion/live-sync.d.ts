@@ -62,6 +62,29 @@ export type VideoWant = {
 /** Drift past which a playing video is seeked instead of sped up or slowed down (seconds). */
 export declare const RESYNC = 0.25;
 /**
+ * Where a video should stand for `want` at clock `t`: on the middle of the frame paused or on a
+ * held frame, between frames while it plays.
+ */
+export declare function wantedTime(want: VideoWant, t: number, fps: number, playing: boolean): number;
+/** What `settled` and `alignTo` read of a proxy video. */
+export type VideoState = {
+    seeking: boolean;
+    readyState: number;
+    currentTime: number;
+    /** The video failed to load or decode. */
+    failed: boolean;
+};
+/**
+ * Whether a video shows what the clock wants at `t` (`want` null: nothing on screen wants it):
+ * its frame decoded, not seeking, within a frame of the time wanted. `failed` once it cannot.
+ */
+export declare function proxySettled(video: VideoState, want: VideoWant | null, t: number, fps: number, playing: boolean): 'ready' | 'wait' | 'failed';
+/**
+ * Where an explicit seek puts a video at once, or null when it is already there: playing too,
+ * so the picture does not have to catch up by playing faster (see `followClock`).
+ */
+export declare function alignTo(video: Pick<VideoState, 'currentTime'>, want: VideoWant, t: number, fps: number, playing: boolean): number | null;
+/**
  * Keeps a video on the program clock. Playing, it plays at a rate that pulls it towards where
  * it should be (0.9–1.1) and is seeked only when far off; paused, or on a held frame, it stands
  * on the middle of the frame wanted.
@@ -130,10 +153,45 @@ export declare function plateDraw(size: [number, number], shownHeight: string, l
     filter: string;
     sourceWidth: number;
 };
-/** True when the clock follows the sound: playing, with the sound playing and ready. */
-export declare const soundLeads: (playing: boolean, sound: {
+/**
+ * What the clock does about the sound: runs `free` without it (none, paused, ended, refused),
+ * `hold`s at the sound's time while it buffers (so the picture cannot run on to the end without
+ * it), and `follow`s it while it plays (`jump`: where to set the clock, see `audioCorrection`).
+ */
+export type SoundStep = {
+    kind: 'free';
+} | {
+    kind: 'hold';
+    time: number;
+} | {
+    kind: 'follow';
+    jump: number | null;
+    sound: number;
+};
+export declare function soundStep(playing: boolean, sound: {
     paused: boolean;
     readyState: number;
-} | null) => boolean;
+    currentTime: number;
+} | null, clock: number): SoundStep;
+/**
+ * Tokens for starting playback, which waits for the sound: `begin` takes one, `cancel` (pause,
+ * destroy) makes every token taken so far stale, so a start that comes back late does nothing.
+ */
+export declare function createStarts(): {
+    begin: () => number;
+    cancel(): void;
+    current: (token: number) => boolean;
+};
+/**
+ * Waits polled once per animation frame (`schedule`, `cancel`), that `end` settles at once:
+ * after it nothing polls any more and every wait, pending or new, resolves. A check returns
+ * true when done, an Error to reject the wait with, or false to look again; a wait still
+ * pending after `timeout` ms resolves anyway (a seek reports, it does not hang).
+ */
+export declare function createWaits(schedule: (fn: () => void) => number, cancel: (id: number) => void, now: () => number, timeout?: number): {
+    readonly pending: number;
+    until(check: () => boolean | Error): Promise<void>;
+    end(): void;
+};
 /** Program frames passed over between the frame shown before (`shown`, -1: none) and `f`. */
 export declare const skippedFrames: (playing: boolean, shown: number, f: number) => number;

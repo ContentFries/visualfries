@@ -1,6 +1,7 @@
 import type { ResolvedBrand } from './brand.js';
 import type { ResolvedProgram } from './program.js';
 import type { FootageFrames, SubjectBox } from './resolve.js';
+import type { FootageLayer } from './footage.js';
 import { type StageSegment } from './segments.js';
 import type { StageFont } from './stage.js';
 /**
@@ -63,15 +64,19 @@ export type LiveManifest = {
  * bundle, proxies, sound, fonts, and the files the segment's props, brand tokens and CSS name.
  */
 export declare function resolveLiveManifest(manifest: LiveManifest, base: string): LiveManifest;
+/** Source frame `frame` of footage `source` drawn from its proxy (see `FootageFrames.picture`). */
+export type LivePictures = (source: string, frame: number, layer: FootageLayer) => Promise<HTMLCanvasElement>;
 /**
  * Footage frames for the stage from proxies and ranges instead of extracted files: no URLs (the
- * live pictures draw from the videos), the same ranges and subject boxes as extraction.
+ * live pictures draw from the videos), the same ranges and subject boxes as extraction. Blocks
+ * get their frames from `pictures`.
  */
-export declare function liveFootageFrames(footage: Record<string, LiveSource>, boxes?: Record<string, LiveRange[]>): Record<string, FootageFrames>;
+export declare function liveFootageFrames(footage: Record<string, LiveSource>, boxes?: Record<string, LiveRange[]>, pictures?: LivePictures): Record<string, FootageFrames>;
 /** A resolved program, not yet a stage segment (see `liveSegment`). */
 export type LiveProgram = Pick<ResolvedProgram, 'fps' | 'frames' | 'format' | 'background' | 'shots' | 'clips' | 'transitions' | 'excerpt' | 'sources' | 'cuts'>;
 /**
  * The segment a live player draws: a stage segment as it is, or a whole resolved program as one
- * segment (`brand` its tokens), with the footage frames of the proxies.
+ * segment (`brand` its tokens), with the footage frames of the proxies (blocks draw them with
+ * `pictures`).
  */
-export declare function liveSegment(input: StageSegment | LiveProgram, footage: Record<string, LiveSource>, boxes?: Record<string, LiveRange[]>, brand?: ResolvedBrand): StageSegment;
+export declare function liveSegment(input: StageSegment | LiveProgram, footage: Record<string, LiveSource>, boxes?: Record<string, LiveRange[]>, brand?: ResolvedBrand, pictures?: LivePictures): StageSegment;

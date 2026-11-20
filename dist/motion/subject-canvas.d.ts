@@ -1,8 +1,15 @@
 import type { Point, RegionShape } from './subject-region.js';
+import { type FootageLayer } from './footage.js';
+import type { FootageFrames } from './resolve.js';
 /**
  * The picture at `url`, decoded (ready to draw). Shared by every layer on the page, so a frame
  * drawn by the stage and by a block decodes once.
  */
+/**
+ * Source frame `frame` of a footage, decoded: its extracted file, or in the live player the
+ * frame of its proxy video (`footage.picture`). Either way the frame must have been extracted.
+ */
+export declare function footagePicture(footage: FootageFrames, frame: number, layer: FootageLayer): Promise<HTMLImageElement | HTMLCanvasElement>;
 export declare function loadPicture(url: string): Promise<HTMLImageElement>;
 /** A shape's path in the canvas's current transform; false for a mask (no path). */
 export declare function traceRegion(ctx: CanvasRenderingContext2D, shape: RegionShape, size: Point): boolean;

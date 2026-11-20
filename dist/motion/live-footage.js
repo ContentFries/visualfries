@@ -1,4 +1,4 @@
-import { drawnAlready, followClock, frameDrift, heldAt, offsetMoved, plateDraw, recentDrift, smoothDrift } from './live-sync.js';
+import { alignTo, createWaits, drawnAlready, followClock, frameDrift, heldAt, offsetMoved, plateDraw, proxySettled, recentDrift, smoothDrift } from './live-sync.js';
 const VERT = `attribute vec2 p;varying vec2 uv;
 void main(){uv=vec2((p.x+1.)*.5,(1.-p.y)*.5);gl_Position=vec4(p,0.,1.);}`;
 /**
@@ -74,6 +74,20 @@ function platePainter(el) {
     };
 }
 const playVideo = (video) => void video.play().catch(() => { });
+const videoState = (video) => ({
+    seeking: video.seeking,
+    readyState: video.readyState,
+    currentTime: video.currentTime,
+    failed: !!video.error
+});
+const loadError = (p) => new Error(`The live proxy of footage "${p.source}" failed to load: ${p.video.error?.message || `media error ${p.video.error?.code}`}.`);
+/** A copy of a video frame (`sourceWidth` of it) at `size`, so later frames cannot change it. */
+function snapshot(image, sourceWidth, sourceHeight, size) {
+    const out = document.createElement('canvas');
+    [out.width, out.height] = size;
+    out.getContext('2d').drawImage(image, 0, 0, sourceWidth, sourceHeight, 0, 0, ...size);
+    return out;
+}
 /** What each step of `followClock` does to a player's video. */
 const STEPS = {
     none() { },
@@ -116,6 +130,9 @@ export function createLiveFootage(sources, fps, clockAt, map, parent) {
     let pics = new Map();
     const stats = { resyncs: 0, drift: [], stalls: 0 };
     let playing = false;
+    const waits = createWaits(requestAnimationFrame, cancelAnimationFrame, () => performance.now());
+    /** Draws the subject of a packed frame for `picture` (made on first use). */
+    let matte = null;
     function player(side, source) {
         const key = `${side}:${source}`;
         const p = players.get(key);
@@ -131,7 +148,17 @@ export function createLiveFootage(sources, fps, clockAt, map, parent) {
         video.preload = 'auto';
         video.src = live.url;
         holder.appendChild(video);
-        const made = { video, source, side, live, seq: 0, want: null, drift: null, sampled: 0 };
+        const made = {
+            video,
+            source,
+            side,
+            live,
+            asked: null,
+            seq: 0,
+            want: null,
+            drift: null,
+            sampled: 0
+        };
         video.addEventListener('waiting', () => playing && made.want && stats.stalls++);
         const onFrame = (now, meta) => {
             made.seq++;
@@ -197,6 +224,46 @@ export function createLiveFootage(sources, fps, clockAt, map, parent) {
         pic.drawn = { seq: p.seq, video: p.video, look };
     }
     const paint = () => [...pics.values()].filter(visible).forEach(paintPicture);
+    /**
+     * A video of `source` that shows source frame `frame`: one on screen, else side `g` seeked to
+     * it. A later ask for another frame of `g` ends the wait (its asker draws a newer frame).
+     */
+    async function videoAt(source, frame) {
+        const time = (frame + 0.5) / fps;
+        const want = { frame, programFrame: 0, held: true };
+        const shows = (p) => proxySettled(videoState(p.video), want, 0, fps, false);
+        const shown = ['a', 'b'].map((side) => players.get(`${side}:${source}`));
+        const ready = shown.find((p) => p?.want && shows(p) === 'ready');
+        if (ready)
+            return ready;
+        const p = player('g', source);
+        p.asked = frame;
+        if (Math.abs(p.video.currentTime - time) * fps > 0.5)
+            p.video.currentTime = time;
+        await waits.until(() => {
+            const now = shows(p);
+            return now === 'failed' ? loadError(p) : now === 'ready' || p.asked !== frame;
+        });
+        return p;
+    }
+    async function picture(source, frame, layer) {
+        if (layer === 'clean')
+            throw new Error('The live preview has no clean plates.');
+        const p = await videoAt(source, frame);
+        const { video, live } = p;
+        if (layer === 'plate') {
+            const width = live.packed ? video.videoWidth / 2 : video.videoWidth;
+            return snapshot(video, width, video.videoHeight, live.size);
+        }
+        if (!live.packed)
+            throw new Error(`Footage "${source}" has no matte in the live preview.`);
+        if (!matte) {
+            const el = document.createElement('canvas');
+            matte = { el, paint: subjectPainter(el) };
+        }
+        matte.paint(video, live, { dim: 0, blur: 0 });
+        return snapshot(matte.el, live.size[0], live.size[1], live.size);
+    }
     return {
         stats,
         live: true,
@@ -236,18 +303,32 @@ export function createLiveFootage(sources, fps, clockAt, map, parent) {
             if (Math.abs(p.video.currentTime - target) > 0.5 / fps)
                 p.video.currentTime = target;
         },
+        align(t) {
+            for (const p of players.values()) {
+                if (!p.want)
+                    continue;
+                const time = alignTo(p.video, p.want, t, fps, playing);
+                if (time === null)
+                    continue;
+                p.video.currentTime = time;
+                p.video.playbackRate = 1;
+                p.drift = null;
+            }
+        },
         async settled() {
             const active = [...players.values()].filter((p) => p.want);
-            await Promise.all(active.map((p) => new Promise((done) => {
-                const check = () => !p.video.seeking && p.video.readyState >= 2 ? done() : requestAnimationFrame(check);
-                check();
+            await Promise.all(active.map((p) => waits.until(() => {
+                const now = proxySettled(videoState(p.video), p.want, clockAt(performance.now()), fps, playing);
+                return now === 'failed' ? loadError(p) : now === 'ready';
             })));
         },
+        picture,
         reset(next) {
             pics = new Map();
             map = next;
         },
         destroy() {
+            waits.end();
             for (const p of players.values()) {
                 p.video.pause();
                 p.video.removeAttribute('src');

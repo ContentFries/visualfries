@@ -1,7 +1,7 @@
 import { createProgramScene } from './program-stage.js';
 import { createLiveFootage } from './live-footage.js';
 import { liveSegment, resolveLiveManifest } from './live-manifest.js';
-import { audioCorrection, createLiveClock, fitStage, frameAt, nextSource, skippedFrames, soundLeads } from './live-sync.js';
+import { createLiveClock, createStarts, fitStage, frameAt, nextSource, skippedFrames, soundStep } from './live-sync.js';
 const fontQuery = (f) => `${f.style ?? 'normal'} ${String(f.weight ?? 400).split(/\s+/)[0]} 32px ${JSON.stringify(f.family)}`;
 /** The fonts on `document.fonts` (shadow roots ignore `@font-face`); removes them on `drop`. */
 async function loadFonts(fonts) {
@@ -53,7 +53,9 @@ function mountStage(host, seg, css) {
  * makes one of with `opts.brand`. The stage keeps the program's size, scaled to fit `host`.
  */
 export async function createProgramPlayer(host, program, blocks, animatable, opts) {
-    let seg = liveSegment(program, opts.footage, opts.boxes, opts.brand);
+    // Blocks take their footage frames from the proxies too (`<Footage>`, `<Subject>`).
+    const pictures = (source, frame, layer) => footage.picture(source, frame, layer);
+    let seg = liveSegment(program, opts.footage, opts.boxes, opts.brand, pictures);
     const fps = seg.fps;
     const frames = seg.startFrame + seg.frames;
     const duration = frames / fps;
@@ -79,21 +81,28 @@ export async function createProgramPlayer(host, program, blocks, animatable, opt
     let sampled = 0;
     let raf = 0;
     let drawing = Promise.resolve();
-    /** While the sound plays, the clock follows it (see `audioCorrection`). */
+    const starts = createStarts();
+    let destroyed = false;
+    /**
+     * While the sound plays, the clock follows it; while it buffers, the clock waits for it (see
+     * `soundStep`). True while it waits, so the footage stands still too.
+     */
     function followSound(perf) {
-        if (!soundLeads(clock.playing, audio))
-            return;
         const t = clock.at(perf);
-        const sound = audio.currentTime;
+        const step = soundStep(clock.playing, audio, t);
+        if (step.kind === 'hold')
+            clock.set(step.time, perf);
+        if (step.kind !== 'follow')
+            return step.kind === 'hold';
         if (perf - sampled > 250) {
             sampled = perf;
-            stats.audio.push({ at: t, offset: t - sound });
+            stats.audio.push({ at: t, offset: t - step.sound });
         }
-        const jump = audioCorrection(t, sound);
-        if (jump === null)
-            return;
-        clock.set(jump, perf);
+        if (step.jump === null)
+            return false;
+        clock.set(step.jump, perf);
         stats.audioCorrections++;
+        return false;
     }
     /** At the end the player stops itself on the last frame. */
     function stopAtEnd(perf) {
@@ -125,39 +134,49 @@ export async function createProgramPlayer(host, program, blocks, animatable, opt
             fn({ frame: f, time: t, work, skipped, perf });
     }
     function render(perf) {
-        followSound(perf);
+        const waiting = followSound(perf);
         // Listeners hear the end once more, so they see the player stopped.
         const ended = stopAtEnd(perf);
         const t = clock.at(perf);
         const f = frameAt(t, fps, frames);
         if (f !== shown || ended)
             drawFrame(f, t, perf);
-        footage.tick(t, f, clock.playing);
+        footage.tick(t, f, clock.playing && !waiting);
     }
     function loop(perf) {
         raf = requestAnimationFrame(loop);
         render(perf);
     }
     raf = requestAnimationFrame(loop);
-    /** Starts the sound at `t`; resolves with where it started, or `t` without sound. */
+    /** Starts the sound at `t`; resolves with where it plays, or null when it does not. */
     async function startSound(t) {
         if (!audio)
-            return t;
+            return null;
         audio.currentTime = t;
         await audio.play().catch(() => { });
-        return audio.paused ? t : audio.currentTime;
+        return audio.paused ? null : audio.currentTime;
     }
+    /**
+     * Plays once the sound does (or without it when it cannot). A pause or destroy while the sound
+     * starts cancels it; a seek meanwhile moves where it starts.
+     */
     async function play() {
-        if (clock.playing)
+        if (clock.playing || destroyed)
             return;
-        const at = clock.at(performance.now());
+        const token = starts.begin();
+        const perf = performance.now();
         // From the start again once at the end.
-        const t = await startSound(at >= duration - 1 / fps ? 0 : at);
+        if (clock.at(perf) >= duration - 1 / fps)
+            clock.set(0, perf);
+        const sound = await startSound(clock.at(perf));
+        if (!starts.current(token))
+            return;
         const now = performance.now();
-        clock.set(t, now);
+        clock.set(sound ?? clock.at(now), now);
         clock.play(now);
     }
     function pause() {
+        starts.cancel();
         clock.pause(performance.now());
         audio?.pause();
     }
@@ -167,13 +186,15 @@ export async function createProgramPlayer(host, program, blocks, animatable, opt
         if (audio)
             audio.currentTime = clock.at(start);
         render(start);
+        // The videos jump too, playing as well: `tick` alone would only let them catch up.
+        footage.align(clock.at(start));
         await Promise.all([footage.settled(), drawing]);
         // What the videos now show is painted into the pictures on the next tick, shown after it.
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         return performance.now() - start;
     }
     async function update(next) {
-        const fresh = liveSegment(next, opts.footage, opts.boxes, opts.brand);
+        const fresh = liveSegment(next, opts.footage, opts.boxes, opts.brand, pictures);
         if (fresh.fps !== fps || fresh.startFrame + fresh.frames !== frames)
             throw new Error('update() takes the same program at the same length; mount a new player.');
         const old = scene;
@@ -207,6 +228,8 @@ export async function createProgramPlayer(host, program, blocks, animatable, opt
         update,
         stats,
         destroy() {
+            destroyed = true;
+            starts.cancel();
             cancelAnimationFrame(raf);
             listeners.clear();
             audio?.pause();

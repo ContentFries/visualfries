@@ -1,3 +1,4 @@
+import { sourceFrameUrl } from './footage.js';
 /**
  * Drawing subject regions on a 2D canvas in footage pixels, shared by the stage (holes) and
  * `<Subject>` (region layers), so a region taken away and the hole it leaves have the same edge:
@@ -11,6 +12,14 @@ const KEEP = 24;
  * The picture at `url`, decoded (ready to draw). Shared by every layer on the page, so a frame
  * drawn by the stage and by a block decodes once.
  */
+/**
+ * Source frame `frame` of a footage, decoded: its extracted file, or in the live player the
+ * frame of its proxy video (`footage.picture`). Either way the frame must have been extracted.
+ */
+export function footagePicture(footage, frame, layer) {
+    const url = sourceFrameUrl(footage, frame, layer);
+    return footage.picture ? footage.picture(frame, layer) : loadPicture(url);
+}
 export function loadPicture(url) {
     let p = pictures.get(url);
     if (p) {

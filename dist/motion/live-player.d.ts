@@ -46,7 +46,10 @@ export type ProgramPlayer = {
     readonly playing: boolean;
     play(): Promise<void>;
     pause(): void;
-    /** Seeks to program second `t`; resolves with the milliseconds until the picture shows it. */
+    /**
+     * Seeks to program second `t`; resolves with the milliseconds until the picture shows it (at
+     * once after `destroy`), rejects when a proxy fails to load.
+     */
     seek(t: number): Promise<number>;
     /** Calls `fn` for every frame drawn, and once more when playback stops at the end. */
     onFrame(fn: (f: PlayerFrame) => void): () => void;

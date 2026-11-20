@@ -1,7 +1,7 @@
 import { AppearanceStyleProcessor } from './processors/AppearanceStyleProcessor.js';
 import { TextAppearanceStyleProcessor } from './processors/TextAppearanceStyleProcessor.js';
 import { TextEffectsStyleProcessor } from './processors/TextEffectsStyleProcessor.js';
-import { TextEffectPresetName } from './TextShadowBuilder.js';
+import { textOutlineEffect, textShadowEffect } from './textAppearanceEffects.js';
 export class StyleBuilder {
     component;
     // Using an array of a more general ProcessorEntry type or a union if strictly typed
@@ -46,26 +46,10 @@ export class StyleBuilder {
             const { appearance } = component;
             const textAppearance = appearance?.text;
             if (textAppearance?.shadow) {
-                component.effects.map['textShadow'] = {
-                    structured: true,
-                    enabled: textAppearance.shadow.enabled ? true : false,
-                    color: textAppearance.shadow.color ?? '#000000',
-                    size: textAppearance.shadow.size,
-                    blur: textAppearance.shadow.blur ?? 0,
-                    offsetX: textAppearance.shadow.offsetX ?? 0,
-                    offsetY: textAppearance.shadow.offsetY ?? 0,
-                    opacity: textAppearance.shadow.opacity ?? 1,
-                    type: 'textShadow'
-                };
+                component.effects.map['textShadow'] = textShadowEffect(textAppearance.shadow, textAppearance.color);
             }
             if (textAppearance?.outline) {
-                component.effects.map['textOutline'] = {
-                    structured: true,
-                    enabled: textAppearance.outline.enabled ? true : false,
-                    size: textAppearance.outline.size,
-                    color: textAppearance.outline.color,
-                    opacity: textAppearance.outline.opacity ?? 1
-                };
+                component.effects.map['textOutline'] = textOutlineEffect(textAppearance.outline);
             }
             return component;
         }

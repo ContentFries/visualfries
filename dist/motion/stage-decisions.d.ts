@@ -23,6 +23,36 @@ export declare function backdropLook(backdrop: {
     blur: number;
 };
 /**
+ * The looks a live scene's pictures draw themselves (see `FootagePictures.live`): the plate
+ * dimmed with the room and blurred with it while it shows (`shown`), the subject dimmed with
+ * its soft edge darkened by alpha^`edge`.
+ */
+export declare function pictureLooks(room: {
+    dim: number;
+    blur: number;
+} | undefined, shown: boolean, edge: number, motionBlur?: {
+    x: number;
+    y: number;
+}): {
+    plate: {
+        dim: number;
+        blur: number;
+        motionBlur: {
+            x: number;
+            y: number;
+        } | undefined;
+    };
+    subject: {
+        dim: number;
+        blur: number;
+        edge: number;
+        motionBlur: {
+            x: number;
+            y: number;
+        } | undefined;
+    };
+};
+/**
  * Whether the subject picture draws over the behind clips. It covers them only while one is on
  * screen, a dimmed room or a room cut away; in an insert it is only what a holdout cuts out.
  */

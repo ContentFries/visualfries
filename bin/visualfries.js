@@ -64,6 +64,11 @@ Motion projects (<project>.vf.json: Svelte blocks timed by transcript cues):
                     moments ("2.5s", "f120", "end") and --format <WxH> draws another frame
                     size; check runs per segment of the program; --excerpt <id> on check and
                     still works on that excerpt (its frames; --format overrides its format)
+  visualfries live <program.vf.json> --output <dir> [--format <WxH>]
+                    a folder a page plays the program from in real time, nothing extracted:
+                    player.js (the blocks and createPlayer), manifest.json, a proxy per footage
+                    (picture|matte side by side with a matte, 960 px, cached in
+                    .visualfries/live/) and the program's mix; every path is relative
   visualfries render <project.vf.json> --output <dir|clip.mp4> [--clip <id>]... [--jobs <n>]
                     with "cuts" or "shots" renders the whole program as one video
                     (--export video, the default there) or, with --export inserts
@@ -2095,6 +2100,25 @@ async function beatsCommand(args) {
 	console.log(JSON.stringify(result, null, 2));
 }
 
+async function motionLiveCommand(args) {
+	const file = args[0];
+	const output = readFlag(args, '--output');
+	if (!file || !output)
+		throw new Error('Usage: visualfries live <program.vf.json> --output <dir> [--format <WxH>]');
+	const { loadMotionProject } = await motionModule();
+	const loaded = await loadMotionProject(file, {
+		transcript: readFlag(args, '--transcript'),
+		editPoints: true
+	});
+	const { writeLivePreview } = await import('../dist/motion/live-node.js');
+	const result = await writeLivePreview(loaded, {
+		output,
+		format: readFlag(args, '--format'),
+		onProgress: (msg) => console.error(msg)
+	});
+	console.log(JSON.stringify(result, null, 2));
+}
+
 async function motionRenderCommand(args) {
 	const file = args[0];
 	const output = readFlag(args, '--output');
@@ -2200,38 +2224,45 @@ async function renderCommand(args) {
 	);
 }
 
+// A motion project renders with the motion renderer; anything else is a caption scene.
+async function renderAnyCommand(args) {
+	if (args[0] && (await isMotionProjectFile(args[0]))) return motionRenderCommand(args);
+	return renderCommand(args);
+}
+
+const COMMANDS = {
+	validate: validateCommand,
+	init: initCommand,
+	inspect: inspectCommand,
+	qa: qaCommand,
+	'caption-scene': captionSceneCommand,
+	'preset-cues': presetCuesCommand,
+	'validate-cues': validateCuesCommand,
+	'apply-cues': applyCuesCommand,
+	compose: composeCommand,
+	produce: produceCommand,
+	clips: motionClipsCommand,
+	still: motionStillCommand,
+	live: motionLiveCommand,
+	check: motionCheckCommand,
+	program: motionProgramCommand,
+	matte: matteCommand,
+	cache: cacheCommand,
+	beats: beatsCommand,
+	render: renderAnyCommand,
+	catalog: catalogCommand,
+	explain: explainCommand,
+	parity: parityCommand,
+	doctor: doctorCommand
+};
+
+const HELP = new Set([undefined, '', 'help', '--help', '-h']);
+
 async function main() {
 	const [command, ...args] = process.argv.slice(2);
-	if (!command || command === 'help' || command === '--help' || command === '-h') {
-		help();
-		return;
-	}
-
-	if (command === 'validate') return validateCommand(args);
-	if (command === 'init') return initCommand(args);
-	if (command === 'inspect') return inspectCommand(args);
-	if (command === 'qa') return qaCommand(args);
-	if (command === 'caption-scene') return captionSceneCommand(args);
-	if (command === 'preset-cues') return presetCuesCommand(args);
-	if (command === 'validate-cues') return validateCuesCommand(args);
-	if (command === 'apply-cues') return applyCuesCommand(args);
-	if (command === 'compose') return composeCommand(args);
-	if (command === 'produce') return produceCommand(args);
-	if (command === 'clips') return motionClipsCommand(args);
-	if (command === 'still') return motionStillCommand(args);
-	if (command === 'check') return motionCheckCommand(args);
-	if (command === 'program') return motionProgramCommand(args);
-	if (command === 'matte') return matteCommand(args);
-	if (command === 'cache') return cacheCommand(args);
-	if (command === 'beats') return beatsCommand(args);
-	if (command === 'render' && args[0] && (await isMotionProjectFile(args[0])))
-		return motionRenderCommand(args);
-	if (command === 'render') return renderCommand(args);
-	if (command === 'catalog') return catalogCommand(args);
-	if (command === 'explain') return explainCommand(args);
-	if (command === 'parity') return parityCommand(args);
-	if (command === 'doctor') return doctorCommand(args);
-	throw new Error(`Unknown command: ${command}`);
+	if (HELP.has(command)) return help();
+	if (!Object.hasOwn(COMMANDS, command)) throw new Error(`Unknown command: ${command}`);
+	return COMMANDS[command](args);
 }
 
 main().catch((error) => {

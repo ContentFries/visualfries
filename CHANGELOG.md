@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.14.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.13.0...visualfries-v0.14.0) (2026-11-20)
+
+
+### Features
+
+* **motion:** a live player of a program, and visualfries live ([#148](https://github.com/ContentFries/visualfries/issues/148)) ([edaf2f5](https://github.com/ContentFries/visualfries/commit/edaf2f5f52e49e40e9b21953e1b4afe0d1dc7ead))
+
 ## [0.13.0](https://github.com/ContentFries/visualfries/compare/visualfries-v0.12.0...visualfries-v0.13.0) (2026-11-18)
 
 

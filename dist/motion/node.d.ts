@@ -6,6 +6,7 @@ import { type MotionWord } from './transcript.js';
 import { type CutList, type ProgramInputs } from './cutlist.js';
 import { type ResolvedProgram } from './program.js';
 import { type ResolvedClip, type ResolvedProject } from './resolve.js';
+import { type CleanSpec } from './clean-node.js';
 import { type BarRow, type BeatsFile, type MusicBeats } from './beat-grid.js';
 import { type MusicTrack, type PlacedMusic } from './music.js';
 import { type FootageMap, type FrameRange } from './footage-map.js';
@@ -13,6 +14,8 @@ import type { FootageFrames, SubjectBox } from './resolve.js';
 import type { StageSegment } from './segments.js';
 /** `.<clip>.partial-<pid>.mp4|mov`: a clip's encode before it replaces the file. */
 export declare const PARTIAL_CLIP: RegExp;
+/** The URL a page reads the file at `abs` from (`openStagePage` serves it). */
+export declare const originUrl: (abs: string) => string;
 export type LoadedMotionProject = {
     file: string;
     dir: string;
@@ -147,12 +150,82 @@ export type BundleResult = {
      */
     props: Record<string, Record<string, unknown>>;
 };
+/** The package ships .js; tests bundle straight from the TypeScript source. */
+export declare const ownModule: (name: string) => string;
+/**
+ * esbuild with the settings blocks are bundled with: Svelte components and `.svelte.js`
+ * modules compiled for the browser, `visualfries/motion` resolved to this package, and other
+ * packages found from the importing file as Node finds them (node_modules of the project and
+ * the folders above it). Svelte and GSAP are always VisualFries's own copies, also when the
+ * project has others installed: the page runs one Svelte runtime and one GSAP.
+ */
+export declare function bundleOptions(): Promise<{
+    esbuild: {
+        default: typeof import("esbuild");
+        build<T extends import("esbuild").BuildOptions>(options: import("esbuild").SameShape<import("esbuild").BuildOptions, T>): Promise<import("esbuild").BuildResult<T>>;
+        context<T extends import("esbuild").BuildOptions>(options: import("esbuild").SameShape<import("esbuild").BuildOptions, T>): Promise<import("esbuild").BuildContext<T>>;
+        transform<T extends import("esbuild").TransformOptions>(input: string | Uint8Array, options?: import("esbuild").SameShape<import("esbuild").TransformOptions, T>): Promise<import("esbuild").TransformResult<T>>;
+        formatMessages(messages: import("esbuild").PartialMessage[], options: import("esbuild").FormatMessagesOptions): Promise<string[]>;
+        analyzeMetafile(metafile: import("esbuild").Metafile | string, options?: import("esbuild").AnalyzeMetafileOptions): Promise<string>;
+        buildSync<T extends import("esbuild").BuildOptions>(options: import("esbuild").SameShape<import("esbuild").BuildOptions, T>): import("esbuild").BuildResult<T>;
+        transformSync<T extends import("esbuild").TransformOptions>(input: string | Uint8Array, options?: import("esbuild").SameShape<import("esbuild").TransformOptions, T>): import("esbuild").TransformResult<T>;
+        formatMessagesSync(messages: import("esbuild").PartialMessage[], options: import("esbuild").FormatMessagesOptions): string[];
+        analyzeMetafileSync(metafile: import("esbuild").Metafile | string, options?: import("esbuild").AnalyzeMetafileOptions): string;
+        initialize(options: import("esbuild").InitializeOptions): Promise<void>;
+        stop(): Promise<void>;
+        version: string;
+    };
+    options: {
+        bundle: boolean;
+        nodePaths: string[];
+        conditions: string[];
+        mainFields: string[];
+        logLevel: "silent";
+        loader: {
+            '.png': "dataurl";
+            '.jpg': "dataurl";
+            '.svg': "text";
+        };
+        plugins: import("esbuild").Plugin[];
+    };
+}>;
+/**
+ * A bundle error that says how to install the packages blocks import but the project lacks
+ * (one line per package, naming the files that import it), or null when no package is missing.
+ * A package that is installed but has no such file or export, a Node built-in and a `#` import
+ * keep esbuild's own message and its notes.
+ */
+export declare function missingPackages(error: unknown, dir: string, nodePaths: string[]): Error | null;
 /**
  * Compile the project's blocks together with the stage runtime into one page. `program` is the
  * program the pages draw when it is not the project's own (an excerpt): its footage map then
  * decides which footage frames are extracted.
  */
 export declare function bundleMotionProject(loaded: LoadedMotionProject, clips: ResolvedClip[], program?: ResolvedProgram): Promise<BundleResult>;
+/**
+ * The blocks `clips` use, each checked to exist: an entry's `import` lines and the `blocks` and
+ * `animatable` objects (JavaScript source) that name them.
+ */
+export declare function blockImports(loaded: LoadedMotionProject, clips: ResolvedClip[]): {
+    imports: string[];
+    blocks: string;
+    animatable: string;
+};
+/**
+ * What a page loads besides its bundle, with every file as its served URL (`originUrl`): the
+ * fonts, the props of clips that name files, the project CSS, and `files`, every file named.
+ */
+export declare function pageAssets(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<{
+    fonts: {
+        family: string;
+        url: string;
+        weight: string | number | undefined;
+        style: "normal" | "italic" | undefined;
+    }[];
+    files: string[];
+    props: Record<string, Record<string, unknown>>;
+    css: string;
+}>;
 export declare function findChromium(): string | undefined;
 type RouteLike = {
     request(): {
@@ -249,6 +322,20 @@ export declare function footageCacheKey(input: {
     fps: number;
     range: FrameRange;
 }): string;
+export type FootageSource = {
+    name: string;
+    src: string;
+    matte: string | null;
+    info: VideoInfo;
+    sizes: ([number, number] | null)[];
+    /** Same constant frame rate as the project: footage frames are program frames. */
+    direct: boolean;
+    total: number;
+    /** How the clean plates are made; null: none. */
+    clean: CleanSpec | null;
+};
+/** Checks and probes one footage of the project: files, matte length, frame count, cache sizes. */
+export declare function openFootageSource(name: string, spec: NonNullable<MotionProject['footage']>[string], dir: string, fps: number): Promise<FootageSource>;
 /**
  * Extracts the footage frames the given clips need (with a margin) into
  * `<project>/.visualfries/footage/`, attaches them to the clips and returns the folders to serve.
@@ -260,11 +347,28 @@ export declare function footageCacheKey(input: {
  */
 export declare function prepareFootage(loaded: LoadedMotionProject, clips: ResolvedClip[]): Promise<string[]>;
 /**
+ * The source ranges program mode extracts: every frame `map` shows, and each footage's margin
+ * around what the clips show; ranges less than a second apart are one (fewer decoder runs, few
+ * extra frames).
+ */
+export declare function programRanges(loaded: LoadedMotionProject, map: FootageMap, clips: ResolvedClip[], sources: Pick<FootageSource, 'name' | 'total'>[]): Record<string, FrameRange[]>;
+/**
  * The clean plate warnings of the plates already built for the project's current footage and
  * settings (`program` tells them without extracting anything; `check` and `render` build the
  * plates and tell theirs).
  */
 export declare function cleanPlateWarnings(loaded: LoadedMotionProject): Promise<string[]>;
+/**
+ * Bounding box of the subject in every extracted frame, measured on a downscaled matte
+ * (white above half = subject). Frames without a subject get null.
+ */
+export declare function matteBoxes(matte: string, info: {
+    width: number;
+    height: number;
+}, fps: number, range: {
+    first: number;
+    last: number;
+}, count: number): Promise<(SubjectBox | null)[]>;
 /** Subject box of one greyscale matte frame, in 0–1 coordinates. Exported for tests. */
 export declare function measureSubject(gray: Uint8Array, w: number, h: number): SubjectBox | null;
 export type StillRequest = {
@@ -376,6 +480,7 @@ export type RenderedClip = {
     /** Inserts of a program: what the insert leaves to the program render. */
     notes?: string[];
 };
+export declare function ffmpeg(args: string[], input?: NodeJS.ReadableStream): Promise<void>;
 /** Video settings of every finished H.264 file: clips, and programs after their one final encode. */
 export declare const H264_FINAL: string[];
 /** Video settings of every transparent clip: ProRes 4444 with a 16-bit alpha channel. */

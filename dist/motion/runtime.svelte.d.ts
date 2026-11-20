@@ -56,8 +56,11 @@ export type CameraView = {
 };
 /** One footage frame ready to draw on a canvas (see `clip.picture()`). */
 export type FootagePicture = {
-    /** Decoded: `ctx.drawImage(pic.image, …)` draws it at once. */
-    image: HTMLImageElement;
+    /**
+     * Decoded: `ctx.drawImage(pic.image, …)` draws it at once. An image of the extracted frame,
+     * or in the live player a canvas with the frame of the proxy video.
+     */
+    image: HTMLImageElement | HTMLCanvasElement;
     /** The footage and its frame (the source frame the cut list shows, holds included). */
     source: string;
     frame: number;

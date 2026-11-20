@@ -20,7 +20,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { useClip, useController, useFrame, type At } from './runtime.svelte.js';
-	import { sourceFrameUrl, sourceSubjectBox, type FootageLayer } from './footage.js';
+	import { sourceSubjectBox, type FootageLayer } from './footage.js';
 	import {
 		headOf,
 		otherHalf,
@@ -30,7 +30,13 @@
 		type RegionShape,
 		type SubjectRegion
 	} from './subject-region.js';
-	import { drawRegion, loadPicture, regionShare, type Rim } from './subject-canvas.js';
+	import {
+		drawRegion,
+		footagePicture,
+		loadPicture,
+		regionShare,
+		type Rim
+	} from './subject-canvas.js';
 
 	type RegionAt = (at: {
 		source: string;
@@ -229,8 +235,8 @@
 		// The subject is the plate's own pixels through the matte (the cut-out's alpha), so a
 		// piece taken off the speaker has exactly the colours of the picture it leaves.
 		const [loaded, alpha, mask] = await Promise.all([
-			loadPicture(sourceFrameUrl(footage, now.frame, layer === 'subject' ? 'plate' : layer)),
-			layer === 'subject' ? loadPicture(sourceFrameUrl(footage, now.frame, 'subject')) : null,
+			footagePicture(footage, now.frame, layer === 'subject' ? 'plate' : layer),
+			layer === 'subject' ? footagePicture(footage, now.frame, 'subject') : null,
 			now.shape.kind === 'mask' ? loadPicture(now.shape.src) : null
 		]);
 		if (canvas.width !== footage.width || canvas.height !== footage.height) {
@@ -285,7 +291,7 @@
 				return { share: 0, what: 'the region (the matte finds no subject to place it on)' };
 			const footage = clip.footage[now.source];
 			const [subject, mask] = await Promise.all([
-				loadPicture(sourceFrameUrl(footage, now.frame, 'subject')),
+				footagePicture(footage, now.frame, 'subject'),
 				now.shape.kind === 'mask' ? loadPicture(now.shape.src) : null
 			]);
 			const share = regionShare(subject, { x: footage.width, y: footage.height }, now.shape, mask);

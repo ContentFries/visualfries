@@ -14,6 +14,7 @@ import {
 	type Window
 } from './anchors.js';
 import type { FootageMap } from './footage-map.js';
+import type { FootageLayer } from './footage.js';
 import { NEUTRAL_BRAND, type ResolvedBrand } from './brand.js';
 import { NEUTRAL_STYLE, type ResolvedStyle } from './style.js';
 import { resolveFormat, type ResolvedFormat } from './format.js';
@@ -110,6 +111,11 @@ export type FootageFrames = {
 	clean?: boolean;
 	/** Subject boxes of the first range (see `ranges`). */
 	boxes?: (SubjectBox | null)[];
+	/**
+	 * The live player only: draws source frame `frame` from its proxy video, as there are no
+	 * extracted frames (see `footagePicture`). Absent everywhere else.
+	 */
+	picture?: (frame: number, layer: FootageLayer) => Promise<HTMLCanvasElement>;
 };
 
 /**

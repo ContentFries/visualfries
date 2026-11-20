@@ -17,7 +17,7 @@ import { alphaReader, coverable, coversFrame, pictureBox, planeCover, tiltedStyl
 import { applyRegion, drawRegion, drawRim, loadPicture } from './subject-canvas.js';
 import { BEHIND_TEXT_SECONDS, BEHIND_TEXT_SHARE, FACE_TEXT_SECONDS, FACE_TEXT_SHARE, TEXT_OPACITY, clearOfSpeaker, faceCovered, facePoints, headOnStage, intersect, textBehindMessage, textOverFaceMessage } from './text-over-face.js';
 import { CUT_SHARE, FIT_SECONDS, SAFE_TEXT_SHARE, addReach, contentReach, cutShare, emptyPart, frameFitMessage, newReach, outsideSafe, reachBox, safeBoxes } from './frame-fit.js';
-import { backdropLook, behindMeasurable, coveredShare, extendRun, measuredRecently, roomShown, runLongEnough, subjectDrawn } from './stage-decisions.js';
+import { backdropLook, behindMeasurable, coveredShare, extendRun, measuredRecently, pictureLooks, roomShown, runLongEnough, subjectDrawn } from './stage-decisions.js';
 import { PANEL_TEXT_SHARE, captionsInMoveMessage, moveAtStart, shotMoves } from './shot-moves.js';
 import { PLAIN_CANVAS } from './drawable.js';
 /**
@@ -55,33 +55,42 @@ function layer(parent, className, style = LAYER) {
  * An `<img>` in its own clipped box (the camera window), with `backdrop` a second one under it
  * for a blurred copy; empty images stay hidden.
  */
-function picture(parent, className, backdrop = false) {
+function picture(parent, className, make, backdrop = false) {
     // Placed by `frameBox` alone: an `inset` here would fight its left and top.
     const box = layer(parent, className, 'position:absolute;overflow:hidden;isolation:isolate');
-    const image = () => {
-        const img = document.createElement('img');
-        img.alt = '';
-        img.draggable = false;
+    const image = (back) => {
+        // An <img> unless the scene's pictures make another element (see `FootagePictures`).
+        const img = make(back);
         img.style.cssText = 'position:absolute;display:none;max-width:none';
         box.appendChild(img);
         return img;
     };
-    const back = backdrop ? image() : undefined;
+    const back = backdrop ? image(true) : undefined;
     if (back)
         back.className = 'vf-backdrop';
-    return { box, img: image(), back };
+    return { box, img: image(false), back };
 }
-function side(stage, name) {
+/** Extracted frames in `<img>` elements: what every render draws. */
+const EXTRACTED = {
+    create() {
+        const img = document.createElement('img');
+        img.alt = '';
+        img.draggable = false;
+        return img;
+    },
+    show: (el, _source, frames, frame, layer) => show(el, sourceFrameUrl(frames, frame, layer))
+};
+function side(stage, name, pictures) {
     const el = layer(stage, 'vf-side', ISOLATED);
     el.dataset.side = name;
     const fill = layer(el, 'vf-fill');
     const group = layer(el, 'vf-picture');
-    const plate = picture(group, 'vf-plate', true);
+    const plate = picture(group, 'vf-plate', (back) => pictures.create('plate', name, back), true);
     // Painted over their whole box (see `TransitionSides`).
     for (const solid of [el, fill, plate.box])
         solid.dataset.solid = '';
     const behind = layer(group, 'vf-behind', ISOLATED);
-    const subject = picture(group, 'vf-subject');
+    const subject = picture(group, 'vf-subject', () => pictures.create('subject', name, false));
     return { el, fill, picture: group, plate, behind, subject, name };
 }
 const SVG = 'http://www.w3.org/2000/svg';
@@ -263,6 +272,14 @@ function shotFilters(stage) {
         }
     };
 }
+/** A live scene's filters: none, its pictures draw their own looks (see `FootagePictures.live`). */
+const NO_FILTERS = {
+    dispose() { },
+    plate: () => '',
+    subject: () => '',
+    streak: () => ''
+};
+const sceneFilters = (stage, pictures) => pictures.live ? NO_FILTERS : shotFilters(stage);
 /** The ring and the shadow of a camera window, as a `box-shadow`; '' without either. */
 function windowShadow(layout, size) {
     const parts = [];
@@ -425,7 +442,7 @@ const EMPTY_SHARE = 0.002;
  * Builds the layer tree in `stage` and mounts every clip of the segment. `animatable` holds what
  * each block exports as `animatable`; a keyed prop missing there is an error of the clip.
  */
-export function createProgramScene(stage, seg, blocks, animatable = {}) {
+export function createProgramScene(stage, seg, blocks, animatable = {}, pictures = EXTRACTED) {
     // On the stage too: fills and transition overlays use the brand's colours.
     applyLook(stage, seg);
     // HTML-in-Canvas leaves a 2D canvas out of the captured frame unless it sits at the stage's
@@ -434,9 +451,9 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
     const canvases = document.createElement('style');
     canvases.textContent = `#vf-stage ${PLAIN_CANVAS}{contain:paint}`;
     stage.appendChild(canvases);
-    const a = side(stage, 'a');
+    const a = side(stage, 'a', pictures);
     // Side b shows only inside a cut or shot transition window.
-    const b = side(stage, 'b');
+    const b = side(stage, 'b', pictures);
     b.el.style.display = 'none';
     // An insert draws its clip alone: the footage picture stays out, the subject only shows in
     // the holdout pass.
@@ -454,7 +471,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         cls: seg.cls,
         under
     });
-    const filters = shotFilters(stage);
+    const filters = sceneFilters(stage, pictures);
     // Slotted clips get a box for motion blur only where a shot blurs its moves.
     const streaks = seg.shots.some((s) => shotModule(s.shot)?.blur);
     const mounted = [];
@@ -866,13 +883,17 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         }
     }
     /** The blurred copy under footage that leaves the camera window open (see `backdrop`). */
-    function drawBackdrop(s, layout, backdrop, url, pending) {
+    function drawBackdrop(s, layout, backdrop, view, frames, pending) {
         const back = s.plate.back;
         const { camera } = backdrop;
         const { clip } = layout;
         place(back, { ...camera, x: px(camera.x - clip.x), y: px(camera.y - clip.y) });
-        back.style.filter = filters.plate(`${s.name}-back`, backdropLook(backdrop, layout.room), layout.motionBlur);
-        const copy = show(back, url);
+        const look = backdropLook(backdrop, layout.room);
+        back.style.filter = filters.plate(`${s.name}-back`, look, layout.motionBlur);
+        const copy = pictures.show(back, view.source, frames, view.frame, 'plate', {
+            ...look,
+            motionBlur: layout.motionBlur
+        });
         if (copy)
             pending.push(copy);
     }
@@ -891,6 +912,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
         s.plate.img.style.filter = filters.plate(s.name, layout.room, layout.motionBlur);
         s.subject.img.style.filter = filters.subject(s.name, layout.room?.dim ?? 0, layout.motionBlur);
         s.behind.style.filter = filters.streak(`behind-${s.name}`, layout.motionBlur);
+        const looks = pictureLooks(layout.room, room, EDGE, layout.motionBlur);
         const frames = framesOf(view.view);
         const back = s.plate.back;
         if (!view.view || !frames) {
@@ -902,12 +924,13 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
                     x.box.style.display = 'none';
             return;
         }
-        const url = sourceFrameUrl(frames, view.view.frame, 'plate');
-        const plate = seg.insert ? null : show(s.plate.img, url);
+        const plate = seg.insert
+            ? null
+            : pictures.show(s.plate.img, view.view.source, frames, view.view.frame, 'plate', looks.plate);
         if (plate)
             pending.push(plate);
         if (layout.backdrop && !seg.insert)
-            drawBackdrop(s, layout, layout.backdrop, url, pending);
+            drawBackdrop(s, layout, layout.backdrop, view.view, frames, pending);
         else
             hide(back);
         const subjectOn = subjectDrawn({
@@ -937,7 +960,7 @@ export function createProgramScene(stage, seg, blocks, animatable = {}) {
             if (x)
                 x.box.style.display = 'none';
         if (subjectOn) {
-            const subject = show(s.subject.img, sourceFrameUrl(frames, view.view.frame, 'subject'));
+            const subject = pictures.show(s.subject.img, view.view.source, frames, view.view.frame, 'subject', looks.subject);
             if (subject)
                 pending.push(subject);
         }

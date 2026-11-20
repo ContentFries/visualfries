@@ -2,6 +2,7 @@ import type { MotionClip, MotionProject } from './project.js';
 import type { MotionWord } from './transcript.js';
 import { type MotionBeatRef, type MusicBeats } from './beat-grid.js';
 import type { FootageMap } from './footage-map.js';
+import type { FootageLayer } from './footage.js';
 import { type ResolvedBrand } from './brand.js';
 import { type ResolvedStyle } from './style.js';
 import { type ResolvedFormat } from './format.js';
@@ -93,6 +94,11 @@ export type FootageFrames = {
     clean?: boolean;
     /** Subject boxes of the first range (see `ranges`). */
     boxes?: (SubjectBox | null)[];
+    /**
+     * The live player only: draws source frame `frame` from its proxy video, as there are no
+     * extracted frames (see `footagePicture`). Absent everywhere else.
+     */
+    picture?: (frame: number, layer: FootageLayer) => Promise<HTMLCanvasElement>;
 };
 /**
  * Where the subject is in a footage frame, from its matte. Coordinates are fractions of the

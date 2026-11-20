@@ -1888,6 +1888,7 @@ visualfries render video.vf.json --clip B --output b.mp4               # one cli
 visualfries render program.vf.json --output out/ [--format 1080x1920]   # a cut list or shots: one video
 visualfries render program.vf.json --excerpt teaser1 --output out/      # one of its excerpts (teaser)
 visualfries render program.vf.json --export inserts --output out/ [--handles 10]  # its clips, one file each
+visualfries live program.vf.json --output preview/                   # a folder a page plays live, no render
 visualfries check program.vf.json --export inserts               # what inserts leave to the program render
 visualfries check program.vf.json --format 1080x1920             # the program in another frame size, safe zone too
 visualfries still program.vf.json --format 1080x1920 --output s.png   # its stills
@@ -2013,6 +2014,31 @@ stems of the same name left by an earlier render, since they no longer match the
 render result lists the mix: the speech loudness, each piece's gain, the master gain, the
 limiter's largest reduction, the loudness and true peak of the mix and of the delivered audio,
 and warnings.
+
+### Live preview
+
+`live <program> --output preview/` writes a folder a page plays the program from in real time,
+with nothing extracted and nothing rendered: `player.js` (an ES module with the program's blocks
+and `createPlayer(host, manifest, base)`), `manifest.json`, one proxy video per footage in
+`media/`, the program's mix as `audio.m4a` (the render's own mix, at 128 kb/s; none without
+sound) and the files fonts, brand, CSS and clip props name in `assets/`. Every path in the
+manifest is relative to it, so the folder can be served from anywhere (with CORS when the page
+comes from another origin: the bundle is imported, the proxies are drawn into WebGL).
+
+A proxy has every frame of its footage at the project rate, its longest side 960 px, a keyframe
+every 12 frames; with a matte, the picture and the matte side by side in one frame (1920×540
+for 1080p footage), so the cut-out is never a frame off its picture. Proxies and the subject
+boxes are cached in `.visualfries/live/` by source, matte and frame rate: another revision of
+the same program costs a bundle and a mix. The page draws the same scene as `render` on one
+clock (the sound's while it plays), with the proxies for the footage: the room's dim and blur
+and the subject's edge are drawn by the player (WebGL and a 2D canvas) instead of SVG filters,
+and motion blur is left out. It is a preview: the render stays the frame-exact output.
+
+```js
+const manifest = await (await fetch(url)).json();
+const { createPlayer } = await import(new URL(manifest.bundle, url).href);
+const player = await createPlayer(host, manifest, url); // play, pause, seek(t), onFrame, update, destroy
+```
 
 ### Inserts from a program
 

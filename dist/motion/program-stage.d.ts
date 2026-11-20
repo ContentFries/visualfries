@@ -1,4 +1,6 @@
 import { type Component } from 'svelte';
+import { type FootageLayer } from './footage.js';
+import type { FootageFrames } from './resolve.js';
 import { type StageSegment } from './segments.js';
 import { type Animatable } from './keys.js';
 import { type Nested3d } from './flash-frames.js';
@@ -44,7 +46,38 @@ export type ProgramScene = {
     destroy(): void;
 };
 /**
+ * Where a scene's footage pictures come from. By default each is an `<img>` showing the frame
+ * extracted for it (render, still and check: frame-accurate in any seek order). A live player
+ * passes its own: an element placed, turned and filtered as the `<img>` would be, and a `show`
+ * that puts a source frame into it, from a playing video for instance.
+ */
+export type FootagePictures = {
+    create(layer: 'plate' | 'subject', side: 'a' | 'b', backdrop: boolean): HTMLElement;
+    /**
+     * Shows `frame` of `source` in `el`; a promise the frame waits for, or null. With `live`,
+     * `look` is the room and motion blur the scene would otherwise filter the element with.
+     */
+    show(el: HTMLElement, source: string, frames: FootageFrames, frame: number, layer: FootageLayer, look?: PictureLook): Promise<unknown> | null;
+    /**
+     * The pictures draw their own looks (`look` in `show`) and the scene leaves out its SVG
+     * filters: on the pictures and the motion blur of behind and slotted clips. A preview trade:
+     * those filters cost more than a frame at 25 fps where nothing rasterises them on a GPU.
+     */
+    live?: boolean;
+};
+/** A picture's look: the room's dim and blur (px at the stage), its edge for a subject, motion blur. */
+export type PictureLook = {
+    dim: number;
+    blur: number;
+    /** Subject only: the dimmed room darkens the matte's soft edge by alpha^edge. */
+    edge?: number;
+    motionBlur?: {
+        x: number;
+        y: number;
+    };
+};
+/**
  * Builds the layer tree in `stage` and mounts every clip of the segment. `animatable` holds what
  * each block exports as `animatable`; a keyed prop missing there is an error of the clip.
  */
-export declare function createProgramScene(stage: HTMLDivElement, seg: StageSegment, blocks: Record<string, Component<Record<string, unknown>>>, animatable?: Record<string, Animatable | undefined>): ProgramScene;
+export declare function createProgramScene(stage: HTMLDivElement, seg: StageSegment, blocks: Record<string, Component<Record<string, unknown>>>, animatable?: Record<string, Animatable | undefined>, pictures?: FootagePictures): ProgramScene;

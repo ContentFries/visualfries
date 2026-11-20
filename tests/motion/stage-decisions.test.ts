@@ -5,10 +5,32 @@ import {
 	coveredShare,
 	extendRun,
 	measuredRecently,
+	pictureLooks,
 	roomShown,
 	runLongEnough,
 	subjectDrawn
 } from '$lib/motion/stage-decisions.js';
+
+describe('pictureLooks', () => {
+	it('dims both pictures with the room and blurs the plate only while the room shows', () => {
+		const streak = { x: 4, y: 0 };
+		expect(pictureLooks({ dim: 0.5, blur: 6 }, true, 3, streak)).toEqual({
+			plate: { dim: 0.5, blur: 6, motionBlur: streak },
+			subject: { dim: 0.5, blur: 0, edge: 3, motionBlur: streak }
+		});
+		expect(pictureLooks({ dim: 0, blur: 0.2 }, false, 3).plate).toEqual({
+			dim: 0,
+			blur: 0,
+			motionBlur: undefined
+		});
+		expect(pictureLooks(undefined, false, 3).subject).toEqual({
+			dim: 0,
+			blur: 0,
+			edge: 3,
+			motionBlur: undefined
+		});
+	});
+});
 
 describe('roomShown', () => {
 	it('needs a room with dim or blur from the minimum up', () => {

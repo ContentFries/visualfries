@@ -78,7 +78,8 @@ const CHROMIUM_FLAGS = ['--enable-blink-features=CanvasDrawElement', '--font-ren
  * out of the captured frame.
  */
 const ORIGIN = 'http://visualfries.local';
-const originUrl = (abs: string) => `${ORIGIN}/@fs${pathToFileURL(abs).pathname}`;
+/** The URL a page reads the file at `abs` from (`openStagePage` serves it). */
+export const originUrl = (abs: string) => `${ORIGIN}/@fs${pathToFileURL(abs).pathname}`;
 
 export type LoadedMotionProject = {
 	file: string;
@@ -989,7 +990,7 @@ function blockFile(dir: string, block: string): string {
 }
 
 /** The package ships .js; tests bundle straight from the TypeScript source. */
-const ownModule = (name: string) =>
+export const ownModule = (name: string) =>
 	existsSync(path.join(HERE, `${name}.js`))
 		? path.join(HERE, `${name}.js`)
 		: path.join(HERE, `${name}.ts`);
@@ -1004,7 +1005,7 @@ const OWN_COPY = { visualfries: 'own copy' };
  * the folders above it). Svelte and GSAP are always VisualFries's own copies, also when the
  * project has others installed: the page runs one Svelte runtime and one GSAP.
  */
-async function bundleOptions() {
+export async function bundleOptions() {
 	const esbuild = await import('esbuild');
 	const { compile, compileModule } = await import('svelte/compiler');
 	const motionIndex = ownModule('index');
@@ -1084,7 +1085,7 @@ function packageName(spec: string): string {
  * A package that is installed but has no such file or export, a Node built-in and a `#` import
  * keep esbuild's own message and its notes.
  */
-function missingPackages(error: unknown, dir: string, nodePaths: string[]): Error | null {
+export function missingPackages(error: unknown, dir: string, nodePaths: string[]): Error | null {
 	const errors = (error as { errors?: import('esbuild').Message[] })?.errors;
 	if (!errors?.length) return null;
 	const installed = (name: string, from: string) => {
@@ -1132,29 +1133,11 @@ export async function bundleMotionProject(
 	const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vf-motion-'));
 	const stageModule = ownModule('stage');
 
-	const blocks = [...new Set(clips.map((c) => c.block))];
-	for (const block of blocks) {
-		if (!existsSync(blockFile(loaded.dir, block)))
-			throw new Error(
-				block.startsWith(BUILTIN_PREFIX)
-					? `Unknown built-in block "${block}". Built-in blocks: ${Object.keys(BUILTIN_BLOCKS)
-							.map((b) => BUILTIN_PREFIX + b)
-							.join(', ')}.`
-					: `Block file not found: ${block}`
-			);
-	}
+	const used = blockImports(loaded, clips);
 	const entry = [
 		`import { createMotionStage } from ${JSON.stringify(stageModule)};`,
-		...blocks.map(
-			(b, i) => `import B${i}, * as M${i} from ${JSON.stringify(blockFile(loaded.dir, b))};`
-		),
-		`window.__vfMotionStage = createMotionStage({ blocks: { ${blocks
-			.map((b, i) => `${JSON.stringify(b)}: B${i}`)
-			.join(', ')} }, animatable: { ${blocks
-			.map((b, i) => `${JSON.stringify(b)}: M${i}.animatable`)
-			.join(
-				', '
-			)} }, fonts: window.__vfFonts, css: window.__vfCss, invalidate: window.__vfInvalidate });`
+		...used.imports,
+		`window.__vfMotionStage = createMotionStage({ blocks: ${used.blocks}, animatable: ${used.animatable}, fonts: window.__vfFonts, css: window.__vfCss, invalidate: window.__vfInvalidate });`
 	].join('\n');
 
 	await esbuild
@@ -1174,6 +1157,65 @@ export async function bundleMotionProject(
 		});
 
 	const roots = [outDir];
+	const { fonts, files, props, css } = await pageAssets(loaded, clips);
+	const footage = await extractFootage(loaded, clips, program);
+	roots.push(...footage.roots);
+	const cssBundle = path.join(outDir, 'bundle.css');
+	const cssLink = existsSync(cssBundle) ? '<link rel="stylesheet" href="bundle.css">' : '';
+	const html = path.join(outDir, 'index.html');
+	await fs.writeFile(
+		html,
+		`<!doctype html><meta charset="utf-8">${cssLink}<script>window.__vfFonts=${JSON.stringify(fonts)};window.__vfCss=${JSON.stringify(
+			css
+		)};window.__vfInvalidate=new URLSearchParams(location.search).get('invalidate')||undefined;</script><body><script src="bundle.js"></script></body>`
+	);
+	return {
+		dir: outDir,
+		html,
+		roots,
+		files,
+		footage: {
+			frames: footage.frames,
+			map: footage.map,
+			warnings: footage.warnings,
+			...(footage.heads ? { heads: footage.heads } : {}),
+			...(footage.tops ? { tops: footage.tops } : {})
+		},
+		brand: loaded.brand.resolved,
+		props
+	};
+}
+
+/**
+ * The blocks `clips` use, each checked to exist: an entry's `import` lines and the `blocks` and
+ * `animatable` objects (JavaScript source) that name them.
+ */
+export function blockImports(loaded: LoadedMotionProject, clips: ResolvedClip[]) {
+	const blocks = [...new Set(clips.map((c) => c.block))];
+	for (const block of blocks) {
+		if (!existsSync(blockFile(loaded.dir, block)))
+			throw new Error(
+				block.startsWith(BUILTIN_PREFIX)
+					? `Unknown built-in block "${block}". Built-in blocks: ${Object.keys(BUILTIN_BLOCKS)
+							.map((b) => BUILTIN_PREFIX + b)
+							.join(', ')}.`
+					: `Block file not found: ${block}`
+			);
+	}
+	return {
+		imports: blocks.map(
+			(b, i) => `import B${i}, * as M${i} from ${JSON.stringify(blockFile(loaded.dir, b))};`
+		),
+		blocks: `{ ${blocks.map((b, i) => `${JSON.stringify(b)}: B${i}`).join(', ')} }`,
+		animatable: `{ ${blocks.map((b, i) => `${JSON.stringify(b)}: M${i}.animatable`).join(', ')} }`
+	};
+}
+
+/**
+ * What a page loads besides its bundle, with every file as its served URL (`originUrl`): the
+ * fonts, the props of clips that name files, the project CSS, and `files`, every file named.
+ */
+export async function pageAssets(loaded: LoadedMotionProject, clips: ResolvedClip[]) {
 	const files: string[] = [];
 	// Project fonts, then the brand's (already absolute); the same face twice is loaded once.
 	const faces = [
@@ -1207,32 +1249,7 @@ export async function bundleMotionProject(
 		const abs = path.resolve(loaded.dir, file);
 		css += rebaseCssUrls(await fs.readFile(abs, 'utf8'), path.dirname(abs), files) + '\n';
 	}
-	const footage = await extractFootage(loaded, clips, program);
-	roots.push(...footage.roots);
-	const cssBundle = path.join(outDir, 'bundle.css');
-	const cssLink = existsSync(cssBundle) ? '<link rel="stylesheet" href="bundle.css">' : '';
-	const html = path.join(outDir, 'index.html');
-	await fs.writeFile(
-		html,
-		`<!doctype html><meta charset="utf-8">${cssLink}<script>window.__vfFonts=${JSON.stringify(fonts)};window.__vfCss=${JSON.stringify(
-			css
-		)};window.__vfInvalidate=new URLSearchParams(location.search).get('invalidate')||undefined;</script><body><script src="bundle.js"></script></body>`
-	);
-	return {
-		dir: outDir,
-		html,
-		roots,
-		files,
-		footage: {
-			frames: footage.frames,
-			map: footage.map,
-			warnings: footage.warnings,
-			...(footage.heads ? { heads: footage.heads } : {}),
-			...(footage.tops ? { tops: footage.tops } : {})
-		},
-		brand: loaded.brand.resolved,
-		props
-	};
+	return { fonts, files, props, css };
 }
 
 /** Project CSS is inlined into a page elsewhere; make its relative url(...) absolute. */
@@ -1713,7 +1730,7 @@ export function footageCacheKey(input: {
 		.slice(0, 12);
 }
 
-type FootageSource = {
+export type FootageSource = {
 	name: string;
 	src: string;
 	matte: string | null;
@@ -1750,7 +1767,7 @@ function cleanSpecOf(
 }
 
 /** Checks and probes one footage of the project: files, matte length, frame count, cache sizes. */
-async function openFootageSource(
+export async function openFootageSource(
 	name: string,
 	spec: NonNullable<MotionProject['footage']>[string],
 	dir: string,
@@ -1794,6 +1811,31 @@ export async function prepareFootage(
 	clips: ResolvedClip[]
 ): Promise<string[]> {
 	return (await extractFootage(loaded, clips)).roots;
+}
+
+/**
+ * The source ranges program mode extracts: every frame `map` shows, and each footage's margin
+ * around what the clips show; ranges less than a second apart are one (fewer decoder runs, few
+ * extra frames).
+ */
+export function programRanges(
+	loaded: LoadedMotionProject,
+	map: FootageMap,
+	clips: ResolvedClip[],
+	sources: Pick<FootageSource, 'name' | 'total'>[]
+): Record<string, FrameRange[]> {
+	const footage = loaded.project.footage ?? {};
+	const fps = loaded.project.fps;
+	const margins = Object.fromEntries(
+		sources.map((s) => {
+			const margin = footage[s.name]?.margin;
+			return [
+				s.name,
+				margin === 'all' ? s.total : Math.round((margin ?? FOOTAGE_MARGIN_SECONDS) * fps)
+			];
+		})
+	);
+	return footageRanges(map, clips, margins, Math.round(fps));
 }
 
 /** `prepareFootage`, also returning the extracted frames and the footage map. */
@@ -1861,24 +1903,14 @@ async function extractFootage(
 	// Items that fail to resolve are left out; `check` and `program` report them.
 	const program = drawn ?? resolveProgram(loaded.project, loaded.inputs);
 	const map = footageMap(program, Object.fromEntries(sources.map((s) => [s.name, s.total])));
-	const margins = Object.fromEntries(
-		sources.map((s) => {
-			const margin = footage[s.name].margin;
-			return [
-				s.name,
-				margin === 'all' ? s.total : Math.round((margin ?? FOOTAGE_MARGIN_SECONDS) * fps)
-			];
-		})
-	);
-	// Ranges less than a second apart are extracted as one: fewer decoder runs, few extra frames.
 	const gap = Math.round(fps);
 	const excerpt = drawn?.excerpt;
 	// An excerpt draws nothing new under its end card (it holds the last frame).
-	let wanted = footageRanges(
+	let wanted = programRanges(
+		loaded,
 		excerpt ? { ...map, frames: excerpt.frames } : map,
 		clips,
-		margins,
-		gap
+		sources
 	);
 	const whole = excerpt?.footage ? excerptFootage(excerpt.footage) : null;
 	if (whole) wanted = mergeRanges(unite(wanted, whole.wanted), gap);
@@ -2154,7 +2186,7 @@ const BOX_SAMPLE_WIDTH = 160;
  * Bounding box of the subject in every extracted frame, measured on a downscaled matte
  * (white above half = subject). Frames without a subject get null.
  */
-async function matteBoxes(
+export async function matteBoxes(
 	matte: string,
 	info: { width: number; height: number },
 	fps: number,
@@ -2638,7 +2670,7 @@ function ffmpegOutput(args: string[]): Promise<Buffer> {
 	});
 }
 
-function ffmpeg(args: string[], input?: NodeJS.ReadableStream): Promise<void> {
+export function ffmpeg(args: string[], input?: NodeJS.ReadableStream): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const p = spawn(process.env.FFMPEG_PATH || 'ffmpeg', args, {
 			stdio: ['pipe', 'ignore', 'pipe']

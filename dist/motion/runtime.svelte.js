@@ -3,7 +3,7 @@ import { gsap } from 'gsap';
 import { resolveMoment } from './moment.js';
 import { footageFrameAt, sourceSubjectBox, subjectBox } from './footage.js';
 import { programFootageAt, sourceFrameAt } from './footage-map.js';
-import { loadPicture } from './subject-canvas.js';
+import { footagePicture } from './subject-canvas.js';
 import { NO_MUSIC_BEATS, beatPhase } from './beat-grid.js';
 import { clipEnergy } from './energy.js';
 import { NEUTRAL_BRAND } from './brand.js';
@@ -187,7 +187,7 @@ export class Clip {
     async picture(layer = 'plate', opts = {}) {
         const shown = footageFrameAt(this.footage, this.footageMap, opts.name ?? null, this.programStartFrame + (opts.frame ?? this.frame), layer, Math.round((opts.offset ?? 0) * this.fps));
         return {
-            image: await loadPicture(shown.url),
+            image: await footagePicture(shown.footage, shown.frame, layer),
             source: shown.source,
             frame: shown.frame,
             width: shown.footage.width,

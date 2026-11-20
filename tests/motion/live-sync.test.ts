@@ -21,6 +21,8 @@ import {
 	smoothDrift,
 	alignTo,
 	createStarts,
+	createPaintOrder,
+	createQueue,
 	createWaits,
 	pictureCut,
 	proxySettled,
@@ -367,17 +369,24 @@ describe('waits', () => {
 		expect(f.queued).toBe(0);
 	});
 
-	it('gives up after the timeout instead of hanging', async () => {
+	it('rejects after the timeout instead of reporting a frame that is not there', async () => {
 		const f = frames();
 		const waits = createWaits(f.schedule, f.cancel, f.now, 100);
-		let done = false;
-		void waits.until(() => false).then(() => (done = true));
+		let outcome: unknown = null;
+		void waits
+			.until(() => false, 'The live proxy of footage "talk"')
+			.then(
+				() => (outcome = 'resolved'),
+				(e: Error) => (outcome = e.message)
+			);
 		for (let i = 0; i < 5; i++) f.run(16);
 		await Promise.resolve();
-		expect(done).toBe(false);
+		expect(outcome).toBeNull();
 		f.run(50);
 		await Promise.resolve();
-		expect(done).toBe(true);
+		expect(outcome).toBe('The live proxy of footage "talk" is not ready after 0.1 s.');
+		expect(waits.pending).toBe(0);
+		expect(f.queued).toBe(0);
 	});
 });
 
@@ -387,5 +396,44 @@ describe('block footage from the proxies', () => {
 		expect(pictureCut('talk', 'subject', true)).toBe('subject');
 		expect(() => pictureCut('talk', 'subject', false)).toThrow(/no matte/);
 		expect(() => pictureCut('talk', 'clean', true)).toThrow(/no clean plates/);
+	});
+});
+
+describe('pictures that arrive late', () => {
+	it('seeks and copies one frame at a time, so each ask gets its own frame', async () => {
+		const queue = createQueue();
+		let shown = -1;
+		const seek = async (frame: number) => {
+			shown = frame;
+			await new Promise((r) => setTimeout(r, frame === 10 ? 5 : 0));
+			return shown;
+		};
+		expect(await Promise.all([queue.run(() => seek(10)), queue.run(() => seek(50))])).toEqual([
+			10, 50
+		]);
+	});
+
+	it('goes on after a job that failed', async () => {
+		const queue = createQueue();
+		const failed = queue.run(async () => {
+			throw new Error('broken');
+		});
+		await expect(failed).rejects.toThrow('broken');
+		expect(await queue.run(async () => 7)).toBe(7);
+	});
+
+	it('draws the newest frame asked for, also when it is the one shown', () => {
+		const order = createPaintOrder();
+		const a = order.ask('talk:10')!;
+		expect(order.paint(a, 'talk:10')).toBe(true);
+		// Away to 20 and back to 10 before 20 arrives: 20 must not paint over 10.
+		const b = order.ask('talk:20')!;
+		expect(order.ask('talk:10')).toBeNull();
+		expect(order.paint(b, 'talk:20')).toBe(false);
+		// The newest ask paints; an older one arriving after it does not.
+		const c = order.ask('talk:30')!;
+		const d = order.ask('talk:40')!;
+		expect(order.paint(d, 'talk:40')).toBe(true);
+		expect(order.paint(c, 'talk:30')).toBe(false);
 	});
 });

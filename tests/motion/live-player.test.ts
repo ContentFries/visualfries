@@ -211,4 +211,21 @@ describe('live player: explicit seeks', () => {
 		expect(done).toBe(true);
 		p.destroy();
 	});
+
+	it('rejects a seek whose footage does not show up, and stays usable', async () => {
+		const p = await player(false);
+		footage.settled.mockImplementationOnce(async () => {
+			throw new Error('The live proxy of footage "talk" is not ready after 5 s.');
+		});
+		await expect(p.seek(2)).rejects.toThrow(/not ready/);
+		expect(p.time).toBeCloseTo(2);
+		const again = p.seek(4);
+		await flush();
+		vi.advanceTimersByTime(50);
+		await again;
+		expect(p.time).toBeCloseTo(4);
+		await p.play();
+		expect(p.playing).toBe(true);
+		p.destroy();
+	});
 });

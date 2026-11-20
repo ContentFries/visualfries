@@ -4,6 +4,7 @@ import type { FootageMap } from './footage-map.js';
 import type { LiveSource } from './live-manifest.js';
 import {
 	alignTo,
+	createQueue,
 	createWaits,
 	drawnAlready,
 	followClock,
@@ -39,8 +40,8 @@ type Player = {
 	video: HTMLVideoElement;
 	source: string;
 	side: VideoSide;
-	/** The source frame `picture` last asked of it (side `g`); null: none. */
-	asked: number | null;
+	/** Seeks and draws for `picture`, one at a time (side `g`). */
+	queue: ReturnType<typeof createQueue>;
 	live: LiveSource;
 	/** Counts presented video frames (requestVideoFrameCallback), so pictures redraw only then. */
 	seq: number;
@@ -69,7 +70,7 @@ export type LiveFootage = FootagePictures & {
 	align(t: number): void;
 	/**
 	 * Resolves once every video on screen shows the frame it should (after a seek), or at once
-	 * after `destroy`; rejects when one fails to load.
+	 * after `destroy`; rejects when one fails to load or is still not there after 5 s.
 	 */
 	settled(): Promise<void>;
 	/**
@@ -267,7 +268,7 @@ export function createLiveFootage(
 			source,
 			side,
 			live,
-			asked: null,
+			queue: createQueue(),
 			seq: 0,
 			want: null,
 			drift: null,
@@ -340,35 +341,18 @@ export function createLiveFootage(
 
 	const paint = () => [...pics.values()].filter(visible).forEach(paintPicture);
 
-	/**
-	 * A video of `source` that shows source frame `frame`: one on screen, else side `g` seeked to
-	 * it. A later ask for another frame of `g` ends the wait (its asker draws a newer frame).
-	 */
-	async function videoAt(source: string, frame: number): Promise<Player> {
-		const time = (frame + 0.5) / fps;
-		const want = { frame, programFrame: 0, held: true };
-		const shows = (p: Player) => proxySettled(videoState(p.video), want, 0, fps, false);
-		const shown = ['a', 'b'].map((side) => players.get(`${side}:${source}`));
-		const ready = shown.find((p) => p?.want && shows(p) === 'ready');
-		if (ready) return ready;
-		const p = player('g', source);
-		p.asked = frame;
-		if (Math.abs(p.video.currentTime - time) * fps > 0.5) p.video.currentTime = time;
-		await waits.until(() => {
-			const now = shows(p);
-			return now === 'failed' ? loadError(p) : now === 'ready' || p.asked !== frame;
-		});
-		return p;
-	}
+	/** Whether `p`'s video shows source frame `frame` (see `proxySettled`). */
+	const shows = (p: Player, frame: number) =>
+		proxySettled(videoState(p.video), { frame, programFrame: 0, held: true }, 0, fps, false);
 
 	function makeMatte() {
 		const el = document.createElement('canvas');
 		return { el, paint: subjectPainter(el) };
 	}
 
-	async function picture(source: string, frame: number, layer: FootageLayer) {
-		const cut = pictureCut(source, layer, sources[source]?.packed ?? false);
-		const { video, live } = await videoAt(source, frame);
+	/** The frame `p`'s video shows now, copied (`cut` as `pictureCut` says). */
+	function draw(p: Player, cut: 'plate' | 'subject') {
+		const { video, live } = p;
 		if (cut === 'plate') {
 			const width = plateDraw(live.size, '', { dim: 0, blur: 0 }, video.videoWidth, live.packed);
 			return snapshot(video, width.sourceWidth, video.videoHeight, live.size);
@@ -376,6 +360,28 @@ export function createLiveFootage(
 		matte ??= makeMatte();
 		matte.paint(video, live, { dim: 0, blur: 0 });
 		return snapshot(matte.el, live.size[0], live.size[1], live.size);
+	}
+
+	/**
+	 * Source frame `frame` of `source` for a block: copied from a video on screen that shows it,
+	 * else from side `g`, seeked to it. Asks of `g` take turns (seek, wait, copy), so each gets
+	 * its own frame.
+	 */
+	async function picture(source: string, frame: number, layer: FootageLayer) {
+		const cut = pictureCut(source, layer, sources[source]?.packed ?? false);
+		const shown = ['a', 'b'].map((side) => players.get(`${side}:${source}`));
+		const ready = shown.find((p) => p?.want && shows(p, frame) === 'ready');
+		if (ready) return draw(ready, cut);
+		const p = player('g', source);
+		return p.queue.run(async () => {
+			const time = (frame + 0.5) / fps;
+			if (Math.abs(p.video.currentTime - time) * fps > 0.5) p.video.currentTime = time;
+			await waits.until(() => {
+				const now = shows(p, frame);
+				return now === 'failed' ? loadError(p) : now === 'ready';
+			}, `Frame ${frame} of footage "${source}"`);
+			return draw(p, cut);
+		});
 	}
 
 	return {
@@ -438,7 +444,7 @@ export function createLiveFootage(
 							playing
 						);
 						return now === 'failed' ? loadError(p) : now === 'ready';
-					})
+					}, `The live proxy of footage "${p.source}"`)
 				)
 			);
 		},

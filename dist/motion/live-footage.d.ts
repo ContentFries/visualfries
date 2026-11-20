@@ -23,7 +23,7 @@ export type LiveFootage = FootagePictures & {
     align(t: number): void;
     /**
      * Resolves once every video on screen shows the frame it should (after a seek), or at once
-     * after `destroy`; rejects when one fails to load.
+     * after `destroy`; rejects when one fails to load or is still not there after 5 s.
      */
     settled(): Promise<void>;
     /**

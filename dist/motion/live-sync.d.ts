@@ -188,14 +188,32 @@ export declare function createStarts(): {
     current: (token: number) => boolean;
 };
 /**
+ * Runs jobs one after another (one video seeked and drawn per job, so a later job cannot move
+ * the video under an earlier one). A job that fails does not stop the ones after it.
+ */
+export declare function createQueue(): {
+    run<T>(job: () => Promise<T>): Promise<T>;
+};
+/**
+ * The newest-ask-wins order of a picture that draws frames which arrive late (`<Footage>` in
+ * the live player): `ask` takes a token for the frame `key` (null: it shows that frame
+ * already) and makes every earlier token stale, also when it returns null; `paint` says
+ * whether a frame that arrived with `token` may be drawn, and remembers it as shown.
+ */
+export declare function createPaintOrder(): {
+    ask(key: string): number | null;
+    paint(token: number, key: string): boolean;
+};
+/**
  * Waits polled once per animation frame (`schedule`, `cancel`), that `end` settles at once:
  * after it nothing polls any more and every wait, pending or new, resolves. A check returns
- * true when done, an Error to reject the wait with, or false to look again; a wait still
- * pending after `timeout` ms resolves anyway (a seek reports, it does not hang).
+ * true when done, an Error to reject the wait with, or false to look again. A wait still
+ * pending after `timeout` ms rejects (`what` names what it waited for): it never reports done
+ * for what is not.
  */
 export declare function createWaits(schedule: (fn: () => void) => number, cancel: (id: number) => void, now: () => number, timeout?: number): {
     readonly pending: number;
-    until(check: () => boolean | Error): Promise<void>;
+    until(check: () => boolean | Error, what?: string): Promise<void>;
     end(): void;
 };
 /** Program frames passed over between the frame shown before (`shown`, -1: none) and `f`. */

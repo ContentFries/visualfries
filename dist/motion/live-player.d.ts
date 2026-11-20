@@ -48,7 +48,8 @@ export type ProgramPlayer = {
     pause(): void;
     /**
      * Seeks to program second `t`; resolves with the milliseconds until the picture shows it (at
-     * once after `destroy`), rejects when a proxy fails to load.
+     * once after `destroy`), rejects when a proxy fails to load or does not show the frame within
+     * 5 s. The player stays usable either way: play, pause and seek again as before.
      */
     seek(t: number): Promise<number>;
     /** Calls `fn` for every frame drawn, and once more when playback stops at the end. */

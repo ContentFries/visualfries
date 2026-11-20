@@ -11,6 +11,7 @@
 <script lang="ts">
 	import { useClip, useFrame } from './runtime.svelte.js';
 	import { footageFrameAt, type FootageFrame, type FootageLayer } from './footage.js';
+	import { createPaintOrder } from './live-sync.js';
 
 	let {
 		name,
@@ -55,24 +56,22 @@
 
 	let img = $state<HTMLImageElement>();
 	let canvas = $state<HTMLCanvasElement>();
-	/** Live: the frame the canvas shows, and the newest frame asked for. */
-	let painted = '';
-	let asked = 0;
+	/** Live: frames arrive late; the newest frame asked for wins (see `createPaintOrder`). */
+	const order = createPaintOrder();
 
 	/** Live: draws the frame from its proxy, unless a newer frame was asked for meanwhile. */
 	async function paint(shown: FootageFrame) {
 		const key = `${shown.source}:${shown.frame}`;
-		if (key === painted) return;
-		const ask = ++asked;
+		const ask = order.ask(key);
+		if (ask === null) return;
 		const picture = await shown.footage.picture!(shown.frame, layer);
-		if (ask !== asked) return;
+		if (!order.paint(ask, key)) return;
 		const el = canvas!;
 		const { width, height } = shown.footage;
 		if (el.width !== width || el.height !== height) [el.width, el.height] = [width, height];
 		const ctx = el.getContext('2d')!;
 		ctx.clearRect(0, 0, width, height);
 		ctx.drawImage(picture, 0, 0, width, height);
-		painted = key;
 	}
 
 	useFrame(({ frame }) => {

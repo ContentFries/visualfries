@@ -230,10 +230,47 @@ export function createStarts() {
     };
 }
 /**
+ * Runs jobs one after another (one video seeked and drawn per job, so a later job cannot move
+ * the video under an earlier one). A job that fails does not stop the ones after it.
+ */
+export function createQueue() {
+    let tail = Promise.resolve();
+    return {
+        run(job) {
+            const result = tail.then(job, job);
+            tail = result.catch(() => { });
+            return result;
+        }
+    };
+}
+/**
+ * The newest-ask-wins order of a picture that draws frames which arrive late (`<Footage>` in
+ * the live player): `ask` takes a token for the frame `key` (null: it shows that frame
+ * already) and makes every earlier token stale, also when it returns null; `paint` says
+ * whether a frame that arrived with `token` may be drawn, and remembers it as shown.
+ */
+export function createPaintOrder() {
+    let painted = null;
+    let asked = 0;
+    return {
+        ask(key) {
+            const token = ++asked;
+            return key === painted ? null : token;
+        },
+        paint(token, key) {
+            if (token !== asked)
+                return false;
+            painted = key;
+            return true;
+        }
+    };
+}
+/**
  * Waits polled once per animation frame (`schedule`, `cancel`), that `end` settles at once:
  * after it nothing polls any more and every wait, pending or new, resolves. A check returns
- * true when done, an Error to reject the wait with, or false to look again; a wait still
- * pending after `timeout` ms resolves anyway (a seek reports, it does not hang).
+ * true when done, an Error to reject the wait with, or false to look again. A wait still
+ * pending after `timeout` ms rejects (`what` names what it waited for): it never reports done
+ * for what is not.
  */
 export function createWaits(schedule, cancel, now, timeout = 5000) {
     const pending = new Map();
@@ -243,7 +280,7 @@ export function createWaits(schedule, cancel, now, timeout = 5000) {
         get pending() {
             return pending.size;
         },
-        until(check) {
+        until(check, what = 'the footage') {
             const key = next++;
             const start = now();
             return new Promise((resolve, reject) => {
@@ -252,16 +289,20 @@ export function createWaits(schedule, cancel, now, timeout = 5000) {
                     pending.delete(key);
                     resolve();
                 };
+                const fail = (e) => {
+                    pending.delete(key);
+                    reject(e);
+                };
                 const step = () => {
                     if (ended)
                         return done();
                     const r = check();
-                    if (r instanceof Error) {
-                        pending.delete(key);
-                        return reject(r);
-                    }
-                    if (r || now() - start >= timeout)
+                    if (r instanceof Error)
+                        return fail(r);
+                    if (r)
                         return done();
+                    if (now() - start >= timeout)
+                        return fail(new Error(`${what} is not ready after ${timeout / 1000} s.`));
                     id = schedule(step);
                     pending.set(key, () => {
                         cancel(id);

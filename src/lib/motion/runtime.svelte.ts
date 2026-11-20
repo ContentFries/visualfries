@@ -10,7 +10,7 @@ import type {
 import { resolveMoment } from './moment.js';
 import { footageFrameAt, sourceSubjectBox, subjectBox, type FootageLayer } from './footage.js';
 import { programFootageAt, sourceFrameAt, type FootageMap } from './footage-map.js';
-import { loadPicture } from './subject-canvas.js';
+import { footagePicture } from './subject-canvas.js';
 import { NO_MUSIC_BEATS, beatPhase, type GridBeat, type MotionBeatRef } from './beat-grid.js';
 import { clipEnergy, type Energy } from './energy.js';
 import { NEUTRAL_BRAND, type ResolvedBrand } from './brand.js';
@@ -64,8 +64,11 @@ export type CameraView = {
 
 /** One footage frame ready to draw on a canvas (see `clip.picture()`). */
 export type FootagePicture = {
-	/** Decoded: `ctx.drawImage(pic.image, …)` draws it at once. */
-	image: HTMLImageElement;
+	/**
+	 * Decoded: `ctx.drawImage(pic.image, …)` draws it at once. An image of the extracted frame,
+	 * or in the live player a canvas with the frame of the proxy video.
+	 */
+	image: HTMLImageElement | HTMLCanvasElement;
 	/** The footage and its frame (the source frame the cut list shows, holds included). */
 	source: string;
 	frame: number;
@@ -265,7 +268,7 @@ export class Clip {
 			Math.round((opts.offset ?? 0) * this.fps)
 		);
 		return {
-			image: await loadPicture(shown.url),
+			image: await footagePicture(shown.footage, shown.frame, layer),
 			source: shown.source,
 			frame: shown.frame,
 			width: shown.footage.width,

@@ -1,4 +1,5 @@
 import type { FootagePictures } from './program-stage.js';
+import type { FootageLayer } from './footage.js';
 import type { FootageMap } from './footage-map.js';
 import type { LiveSource } from './live-manifest.js';
 import {
@@ -18,6 +19,8 @@ import {
 } from './live-sync.js';
 
 type SideName = 'a' | 'b';
+/** A side's video, or `g`: the one `picture` seeks for frames no video on screen shows. */
+type VideoSide = SideName | 'g';
 type Look = { dim: number; blur: number; edge?: number };
 
 type Pic = {
@@ -34,7 +37,9 @@ type Pic = {
 type Player = {
 	video: HTMLVideoElement;
 	source: string;
-	side: SideName;
+	side: VideoSide;
+	/** The source frame `picture` last asked of it (side `g`); null: none. */
+	asked: number | null;
 	live: LiveSource;
 	/** Counts presented video frames (requestVideoFrameCallback), so pictures redraw only then. */
 	seq: number;
@@ -66,6 +71,11 @@ export type LiveFootage = FootagePictures & {
 	 * after `destroy`; rejects when one fails to load.
 	 */
 	settled(): Promise<void>;
+	/**
+	 * Source frame `frame` of `source` as a picture of its own, for blocks (`<Footage>`,
+	 * `<Subject>`, `clip.picture()`): `plate`, or `subject` with the matte as its alpha.
+	 */
+	picture(source: string, frame: number, layer: FootageLayer): Promise<HTMLCanvasElement>;
 	/** Forgets the pictures (a new scene makes its own); the videos stay loaded. */
 	reset(map: FootageMap | null): void;
 	stats: { resyncs: number; drift: DriftSample[]; stalls: number };
@@ -160,6 +170,19 @@ const loadError = (p: Player) =>
 		`The live proxy of footage "${p.source}" failed to load: ${p.video.error?.message || `media error ${p.video.error?.code}`}.`
 	);
 
+/** A copy of a video frame (`sourceWidth` of it) at `size`, so later frames cannot change it. */
+function snapshot(
+	image: CanvasImageSource,
+	sourceWidth: number,
+	sourceHeight: number,
+	size: [number, number]
+) {
+	const out = document.createElement('canvas');
+	[out.width, out.height] = size;
+	out.getContext('2d')!.drawImage(image, 0, 0, sourceWidth, sourceHeight, 0, 0, ...size);
+	return out;
+}
+
 type Steps = {
 	[K in VideoStep['kind']]: (
 		p: Player,
@@ -222,8 +245,10 @@ export function createLiveFootage(
 	const stats = { resyncs: 0, drift: [] as DriftSample[], stalls: 0 };
 	let playing = false;
 	const waits = createWaits(requestAnimationFrame, cancelAnimationFrame, () => performance.now());
+	/** Draws the subject of a packed frame for `picture` (made on first use). */
+	let matte: { el: HTMLCanvasElement; paint: Pic['paint'] } | null = null;
 
-	function player(side: SideName, source: string): Player {
+	function player(side: VideoSide, source: string): Player {
 		const key = `${side}:${source}`;
 		const p = players.get(key);
 		if (p) return p;
@@ -241,6 +266,7 @@ export function createLiveFootage(
 			source,
 			side,
 			live,
+			asked: null,
 			seq: 0,
 			want: null,
 			drift: null,
@@ -313,6 +339,44 @@ export function createLiveFootage(
 
 	const paint = () => [...pics.values()].filter(visible).forEach(paintPicture);
 
+	/**
+	 * A video of `source` that shows source frame `frame`: one on screen, else side `g` seeked to
+	 * it. A later ask for another frame of `g` ends the wait (its asker draws a newer frame).
+	 */
+	async function videoAt(source: string, frame: number): Promise<Player> {
+		const time = (frame + 0.5) / fps;
+		const want = { frame, programFrame: 0, held: true };
+		const shows = (p: Player) => proxySettled(videoState(p.video), want, 0, fps, false);
+		const shown = ['a', 'b'].map((side) => players.get(`${side}:${source}`));
+		const ready = shown.find((p) => p?.want && shows(p) === 'ready');
+		if (ready) return ready;
+		const p = player('g', source);
+		p.asked = frame;
+		if (Math.abs(p.video.currentTime - time) * fps > 0.5) p.video.currentTime = time;
+		await waits.until(() => {
+			const now = shows(p);
+			return now === 'failed' ? loadError(p) : now === 'ready' || p.asked !== frame;
+		});
+		return p;
+	}
+
+	async function picture(source: string, frame: number, layer: FootageLayer) {
+		if (layer === 'clean') throw new Error('The live preview has no clean plates.');
+		const p = await videoAt(source, frame);
+		const { video, live } = p;
+		if (layer === 'plate') {
+			const width = live.packed ? video.videoWidth / 2 : video.videoWidth;
+			return snapshot(video, width, video.videoHeight, live.size);
+		}
+		if (!live.packed) throw new Error(`Footage "${source}" has no matte in the live preview.`);
+		if (!matte) {
+			const el = document.createElement('canvas');
+			matte = { el, paint: subjectPainter(el) };
+		}
+		matte.paint(video, live, { dim: 0, blur: 0 });
+		return snapshot(matte.el, live.size[0], live.size[1], live.size);
+	}
+
 	return {
 		stats,
 		live: true,
@@ -377,6 +441,7 @@ export function createLiveFootage(
 				)
 			);
 		},
+		picture,
 		reset(next) {
 			pics = new Map();
 			map = next;

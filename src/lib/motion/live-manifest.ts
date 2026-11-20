@@ -2,6 +2,7 @@ import { footageMap, type FootageMap } from './footage-map.js';
 import type { ResolvedBrand } from './brand.js';
 import type { ResolvedProgram } from './program.js';
 import type { FootageFrames, FootageRange, SubjectBox } from './resolve.js';
+import type { FootageLayer } from './footage.js';
 import { segmentStage, wholeProgram, type StageSegment } from './segments.js';
 import type { StageFont } from './stage.js';
 
@@ -110,13 +111,22 @@ export function resolveLiveManifest(manifest: LiveManifest, base: string): LiveM
 	};
 }
 
+/** Source frame `frame` of footage `source` drawn from its proxy (see `FootageFrames.picture`). */
+export type LivePictures = (
+	source: string,
+	frame: number,
+	layer: FootageLayer
+) => Promise<HTMLCanvasElement>;
+
 /**
  * Footage frames for the stage from proxies and ranges instead of extracted files: no URLs (the
- * live pictures draw from the videos), the same ranges and subject boxes as extraction.
+ * live pictures draw from the videos), the same ranges and subject boxes as extraction. Blocks
+ * get their frames from `pictures`.
  */
 export function liveFootageFrames(
 	footage: Record<string, LiveSource>,
-	boxes: Record<string, LiveRange[]> = {}
+	boxes: Record<string, LiveRange[]> = {},
+	pictures?: LivePictures
 ): Record<string, FootageFrames> {
 	const frames: Record<string, FootageFrames> = {};
 	for (const [name, source] of Object.entries(footage)) {
@@ -136,7 +146,10 @@ export function liveFootageFrames(
 			height: source.height,
 			startFrame: 0,
 			subject: source.packed,
-			boxes: ranges[0]?.boxes
+			boxes: ranges[0]?.boxes,
+			...(pictures
+				? { picture: (frame: number, layer: FootageLayer) => pictures(name, frame, layer) }
+				: {})
 		};
 	}
 	return frames;
@@ -162,15 +175,17 @@ const isSegment = (input: StageSegment | LiveProgram): input is StageSegment =>
 
 /**
  * The segment a live player draws: a stage segment as it is, or a whole resolved program as one
- * segment (`brand` its tokens), with the footage frames of the proxies.
+ * segment (`brand` its tokens), with the footage frames of the proxies (blocks draw them with
+ * `pictures`).
  */
 export function liveSegment(
 	input: StageSegment | LiveProgram,
 	footage: Record<string, LiveSource>,
 	boxes?: Record<string, LiveRange[]>,
-	brand?: ResolvedBrand
+	brand?: ResolvedBrand,
+	pictures?: LivePictures
 ): StageSegment {
-	const frames = liveFootageFrames(footage, boxes);
+	const frames = liveFootageFrames(footage, boxes, pictures);
 	if (isSegment(input)) return { ...input, footage: frames };
 	const totals = Object.fromEntries(Object.entries(footage).map(([n, f]) => [n, f.total]));
 	const map: FootageMap = footageMap(input, totals);

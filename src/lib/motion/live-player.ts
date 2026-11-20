@@ -22,6 +22,7 @@ import type { ResolvedBrand } from './brand.js';
 import type { StageSegment } from './segments.js';
 import type { StageFont } from './stage.js';
 import type { Animatable } from './keys.js';
+import type { FootageLayer } from './footage.js';
 
 export type { LiveManifest, LiveSource, LiveRange, LiveProgram };
 
@@ -143,7 +144,10 @@ export async function createProgramPlayer(
 	animatable: AnimatableMap,
 	opts: ProgramPlayerOptions
 ): Promise<ProgramPlayer> {
-	let seg = liveSegment(program, opts.footage, opts.boxes, opts.brand);
+	// Blocks take their footage frames from the proxies too (`<Footage>`, `<Subject>`).
+	const pictures = (source: string, frame: number, layer: FootageLayer) =>
+		footage.picture(source, frame, layer);
+	let seg = liveSegment(program, opts.footage, opts.boxes, opts.brand, pictures);
 	const fps = seg.fps;
 	const frames = seg.startFrame + seg.frames;
 	const duration = frames / fps;
@@ -282,7 +286,7 @@ export async function createProgramPlayer(
 	}
 
 	async function update(next: StageSegment | LiveProgram) {
-		const fresh = liveSegment(next, opts.footage, opts.boxes, opts.brand);
+		const fresh = liveSegment(next, opts.footage, opts.boxes, opts.brand, pictures);
 		if (fresh.fps !== fps || fresh.startFrame + fresh.frames !== frames)
 			throw new Error('update() takes the same program at the same length; mount a new player.');
 		const old = scene;

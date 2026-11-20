@@ -126,3 +126,24 @@ describe('liveFootageFrames', () => {
 		});
 	});
 });
+
+describe('live footage frames for blocks', () => {
+	it('draw from the player pictures, named by source', async () => {
+		const asked: unknown[] = [];
+		const canvas = {} as HTMLCanvasElement;
+		const frames = liveFootageFrames(footage, { talk: [{ first: 0, last: 50 }] }, async (...a) => {
+			asked.push(a);
+			return canvas;
+		});
+		expect(await frames.talk.picture!(10, 'subject')).toBe(canvas);
+		await frames.mont.picture!(3, 'plate');
+		expect(asked).toEqual([
+			['talk', 10, 'subject'],
+			['mont', 3, 'plate']
+		]);
+	});
+
+	it('have no pictures without a player (render, check)', () => {
+		expect(liveFootageFrames(footage).talk.picture).toBeUndefined();
+	});
+});

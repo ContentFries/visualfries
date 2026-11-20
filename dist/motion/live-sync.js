@@ -193,6 +193,17 @@ export function plateDraw(size, shownHeight, look, videoWidth, packed) {
         sourceWidth: packed ? videoWidth / 2 : videoWidth
     };
 }
+/**
+ * How a block's footage frame comes out of a proxy (`source` the footage, `packed` with its
+ * matte): the picture, or the subject drawn through the matte. The proxies have no clean plates.
+ */
+export function pictureCut(source, layer, packed) {
+    if (layer === 'clean')
+        throw new Error('The live preview has no clean plates.');
+    if (layer === 'subject' && !packed)
+        throw new Error(`Footage "${source}" has no matte in the live preview.`);
+    return layer;
+}
 export function soundStep(playing, sound, clock) {
     if (!playing || !sound || sound.paused)
         return { kind: 'free' };

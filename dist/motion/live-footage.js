@@ -1,4 +1,4 @@
-import { alignTo, createWaits, drawnAlready, followClock, frameDrift, heldAt, offsetMoved, plateDraw, proxySettled, recentDrift, smoothDrift } from './live-sync.js';
+import { alignTo, createWaits, drawnAlready, followClock, frameDrift, heldAt, offsetMoved, pictureCut, plateDraw, proxySettled, recentDrift, smoothDrift } from './live-sync.js';
 const VERT = `attribute vec2 p;varying vec2 uv;
 void main(){uv=vec2((p.x+1.)*.5,(1.-p.y)*.5);gl_Position=vec4(p,0.,1.);}`;
 /**
@@ -246,21 +246,18 @@ export function createLiveFootage(sources, fps, clockAt, map, parent) {
         });
         return p;
     }
+    function makeMatte() {
+        const el = document.createElement('canvas');
+        return { el, paint: subjectPainter(el) };
+    }
     async function picture(source, frame, layer) {
-        if (layer === 'clean')
-            throw new Error('The live preview has no clean plates.');
-        const p = await videoAt(source, frame);
-        const { video, live } = p;
-        if (layer === 'plate') {
-            const width = live.packed ? video.videoWidth / 2 : video.videoWidth;
-            return snapshot(video, width, video.videoHeight, live.size);
+        const cut = pictureCut(source, layer, sources[source]?.packed ?? false);
+        const { video, live } = await videoAt(source, frame);
+        if (cut === 'plate') {
+            const width = plateDraw(live.size, '', { dim: 0, blur: 0 }, video.videoWidth, live.packed);
+            return snapshot(video, width.sourceWidth, video.videoHeight, live.size);
         }
-        if (!live.packed)
-            throw new Error(`Footage "${source}" has no matte in the live preview.`);
-        if (!matte) {
-            const el = document.createElement('canvas');
-            matte = { el, paint: subjectPainter(el) };
-        }
+        matte ??= makeMatte();
         matte.paint(video, live, { dim: 0, blur: 0 });
         return snapshot(matte.el, live.size[0], live.size[1], live.size);
     }

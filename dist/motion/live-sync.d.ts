@@ -154,6 +154,11 @@ export declare function plateDraw(size: [number, number], shownHeight: string, l
     sourceWidth: number;
 };
 /**
+ * How a block's footage frame comes out of a proxy (`source` the footage, `packed` with its
+ * matte): the picture, or the subject drawn through the matte. The proxies have no clean plates.
+ */
+export declare function pictureCut(source: string, layer: 'plate' | 'subject' | 'clean', packed: boolean): 'plate' | 'subject';
+/**
  * What the clock does about the sound: runs `free` without it (none, paused, ended, refused),
  * `hold`s at the sound's time while it buffers (so the picture cannot run on to the end without
  * it), and `follow`s it while it plays (`jump`: where to set the clock, see `audioCorrection`).

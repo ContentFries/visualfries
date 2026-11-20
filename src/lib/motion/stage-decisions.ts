@@ -30,6 +30,24 @@ export function backdropLook(
 }
 
 /**
+ * The looks a live scene's pictures draw themselves (see `FootagePictures.live`): the plate
+ * dimmed with the room and blurred with it while it shows (`shown`), the subject dimmed with
+ * its soft edge darkened by alpha^`edge`.
+ */
+export function pictureLooks(
+	room: { dim: number; blur: number } | undefined,
+	shown: boolean,
+	edge: number,
+	motionBlur?: { x: number; y: number }
+) {
+	const dim = room?.dim ?? 0;
+	return {
+		plate: { dim, blur: shown && room ? room.blur : 0, motionBlur },
+		subject: { dim, blur: 0, edge, motionBlur }
+	};
+}
+
+/**
  * Whether the subject picture draws over the behind clips. It covers them only while one is on
  * screen, a dimmed room or a room cut away; in an insert it is only what a holdout cuts out.
  */

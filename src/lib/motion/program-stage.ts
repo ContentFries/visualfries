@@ -10,7 +10,8 @@ import { brandTokens } from './brand.js';
 import { NO_SLOT_TOKENS, formatTokens, slotArea, slotTokens, type SlotArea } from './format.js';
 import { seekTimeline } from './seek.js';
 import { programFootageAt, transitionSidesAt, type FootageView } from './footage-map.js';
-import { sourceFrameUrl, sourceSubjectBox } from './footage.js';
+import { sourceFrameUrl, sourceSubjectBox, type FootageLayer } from './footage.js';
+import type { FootageFrames } from './resolve.js';
 import { programFraming } from './framing.js';
 import type { ProgramTransition } from './program.js';
 import { clipFrameAt, type StageClip, type StageSegment } from './segments.js';
@@ -77,6 +78,7 @@ import {
 	coveredShare,
 	extendRun,
 	measuredRecently,
+	pictureLooks,
 	roomShown,
 	runLongEnough,
 	subjectDrawn
@@ -272,32 +274,85 @@ function layer(parent: HTMLElement, className: string, style = LAYER): HTMLDivEl
  * An `<img>` in its own clipped box (the camera window), with `backdrop` a second one under it
  * for a blurred copy; empty images stay hidden.
  */
-function picture(parent: HTMLElement, className: string, backdrop = false): Picture {
+function picture(
+	parent: HTMLElement,
+	className: string,
+	make: (backdrop: boolean) => HTMLElement,
+	backdrop = false
+): Picture {
 	// Placed by `frameBox` alone: an `inset` here would fight its left and top.
 	const box = layer(parent, className, 'position:absolute;overflow:hidden;isolation:isolate');
-	const image = () => {
-		const img = document.createElement('img');
-		img.alt = '';
-		img.draggable = false;
+	const image = (back: boolean) => {
+		// An <img> unless the scene's pictures make another element (see `FootagePictures`).
+		const img = make(back) as HTMLImageElement;
 		img.style.cssText = 'position:absolute;display:none;max-width:none';
 		box.appendChild(img);
 		return img;
 	};
-	const back = backdrop ? image() : undefined;
+	const back = backdrop ? image(true) : undefined;
 	if (back) back.className = 'vf-backdrop';
-	return { box, img: image(), back };
+	return { box, img: image(false), back };
 }
 
-function side(stage: HTMLElement, name: 'a' | 'b'): Side {
+/**
+ * Where a scene's footage pictures come from. By default each is an `<img>` showing the frame
+ * extracted for it (render, still and check: frame-accurate in any seek order). A live player
+ * passes its own: an element placed, turned and filtered as the `<img>` would be, and a `show`
+ * that puts a source frame into it, from a playing video for instance.
+ */
+export type FootagePictures = {
+	create(layer: 'plate' | 'subject', side: 'a' | 'b', backdrop: boolean): HTMLElement;
+	/**
+	 * Shows `frame` of `source` in `el`; a promise the frame waits for, or null. With `live`,
+	 * `look` is the room and motion blur the scene would otherwise filter the element with.
+	 */
+	show(
+		el: HTMLElement,
+		source: string,
+		frames: FootageFrames,
+		frame: number,
+		layer: FootageLayer,
+		look?: PictureLook
+	): Promise<unknown> | null;
+	/**
+	 * The pictures draw their own looks (`look` in `show`) and the scene leaves out its SVG
+	 * filters: on the pictures and the motion blur of behind and slotted clips. A preview trade:
+	 * those filters cost more than a frame at 25 fps where nothing rasterises them on a GPU.
+	 */
+	live?: boolean;
+};
+
+/** A picture's look: the room's dim and blur (px at the stage), its edge for a subject, motion blur. */
+export type PictureLook = {
+	dim: number;
+	blur: number;
+	/** Subject only: the dimmed room darkens the matte's soft edge by alpha^edge. */
+	edge?: number;
+	motionBlur?: { x: number; y: number };
+};
+
+/** Extracted frames in `<img>` elements: what every render draws. */
+const EXTRACTED: FootagePictures = {
+	create() {
+		const img = document.createElement('img');
+		img.alt = '';
+		img.draggable = false;
+		return img;
+	},
+	show: (el, _source, frames, frame, layer) =>
+		show(el as HTMLImageElement, sourceFrameUrl(frames, frame, layer))
+};
+
+function side(stage: HTMLElement, name: 'a' | 'b', pictures: FootagePictures): Side {
 	const el = layer(stage, 'vf-side', ISOLATED);
 	el.dataset.side = name;
 	const fill = layer(el, 'vf-fill');
 	const group = layer(el, 'vf-picture');
-	const plate = picture(group, 'vf-plate', true);
+	const plate = picture(group, 'vf-plate', (back) => pictures.create('plate', name, back), true);
 	// Painted over their whole box (see `TransitionSides`).
 	for (const solid of [el, fill, plate.box]) solid.dataset.solid = '';
 	const behind = layer(group, 'vf-behind', ISOLATED);
-	const subject = picture(group, 'vf-subject');
+	const subject = picture(group, 'vf-subject', () => pictures.create('subject', name, false));
 	return { el, fill, picture: group, plate, behind, subject, name };
 }
 
@@ -487,6 +542,19 @@ function shotFilters(stage: HTMLElement) {
 	};
 }
 
+type ShotFilters = ReturnType<typeof shotFilters>;
+
+/** A live scene's filters: none, its pictures draw their own looks (see `FootagePictures.live`). */
+const NO_FILTERS: ShotFilters = {
+	dispose() {},
+	plate: () => '',
+	subject: () => '',
+	streak: () => ''
+};
+
+const sceneFilters = (stage: HTMLElement, pictures: FootagePictures): ShotFilters =>
+	pictures.live ? NO_FILTERS : shotFilters(stage);
+
 /** The ring and the shadow of a camera window, as a `box-shadow`; '' without either. */
 function windowShadow(layout: ShotLayout, size: [number, number]): string {
 	const parts: string[] = [];
@@ -668,7 +736,8 @@ export function createProgramScene(
 	stage: HTMLDivElement,
 	seg: StageSegment,
 	blocks: Record<string, Component<Record<string, unknown>>>,
-	animatable: Record<string, Animatable | undefined> = {}
+	animatable: Record<string, Animatable | undefined> = {},
+	pictures: FootagePictures = EXTRACTED
 ): ProgramScene {
 	// On the stage too: fills and transition overlays use the brand's colours.
 	applyLook(stage, seg);
@@ -678,9 +747,9 @@ export function createProgramScene(
 	const canvases = document.createElement('style');
 	canvases.textContent = `#vf-stage ${PLAIN_CANVAS}{contain:paint}`;
 	stage.appendChild(canvases);
-	const a = side(stage, 'a');
+	const a = side(stage, 'a', pictures);
 	// Side b shows only inside a cut or shot transition window.
-	const b = side(stage, 'b');
+	const b = side(stage, 'b', pictures);
 	b.el.style.display = 'none';
 	// An insert draws its clip alone: the footage picture stays out, the subject only shows in
 	// the holdout pass.
@@ -698,7 +767,7 @@ export function createProgramScene(
 		cls: seg.cls,
 		under
 	});
-	const filters = shotFilters(stage);
+	const filters = sceneFilters(stage, pictures);
 	// Slotted clips get a box for motion blur only where a shot blurs its moves.
 	const streaks = seg.shots.some((s) => shotModule(s.shot)?.blur);
 
@@ -1125,19 +1194,20 @@ export function createProgramScene(
 		s: Side,
 		layout: ShotLayout,
 		backdrop: NonNullable<ShotLayout['backdrop']>,
-		url: string,
+		view: FootageView,
+		frames: FootageFrames,
 		pending: Promise<unknown>[]
 	) {
 		const back = s.plate.back!;
 		const { camera } = backdrop;
 		const { clip } = layout;
 		place(back, { ...camera, x: px(camera.x - clip.x), y: px(camera.y - clip.y) });
-		back.style.filter = filters.plate(
-			`${s.name}-back`,
-			backdropLook(backdrop, layout.room),
-			layout.motionBlur
-		);
-		const copy = show(back, url);
+		const look = backdropLook(backdrop, layout.room);
+		back.style.filter = filters.plate(`${s.name}-back`, look, layout.motionBlur);
+		const copy = pictures.show(back, view.source, frames, view.frame, 'plate', {
+			...look,
+			motionBlur: layout.motionBlur
+		});
 		if (copy) pending.push(copy);
 	}
 
@@ -1162,6 +1232,7 @@ export function createProgramScene(
 		s.plate.img.style.filter = filters.plate(s.name, layout.room, layout.motionBlur);
 		s.subject.img.style.filter = filters.subject(s.name, layout.room?.dim ?? 0, layout.motionBlur);
 		s.behind.style.filter = filters.streak(`behind-${s.name}`, layout.motionBlur);
+		const looks = pictureLooks(layout.room, room, EDGE, layout.motionBlur);
 		const frames = framesOf(view.view);
 		const back = s.plate.back!;
 		if (!view.view || !frames) {
@@ -1171,10 +1242,12 @@ export function createProgramScene(
 			for (const x of [s.hole, s.cut]) if (x) x.box.style.display = 'none';
 			return;
 		}
-		const url = sourceFrameUrl(frames, view.view.frame, 'plate');
-		const plate = seg.insert ? null : show(s.plate.img, url);
+		const plate = seg.insert
+			? null
+			: pictures.show(s.plate.img, view.view.source, frames, view.view.frame, 'plate', looks.plate);
 		if (plate) pending.push(plate);
-		if (layout.backdrop && !seg.insert) drawBackdrop(s, layout, layout.backdrop, url, pending);
+		if (layout.backdrop && !seg.insert)
+			drawBackdrop(s, layout, layout.backdrop, view.view, frames, pending);
 		else hide(back);
 		const subjectOn = subjectDrawn({
 			insert: seg.insert,
@@ -1201,7 +1274,14 @@ export function createProgramScene(
 		}
 		for (const x of [s.hole, s.cut]) if (x) x.box.style.display = 'none';
 		if (subjectOn) {
-			const subject = show(s.subject.img, sourceFrameUrl(frames, view.view.frame, 'subject'));
+			const subject = pictures.show(
+				s.subject.img,
+				view.view.source,
+				frames,
+				view.view.frame,
+				'subject',
+				looks.subject
+			);
 			if (subject) pending.push(subject);
 		} else hide(s.subject.img);
 	}

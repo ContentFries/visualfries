@@ -22,6 +22,7 @@ import {
 	alignTo,
 	createStarts,
 	createWaits,
+	pictureCut,
 	proxySettled,
 	soundStep,
 	wantedTime
@@ -377,5 +378,14 @@ describe('waits', () => {
 		f.run(50);
 		await Promise.resolve();
 		expect(done).toBe(true);
+	});
+});
+
+describe('block footage from the proxies', () => {
+	it('draws the picture, or the subject through the packed matte', () => {
+		expect(pictureCut('talk', 'plate', false)).toBe('plate');
+		expect(pictureCut('talk', 'subject', true)).toBe('subject');
+		expect(() => pictureCut('talk', 'subject', false)).toThrow(/no matte/);
+		expect(() => pictureCut('talk', 'clean', true)).toThrow(/no clean plates/);
 	});
 });

@@ -299,6 +299,21 @@ export function plateDraw(
 }
 
 /**
+ * How a block's footage frame comes out of a proxy (`source` the footage, `packed` with its
+ * matte): the picture, or the subject drawn through the matte. The proxies have no clean plates.
+ */
+export function pictureCut(
+	source: string,
+	layer: 'plate' | 'subject' | 'clean',
+	packed: boolean
+): 'plate' | 'subject' {
+	if (layer === 'clean') throw new Error('The live preview has no clean plates.');
+	if (layer === 'subject' && !packed)
+		throw new Error(`Footage "${source}" has no matte in the live preview.`);
+	return layer;
+}
+
+/**
  * What the clock does about the sound: runs `free` without it (none, paused, ended, refused),
  * `hold`s at the sound's time while it buffers (so the picture cannot run on to the end without
  * it), and `follow`s it while it plays (`jump`: where to set the clock, see `audioCorrection`).

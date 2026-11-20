@@ -10,13 +10,13 @@ import {
 	type LiveSource
 } from './live-manifest.js';
 import {
-	audioCorrection,
 	createLiveClock,
+	createStarts,
 	fitStage,
 	frameAt,
 	nextSource,
 	skippedFrames,
-	soundLeads
+	soundStep
 } from './live-sync.js';
 import type { ResolvedBrand } from './brand.js';
 import type { StageSegment } from './segments.js';
@@ -65,7 +65,10 @@ export type ProgramPlayer = {
 	readonly playing: boolean;
 	play(): Promise<void>;
 	pause(): void;
-	/** Seeks to program second `t`; resolves with the milliseconds until the picture shows it. */
+	/**
+	 * Seeks to program second `t`; resolves with the milliseconds until the picture shows it (at
+	 * once after `destroy`), rejects when a proxy fails to load.
+	 */
 	seek(t: number): Promise<number>;
 	/** Calls `fn` for every frame drawn, and once more when playback stops at the end. */
 	onFrame(fn: (f: PlayerFrame) => void): () => void;
@@ -169,20 +172,26 @@ export async function createProgramPlayer(
 	let sampled = 0;
 	let raf = 0;
 	let drawing: Promise<void> = Promise.resolve();
+	const starts = createStarts();
+	let destroyed = false;
 
-	/** While the sound plays, the clock follows it (see `audioCorrection`). */
+	/**
+	 * While the sound plays, the clock follows it; while it buffers, the clock waits for it (see
+	 * `soundStep`). True while it waits, so the footage stands still too.
+	 */
 	function followSound(perf: number) {
-		if (!soundLeads(clock.playing, audio)) return;
 		const t = clock.at(perf);
-		const sound = audio!.currentTime;
+		const step = soundStep(clock.playing, audio, t);
+		if (step.kind === 'hold') clock.set(step.time, perf);
+		if (step.kind !== 'follow') return step.kind === 'hold';
 		if (perf - sampled > 250) {
 			sampled = perf;
-			stats.audio.push({ at: t, offset: t - sound });
+			stats.audio.push({ at: t, offset: t - step.sound });
 		}
-		const jump = audioCorrection(t, sound);
-		if (jump === null) return;
-		clock.set(jump, perf);
+		if (step.jump === null) return false;
+		clock.set(step.jump, perf);
 		stats.audioCorrections++;
+		return false;
 	}
 
 	/** At the end the player stops itself on the last frame. */
@@ -213,13 +222,13 @@ export async function createProgramPlayer(
 	}
 
 	function render(perf: number) {
-		followSound(perf);
+		const waiting = followSound(perf);
 		// Listeners hear the end once more, so they see the player stopped.
 		const ended = stopAtEnd(perf);
 		const t = clock.at(perf);
 		const f = frameAt(t, fps, frames);
 		if (f !== shown || ended) drawFrame(f, t, perf);
-		footage.tick(t, f, clock.playing);
+		footage.tick(t, f, clock.playing && !waiting);
 	}
 
 	function loop(perf: number) {
@@ -228,25 +237,33 @@ export async function createProgramPlayer(
 	}
 	raf = requestAnimationFrame(loop);
 
-	/** Starts the sound at `t`; resolves with where it started, or `t` without sound. */
+	/** Starts the sound at `t`; resolves with where it plays, or null when it does not. */
 	async function startSound(t: number) {
-		if (!audio) return t;
+		if (!audio) return null;
 		audio.currentTime = t;
 		await audio.play().catch(() => {});
-		return audio.paused ? t : audio.currentTime;
+		return audio.paused ? null : audio.currentTime;
 	}
 
+	/**
+	 * Plays once the sound does (or without it when it cannot). A pause or destroy while the sound
+	 * starts cancels it; a seek meanwhile moves where it starts.
+	 */
 	async function play() {
-		if (clock.playing) return;
-		const at = clock.at(performance.now());
+		if (clock.playing || destroyed) return;
+		const token = starts.begin();
+		const perf = performance.now();
 		// From the start again once at the end.
-		const t = await startSound(at >= duration - 1 / fps ? 0 : at);
+		if (clock.at(perf) >= duration - 1 / fps) clock.set(0, perf);
+		const sound = await startSound(clock.at(perf));
+		if (!starts.current(token)) return;
 		const now = performance.now();
-		clock.set(t, now);
+		clock.set(sound ?? clock.at(now), now);
 		clock.play(now);
 	}
 
 	function pause() {
+		starts.cancel();
 		clock.pause(performance.now());
 		audio?.pause();
 	}
@@ -256,6 +273,8 @@ export async function createProgramPlayer(
 		clock.set(Math.max(0, Math.min(duration - 1 / fps, t)), start);
 		if (audio) audio.currentTime = clock.at(start);
 		render(start);
+		// The videos jump too, playing as well: `tick` alone would only let them catch up.
+		footage.align(clock.at(start));
 		await Promise.all([footage.settled(), drawing]);
 		// What the videos now show is painted into the pictures on the next tick, shown after it.
 		await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -298,6 +317,8 @@ export async function createProgramPlayer(
 		update,
 		stats,
 		destroy() {
+			destroyed = true;
+			starts.cancel();
 			cancelAnimationFrame(raf);
 			listeners.clear();
 			audio?.pause();

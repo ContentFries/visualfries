@@ -19,7 +19,12 @@ import {
 	RESYNC,
 	skippedFrames,
 	smoothDrift,
-	soundLeads
+	alignTo,
+	createStarts,
+	createWaits,
+	proxySettled,
+	soundStep,
+	wantedTime
 } from '../../src/lib/motion/live-sync.js';
 
 const fps = 25;
@@ -230,12 +235,29 @@ describe('drawing', () => {
 });
 
 describe('the player clock', () => {
-	it('follows the sound only while it plays and is ready', () => {
-		expect(soundLeads(true, { paused: false, readyState: 4 })).toBe(true);
-		expect(soundLeads(false, { paused: false, readyState: 4 })).toBe(false);
-		expect(soundLeads(true, null)).toBe(false);
-		expect(soundLeads(true, { paused: true, readyState: 4 })).toBe(false);
-		expect(soundLeads(true, { paused: false, readyState: 2 })).toBe(false);
+	it('follows the sound while it plays, waits for it while it buffers, runs free without it', () => {
+		const sound = (over = {}) => ({ paused: false, readyState: 4, currentTime: 2, ...over });
+		expect(soundStep(true, sound(), 2.01)).toEqual({ kind: 'follow', jump: null, sound: 2 });
+		expect(soundStep(true, sound(), 2.3)).toEqual({ kind: 'follow', jump: 2, sound: 2 });
+		// Buffering: the clock holds at the sound, so it cannot run on to the end without it.
+		expect(soundStep(true, sound({ readyState: 2 }), 2.3)).toEqual({ kind: 'hold', time: 2 });
+		expect(soundStep(false, sound(), 2.3)).toEqual({ kind: 'free' });
+		expect(soundStep(true, null, 2.3)).toEqual({ kind: 'free' });
+		expect(soundStep(true, sound({ paused: true }), 2.3)).toEqual({ kind: 'free' });
+	});
+
+	it('makes a start that comes back after a pause stale', () => {
+		const starts = createStarts();
+		const first = starts.begin();
+		expect(starts.current(first)).toBe(true);
+		starts.cancel();
+		expect(starts.current(first)).toBe(false);
+		const second = starts.begin();
+		expect(starts.current(second)).toBe(true);
+		// A second play while the first waits: only the newest start counts.
+		expect(starts.current(first)).toBe(false);
+		expect(starts.current(starts.begin())).toBe(true);
+		expect(starts.current(second)).toBe(false);
 	});
 
 	it('counts the frames passed over while playing', () => {
@@ -244,5 +266,116 @@ describe('the player clock', () => {
 		expect(skippedFrames(true, -1, 13)).toBe(0);
 		expect(skippedFrames(false, 10, 13)).toBe(0);
 		expect(skippedFrames(true, 13, 10)).toBe(0);
+	});
+});
+
+describe('explicit seeks', () => {
+	const want = { frame: 100, programFrame: 50, held: false };
+
+	it('knows where a video should stand, paused and playing', () => {
+		expect(wantedTime(want, 2, fps, false)).toBeCloseTo(100.5 / fps);
+		expect(wantedTime({ ...want, held: true }, 2.2, fps, true)).toBeCloseTo(100.5 / fps);
+		// Playing 0.2 s past the cut: 5 frames on.
+		expect(wantedTime(want, 2.2, fps, true)).toBeCloseTo(105 / fps);
+	});
+
+	it('jumps a playing video instead of letting it catch up', () => {
+		// The clock jumped 0.2 s on; the video is where it was (under RESYNC: tick would only speed up).
+		expect(alignTo({ currentTime: 100 / fps }, want, 2.2, fps, true)).toBeCloseTo(105 / fps);
+		expect(alignTo({ currentTime: 105.2 / fps }, want, 2.2, fps, true)).toBeNull();
+		expect(alignTo({ currentTime: 100.5 / fps }, want, 2, fps, false)).toBeNull();
+		expect(alignTo({ currentTime: 90 / fps }, want, 2, fps, false)).toBeCloseTo(100.5 / fps);
+	});
+
+	it('settles only once the video shows the frame wanted', () => {
+		const video = (over = {}) => ({
+			seeking: false,
+			readyState: 4,
+			currentTime: 105 / fps,
+			failed: false,
+			...over
+		});
+		expect(proxySettled(video(), want, 2.2, fps, true)).toBe('ready');
+		// Still behind after the seek, though not seeking and decoded: not there yet.
+		expect(proxySettled(video({ currentTime: 100 / fps }), want, 2.2, fps, true)).toBe('wait');
+		expect(proxySettled(video({ seeking: true }), want, 2.2, fps, true)).toBe('wait');
+		expect(proxySettled(video({ readyState: 1 }), want, 2.2, fps, true)).toBe('wait');
+		expect(proxySettled(video({ currentTime: 100.5 / fps }), want, 2, fps, false)).toBe('ready');
+		expect(proxySettled(video({ currentTime: 102 / fps }), want, 2, fps, false)).toBe('wait');
+		expect(proxySettled(video({ failed: true }), want, 2, fps, false)).toBe('failed');
+		expect(proxySettled(video({ readyState: 0 }), null, 2, fps, false)).toBe('ready');
+	});
+});
+
+describe('waits', () => {
+	function frames() {
+		let queue = new Map<number, () => void>();
+		let id = 0;
+		let now = 0;
+		return {
+			schedule: (fn: () => void) => (queue.set(++id, fn), id),
+			cancel: (n: number) => void queue.delete(n),
+			now: () => now,
+			run(ms = 16) {
+				now += ms;
+				const due = queue;
+				queue = new Map();
+				for (const fn of due.values()) fn();
+			},
+			get queued() {
+				return queue.size;
+			}
+		};
+	}
+
+	it('polls once per frame until the check is done', async () => {
+		const f = frames();
+		const waits = createWaits(f.schedule, f.cancel, f.now);
+		let ready = false;
+		let done = false;
+		void waits.until(() => ready).then(() => (done = true));
+		f.run();
+		await Promise.resolve();
+		expect(done).toBe(false);
+		expect(waits.pending).toBe(1);
+		ready = true;
+		f.run();
+		await Promise.resolve();
+		expect(done).toBe(true);
+		expect(waits.pending).toBe(0);
+		expect(f.queued).toBe(0);
+	});
+
+	it('rejects with the error a check gives (a proxy that failed to load)', async () => {
+		const f = frames();
+		const waits = createWaits(f.schedule, f.cancel, f.now);
+		await expect(waits.until(() => new Error('broken'))).rejects.toThrow('broken');
+		expect(waits.pending).toBe(0);
+	});
+
+	it('settles every wait and stops polling once ended (destroy)', async () => {
+		const f = frames();
+		const waits = createWaits(f.schedule, f.cancel, f.now);
+		const pending = Promise.all([waits.until(() => false), waits.until(() => false)]);
+		f.run();
+		waits.end();
+		await pending;
+		expect(f.queued).toBe(0);
+		expect(waits.pending).toBe(0);
+		await waits.until(() => false);
+		expect(f.queued).toBe(0);
+	});
+
+	it('gives up after the timeout instead of hanging', async () => {
+		const f = frames();
+		const waits = createWaits(f.schedule, f.cancel, f.now, 100);
+		let done = false;
+		void waits.until(() => false).then(() => (done = true));
+		for (let i = 0; i < 5; i++) f.run(16);
+		await Promise.resolve();
+		expect(done).toBe(false);
+		f.run(50);
+		await Promise.resolve();
+		expect(done).toBe(true);
 	});
 });

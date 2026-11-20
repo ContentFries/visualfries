@@ -2,12 +2,15 @@ import type { FootagePictures } from './program-stage.js';
 import type { FootageMap } from './footage-map.js';
 import type { LiveSource } from './live-manifest.js';
 import {
+	alignTo,
+	createWaits,
 	drawnAlready,
 	followClock,
 	frameDrift,
 	heldAt,
 	offsetMoved,
 	plateDraw,
+	proxySettled,
 	recentDrift,
 	smoothDrift,
 	type VideoStep,
@@ -53,7 +56,15 @@ export type LiveFootage = FootagePictures & {
 	tick(t: number, frame: number, playing: boolean): void;
 	/** Seeks `side`'s video of `source` to `frame` while another source is on screen. */
 	preroll(side: SideName, source: string, frame: number): void;
-	/** Resolves once every video on screen shows the frame it should (after a seek). */
+	/**
+	 * An explicit seek to program time `t`: seeks every video on screen to where it should be at
+	 * once, playing too (`tick` would only let it catch up).
+	 */
+	align(t: number): void;
+	/**
+	 * Resolves once every video on screen shows the frame it should (after a seek), or at once
+	 * after `destroy`; rejects when one fails to load.
+	 */
 	settled(): Promise<void>;
 	/** Forgets the pictures (a new scene makes its own); the videos stay loaded. */
 	reset(map: FootageMap | null): void;
@@ -137,6 +148,18 @@ function platePainter(el: HTMLCanvasElement) {
 
 const playVideo = (video: HTMLVideoElement) => void video.play().catch(() => {});
 
+const videoState = (video: HTMLVideoElement) => ({
+	seeking: video.seeking,
+	readyState: video.readyState,
+	currentTime: video.currentTime,
+	failed: !!video.error
+});
+
+const loadError = (p: Player) =>
+	new Error(
+		`The live proxy of footage "${p.source}" failed to load: ${p.video.error?.message || `media error ${p.video.error?.code}`}.`
+	);
+
 type Steps = {
 	[K in VideoStep['kind']]: (
 		p: Player,
@@ -198,6 +221,7 @@ export function createLiveFootage(
 	let pics = new Map<HTMLElement, Pic>();
 	const stats = { resyncs: 0, drift: [] as DriftSample[], stalls: 0 };
 	let playing = false;
+	const waits = createWaits(requestAnimationFrame, cancelAnimationFrame, () => performance.now());
 
 	function player(side: SideName, source: string): Player {
 		const key = `${side}:${source}`;
@@ -212,7 +236,16 @@ export function createLiveFootage(
 		video.preload = 'auto';
 		video.src = live.url;
 		holder.appendChild(video);
-		const made: Player = { video, source, side, live, seq: 0, want: null, drift: null, sampled: 0 };
+		const made: Player = {
+			video,
+			source,
+			side,
+			live,
+			seq: 0,
+			want: null,
+			drift: null,
+			sampled: 0
+		};
 		video.addEventListener('waiting', () => playing && made.want && stats.stalls++);
 		const onFrame = (now: number, meta: VideoFrameCallbackMetadata) => {
 			made.seq++;
@@ -317,16 +350,30 @@ export function createLiveFootage(
 			const target = (frame + 0.02) / fps;
 			if (Math.abs(p.video.currentTime - target) > 0.5 / fps) p.video.currentTime = target;
 		},
+		align(t) {
+			for (const p of players.values()) {
+				if (!p.want) continue;
+				const time = alignTo(p.video, p.want, t, fps, playing);
+				if (time === null) continue;
+				p.video.currentTime = time;
+				p.video.playbackRate = 1;
+				p.drift = null;
+			}
+		},
 		async settled() {
 			const active = [...players.values()].filter((p) => p.want);
 			await Promise.all(
-				active.map(
-					(p) =>
-						new Promise<void>((done) => {
-							const check = () =>
-								!p.video.seeking && p.video.readyState >= 2 ? done() : requestAnimationFrame(check);
-							check();
-						})
+				active.map((p) =>
+					waits.until(() => {
+						const now = proxySettled(
+							videoState(p.video),
+							p.want,
+							clockAt(performance.now()),
+							fps,
+							playing
+						);
+						return now === 'failed' ? loadError(p) : now === 'ready';
+					})
 				)
 			);
 		},
@@ -335,6 +382,7 @@ export function createLiveFootage(
 			map = next;
 		},
 		destroy() {
+			waits.end();
 			for (const p of players.values()) {
 				p.video.pause();
 				p.video.removeAttribute('src');

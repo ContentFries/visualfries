@@ -13,12 +13,14 @@ import {
 	createFrameWriter,
 	dataUrlToBuffer,
 	frameFileName,
+	initRenderPage,
 	renderFrameRanges,
 	renderSparseFrames,
 	resolveFrameRanges,
 	resolveMediaDiagnosticsPath,
 	resolveTmpParent,
-	resolveTransport
+	resolveTransport,
+	withPhaseTimeout
 } from '$lib/agent/localRenderSteps.js';
 import type { LocalRenderOptions } from '$lib/agent';
 import type { Scene } from '$lib/schemas/scene';
@@ -32,6 +34,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+	vi.useRealTimers();
 	vi.restoreAllMocks();
 	await fs.rm(workDir, { recursive: true, force: true });
 });
@@ -297,6 +300,14 @@ describe('createFrameWriter', () => {
 		expect(await fs.readFile(path.join(workDir, 'frame-000002.png'), 'utf8')).toBe('two');
 	});
 
+	it('reports when the last frame was written', async () => {
+		const writer = createFrameWriter(input());
+		expect(writer.lastWriteAt()).toBe(0);
+		const before = Date.now();
+		await writer.write({ frameIndex: 5, dataUrl: dataUrl('one') });
+		expect(writer.lastWriteAt()).toBeGreaterThanOrEqual(before);
+	});
+
 	it('copies the previous file for a duplicate frame', async () => {
 		const writer = createFrameWriter(input());
 		await writer.write({ frameIndex: 0, dataUrl: dataUrl('same') });
@@ -350,7 +361,154 @@ describe('createFrameWriter', () => {
 	});
 });
 
+const never = () => new Promise<never>(() => {});
+
+describe('withPhaseTimeout', () => {
+	it('returns the result and passes an error on', async () => {
+		await expect(
+			withPhaseTimeout({ phase: 'init', timeoutMs: 1000 }, async () => 'built')
+		).resolves.toBe('built');
+		await expect(
+			withPhaseTimeout({ phase: 'init', timeoutMs: 1000 }, async () => {
+				throw new Error('page failed');
+			})
+		).rejects.toThrow('page failed');
+	});
+
+	it('rejects with the phase and the limit when nothing comes back', async () => {
+		vi.useFakeTimers();
+		const waiting = withPhaseTimeout({ phase: 'init', timeoutMs: 1000 }, never);
+		const failed = expect(waiting).rejects.toThrow(
+			'VisualFries local render timed out in phase "init": no result for 1000 ms.'
+		);
+
+		await vi.advanceTimersByTimeAsync(1000);
+		await failed;
+	});
+
+	it('measures from the last progress when the phase reports it', async () => {
+		vi.useFakeTimers();
+		let lastProgressAt = 0;
+		let settled = false;
+		const waiting = withPhaseTimeout(
+			{ phase: 'render frames 0-9', timeoutMs: 1000, lastProgressAt: () => lastProgressAt },
+			never
+		).catch((error: Error) => {
+			settled = true;
+			return error.message;
+		});
+
+		// A frame arrives after 0.9 s: the limit now runs out at 1.9 s, not at 1 s.
+		await vi.advanceTimersByTimeAsync(900);
+		lastProgressAt = Date.now();
+		await vi.advanceTimersByTimeAsync(999);
+		expect(settled).toBe(false);
+
+		await vi.advanceTimersByTimeAsync(1);
+		expect(await waiting).toContain('phase "render frames 0-9": no result for 1000 ms');
+	});
+
+	it('waits without a limit when the limit is 0', async () => {
+		vi.useFakeTimers();
+		let settled = false;
+		void withPhaseTimeout({ phase: 'init', timeoutMs: 0 }, never).finally(() => {
+			settled = true;
+		});
+
+		await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000);
+		expect(settled).toBe(false);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+});
+
+const noTimeout = { frameTimeoutMs: 0, lastFrameAt: () => 0 };
+
 describe('page-driving steps', () => {
+	const renderPage = (init: () => Promise<unknown>) => {
+		const steps: string[] = [];
+		return {
+			steps,
+			goto: async (url: string, options: { waitUntil: string }) => {
+				steps.push(`goto ${url} ${options.waitUntil}`);
+			},
+			waitForFunction: async () => {
+				steps.push('wait for client');
+			},
+			evaluate: async () => {
+				steps.push('init');
+				return init();
+			}
+		};
+	};
+
+	it('loads the page, waits for the render client and builds the scene', async () => {
+		const scene = { id: 'scene', width: 64, height: 48, duration: 1, fps: 30 };
+		const page = renderPage(async () => scene);
+
+		expect(await initRenderPage(page, { url: 'http://localhost:1/', timeoutMs: 1000 })).toBe(scene);
+		expect(page.steps).toEqual(['goto http://localhost:1/ networkidle', 'wait for client', 'init']);
+	});
+
+	it('rejects with the page error when the scene cannot build', async () => {
+		const page = renderPage(async () => {
+			throw new Error(
+				'page.evaluate: DeterministicRenderError: Deterministic frame provider returned null (component clip, frame 0, scene time 0)'
+			);
+		});
+
+		await expect(
+			initRenderPage(page, { url: 'http://localhost:1/', timeoutMs: 1000 })
+		).rejects.toThrow('Deterministic frame provider returned null (component clip, frame 0');
+	});
+
+	it('rejects when the page does not finish init in time', async () => {
+		vi.useFakeTimers();
+		const page = renderPage(never);
+		const failed = expect(
+			initRenderPage(page, { url: 'http://localhost:1/', timeoutMs: 5000 })
+		).rejects.toThrow('timed out in phase "init": no result for 5000 ms');
+
+		await vi.advanceTimersByTimeAsync(5000);
+		await failed;
+	});
+
+	it('rejects when a frame range stops delivering frames', async () => {
+		vi.useFakeTimers();
+		const failed = expect(
+			renderFrameRanges({ evaluate: never }, [{ fromFrame: 1351, toFrame: 2676 }], {
+				imageFormat: 'jpg',
+				imageQuality: 0.5,
+				skipDuplicates: true,
+				frameTimeoutMs: 2000,
+				lastFrameAt: () => 0
+			})
+		).rejects.toThrow('timed out in phase "render frames 1351-2676": no result for 2000 ms');
+
+		await vi.advanceTimersByTimeAsync(2000);
+		await failed;
+	});
+
+	it('rejects when a sparse frame does not come back', async () => {
+		vi.useFakeTimers();
+		const failed = expect(
+			renderSparseFrames(
+				{ evaluate: never },
+				{
+					frameIndices: [7],
+					fps: 10,
+					framesDir: workDir,
+					imageFormat: 'png',
+					imageQuality: 1,
+					environment: 'server',
+					frameTimeoutMs: 2000
+				}
+			)
+		).rejects.toThrow('timed out in phase "render frame 7": no result for 2000 ms');
+
+		await vi.advanceTimersByTimeAsync(2000);
+		await failed;
+	});
+
 	it('renders each range and sums the skipped frames', async () => {
 		const calls: any[] = [];
 		const results = [{ framesSkipped: 2 }, undefined, { framesSkipped: 3 }];
@@ -367,7 +525,7 @@ describe('page-driving steps', () => {
 				{ fromFrame: 8, toFrame: 9 },
 				{ fromFrame: 12, toFrame: 20 }
 			],
-			{ imageFormat: 'jpg', imageQuality: 0.5, skipDuplicates: true }
+			{ imageFormat: 'jpg', imageQuality: 0.5, skipDuplicates: true, ...noTimeout }
 		);
 		expect(summary).toEqual({ framesSkipped: 5 });
 		expect(calls[1]).toEqual({
@@ -381,7 +539,8 @@ describe('page-driving steps', () => {
 			await renderFrameRanges(page, [], {
 				imageFormat: 'png',
 				imageQuality: 1,
-				skipDuplicates: false
+				skipDuplicates: false,
+				...noTimeout
 			})
 		).toEqual({ framesSkipped: 0 });
 	});
@@ -400,7 +559,8 @@ describe('page-driving steps', () => {
 			framesDir: workDir,
 			imageFormat: 'png',
 			imageQuality: 0.9,
-			environment: 'server'
+			environment: 'server',
+			frameTimeoutMs: 0
 		});
 		expect(payloads).toEqual([
 			{ time: 0, imageFormat: 'png', imageQuality: 0.9 },
@@ -433,7 +593,8 @@ describe('page-driving steps', () => {
 			framesDir: workDir,
 			imageFormat: 'jpg',
 			imageQuality: 0.876,
-			environment: 'client'
+			environment: 'client',
+			frameTimeoutMs: 0
 		});
 		await renderSparseFrames(page, {
 			frameIndices: [4],
@@ -441,7 +602,8 @@ describe('page-driving steps', () => {
 			framesDir: workDir,
 			imageFormat: 'png',
 			imageQuality: 0.876,
-			environment: 'client'
+			environment: 'client',
+			frameTimeoutMs: 0
 		});
 		expect(seeks).toEqual([{ time: 0.3 }, { time: 0.4 }]);
 		expect(shots).toEqual([

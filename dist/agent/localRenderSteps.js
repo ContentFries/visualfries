@@ -2,6 +2,34 @@ import fs from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+export const DEFAULT_INIT_TIMEOUT_MS = 120_000;
+export const DEFAULT_FRAME_TIMEOUT_MS = 120_000;
+// Bounds a wait on the page, so a page that never answers fails the render instead of
+// hanging it. With `lastProgressAt` the limit is on the time since the last progress, for a
+// phase that is long by design. A limit of 0 or less turns the bound off.
+export const withPhaseTimeout = async (input, run) => {
+    if (!(input.timeoutMs > 0))
+        return run();
+    const startedAt = Date.now();
+    let timer;
+    const expired = new Promise((_resolve, reject) => {
+        const check = () => {
+            const idleMs = Date.now() - Math.max(startedAt, input.lastProgressAt?.() ?? 0);
+            if (idleMs < input.timeoutMs) {
+                timer = setTimeout(check, input.timeoutMs - idleMs);
+                return;
+            }
+            reject(new Error(`VisualFries local render timed out in phase "${input.phase}": no result for ${input.timeoutMs} ms.`));
+        };
+        timer = setTimeout(check, input.timeoutMs);
+    });
+    try {
+        return await Promise.race([run(), expired]);
+    }
+    finally {
+        clearTimeout(timer);
+    }
+};
 export const contiguousFrameRange = (frameIndices) => {
     if (!frameIndices.length)
         return null;
@@ -125,6 +153,7 @@ export const createFrameWriter = (input) => {
     let outputFrameIndex = 0;
     let previousFramePath;
     let previousFrameBuffer;
+    let lastWriteAt = 0;
     const streamFrame = async (payload) => {
         let frameBuffer;
         if (payload.isDuplicate) {
@@ -170,8 +199,9 @@ export const createFrameWriter = (input) => {
             path: input.streamEncoder ? null : framePath,
             isDuplicate: Boolean(payload.isDuplicate)
         });
+        lastWriteAt = Date.now();
     };
-    return { frames, write };
+    return { frames, write, lastWriteAt: () => lastWriteAt };
 };
 // Collects everything that went wrong in the page; the render result lists it so a blank
 // frame can be traced to a failed request or a script error.
@@ -195,17 +225,29 @@ export const attachPageDiagnostics = (page, runtimeErrors) => {
         }
     });
 };
+// Loads the render page and builds the scene in it. A scene that cannot build rejects here
+// with the page's own error, for example a deterministic frame that is missing.
+export const initRenderPage = async (page, input) => {
+    await page.goto(input.url, { waitUntil: 'networkidle' });
+    await page.waitForFunction(() => Boolean(window.__VISUALFRIES_RENDER__));
+    return withPhaseTimeout({ phase: 'init', timeoutMs: input.timeoutMs }, () => page.evaluate(() => window.__VISUALFRIES_RENDER__.init()));
+};
 // Frames arrive through the frame writer binding; only the skipped count comes back here.
+// A range may take long, so the time limit is on the wait for the next frame.
 export const renderFrameRanges = async (page, ranges, input) => {
     let framesSkipped = 0;
     for (const range of ranges) {
-        const summary = await page.evaluate((renderOptions) => window.__VISUALFRIES_RENDER__.renderFrameRange(renderOptions), {
+        const summary = await withPhaseTimeout({
+            phase: `render frames ${range.fromFrame}-${range.toFrame}`,
+            timeoutMs: input.frameTimeoutMs,
+            lastProgressAt: input.lastFrameAt
+        }, () => page.evaluate((renderOptions) => window.__VISUALFRIES_RENDER__.renderFrameRange(renderOptions), {
             fromFrame: range.fromFrame,
             toFrame: range.toFrame,
             imageFormat: input.imageFormat,
             imageQuality: input.imageQuality,
             skipDuplicates: input.skipDuplicates
-        });
+        }));
         framesSkipped += summary?.framesSkipped ?? 0;
     }
     return { framesSkipped };
@@ -218,10 +260,11 @@ export const renderSparseFrames = async (page, input) => {
         const frame = input.frameIndices[index];
         const time = frame / input.fps;
         const framePath = path.join(input.framesDir, frameFileName(index + 1, input.imageFormat));
+        const bounded = (run) => withPhaseTimeout({ phase: `render frame ${frame}`, timeoutMs: input.frameTimeoutMs }, run);
         if (input.environment === 'client') {
-            await page.evaluate((payload) => window.__VISUALFRIES_RENDER__.seek(payload), {
+            await bounded(() => page.evaluate((payload) => window.__VISUALFRIES_RENDER__.seek(payload), {
                 time
-            });
+            }));
             const screenshot = await page.locator('#vf-root').screenshot({
                 type: input.imageFormat === 'png' ? 'png' : 'jpeg',
                 ...(input.imageFormat === 'png' ? {} : { quality: Math.round(input.imageQuality * 100) })
@@ -229,7 +272,7 @@ export const renderSparseFrames = async (page, input) => {
             await fs.writeFile(framePath, screenshot);
         }
         else {
-            const dataUrl = await page.evaluate((renderOptions) => window.__VISUALFRIES_RENDER__.renderFrame(renderOptions), { time, imageFormat: input.imageFormat, imageQuality: input.imageQuality });
+            const dataUrl = await bounded(() => page.evaluate((renderOptions) => window.__VISUALFRIES_RENDER__.renderFrame(renderOptions), { time, imageFormat: input.imageFormat, imageQuality: input.imageQuality }));
             await writeDataUrlFrame(dataUrl, framePath);
         }
         items.push({ frame, time, path: framePath, isDuplicate: false });

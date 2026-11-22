@@ -14,6 +14,13 @@ export type FramePayload = {
     isDuplicate?: boolean;
     dataUrl?: string;
 };
+export declare const DEFAULT_INIT_TIMEOUT_MS = 120000;
+export declare const DEFAULT_FRAME_TIMEOUT_MS = 120000;
+export declare const withPhaseTimeout: <T>(input: {
+    phase: string;
+    timeoutMs: number;
+    lastProgressAt?: () => number;
+}, run: () => Promise<T>) => Promise<T>;
 export declare const contiguousFrameRange: (frameIndices: number[]) => FrameRange | null;
 export declare const dataUrlToBuffer: (dataUrl: string) => Buffer;
 export declare const writeDataUrlFrame: (dataUrl: string, framePath: string) => Promise<void>;
@@ -76,12 +83,19 @@ export declare const createFrameWriter: (input: FrameWriterInput) => {
         isDuplicate: boolean;
     }[];
     write: (payload: FramePayload) => Promise<void>;
+    lastWriteAt: () => number;
 };
 export declare const attachPageDiagnostics: (page: RenderPage, runtimeErrors: string[]) => void;
+export declare const initRenderPage: (page: RenderPage, input: {
+    url: string;
+    timeoutMs: number;
+}) => Promise<LocalRenderResult["scene"]>;
 export declare const renderFrameRanges: (page: RenderPage, ranges: FrameRange[], input: {
     imageFormat: "png" | "jpg";
     imageQuality: number;
     skipDuplicates: boolean;
+    frameTimeoutMs: number;
+    lastFrameAt: () => number;
 }) => Promise<{
     framesSkipped: number;
 }>;
@@ -92,5 +106,6 @@ export declare const renderSparseFrames: (page: RenderPage, input: {
     imageFormat: "png" | "jpg";
     imageQuality: number;
     environment: LocalRenderOptions["environment"];
+    frameTimeoutMs: number;
 }) => Promise<FrameItem[]>;
 export {};

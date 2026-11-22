@@ -57,5 +57,21 @@ export declare const normalizeDeterministicPublicBasePath: (value: string) => st
 export declare function collectLocalDeterministicMediaComponents(input: unknown): LocalDeterministicMediaComponent[];
 export declare function resolveLocalDeterministicActiveWindow(component: LocalDeterministicMediaComponent, fromFrame: number, toFrame: number, fps: number): LocalDeterministicActiveWindow | null;
 export declare function toLocalDeterministicFrameIndex(component: LocalDeterministicMediaComponent, sceneFrameIndex: number, fps: number): number;
+/**
+ * The scene tree is built at the scene's in-point (`settings.startAt`), not at 0, and asks every
+ * media component on screen there for its frame. Returns that frame's index, or null when the
+ * scene starts at 0 or the component is not on screen at the in-point.
+ */
+export declare function toLocalSceneStartFrameIndex(component: LocalDeterministicMediaComponent, sceneStartAt: unknown, fps: number): number | null;
 export declare function resolveLocalPredecodedExtractionPlan(sourceStartSec: number, sourceEndSec: number | undefined, expectedFrameCount: number, fps: number): LocalPredecodedExtractionPlan;
+/**
+ * Frames the scene tree asks for while it builds, whatever the frame window: the component's
+ * first frame (a component that starts with the scene) and its frame at the scene's in-point.
+ * Only fills indices that have no frame yet, so real frames of the window always win.
+ */
+export declare function assignLocalBootstrapFrames(manifest: LocalDeterministicFrameManifest, component: LocalDeterministicMediaComponent, input: {
+    fps: number;
+    sceneStartAt: unknown;
+    frameUrl: string;
+}): void;
 export declare function prepareLocalDeterministicMedia(input: PrepareLocalDeterministicMediaInput): Promise<PrepareLocalDeterministicMediaResult>;

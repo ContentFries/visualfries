@@ -1,6 +1,7 @@
 import { AppManager } from './AppManager.svelte.js';
 import { Layer } from '../layers/Layer.svelte.js';
 import { asValue } from 'awilix/browser';
+import { DeterministicRenderError } from '../schemas/runtime/deterministic.js';
 export class LayersManager {
     layers = new Map();
     isBuilding = false;
@@ -67,6 +68,9 @@ export class LayersManager {
             }
         }
         catch (err) {
+            // A strict deterministic render fails here; it must not go on without the layer.
+            if (err instanceof DeterministicRenderError)
+                throw err;
             console.error(err);
         }
         finally {

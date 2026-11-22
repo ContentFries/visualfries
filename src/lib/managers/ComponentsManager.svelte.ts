@@ -16,6 +16,7 @@ import { asClass, asValue, type AwilixContainer } from 'awilix/browser';
 import type { LayersManager } from './LayersManager.svelte.js';
 import { debounce, type DebouncedFunc } from 'lodash-es';
 import { isTimeWithinTimeline } from '$lib/utils/timelineWindow.js';
+import { DeterministicRenderError } from '$lib/schemas/runtime/deterministic.js';
 // import { builtTextComponentForSubtitle } from '$lib/utils/subtitles.js';
 
 export class ComponentsManager
@@ -168,6 +169,8 @@ export class ComponentsManager
 			component = await this.#buildComponent(componentData);
 			this.components.set(componentData.id, component);
 		} catch (err) {
+			// A strict deterministic render fails here; it must not go on without the component.
+			if (err instanceof DeterministicRenderError) throw err;
 			console.error(err);
 		} finally {
 			this.isBuilding = false;

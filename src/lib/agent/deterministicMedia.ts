@@ -191,6 +191,25 @@ export function toLocalDeterministicFrameIndex(
 	return Math.max(0, Math.round(sourceStartInFrames + sceneFrameIndex - timelineStartInFrames));
 }
 
+/**
+ * The scene tree is built at the scene's in-point (`settings.startAt`), not at 0, and asks every
+ * media component on screen there for its frame. Returns that frame's index, or null when the
+ * scene starts at 0 or the component is not on screen at the in-point.
+ */
+export function toLocalSceneStartFrameIndex(
+	component: LocalDeterministicMediaComponent,
+	sceneStartAt: unknown,
+	fps: number
+): number | null {
+	if (typeof sceneStartAt !== 'number' || !Number.isFinite(sceneStartAt) || sceneStartAt <= 0) {
+		return null;
+	}
+	if (sceneStartAt < component.timelineStartAt || sceneStartAt >= component.timelineEndAt) {
+		return null;
+	}
+	return toLocalDeterministicFrameIndex(component, sceneStartAt * fps, fps);
+}
+
 export function resolveLocalPredecodedExtractionPlan(
 	sourceStartSec: number,
 	sourceEndSec: number | undefined,
@@ -347,6 +366,181 @@ const assignBoundaryFrames = (
 	}
 };
 
+/**
+ * Frames the scene tree asks for while it builds, whatever the frame window: the component's
+ * first frame (a component that starts with the scene) and its frame at the scene's in-point.
+ * Only fills indices that have no frame yet, so real frames of the window always win.
+ */
+export function assignLocalBootstrapFrames(
+	manifest: LocalDeterministicFrameManifest,
+	component: LocalDeterministicMediaComponent,
+	input: { fps: number; sceneStartAt: unknown; frameUrl: string }
+): void {
+	assignBoundaryFrames(
+		manifest,
+		component.id,
+		Math.round(component.sourceStartAt * input.fps),
+		input.frameUrl
+	);
+	const sceneStartFrameIndex = toLocalSceneStartFrameIndex(
+		component,
+		input.sceneStartAt,
+		input.fps
+	);
+	if (sceneStartFrameIndex !== null) {
+		assignBoundaryFrames(manifest, component.id, sceneStartFrameIndex, input.frameUrl);
+	}
+}
+
+type FrameExtractionContext = {
+	fps: number;
+	frameExtension: LocalDeterministicFrameExtension;
+	jpegQualityScale: number;
+	predecodedRoot: string;
+	publicBasePath: string;
+};
+
+const resolveSourceInput = (media: LocalDeterministicMediaComponent): string => {
+	const sourceInput = toInputPath(media.sourceUrl);
+	if (!/^https?:\/\//.test(sourceInput) && !existsSync(sourceInput)) {
+		throw new Error(`VisualFries deterministic media source does not exist: ${media.sourceUrl}`);
+	}
+	return sourceInput;
+};
+
+// A fast seek can come back short near the end of a source; the accurate seek is the retry.
+const extractComponentFrames = async (
+	media: LocalDeterministicMediaComponent,
+	context: FrameExtractionContext,
+	plan: LocalPredecodedExtractionPlan
+): Promise<{ outputDir: string; frames: string[] }> => {
+	const outputDir = path.join(context.predecodedRoot, safeFilePart(media.id));
+	await fs.rm(outputDir, { recursive: true, force: true });
+	await fs.mkdir(outputDir, { recursive: true });
+	const extract = (seekMode: 'fast' | 'accurate', label: string) =>
+		extractFrameSequence({
+			inputPath: resolveSourceInput(media),
+			outputDir,
+			sourceStartSec: plan.sourceStartSec,
+			expectedFrameCount: plan.extractFrameCount,
+			fps: context.fps,
+			extension: context.frameExtension,
+			jpegQualityScale: context.jpegQualityScale,
+			seekMode,
+			label: `${media.id}:${label}`
+		});
+
+	let frames = await extract('fast', 'fast');
+	if (frames.length < plan.extractFrameCount) {
+		for (const framePath of frames) await fs.rm(framePath, { force: true });
+		frames = await extract('accurate', 'accurate-retry');
+	}
+	return { outputDir, frames };
+};
+
+const frameUrlFor = (
+	media: LocalDeterministicMediaComponent,
+	context: FrameExtractionContext,
+	fileNumber: number
+): string =>
+	`${context.publicBasePath}/predecoded/${safeFilePart(media.id)}/${fileNumber}.${context.frameExtension}`;
+
+// A component that is not on screen in the frame window still needs one frame: the scene tree
+// asks for it while it builds when the component is on screen at the scene's start.
+const prepareBootstrapFrame = async (
+	media: LocalDeterministicMediaComponent,
+	context: FrameExtractionContext,
+	manifest: LocalDeterministicFrameManifest,
+	sceneStartAt: unknown
+): Promise<void> => {
+	const plan = resolveLocalPredecodedExtractionPlan(
+		media.sourceStartAt,
+		media.sourceEndAt,
+		1,
+		context.fps
+	);
+	const { frames } = await extractComponentFrames(media, context, plan);
+	if (frames.length < 1) {
+		throw new Error(`VisualFries deterministic media missing bootstrap frame for ${media.id}`);
+	}
+	assignLocalBootstrapFrames(manifest, media, {
+		fps: context.fps,
+		sceneStartAt,
+		frameUrl: frameUrlFor(media, context, 1)
+	});
+};
+
+// Every frame of the component inside the window, keyed by the index the renderer asks for.
+// Returns the number of frames prepared.
+const prepareWindowFrames = async (
+	media: LocalDeterministicMediaComponent,
+	context: FrameExtractionContext,
+	manifest: LocalDeterministicFrameManifest,
+	input: { activeWindow: LocalDeterministicActiveWindow; sceneStartAt: unknown }
+): Promise<number> => {
+	const { activeWindow } = input;
+	const expectedFrameCount = activeWindow.activeEndFrame - activeWindow.activeStartFrame;
+	const extractionPlan = resolveLocalPredecodedExtractionPlan(
+		activeWindow.sourceStartSec,
+		media.sourceEndAt,
+		expectedFrameCount,
+		context.fps
+	);
+	if (extractionPlan.extractFrameCount <= 0) return 0;
+
+	const extracted = await extractComponentFrames(media, context, extractionPlan);
+	const frames = await padTrailingFrames(
+		extracted.outputDir,
+		context.frameExtension,
+		extracted.frames,
+		expectedFrameCount
+	);
+	if (frames.length < expectedFrameCount) {
+		throw new Error(
+			`VisualFries deterministic media missing frames for ${media.id}: expected ${expectedFrameCount}, got ${frames.length}`
+		);
+	}
+
+	const firstDeterministicFrameIndex = toLocalDeterministicFrameIndex(
+		media,
+		activeWindow.activeStartFrame,
+		context.fps
+	);
+	const firstFrameUrl = frameUrlFor(media, context, 1);
+	assignBoundaryFrames(
+		manifest,
+		media.id,
+		Math.round(media.sourceStartAt * context.fps),
+		firstFrameUrl
+	);
+
+	for (let index = 0; index < expectedFrameCount; index += 1) {
+		const fullPath = path.join(extracted.outputDir, `${index + 1}.${context.frameExtension}`);
+		if (!existsSync(fullPath)) {
+			throw new Error(`VisualFries deterministic media frame missing: ${fullPath}`);
+		}
+		manifest[media.id][String(firstDeterministicFrameIndex + index)] = frameUrlFor(
+			media,
+			context,
+			index + 1
+		);
+	}
+
+	assignBoundaryFrames(
+		manifest,
+		media.id,
+		firstDeterministicFrameIndex + expectedFrameCount - 1,
+		frameUrlFor(media, context, expectedFrameCount)
+	);
+	// After the real frames, so it only fills indices that are still missing.
+	assignLocalBootstrapFrames(manifest, media, {
+		fps: context.fps,
+		sceneStartAt: input.sceneStartAt,
+		frameUrl: firstFrameUrl
+	});
+	return expectedFrameCount;
+};
+
 export async function prepareLocalDeterministicMedia(
 	input: PrepareLocalDeterministicMediaInput
 ): Promise<PrepareLocalDeterministicMediaResult> {
@@ -355,119 +549,41 @@ export async function prepareLocalDeterministicMedia(
 	const publicBasePath = normalizeDeterministicPublicBasePath(
 		input.publicBasePath ?? '/deterministic-media'
 	);
-	const frameExtension = input.frameExtension ?? 'jpg';
-	const jpegQualityScale = Math.max(1, Math.min(31, Math.floor(input.jpegQualityScale ?? 2)));
 	const assetsRoot = resolveSafeAssetRoot(input.workDir, publicBasePath);
-	const predecodedRoot = path.join(assetsRoot, 'predecoded');
-	await fs.mkdir(predecodedRoot, { recursive: true });
+	const context: FrameExtractionContext = {
+		fps,
+		frameExtension: input.frameExtension ?? 'jpg',
+		jpegQualityScale: Math.max(1, Math.min(31, Math.floor(input.jpegQualityScale ?? 2))),
+		predecodedRoot: path.join(assetsRoot, 'predecoded'),
+		publicBasePath
+	};
+	await fs.mkdir(context.predecodedRoot, { recursive: true });
 
-	const mediaComponents = collectLocalDeterministicMediaComponents(scene);
+	const sceneStartAt = scene.settings.startAt;
 	const frameManifest: LocalDeterministicFrameManifest = {};
 	const preparedMedia: PrepareLocalDeterministicMediaResult['media'] = [];
 
-	for (const media of mediaComponents) {
+	for (const media of collectLocalDeterministicMediaComponents(scene)) {
 		const activeWindow = resolveLocalDeterministicActiveWindow(
 			media,
 			input.fromFrame,
 			input.toFrame,
 			fps
 		);
-		if (!activeWindow) continue;
-		const componentDirName = safeFilePart(media.id);
-		const componentOutputDir = path.join(predecodedRoot, componentDirName);
-		await fs.rm(componentOutputDir, { recursive: true, force: true });
-		await fs.mkdir(componentOutputDir, { recursive: true });
-
-		const activeStartFrame = activeWindow.activeStartFrame;
-		const expectedFrameCount = activeWindow.activeEndFrame - activeWindow.activeStartFrame;
-		if (expectedFrameCount <= 0) continue;
-
-		const extractionPlan = resolveLocalPredecodedExtractionPlan(
-			activeWindow.sourceStartSec,
-			media.sourceEndAt,
-			expectedFrameCount,
-			fps
-		);
-		if (extractionPlan.extractFrameCount <= 0) continue;
-
-		const sourceInput = toInputPath(media.sourceUrl);
-		if (!/^https?:\/\//.test(sourceInput) && !existsSync(sourceInput)) {
-			throw new Error(`VisualFries deterministic media source does not exist: ${media.sourceUrl}`);
+		if (!activeWindow) {
+			await prepareBootstrapFrame(media, context, frameManifest, sceneStartAt);
+			continue;
 		}
-
-		let frames = await extractFrameSequence({
-			inputPath: sourceInput,
-			outputDir: componentOutputDir,
-			sourceStartSec: extractionPlan.sourceStartSec,
-			expectedFrameCount: extractionPlan.extractFrameCount,
-			fps,
-			extension: frameExtension,
-			jpegQualityScale,
-			seekMode: 'fast',
-			label: `${media.id}:fast`
+		const framesPrepared = await prepareWindowFrames(media, context, frameManifest, {
+			activeWindow,
+			sceneStartAt
 		});
-
-		if (frames.length < extractionPlan.extractFrameCount) {
-			for (const framePath of frames) await fs.rm(framePath, { force: true });
-			frames = await extractFrameSequence({
-				inputPath: sourceInput,
-				outputDir: componentOutputDir,
-				sourceStartSec: extractionPlan.sourceStartSec,
-				expectedFrameCount: extractionPlan.extractFrameCount,
-				fps,
-				extension: frameExtension,
-				jpegQualityScale,
-				seekMode: 'accurate',
-				label: `${media.id}:accurate-retry`
-			});
-		}
-
-		frames = await padTrailingFrames(
-			componentOutputDir,
-			frameExtension,
-			frames,
-			expectedFrameCount
-		);
-		if (frames.length < expectedFrameCount) {
-			throw new Error(
-				`VisualFries deterministic media missing frames for ${media.id}: expected ${expectedFrameCount}, got ${frames.length}`
-			);
-		}
-
-		const firstDeterministicFrameIndex = activeWindow
-			? toLocalDeterministicFrameIndex(media, activeStartFrame, fps)
-			: Math.round(media.sourceStartAt * fps);
-		const firstFrameUrl = `${publicBasePath}/predecoded/${componentDirName}/1.${frameExtension}`;
-		assignBoundaryFrames(
-			frameManifest,
-			media.id,
-			Math.round(media.sourceStartAt * fps),
-			firstFrameUrl
-		);
-
-		for (let index = 0; index < expectedFrameCount; index += 1) {
-			const fileName = `${index + 1}.${frameExtension}`;
-			const fullPath = path.join(componentOutputDir, fileName);
-			if (!existsSync(fullPath)) {
-				throw new Error(`VisualFries deterministic media frame missing: ${fullPath}`);
-			}
-			frameManifest[media.id] = frameManifest[media.id] ?? {};
-			frameManifest[media.id][String(firstDeterministicFrameIndex + index)] =
-				`${publicBasePath}/predecoded/${componentDirName}/${fileName}`;
-		}
-
-		const lastFrameUrl = `${publicBasePath}/predecoded/${componentDirName}/${expectedFrameCount}.${frameExtension}`;
-		assignBoundaryFrames(
-			frameManifest,
-			media.id,
-			firstDeterministicFrameIndex + expectedFrameCount - 1,
-			lastFrameUrl
-		);
+		if (framesPrepared === 0) continue;
 		preparedMedia.push({
 			componentId: media.id,
 			type: media.type,
 			sourceUrl: normalizeUrl(media.sourceUrl),
-			framesPrepared: expectedFrameCount
+			framesPrepared
 		});
 	}
 

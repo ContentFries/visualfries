@@ -33,6 +33,10 @@ export type LocalRenderOptions = {
         frame: number;
     }>;
     environment?: 'client' | 'server';
+    /** Limit for the page to build the scene, in ms. Default 120000; 0 turns it off. */
+    initTimeoutMs?: number;
+    /** Limit for the page to deliver the next frame, in ms. Default 120000; 0 turns it off. */
+    frameTimeoutMs?: number;
 };
 export type LocalRenderResult = {
     ok: true;

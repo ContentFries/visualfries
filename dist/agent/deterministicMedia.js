@@ -303,7 +303,9 @@ const assignWindowFrames = (manifest, media, context, run) => {
     assignBoundaryFrames(manifest, media.id, lastIndex, frameUrlIn(context, run, lastIndex));
 };
 // A run for the drawn frames the manifest has no file for, from the first to the last of them.
-const runForMissingFrames = (media, missing, folder, fps) => {
+// Next to a window run its frames are counted from that run, so the two number the source the
+// same way whichever side the window's rounding fell to.
+const runForMissingFrames = (media, missing, folder, fps, window) => {
     if (missing.length === 0)
         return null;
     const sorted = [...missing].sort((a, b) => a - b);
@@ -311,7 +313,9 @@ const runForMissingFrames = (media, missing, folder, fps) => {
         folder,
         firstIndex: sorted[0],
         frameCount: sorted[sorted.length - 1] - sorted[0] + 1,
-        sourceStartSec: sourceTimeOfFrameIndex(media, sorted[0], fps)
+        sourceStartSec: window
+            ? Math.max(0, window.sourceStartSec + (sorted[0] - window.firstIndex) / fps)
+            : sourceTimeOfFrameIndex(media, sorted[0], fps)
     };
 };
 // Prepares the frames of one component and returns how many it extracted for drawn frames.
@@ -334,7 +338,7 @@ const prepareMediaFrames = async (target, context, manifest, asked) => {
         runs.push(await extractRun(media, context, windowRun(media, asked.window, folder, context.fps)));
         assignWindowFrames(manifest, media, context, runs[0]);
     }
-    const missing = runForMissingFrames(media, asked.rendered.filter((frameIndex) => !(String(frameIndex) in frames)), runs.length ? `${folder}-outside` : folder, context.fps);
+    const missing = runForMissingFrames(media, asked.rendered.filter((frameIndex) => !(String(frameIndex) in frames)), runs.length ? `${folder}-outside` : folder, context.fps, runs[0]);
     if (missing)
         runs.push(await extractRun(media, context, missing));
     const framesPrepared = runs.reduce((sum, run) => sum + run.frameCount, 0);

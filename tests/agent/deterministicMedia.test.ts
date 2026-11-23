@@ -419,6 +419,36 @@ describe.skipIf(!hasFfmpeg)('frames prepared for a chunk from the middle of a sc
 		).toBe(true);
 	}, 60_000);
 
+	it('adds that frame with the picture before the window when the two starts lie half a frame apart', async () => {
+		// The starts are 1.5 frames apart: the page asks for frame 298 on scene frame 300, the
+		// window keys that scene frame as 299, and rounding the distance alone falls to the other
+		// side. The added frame is counted from the run of the window, one frame before its
+		// first file. Every file of such a clip lies between two source frames, and a run that
+		// starts there takes the later one: the same picture a render of the whole clip has one
+		// frame further on.
+		const components = () => [clip('half-apart', 0.083, 20, 0.033)];
+		const { manifest, picture } = await prepare('half-apart', {
+			layers: [{ id: 'media', components: components() }],
+			fromFrame: 300,
+			toFrame: 310
+		});
+		const whole = await prepare('half-apart-whole', {
+			layers: [{ id: 'media', components: components() }],
+			fromFrame: 0,
+			toFrame: 310
+		});
+		const added = await picture('half-apart', 298);
+
+		expect(manifest['half-apart']['298']).toBe(
+			'/deterministic-media/predecoded/0-half-apart-outside/1.jpg'
+		);
+		expect(manifest['half-apart']['299']).toBe(
+			'/deterministic-media/predecoded/0-half-apart/1.jpg'
+		);
+		expect(added.equals(await picture('half-apart', 299))).toBe(false);
+		expect(added.equals(await whole.picture('half-apart', 299))).toBe(true);
+	}, 60_000);
+
 	it('repeats the first picture of a clip whose source starts between two frames, as it always did', async () => {
 		// Source start 0.02 s is frame 0.6: the window keys scene frame 0 as frame 1, the page
 		// asks for frame 0 there, and the slack around the source start gives it the first file.

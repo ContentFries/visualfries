@@ -544,11 +544,14 @@ const assignWindowFrames = (
 };
 
 // A run for the drawn frames the manifest has no file for, from the first to the last of them.
+// Next to a window run its frames are counted from that run, so the two number the source the
+// same way whichever side the window's rounding fell to.
 const runForMissingFrames = (
 	media: LocalDeterministicMediaComponent,
 	missing: number[],
 	folder: string,
-	fps: number
+	fps: number,
+	window?: FrameRun
 ): FrameRun | null => {
 	if (missing.length === 0) return null;
 	const sorted = [...missing].sort((a, b) => a - b);
@@ -556,7 +559,9 @@ const runForMissingFrames = (
 		folder,
 		firstIndex: sorted[0],
 		frameCount: sorted[sorted.length - 1] - sorted[0] + 1,
-		sourceStartSec: sourceTimeOfFrameIndex(media, sorted[0], fps)
+		sourceStartSec: window
+			? Math.max(0, window.sourceStartSec + (sorted[0] - window.firstIndex) / fps)
+			: sourceTimeOfFrameIndex(media, sorted[0], fps)
 	};
 };
 
@@ -591,7 +596,8 @@ const prepareMediaFrames = async (
 		media,
 		asked.rendered.filter((frameIndex) => !(String(frameIndex) in frames)),
 		runs.length ? `${folder}-outside` : folder,
-		context.fps
+		context.fps,
+		runs[0]
 	);
 	if (missing) runs.push(await extractRun(media, context, missing));
 	const framesPrepared = runs.reduce((sum, run) => sum + run.frameCount, 0);

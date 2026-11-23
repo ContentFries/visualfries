@@ -14,6 +14,10 @@ import { findChromium } from '../../src/lib/motion/node.js';
 // tree still asks the first of those for a frame while it builds. This renders such a chunk
 // through the real dev server, Chromium and ffmpeg. So do the other cases here where the page
 // and the prepared frames have to agree: an in-point between two frames, and hidden media.
+//
+// Only the first and the last frames of the chunk are drawn: Chrome in its full headless mode
+// (the browser of CI) draws about one frame a second. tests/agent/deterministicMedia.test.ts
+// prepares the frames of the whole chunk.
 const packageRoot = process.cwd();
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -22,6 +26,7 @@ const hasKitConfig = existsSync(path.join(packageRoot, '.svelte-kit/tsconfig.jso
 const FPS = 30;
 const FROM_FRAME = 1351;
 const TO_FRAME = 2676;
+const EDGE_FRAMES = 8;
 
 const MISSING_SOURCE = 'file:///tmp/visualfries-no-such-source.mp4';
 
@@ -105,67 +110,58 @@ describe.skipIf(!hasChromium || !hasFfmpeg || !hasKitConfig)(
 			await fs.rm(dir, { recursive: true, force: true });
 		});
 
-		const render = async (
-			name: string,
-			scene: ReturnType<typeof sceneOf>,
-			frames: { fromFrame: number; toFrame: number; skipDuplicates?: boolean }
-		) => {
-			const output = path.join(dir, name);
+		// Renders EDGE_FRAMES frames and gives every one of them, as bytes.
+		const renderFrames = async (name: string, scene: ReturnType<typeof sceneOf>, fromFrame = 0) => {
+			const frameIndices = Array.from({ length: EDGE_FRAMES }, (_, index) => fromFrame + index);
 			const tmpDir = path.join(dir, `${name}-tmp`);
 			await fs.mkdir(tmpDir, { recursive: true });
-			return renderSceneLocally({
+			const result = await renderSceneLocally({
 				scene,
-				output,
+				output: path.join(dir, name),
 				framesOnly: true,
 				fps: FPS,
-				frameIndices: Array.from(
-					{ length: frames.toFrame - frames.fromFrame },
-					(_, index) => frames.fromFrame + index
-				),
+				frameIndices,
 				imageFormat: 'jpg',
-				skipDuplicates: frames.skipDuplicates ?? true,
+				skipDuplicates: false,
 				tmpDir,
 				packageRoot,
 				chromiumPath: findChromium() ?? undefined
 			});
-		};
 
-		const renderChunk = (name: string, settings?: Record<string, unknown>) =>
-			render(name, sceneOf(chunkLayers(sourceUrl), settings), {
-				fromFrame: FROM_FRAME,
-				toFrame: TO_FRAME
-			});
-
-		// The first 12 frames, every one written, as bytes.
-		const renderStart = async (name: string, layers: Layer[]) => {
-			const result = await render(name, sceneOf(layers), {
-				fromFrame: 0,
-				toFrame: 12,
-				skipDuplicates: false
-			});
+			expect(result.frames.transport).toBe('range-binding');
+			expect(result.frames.items.map((item) => item.frame)).toEqual(frameIndices);
 			expect(result.runtimeErrors).toEqual([]);
-			expect(result.frames.count).toBe(12);
 			return Promise.all(result.frames.items.map((item) => fs.readFile(item.path as string)));
 		};
 
-		it('renders frames 1351-2676 although media ended before and starts after the chunk', async () => {
-			const result = await renderChunk('chunk');
+		const renderChunkFrames = (
+			name: string,
+			fromFrame: number,
+			settings?: Record<string, unknown>
+		) => renderFrames(name, sceneOf(chunkLayers(sourceUrl), settings), fromFrame);
 
-			expect(result.frames.transport).toBe('range-binding');
-			expect(result.frames.count).toBe(TO_FRAME - FROM_FRAME);
-			expect(result.frames.items[0].frame).toBe(FROM_FRAME);
-			expect(result.frames.items.at(-1)?.frame).toBe(TO_FRAME - 1);
-			expect(result.runtimeErrors).toEqual([]);
-			// Only the three clips on screen in the chunk change the picture: their frames
-			// (149 + 300 + 126) are drawn, the gaps between them repeat the background.
-			expect(result.frames.items.filter((item) => !item.isDuplicate).length).toBeGreaterThan(500);
+		const renderStart = (name: string, layers: Layer[]) => renderFrames(name, sceneOf(layers));
+
+		const differentFrames = (frames: Buffer[]) =>
+			new Set(frames.map((frame) => frame.toString('base64'))).size;
+
+		it('renders both ends of frames 1351-2676 although media ended before and starts after them', async () => {
+			// The clip cut by the chunk start plays in the first frames, the one cut by the
+			// chunk end in the last ones: every frame shows another picture of the source.
+			const first = await renderChunkFrames('chunk-first', FROM_FRAME);
+			expect(differentFrames(first)).toBe(EDGE_FRAMES);
+
+			const last = await renderChunkFrames('chunk-last', TO_FRAME - EDGE_FRAMES);
+			expect(differentFrames(last)).toBe(EDGE_FRAMES);
 		});
 
-		it('renders the same chunk when the scene starts inside media that ended before it', async () => {
-			const result = await renderChunk('chunk-with-start', { startAt: 20 });
+		it('renders the same frames when the scene starts inside media that ended before them', async () => {
+			const plain = await renderChunkFrames('chunk-plain', FROM_FRAME);
+			const withStart = await renderChunkFrames('chunk-with-start', FROM_FRAME, { startAt: 20 });
 
-			expect(result.frames.count).toBe(TO_FRAME - FROM_FRAME);
-			expect(result.runtimeErrors).toEqual([]);
+			expect(withStart.map((frame, index) => frame.equals(plain[index]))).toEqual(
+				plain.map(() => true)
+			);
 		});
 
 		it('renders when the scene starts at 20.015 s, on the last frame of a clip that ends there', async () => {
@@ -184,13 +180,9 @@ describe.skipIf(!hasChromium || !hasFfmpeg || !hasKitConfig)(
 				{ startAt: 20.015 }
 			);
 
-			const result = await render('fractional-in-point', scene, {
-				fromFrame: FROM_FRAME,
-				toFrame: FROM_FRAME + 30
-			});
+			const frames = await renderFrames('fractional-in-point', scene, FROM_FRAME);
 
-			expect(result.frames.count).toBe(30);
-			expect(result.runtimeErrors).toEqual([]);
+			expect(frames).toHaveLength(EDGE_FRAMES);
 		});
 
 		it('renders a visible video next to hidden ones, with the frames of the visible one alone', async () => {

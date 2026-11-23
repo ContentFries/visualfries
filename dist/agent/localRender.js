@@ -12,7 +12,7 @@ import { resolveEffectiveRenderRanges } from './renderRanges.js';
 import { resolveAgentRenderPlan } from './renderPlan.js';
 import { discoverSceneFonts } from './sceneFonts.js';
 import { muxAudioWithVideo, PipeFrameEncoder } from './streamingEncoder.js';
-import { attachPageDiagnostics, buildEmptyRangeResult, buildRenderDiagnostic, buildRendererOptions, buildResolveAliases, createFrameWriter, renderFrameRanges, renderSparseFrames, resolveFrameRanges, resolveMediaDiagnosticsPath, resolveTmpParent, resolveTransport } from './localRenderSteps.js';
+import { attachPageDiagnostics, buildEmptyRangeResult, buildRenderDiagnostic, buildRendererOptions, buildResolveAliases, createFrameWriter, DEFAULT_FRAME_TIMEOUT_MS, DEFAULT_INIT_TIMEOUT_MS, initRenderPage, renderFrameRanges, renderSparseFrames, resolveFrameRanges, resolveRenderTimes, resolveMediaDiagnosticsPath, resolveTmpParent, resolveTransport, withPhaseTimeout } from './localRenderSteps.js';
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = path.dirname(currentFile);
 const defaultPackageRoot = path.resolve(currentDir, '..', '..');
@@ -320,8 +320,12 @@ const prepareSceneForRender = async (input) => {
         workDir: input.tempRoot,
         fromFrame: input.mediaPreparationRange.fromFrame,
         toFrame: input.mediaPreparationRange.toFrame,
+        renderTimes: input.renderTimes,
         strict: true,
-        diagnostics: input.mediaDiagnostics
+        diagnostics: input.mediaDiagnostics,
+        // The page seeks to each frame it is asked to explain, and draws none there.
+        seekTimes: input.explain?.map((request) => request.frame / input.fps),
+        extractionTimeoutMs: input.mediaTimeoutMs
     });
     await fs.writeFile(payloadPath, `${JSON.stringify(deterministicMedia.payload, null, 2)}\n`);
     return {
@@ -416,10 +420,10 @@ const launchRenderPage = async (input) => {
         throw error;
     }
 };
-const explainFrames = async (page, requests, fps) => {
+const explainFrames = async (page, requests, input) => {
     const explanations = [];
     for (const request of requests) {
-        explanations.push(await page.evaluate((payload) => window.__VISUALFRIES_RENDER__.explainFrame(payload), { componentId: request.componentId, time: request.frame / fps }));
+        explanations.push(await withPhaseTimeout({ phase: `explain frame ${request.frame}`, timeoutMs: input.frameTimeoutMs }, () => page.evaluate((payload) => window.__VISUALFRIES_RENDER__.explainFrame(payload), { componentId: request.componentId, time: request.frame / input.fps })));
     }
     return explanations;
 };
@@ -430,7 +434,9 @@ const renderRequestedFrames = async (page, input) => {
         const { framesSkipped } = await renderFrameRanges(page, input.effectiveRanges, {
             imageFormat: input.imageFormat,
             imageQuality: input.imageQuality,
-            skipDuplicates: input.options.skipDuplicates ?? false
+            skipDuplicates: input.options.skipDuplicates ?? false,
+            frameTimeoutMs: input.frameTimeoutMs,
+            lastFrameAt: input.lastFrameAt
         });
         return { framesSkipped, sparseFrames: [] };
     }
@@ -440,7 +446,8 @@ const renderRequestedFrames = async (page, input) => {
         framesDir: input.framesDir,
         imageFormat: input.imageFormat,
         imageQuality: input.imageQuality,
-        environment: input.options.environment
+        environment: input.options.environment,
+        frameTimeoutMs: input.frameTimeoutMs
     });
     return { framesSkipped: 0, sparseFrames };
 };
@@ -488,8 +495,18 @@ export async function renderSceneLocally(options) {
             scene: parsed,
             renderPlan,
             mediaPreparationRange,
+            renderTimes: resolveRenderTimes({
+                activeRange,
+                effectiveRanges,
+                frameIndices: options.frameIndices,
+                fps: options.fps,
+                sceneFps: parsed.settings.fps
+            }),
             tempRoot,
-            mediaDiagnostics: options.mediaDiagnostics ?? false
+            mediaDiagnostics: options.mediaDiagnostics ?? false,
+            mediaTimeoutMs: options.mediaTimeoutMs,
+            explain: options.explain,
+            fps: options.fps
         });
         await fs.writeFile(path.join(tempRoot, 'renderer-options.json'), `${JSON.stringify(buildRendererOptions(options), null, 2)}\n`);
         await writeRenderClient(tempRoot);
@@ -546,20 +563,27 @@ export async function renderSceneLocally(options) {
         await page.exposeFunction('__VISUALFRIES_FRAME_WRITER__', frameWriter.write);
         const runtimeErrors = [];
         attachPageDiagnostics(page, runtimeErrors);
-        await page.goto(url, { waitUntil: 'networkidle' });
-        await page.waitForFunction(() => Boolean(window.__VISUALFRIES_RENDER__));
-        const info = await page.evaluate(() => window.__VISUALFRIES_RENDER__.init());
-        const explanations = await explainFrames(page, options.explain ?? [], options.fps);
+        const frameTimeoutMs = options.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS;
+        const info = await initRenderPage(page, {
+            url,
+            timeoutMs: options.initTimeoutMs ?? DEFAULT_INIT_TIMEOUT_MS
+        });
+        const explanations = await explainFrames(page, options.explain ?? [], {
+            fps: options.fps,
+            frameTimeoutMs
+        });
         const { framesSkipped, sparseFrames } = await renderRequestedFrames(page, {
             activeRange,
             effectiveRanges,
             options,
             framesDir,
             imageFormat: normalizedImageFormat,
-            imageQuality
+            imageQuality,
+            frameTimeoutMs,
+            lastFrameAt: frameWriter.lastWriteAt
         });
         frames.push(...sparseFrames);
-        await page.evaluate(() => window.__VISUALFRIES_RENDER__.destroy());
+        await withPhaseTimeout({ phase: 'destroy', timeoutMs: frameTimeoutMs }, () => page.evaluate(() => window.__VISUALFRIES_RENDER__.destroy()));
         let encoded = false;
         let streamEncodeMs = 0;
         if (!framesOnly) {

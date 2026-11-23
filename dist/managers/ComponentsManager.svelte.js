@@ -7,6 +7,7 @@ import { ComponentState } from '../builders/_ComponentState.svelte.js';
 import { asClass, asValue } from 'awilix/browser';
 import { debounce } from 'lodash-es';
 import { isTimeWithinTimeline } from '../utils/timelineWindow.js';
+import { DeterministicRenderError } from '../schemas/runtime/deterministic.js';
 // import { builtTextComponentForSubtitle } from '../utils/subtitles.js';
 export class ComponentsManager {
     components = $state(new Map());
@@ -117,6 +118,9 @@ export class ComponentsManager {
             this.components.set(componentData.id, component);
         }
         catch (err) {
+            // A strict deterministic render fails here; it must not go on without the component.
+            if (err instanceof DeterministicRenderError)
+                throw err;
             console.error(err);
         }
         finally {

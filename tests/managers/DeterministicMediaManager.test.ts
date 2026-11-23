@@ -50,6 +50,30 @@ describe('DeterministicMediaManager', () => {
 		vi.useRealTimers();
 	});
 
+	it('expects frames for visible media, but not for hidden media or media of a muted layer', () => {
+		const media = (id: string, type = 'VIDEO') => ({ id, type });
+		const manager = new DeterministicMediaManager({
+			sceneData: {
+				...scene,
+				layers: [
+					{ id: 'shown', components: [media('video-1'), media('video-hidden')] },
+					{
+						id: 'muted',
+						muted: true,
+						components: [media('video-muted'), media('gif-muted', 'GIF'), media('text', 'TEXT')]
+					}
+				]
+			} as unknown as Scene
+		});
+
+		expect(manager.expectsFrames({ id: 'video-1' })).toBe(true);
+		expect(manager.expectsFrames({ id: 'video-1', visible: true })).toBe(true);
+		expect(manager.expectsFrames({ id: 'video-hidden', visible: false })).toBe(false);
+		expect(manager.expectsFrames({ id: 'video-muted', visible: true })).toBe(false);
+		expect(manager.expectsFrames({ id: 'gif-muted' })).toBe(false);
+		expect(manager.expectsFrames({ id: 'text' })).toBe(true);
+	});
+
 	it('returns cached override on repeated same-frame resolve without re-calling provider', async () => {
 		const bitmap = { close: vi.fn() } as unknown as ImageBitmap;
 		const provider: DeterministicFrameProvider = {

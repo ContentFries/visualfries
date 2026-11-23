@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { SceneShape, type Scene } from '../schemas/scene/index.js';
+import { mediaFrameIndexAtSceneTime, shownSceneTimes } from './sceneTime.js';
 
 export type LocalDeterministicMediaStrategy = 'predecoded-image-sequence';
 export type LocalDeterministicFrameExtension = 'jpg' | 'png';
@@ -41,14 +42,26 @@ export type LocalDeterministicFrameManifest = Record<string, Record<string, stri
 export type PrepareLocalDeterministicMediaInput = {
 	scene: unknown;
 	workDir: string;
+	/** The frame window of the render. Only read when `renderTimes` is not given. */
 	fromFrame: number;
 	toFrame: number;
+	/**
+	 * Scene times the page seeks to and draws a frame at. Default: every frame of the window,
+	 * at the frame rate of the scene.
+	 */
+	renderTimes?: number[];
 	publicBasePath?: string;
 	frameExtension?: LocalDeterministicFrameExtension;
 	jpegQualityScale?: number;
 	strict?: boolean;
 	diagnostics?: boolean;
+	/** Scene times the page seeks to without drawing a frame (frames to explain). */
+	seekTimes?: number[];
+	/** Limit for one ffmpeg extraction in ms; 0 switches it off. Default 600000. */
+	extractionTimeoutMs?: number;
 };
+
+export const DEFAULT_EXTRACTION_TIMEOUT_MS = 600_000;
 
 export type PrepareLocalDeterministicMediaResult = {
 	preparedScene: Scene;
@@ -232,23 +245,43 @@ export function resolveLocalPredecodedExtractionPlan(
 	};
 }
 
-const runFfmpeg = async (args: string[], label: string): Promise<void> => {
+// ffmpeg reads the source before the page loads, so nothing else bounds it: a source that
+// never answers would hang the render. ffmpeg prints nothing while it seeks, so the limit is
+// on the whole call, not on silence.
+const runFfmpeg = async (
+	args: string[],
+	input: { label: string; timeoutMs: number }
+): Promise<void> => {
 	const ffmpegPath = process.env.FFMPEG_PATH || 'ffmpeg';
+	const tag = `[visualfries deterministic media][${input.label}]`;
 	await new Promise<void>((resolve, reject) => {
 		const child = spawn(ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
 		let stderr = '';
+		let timedOut = false;
+		const timer =
+			input.timeoutMs > 0
+				? setTimeout(() => {
+						timedOut = true;
+						child.kill('SIGKILL');
+					}, input.timeoutMs)
+				: undefined;
 		child.stderr?.on('data', (chunk) => {
 			stderr = (stderr + String(chunk)).slice(-4000);
 		});
-		child.on('error', reject);
+		child.on('error', (error) => {
+			clearTimeout(timer);
+			reject(error);
+		});
 		child.on('close', (code) => {
-			if (code === 0) {
-				resolve();
-			} else {
-				reject(
-					new Error(`[visualfries deterministic media][${label}] ffmpeg exited ${code}. ${stderr}`)
-				);
-			}
+			clearTimeout(timer);
+			if (code === 0) return resolve();
+			reject(
+				new Error(
+					timedOut
+						? `${tag} ffmpeg timed out: no result for ${input.timeoutMs} ms.`
+						: `${tag} ffmpeg exited ${code}. ${stderr}`
+				)
+			);
 		});
 	});
 };
@@ -277,6 +310,7 @@ const extractFrameSequence = async (options: {
 	jpegQualityScale: number;
 	seekMode?: 'fast' | 'accurate';
 	label?: string;
+	timeoutMs: number;
 }): Promise<string[]> => {
 	await fs.mkdir(options.outputDir, { recursive: true });
 	const outputPattern = path.join(options.outputDir, `%d.${options.extension}`);
@@ -310,7 +344,10 @@ const extractFrameSequence = async (options: {
 	}
 	args.push(outputPattern);
 
-	await runFfmpeg(args, options.label ?? 'extract-frame-sequence');
+	await runFfmpeg(args, {
+		label: options.label ?? 'extract-frame-sequence',
+		timeoutMs: options.timeoutMs
+	});
 	return listFrameFiles(options.outputDir, options.extension);
 };
 
@@ -347,6 +384,253 @@ const assignBoundaryFrames = (
 	}
 };
 
+type FrameExtractionContext = {
+	fps: number;
+	frameExtension: LocalDeterministicFrameExtension;
+	jpegQualityScale: number;
+	predecodedRoot: string;
+	publicBasePath: string;
+	timeoutMs: number;
+};
+
+type MediaFramesTarget = {
+	media: LocalDeterministicMediaComponent;
+	/** The component's own folder below `predecoded`. */
+	folder: string;
+};
+
+// Ids differ in characters a file name cannot hold (`clip/a`, `clip_a`), or only in case on a
+// file system that ignores it. The position in the scene makes every folder its own, so a
+// long id can be cut to fit the 255 bytes of a file name.
+const componentFolder = (media: LocalDeterministicMediaComponent, position: number): string =>
+	`${position}-${safeFilePart(media.id).slice(0, 80)}`;
+
+const resolveSourceInput = (media: LocalDeterministicMediaComponent): string => {
+	const sourceInput = toInputPath(media.sourceUrl);
+	if (!/^https?:\/\//.test(sourceInput) && !existsSync(sourceInput)) {
+		throw new Error(`VisualFries deterministic media source does not exist: ${media.sourceUrl}`);
+	}
+	return sourceInput;
+};
+
+// A fast seek can come back short near the end of a source; the accurate seek is the retry.
+const extractComponentFrames = async (
+	target: MediaFramesTarget,
+	context: FrameExtractionContext,
+	plan: LocalPredecodedExtractionPlan
+): Promise<{ outputDir: string; frames: string[] }> => {
+	const outputDir = path.join(context.predecodedRoot, target.folder);
+	await fs.rm(outputDir, { recursive: true, force: true });
+	await fs.mkdir(outputDir, { recursive: true });
+	const extract = (seekMode: 'fast' | 'accurate', label: string) =>
+		extractFrameSequence({
+			inputPath: resolveSourceInput(target.media),
+			outputDir,
+			sourceStartSec: plan.sourceStartSec,
+			expectedFrameCount: plan.extractFrameCount,
+			fps: context.fps,
+			extension: context.frameExtension,
+			jpegQualityScale: context.jpegQualityScale,
+			seekMode,
+			label: `${target.media.id}:${label}`,
+			timeoutMs: context.timeoutMs
+		});
+
+	let frames = await extract('fast', 'fast');
+	if (frames.length < plan.extractFrameCount) {
+		for (const framePath of frames) await fs.rm(framePath, { force: true });
+		frames = await extract('accurate', 'accurate-retry');
+	}
+	return { outputDir, frames };
+};
+
+// The frame indices the page asks a component for at the given scene times, by the arithmetic
+// of the runtime itself.
+const frameIndicesAt = (
+	media: LocalDeterministicMediaComponent,
+	sceneTimes: number[],
+	settings: Scene['settings']
+): number[] =>
+	sceneTimes.flatMap((time) => mediaFrameIndexAtSceneTime(media, time, settings) ?? []);
+
+/** One ffmpeg run: file 1 is the picture of frame index `firstIndex`, and so on. */
+type FrameRun = { folder: string; firstIndex: number; frameCount: number; sourceStartSec: number };
+
+const runHolds = (run: FrameRun, frameIndex: number): boolean =>
+	frameIndex >= run.firstIndex && frameIndex < run.firstIndex + run.frameCount;
+
+/** The file of a frame index in a run; the run's first file for an index it does not hold. */
+const frameUrlIn = (context: FrameExtractionContext, run: FrameRun, frameIndex: number): string => {
+	const fileNumber = runHolds(run, frameIndex) ? frameIndex - run.firstIndex + 1 : 1;
+	return `${context.publicBasePath}/predecoded/${run.folder}/${fileNumber}.${context.frameExtension}`;
+};
+
+// Where in the source the picture of a frame index lies, by the numbering of the window run:
+// toLocalDeterministicFrameIndex rounds the distance between the two starts to whole frames,
+// and the part of a frame it drops is added back here.
+const sourceTimeOfFrameIndex = (
+	media: LocalDeterministicMediaComponent,
+	frameIndex: number,
+	fps: number
+): number => {
+	const startsApart = media.sourceStartAt * fps - media.timelineStartAt * fps;
+	return Math.max(0, (frameIndex + startsApart - Math.round(startsApart)) / fps);
+};
+
+const extractRun = async (
+	media: LocalDeterministicMediaComponent,
+	context: FrameExtractionContext,
+	run: FrameRun
+): Promise<FrameRun> => {
+	const extracted = await extractComponentFrames(
+		{ media, folder: run.folder },
+		context,
+		resolveLocalPredecodedExtractionPlan(
+			run.sourceStartSec,
+			media.sourceEndAt,
+			run.frameCount,
+			context.fps
+		)
+	);
+	const frames = await padTrailingFrames(
+		extracted.outputDir,
+		context.frameExtension,
+		extracted.frames,
+		run.frameCount
+	);
+	if (frames.length < run.frameCount) {
+		throw new Error(
+			`VisualFries deterministic media missing frames for ${media.id}: expected ${run.frameCount}, got ${frames.length}`
+		);
+	}
+	return run;
+};
+
+// The component's frames in the frame window, extracted and keyed as they have always been:
+// the frames of the window under toLocalDeterministicFrameIndex, and the first and the last
+// file also under the two indices around them. Renders that worked keep exactly the pictures
+// they had this way. One of them is a repeated first picture: for a source start between two
+// frames the page asks for the frame before the first one of the window, and the slack
+// answers with the first file.
+const windowRun = (
+	media: LocalDeterministicMediaComponent,
+	window: LocalDeterministicActiveWindow,
+	folder: string,
+	fps: number
+): FrameRun => ({
+	folder,
+	firstIndex: toLocalDeterministicFrameIndex(media, window.activeStartFrame, fps),
+	frameCount: window.activeEndFrame - window.activeStartFrame,
+	sourceStartSec: window.sourceStartSec
+});
+
+const assignWindowFrames = (
+	manifest: LocalDeterministicFrameManifest,
+	media: LocalDeterministicMediaComponent,
+	context: FrameExtractionContext,
+	run: FrameRun
+): void => {
+	const lastIndex = run.firstIndex + run.frameCount - 1;
+	assignBoundaryFrames(
+		manifest,
+		media.id,
+		Math.round(media.sourceStartAt * context.fps),
+		frameUrlIn(context, run, run.firstIndex)
+	);
+	for (let index = run.firstIndex; index <= lastIndex; index += 1) {
+		manifest[media.id][String(index)] = frameUrlIn(context, run, index);
+	}
+	assignBoundaryFrames(manifest, media.id, lastIndex, frameUrlIn(context, run, lastIndex));
+};
+
+// A run for the drawn frames the manifest has no file for, from the first to the last of them.
+// Next to a window run its frames are counted from that run, so the two number the source the
+// same way whichever side the window's rounding fell to.
+const runForMissingFrames = (
+	media: LocalDeterministicMediaComponent,
+	missing: number[],
+	folder: string,
+	fps: number,
+	window?: FrameRun
+): FrameRun | null => {
+	if (missing.length === 0) return null;
+	const sorted = [...missing].sort((a, b) => a - b);
+	return {
+		folder,
+		firstIndex: sorted[0],
+		frameCount: sorted[sorted.length - 1] - sorted[0] + 1,
+		sourceStartSec: window
+			? Math.max(0, window.sourceStartSec + (sorted[0] - window.firstIndex) / fps)
+			: sourceTimeOfFrameIndex(media, sorted[0], fps)
+	};
+};
+
+// Prepares the frames of one component and returns how many it extracted for drawn frames.
+//
+// 1. The component's frames in the frame window, as always (windowRun).
+// 2. The frames the page asks for, by the arithmetic of the runtime, that are still missing.
+//    A drawn frame gets its picture from a second run. A frame the page only looks at takes
+//    its file from a run that holds it, and the first file otherwise.
+//
+// A frame that has a file keeps it. A component the page never shows gets no extraction, and
+// its source is not even looked at.
+const prepareMediaFrames = async (
+	target: MediaFramesTarget,
+	context: FrameExtractionContext,
+	manifest: LocalDeterministicFrameManifest,
+	asked: { rendered: number[]; other: number[]; window: LocalDeterministicActiveWindow | null }
+): Promise<number> => {
+	const { media, folder } = target;
+	const askedFrames = [...asked.rendered, ...asked.other];
+	if (askedFrames.length === 0) return 0;
+	const frames = (manifest[media.id] ??= {});
+	const runs: FrameRun[] = [];
+
+	if (asked.window && asked.rendered.length) {
+		runs.push(
+			await extractRun(media, context, windowRun(media, asked.window, folder, context.fps))
+		);
+		assignWindowFrames(manifest, media, context, runs[0]);
+	}
+	const missing = runForMissingFrames(
+		media,
+		asked.rendered.filter((frameIndex) => !(String(frameIndex) in frames)),
+		runs.length ? `${folder}-outside` : folder,
+		context.fps,
+		runs[0]
+	);
+	if (missing) runs.push(await extractRun(media, context, missing));
+	const framesPrepared = runs.reduce((sum, run) => sum + run.frameCount, 0);
+	if (runs.length === 0) {
+		// Only looked at, never drawn: the first picture of the clip stands for all of it.
+		const firstIndex = Math.round(media.sourceStartAt * context.fps);
+		const sourceStartSec = media.sourceStartAt;
+		runs.push(
+			await extractRun(media, context, { folder, firstIndex, frameCount: 1, sourceStartSec })
+		);
+	}
+
+	for (const frameIndex of askedFrames) {
+		const run = runs.find((candidate) => runHolds(candidate, frameIndex)) ?? runs[0];
+		frames[String(frameIndex)] ??= frameUrlIn(context, run, frameIndex);
+	}
+	return framesPrepared;
+};
+
+// Every frame of the window, at the frame rate of the scene. Seeks past the end of the scene
+// all land on its last frame, so one of them stands for the rest.
+const windowRenderTimes = (
+	window: { fromFrame: number; toFrame: number },
+	settings: Scene['settings']
+): number[] => {
+	const sceneEndFrame = Math.ceil(settings.duration * settings.fps);
+	const toFrame = Math.min(window.toFrame, Math.max(window.fromFrame, sceneEndFrame) + 1);
+	return Array.from(
+		{ length: Math.max(0, toFrame - window.fromFrame) },
+		(_, index) => (window.fromFrame + index) / settings.fps
+	);
+};
+
 export async function prepareLocalDeterministicMedia(
 	input: PrepareLocalDeterministicMediaInput
 ): Promise<PrepareLocalDeterministicMediaResult> {
@@ -355,119 +639,42 @@ export async function prepareLocalDeterministicMedia(
 	const publicBasePath = normalizeDeterministicPublicBasePath(
 		input.publicBasePath ?? '/deterministic-media'
 	);
-	const frameExtension = input.frameExtension ?? 'jpg';
-	const jpegQualityScale = Math.max(1, Math.min(31, Math.floor(input.jpegQualityScale ?? 2)));
 	const assetsRoot = resolveSafeAssetRoot(input.workDir, publicBasePath);
-	const predecodedRoot = path.join(assetsRoot, 'predecoded');
-	await fs.mkdir(predecodedRoot, { recursive: true });
+	const context: FrameExtractionContext = {
+		fps,
+		frameExtension: input.frameExtension ?? 'jpg',
+		jpegQualityScale: Math.max(1, Math.min(31, Math.floor(input.jpegQualityScale ?? 2))),
+		predecodedRoot: path.join(assetsRoot, 'predecoded'),
+		publicBasePath,
+		timeoutMs: input.extractionTimeoutMs ?? DEFAULT_EXTRACTION_TIMEOUT_MS
+	};
+	await fs.mkdir(context.predecodedRoot, { recursive: true });
 
-	const mediaComponents = collectLocalDeterministicMediaComponents(scene);
+	const shown = shownSceneTimes({
+		settings: scene.settings,
+		renderTimes: input.renderTimes ?? windowRenderTimes(input, scene.settings),
+		seekTimes: input.seekTimes
+	});
 	const frameManifest: LocalDeterministicFrameManifest = {};
 	const preparedMedia: PrepareLocalDeterministicMediaResult['media'] = [];
 
-	for (const media of mediaComponents) {
-		const activeWindow = resolveLocalDeterministicActiveWindow(
-			media,
-			input.fromFrame,
-			input.toFrame,
-			fps
-		);
-		if (!activeWindow) continue;
-		const componentDirName = safeFilePart(media.id);
-		const componentOutputDir = path.join(predecodedRoot, componentDirName);
-		await fs.rm(componentOutputDir, { recursive: true, force: true });
-		await fs.mkdir(componentOutputDir, { recursive: true });
-
-		const activeStartFrame = activeWindow.activeStartFrame;
-		const expectedFrameCount = activeWindow.activeEndFrame - activeWindow.activeStartFrame;
-		if (expectedFrameCount <= 0) continue;
-
-		const extractionPlan = resolveLocalPredecodedExtractionPlan(
-			activeWindow.sourceStartSec,
-			media.sourceEndAt,
-			expectedFrameCount,
-			fps
-		);
-		if (extractionPlan.extractFrameCount <= 0) continue;
-
-		const sourceInput = toInputPath(media.sourceUrl);
-		if (!/^https?:\/\//.test(sourceInput) && !existsSync(sourceInput)) {
-			throw new Error(`VisualFries deterministic media source does not exist: ${media.sourceUrl}`);
-		}
-
-		let frames = await extractFrameSequence({
-			inputPath: sourceInput,
-			outputDir: componentOutputDir,
-			sourceStartSec: extractionPlan.sourceStartSec,
-			expectedFrameCount: extractionPlan.extractFrameCount,
-			fps,
-			extension: frameExtension,
-			jpegQualityScale,
-			seekMode: 'fast',
-			label: `${media.id}:fast`
-		});
-
-		if (frames.length < extractionPlan.extractFrameCount) {
-			for (const framePath of frames) await fs.rm(framePath, { force: true });
-			frames = await extractFrameSequence({
-				inputPath: sourceInput,
-				outputDir: componentOutputDir,
-				sourceStartSec: extractionPlan.sourceStartSec,
-				expectedFrameCount: extractionPlan.extractFrameCount,
-				fps,
-				extension: frameExtension,
-				jpegQualityScale,
-				seekMode: 'accurate',
-				label: `${media.id}:accurate-retry`
-			});
-		}
-
-		frames = await padTrailingFrames(
-			componentOutputDir,
-			frameExtension,
-			frames,
-			expectedFrameCount
-		);
-		if (frames.length < expectedFrameCount) {
-			throw new Error(
-				`VisualFries deterministic media missing frames for ${media.id}: expected ${expectedFrameCount}, got ${frames.length}`
-			);
-		}
-
-		const firstDeterministicFrameIndex = activeWindow
-			? toLocalDeterministicFrameIndex(media, activeStartFrame, fps)
-			: Math.round(media.sourceStartAt * fps);
-		const firstFrameUrl = `${publicBasePath}/predecoded/${componentDirName}/1.${frameExtension}`;
-		assignBoundaryFrames(
+	for (const [position, media] of collectLocalDeterministicMediaComponents(scene).entries()) {
+		const framesPrepared = await prepareMediaFrames(
+			{ media, folder: componentFolder(media, position) },
+			context,
 			frameManifest,
-			media.id,
-			Math.round(media.sourceStartAt * fps),
-			firstFrameUrl
-		);
-
-		for (let index = 0; index < expectedFrameCount; index += 1) {
-			const fileName = `${index + 1}.${frameExtension}`;
-			const fullPath = path.join(componentOutputDir, fileName);
-			if (!existsSync(fullPath)) {
-				throw new Error(`VisualFries deterministic media frame missing: ${fullPath}`);
+			{
+				rendered: frameIndicesAt(media, shown.rendered, scene.settings),
+				other: frameIndicesAt(media, shown.other, scene.settings),
+				window: resolveLocalDeterministicActiveWindow(media, input.fromFrame, input.toFrame, fps)
 			}
-			frameManifest[media.id] = frameManifest[media.id] ?? {};
-			frameManifest[media.id][String(firstDeterministicFrameIndex + index)] =
-				`${publicBasePath}/predecoded/${componentDirName}/${fileName}`;
-		}
-
-		const lastFrameUrl = `${publicBasePath}/predecoded/${componentDirName}/${expectedFrameCount}.${frameExtension}`;
-		assignBoundaryFrames(
-			frameManifest,
-			media.id,
-			firstDeterministicFrameIndex + expectedFrameCount - 1,
-			lastFrameUrl
 		);
+		if (framesPrepared === 0) continue;
 		preparedMedia.push({
 			componentId: media.id,
 			type: media.type,
 			sourceUrl: normalizeUrl(media.sourceUrl),
-			framesPrepared: expectedFrameCount
+			framesPrepared
 		});
 	}
 

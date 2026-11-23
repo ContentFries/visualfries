@@ -23,7 +23,8 @@ export class DeterministicMediaFrameHook {
         }
         const fps = this.#state.data.settings.fps || 30;
         const data = this.#context.contextData;
-        if (!this.#context.isActive) {
+        // Nobody prepares frames for a hidden component or for media of a muted layer.
+        if (!this.#context.isActive || !this.#manager.expectsFrames(data)) {
             const cacheKeyChanged = this.#clearDeterministicResources(data.id);
             if (cacheKeyChanged) {
                 this.#state.markDirty();
@@ -45,11 +46,8 @@ export class DeterministicMediaFrameHook {
                 this.#state.markDirty();
             }
             if (this.#manager.config.strict && this.#manager.getProvider()) {
-                throw new DeterministicRenderError('Deterministic frame provider returned null', {
-                    componentId: data.id,
-                    frameIndex,
-                    sceneTime: this.#state.currentTime
-                });
+                const sceneTime = this.#state.currentTime;
+                throw new DeterministicRenderError(`Deterministic frame provider returned null (component ${data.id}, frame ${frameIndex}, scene time ${sceneTime})`, { componentId: data.id, frameIndex, sceneTime });
             }
             return;
         }

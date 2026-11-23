@@ -40,7 +40,7 @@ export class SeekCommand implements Command {
 			getResource: (
 				key: 'pixiTexture' | 'pixiRenderObject' | 'videoElement' | 'imageElement'
 			) => unknown;
-			data?: { effects?: { map?: Record<string, unknown> } };
+			data?: { visible?: boolean; effects?: { map?: Record<string, unknown> } };
 		};
 	}): boolean {
 		return component.type === 'VIDEO' || component.type === 'GIF';
@@ -71,7 +71,10 @@ export class SeekCommand implements Command {
 			if (!this.#isDeterministicMediaComponent(component as any)) {
 				continue;
 			}
-			if (!component.context.isActive) {
+			// A component that gets no frame (DeterministicMediaFrameHook) has none pending.
+			const { id, context } = component;
+			const visible = context.data?.visible;
+			if (!context.isActive || !this.deterministicMediaManager.expectsFrames({ id, visible })) {
 				continue;
 			}
 

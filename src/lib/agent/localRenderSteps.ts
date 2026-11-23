@@ -24,6 +24,41 @@ export type FramePayload = {
 	dataUrl?: string;
 };
 
+export const DEFAULT_INIT_TIMEOUT_MS = 120_000;
+export const DEFAULT_FRAME_TIMEOUT_MS = 120_000;
+
+// Bounds a wait on the page, so a page that never answers fails the render instead of
+// hanging it. With `lastProgressAt` the limit is on the time since the last progress, for a
+// phase that is long by design. A limit of 0 or less turns the bound off.
+export const withPhaseTimeout = async <T>(
+	input: { phase: string; timeoutMs: number; lastProgressAt?: () => number },
+	run: () => Promise<T>
+): Promise<T> => {
+	if (!(input.timeoutMs > 0)) return run();
+	const startedAt = Date.now();
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const expired = new Promise<never>((_resolve, reject) => {
+		const check = () => {
+			const idleMs = Date.now() - Math.max(startedAt, input.lastProgressAt?.() ?? 0);
+			if (idleMs < input.timeoutMs) {
+				timer = setTimeout(check, input.timeoutMs - idleMs);
+				return;
+			}
+			reject(
+				new Error(
+					`VisualFries local render timed out in phase "${input.phase}": no result for ${input.timeoutMs} ms.`
+				)
+			);
+		};
+		timer = setTimeout(check, input.timeoutMs);
+	});
+	try {
+		return await Promise.race([run(), expired]);
+	} finally {
+		clearTimeout(timer);
+	}
+};
+
 export const contiguousFrameRange = (frameIndices: number[]): FrameRange | null => {
 	if (!frameIndices.length) return null;
 	const fromFrame = frameIndices[0];
@@ -67,6 +102,25 @@ export const resolveFrameRanges = (
 			toFrame: Math.max(...frameIndices) + 1
 		}
 	};
+};
+
+// The scene times the page seeks to for the frames it draws. The range render seeks to
+// `frame / fps of the scene` (SceneBuilder.renderFrameRange) and leaves out the frames in trim
+// zones; the frame-by-frame render seeks to `frame / options.fps`.
+export const resolveRenderTimes = (input: {
+	activeRange: FrameRange | null;
+	effectiveRanges: FrameRange[];
+	frameIndices: number[];
+	fps: number;
+	sceneFps: number;
+}): number[] => {
+	if (!input.activeRange) return input.frameIndices.map((frame) => frame / input.fps);
+	return input.effectiveRanges.flatMap((range) =>
+		Array.from(
+			{ length: range.toFrame - range.fromFrame },
+			(_, index) => (range.fromFrame + index) / input.sceneFps
+		)
+	);
 };
 
 export const resolveTransport = (
@@ -198,6 +252,7 @@ export const createFrameWriter = (input: FrameWriterInput) => {
 	let outputFrameIndex = 0;
 	let previousFramePath: string | undefined;
 	let previousFrameBuffer: Buffer | undefined;
+	let lastWriteAt = 0;
 
 	const streamFrame = async (payload: FramePayload) => {
 		let frameBuffer: Buffer;
@@ -247,9 +302,10 @@ export const createFrameWriter = (input: FrameWriterInput) => {
 			path: input.streamEncoder ? null : framePath,
 			isDuplicate: Boolean(payload.isDuplicate)
 		});
+		lastWriteAt = Date.now();
 	};
 
-	return { frames, write };
+	return { frames, write, lastWriteAt: () => lastWriteAt };
 };
 
 // Collects everything that went wrong in the page; the render result lists it so a blank
@@ -277,24 +333,52 @@ export const attachPageDiagnostics = (page: RenderPage, runtimeErrors: string[])
 	});
 };
 
+// Loads the render page and builds the scene in it. A scene that cannot build rejects here
+// with the page's own error, for example a deterministic frame that is missing.
+export const initRenderPage = async (
+	page: RenderPage,
+	input: { url: string; timeoutMs: number }
+): Promise<LocalRenderResult['scene']> => {
+	await page.goto(input.url, { waitUntil: 'networkidle' });
+	await page.waitForFunction(() => Boolean((window as any).__VISUALFRIES_RENDER__));
+	return withPhaseTimeout({ phase: 'init', timeoutMs: input.timeoutMs }, () =>
+		page.evaluate(() => (window as any).__VISUALFRIES_RENDER__.init())
+	);
+};
+
 // Frames arrive through the frame writer binding; only the skipped count comes back here.
+// A range may take long, so the time limit is on the wait for the next frame.
 export const renderFrameRanges = async (
 	page: RenderPage,
 	ranges: FrameRange[],
-	input: { imageFormat: 'png' | 'jpg'; imageQuality: number; skipDuplicates: boolean }
+	input: {
+		imageFormat: 'png' | 'jpg';
+		imageQuality: number;
+		skipDuplicates: boolean;
+		frameTimeoutMs: number;
+		lastFrameAt: () => number;
+	}
 ): Promise<{ framesSkipped: number }> => {
 	let framesSkipped = 0;
 	for (const range of ranges) {
-		const summary = await page.evaluate(
-			(renderOptions: any) =>
-				(window as any).__VISUALFRIES_RENDER__.renderFrameRange(renderOptions),
+		const summary = await withPhaseTimeout<{ framesSkipped?: number } | undefined>(
 			{
-				fromFrame: range.fromFrame,
-				toFrame: range.toFrame,
-				imageFormat: input.imageFormat,
-				imageQuality: input.imageQuality,
-				skipDuplicates: input.skipDuplicates
-			}
+				phase: `render frames ${range.fromFrame}-${range.toFrame}`,
+				timeoutMs: input.frameTimeoutMs,
+				lastProgressAt: input.lastFrameAt
+			},
+			() =>
+				page.evaluate(
+					(renderOptions: any) =>
+						(window as any).__VISUALFRIES_RENDER__.renderFrameRange(renderOptions),
+					{
+						fromFrame: range.fromFrame,
+						toFrame: range.toFrame,
+						imageFormat: input.imageFormat,
+						imageQuality: input.imageQuality,
+						skipDuplicates: input.skipDuplicates
+					}
+				)
 		);
 		framesSkipped += summary?.framesSkipped ?? 0;
 	}
@@ -312,6 +396,7 @@ export const renderSparseFrames = async (
 		imageFormat: 'png' | 'jpg';
 		imageQuality: number;
 		environment: LocalRenderOptions['environment'];
+		frameTimeoutMs: number;
 	}
 ): Promise<FrameItem[]> => {
 	const items: FrameItem[] = [];
@@ -319,19 +404,25 @@ export const renderSparseFrames = async (
 		const frame = input.frameIndices[index];
 		const time = frame / input.fps;
 		const framePath = path.join(input.framesDir, frameFileName(index + 1, input.imageFormat));
+		const bounded = <T>(run: () => Promise<T>) =>
+			withPhaseTimeout({ phase: `render frame ${frame}`, timeoutMs: input.frameTimeoutMs }, run);
 		if (input.environment === 'client') {
-			await page.evaluate((payload: any) => (window as any).__VISUALFRIES_RENDER__.seek(payload), {
-				time
-			});
+			await bounded(() =>
+				page.evaluate((payload: any) => (window as any).__VISUALFRIES_RENDER__.seek(payload), {
+					time
+				})
+			);
 			const screenshot = await page.locator('#vf-root').screenshot({
 				type: input.imageFormat === 'png' ? 'png' : 'jpeg',
 				...(input.imageFormat === 'png' ? {} : { quality: Math.round(input.imageQuality * 100) })
 			});
 			await fs.writeFile(framePath, screenshot);
 		} else {
-			const dataUrl = await page.evaluate(
-				(renderOptions: any) => (window as any).__VISUALFRIES_RENDER__.renderFrame(renderOptions),
-				{ time, imageFormat: input.imageFormat, imageQuality: input.imageQuality }
+			const dataUrl = await bounded<string>(() =>
+				page.evaluate(
+					(renderOptions: any) => (window as any).__VISUALFRIES_RENDER__.renderFrame(renderOptions),
+					{ time, imageFormat: input.imageFormat, imageQuality: input.imageQuality }
+				)
 			);
 			await writeDataUrlFrame(dataUrl, framePath);
 		}

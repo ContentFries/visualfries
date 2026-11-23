@@ -4,6 +4,7 @@ import type { SceneLayer, SceneLayerInput } from '$lib/index.js';
 import { Layer } from '$lib/layers/Layer.svelte.js';
 import type { AwilixContainer } from 'awilix/browser';
 import { asValue } from 'awilix/browser';
+import { DeterministicRenderError } from '$lib/schemas/runtime/deterministic.js';
 
 export class LayersManager implements ResourceManager<ILayer, SceneLayer, SceneLayerInput> {
 	layers: Map<string, ILayer> = new Map();
@@ -84,6 +85,8 @@ export class LayersManager implements ResourceManager<ILayer, SceneLayer, SceneL
 				this.appManager.stage.addChild(layer.displayObject);
 			}
 		} catch (err) {
+			// A strict deterministic render fails here; it must not go on without the layer.
+			if (err instanceof DeterministicRenderError) throw err;
 			console.error(err);
 		} finally {
 			this.isBuilding = false;

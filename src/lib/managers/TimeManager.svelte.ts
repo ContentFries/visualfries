@@ -1,9 +1,9 @@
 import type { EventManager } from '$lib/managers/EventManager.js';
+import { frameIndexAtTime } from '$lib/utils/frameTime.js';
 
 export class TimeManager {
 	fps = $state<number>(30); // Default
 	duration = $state<number>(0);
-	private static readonly FRAME_EPSILON = 1e-4;
 
 	getFrameIndex(
 		time: number,
@@ -16,12 +16,11 @@ export class TimeManager {
 			adjustedTime = Math.min(adjustedTime, this.duration);
 		}
 
-		const scaledTime = adjustedTime * this.fps;
 		if (mode === 'current') {
-			return Math.max(0, Math.floor(scaledTime + TimeManager.FRAME_EPSILON));
+			return frameIndexAtTime(adjustedTime, this.fps);
 		}
 
-		return Math.max(0, Math.round(scaledTime));
+		return Math.max(0, Math.round(adjustedTime * this.fps));
 	}
 
 	getTimeForFrame(frame: number, skipDurationCheck = false): number {

@@ -44,6 +44,7 @@ describe('DeterministicMediaFrameHook', () => {
 		manager = {
 			config: { enabled: true, strict: false, diagnostics: false },
 			isEnabled: vi.fn(() => true),
+			expectsFrames: vi.fn((component: { visible?: boolean }) => component.visible !== false),
 			resolveOverride: vi.fn(),
 			commitCacheKey: vi.fn(() => false),
 			clearCacheKey: vi.fn(() => false),
@@ -114,6 +115,32 @@ describe('DeterministicMediaFrameHook', () => {
 		await expect(hook.handle('update', context)).resolves.toBeUndefined();
 		expect(manager.resolveOverride).not.toHaveBeenCalled();
 		expect(stateManager.markDirty).toHaveBeenCalledTimes(1);
+	});
+
+	it('asks for no frame in strict mode while the component is hidden', async () => {
+		context.contextData.visible = false;
+		manager.config.strict = true;
+		manager.getProvider.mockReturnValue({});
+		manager.clearCacheKey.mockReturnValue(true);
+
+		await expect(hook.handle('update', context)).resolves.toBeUndefined();
+
+		expect(manager.resolveOverride).not.toHaveBeenCalled();
+		expect(context.removeResource).toHaveBeenCalledWith('pixiResource');
+		expect(stateManager.markDirty).toHaveBeenCalledTimes(1);
+	});
+
+	it('asks for no frame in strict mode for media the manager expects no frames for', async () => {
+		// Media of a muted layer: visible, on screen, and nobody prepared frames for it.
+		manager.expectsFrames.mockReturnValue(false);
+		manager.config.strict = true;
+		manager.getProvider.mockReturnValue({});
+
+		await expect(hook.handle('update', context)).resolves.toBeUndefined();
+
+		expect(manager.expectsFrames).toHaveBeenCalledWith(context.contextData);
+		expect(manager.resolveOverride).not.toHaveBeenCalled();
+		expect(context.removeResource).toHaveBeenCalledWith('pixiResource');
 	});
 
 	it('throws DeterministicRenderError in strict mode when override is missing', async () => {

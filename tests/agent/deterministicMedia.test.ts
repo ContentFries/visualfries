@@ -227,7 +227,7 @@ describe.skipIf(!hasFfmpeg)('frames prepared for a chunk from the middle of a sc
 		const { result, frames, manifest } = await prepare('ended-before');
 
 		// The scene tree is built at second 0, where the clip shows its frame 0.
-		expect(frames('ended-before')).toEqual([0, 1, 2]);
+		expect(frames('ended-before')).toEqual([0]);
 		expect(new Set(Object.values(manifest['ended-before']))).toEqual(
 			new Set(['/deterministic-media/predecoded/0-ended-before/1.jpg'])
 		);
@@ -296,7 +296,7 @@ describe.skipIf(!hasFfmpeg)('frames prepared for a chunk from the middle of a sc
 
 		// The scene tree builds at second 20, where the clip shows its frame 600. Its frame 0
 		// is never asked for.
-		expect(frames('ended-before')).toEqual([598, 599, 600, 601, 602]);
+		expect(frames('ended-before')).toEqual([600]);
 		expect(manifest['ended-before']['600']).toBe(
 			'/deterministic-media/predecoded/0-ended-before/1.jpg'
 		);
@@ -313,7 +313,7 @@ describe.skipIf(!hasFfmpeg)('frames prepared for a chunk from the middle of a sc
 			layers: [{ id: 'media', components: [clip('ends-at-in-point', 0, 20.015, 0)] }]
 		});
 
-		expect(frames('ends-at-in-point')).toEqual([598, 599, 600, 601, 602]);
+		expect(frames('ends-at-in-point')).toEqual([600]);
 	}, 60_000);
 
 	it('prepares the frame of a seek outside the chunk', async () => {
@@ -321,7 +321,7 @@ describe.skipIf(!hasFfmpeg)('frames prepared for a chunk from the middle of a sc
 		// shows its frame 120.
 		const { frames } = await prepare('seek-time', { seekTimes: [97] });
 
-		expect(frames('starts-after')).toEqual([118, 119, 120, 121, 122]);
+		expect(frames('starts-after')).toEqual([120]);
 	}, 60_000);
 
 	it('keeps the frames of two components whose ids map to the same file name', async () => {
@@ -385,50 +385,107 @@ describe.skipIf(!hasFfmpeg)('frames prepared for a chunk from the middle of a sc
 		});
 
 		expect(result.media.map((item) => item.framesPrepared)).toEqual([1]);
-		expect(frames('zero-length')).toEqual([28, 29, 30, 31, 32]);
+		expect(frames('zero-length')).toEqual([30]);
 		expect(manifest['zero-length']['30']).toBe(
 			'/deterministic-media/predecoded/0-zero-length/1.jpg'
 		);
 	}, 60_000);
 
-	it('keys the frames of a clip whose times lie between two frames the way the page asks', async () => {
+	it('adds the frame the page asks for first to a clip whose times lie between two frames', async () => {
 		// The page puts both starts on their frames (0 and 0), so scene frame 300 asks for
-		// frame 300. Rounding the difference of the two starts gives 301.
-		const { frames, manifest } = await prepare('between-frames', {
+		// frame 300. The window keys that scene frame as 301 (it rounds the distance of the two
+		// starts): those keys stay, and frame 300 gets its picture from a run of its own.
+		const { frames, manifest, picture } = await prepare('between-frames', {
 			layers: [{ id: 'media', components: [clip('between-frames', 0.003, 20, 0.03)] }],
 			fromFrame: 300,
 			toFrame: 310
 		});
+		const whole = await prepare('between-frames-whole', {
+			layers: [{ id: 'media', components: [clip('between-frames', 0.003, 20, 0.03)] }],
+			fromFrame: 0,
+			toFrame: 310
+		});
+		const file = (frame: number) => manifest['between-frames'][String(frame)];
 
-		expect(frames('between-frames').slice(-12)).toEqual(
-			Array.from({ length: 12 }, (_, index) => 300 + index)
+		expect(frames('between-frames').slice(-13)).toEqual(
+			Array.from({ length: 13 }, (_, index) => 300 + index)
 		);
-		expect(manifest['between-frames']['300']).toBe(
-			'/deterministic-media/predecoded/0-between-frames/1.jpg'
-		);
-		expect(manifest['between-frames']['309']).toBe(
-			'/deterministic-media/predecoded/0-between-frames/10.jpg'
+		expect(file(300)).toBe('/deterministic-media/predecoded/0-between-frames-outside/1.jpg');
+		expect(file(301)).toBe('/deterministic-media/predecoded/0-between-frames/1.jpg');
+		expect(file(309)).toBe('/deterministic-media/predecoded/0-between-frames/9.jpg');
+		// It is the picture frame 300 has in a render of the whole clip.
+		expect(
+			(await picture('between-frames', 300)).equals(await whole.picture('between-frames', 300))
+		).toBe(true);
+	}, 60_000);
+
+	it('repeats the first picture of a clip whose source starts between two frames, as it always did', async () => {
+		// Source start 0.02 s is frame 0.6: the window keys scene frame 0 as frame 1, the page
+		// asks for frame 0 there, and the slack around the source start gives it the first file.
+		const { manifest } = await prepare('source-between-frames', {
+			layers: [{ id: 'media', components: [clip('video', 0, 3, 0.02)] }],
+			fromFrame: 0,
+			toFrame: 5
+		});
+
+		expect([0, 1, 2, 3, 4].map((frame) => manifest['video'][String(frame)])).toEqual(
+			[1, 1, 2, 3, 4].map((file) => `/deterministic-media/predecoded/0-video/${file}.jpg`)
 		);
 	}, 60_000);
 
-	it('plays a GIF from its first frame, whatever its source start says', async () => {
-		// The page does not add the source start of a GIF: scene frame 60 asks for frame 0.
-		const gif = {
+	describe('a GIF', () => {
+		const gif = (startAt: number, endAt: number, sourceStartAt: number) => ({
 			id: 'gif',
 			type: 'GIF',
-			source: { url: sourceUrl, startAt: 1 },
-			timeline: { startAt: 2, endAt: 4 },
+			source: { url: sourceUrl, startAt: sourceStartAt },
+			timeline: { startAt, endAt },
 			appearance: { x: 0, y: 0, width: 64, height: 48 }
-		};
-		const { frames, manifest, picture } = await prepare('gif-source-start', {
-			layers: [{ id: 'media', components: [gif, clip('video-from-0', 2, 4, 0)] }],
-			fromFrame: 60,
-			toFrame: 62
 		});
 
-		expect(frames('gif')).toEqual([0, 1, 2, 3]);
-		expect(manifest['gif']['1']).toBe('/deterministic-media/predecoded/0-gif/2.jpg');
-		expect((await picture('gif', 0)).equals(await picture('video-from-0', 0))).toBe(true);
+		it('repeats its first picture when it has a source start, as it always did', async () => {
+			// 10 fps, source start 0.1 s: the window keys scene frame 0 as frame 1. The page
+			// leaves the source start of a GIF out and asks for frame 0 there.
+			const { manifest, picture } = await prepare('gif-from-0', {
+				settings: { fps: 10 },
+				layers: [{ id: 'media', components: [gif(0, 2, 0.1), clip('video', 0, 2, 0.1)] }],
+				fromFrame: 0,
+				toFrame: 5
+			});
+
+			expect([0, 1, 2, 3, 4].map((frame) => manifest['gif'][String(frame)])).toEqual(
+				[1, 1, 2, 3, 4].map((file) => `/deterministic-media/predecoded/0-gif/${file}.jpg`)
+			);
+			expect((await picture('gif', 0)).equals(await picture('video', 1))).toBe(true);
+		}, 60_000);
+
+		it('gets the frames the page asks for when it starts later on the timeline', async () => {
+			// Scene frames 60 and 61 are keyed 30 and 31 (source start 1 s); the page asks for
+			// frames 0 and 1, and those are the first pictures of the GIF.
+			const { frames, manifest, picture } = await prepare('gif-from-2', {
+				layers: [{ id: 'media', components: [gif(2, 4, 1), clip('video', 2, 4, 0)] }],
+				fromFrame: 60,
+				toFrame: 62
+			});
+
+			expect(frames('gif')).toEqual([0, 1, 28, 29, 30, 31, 32, 33]);
+			expect(manifest['gif']['1']).toBe('/deterministic-media/predecoded/0-gif-outside/2.jpg');
+			expect((await picture('gif', 0)).equals(await picture('video', 0))).toBe(true);
+		}, 60_000);
+	});
+
+	it('gives a frame the page only looks at its own picture when a run holds it', async () => {
+		// 10 fps, frames 1 and 4 are drawn and frame 2 is explained: frame 2 has its own file
+		// in the run, and no neighbour's picture takes its place.
+		const { manifest } = await prepare('looked-at', {
+			settings: { fps: 10 },
+			layers: [{ id: 'media', components: [clip('video', 0, 3, 0)] }],
+			fromFrame: 1,
+			toFrame: 5,
+			renderTimes: [0.1, 0.4],
+			seekTimes: [0.2]
+		});
+
+		expect(manifest['video']['2']).toBe('/deterministic-media/predecoded/0-video/2.jpg');
 	}, 60_000);
 
 	it('prepares the picture of the out-point for frames after it', async () => {
@@ -443,8 +500,11 @@ describe.skipIf(!hasFfmpeg)('frames prepared for a chunk from the middle of a sc
 			toFrame: 182
 		});
 
-		expect(afterOutPoint.result.media.map((item) => item.framesPrepared)).toEqual([1]);
-		expect(afterOutPoint.frames('long')).toEqual([0, 1, 2, 148, 149, 150, 151, 152]);
+		// The two frames of the window, as before, and a run of one frame for the out-point.
+		expect(afterOutPoint.result.media.map((item) => item.framesPrepared)).toEqual([3]);
+		expect(afterOutPoint.manifest['long']['150']).toBe(
+			'/deterministic-media/predecoded/0-long-outside/1.jpg'
+		);
 		expect(
 			(await afterOutPoint.picture('long', 150)).equals(await atOutPoint.picture('long', 150))
 		).toBe(true);

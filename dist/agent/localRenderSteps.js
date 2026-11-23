@@ -68,6 +68,14 @@ export const resolveFrameRanges = (frameIndices, environment) => {
         }
     };
 };
+// The scene times the page seeks to for the frames it draws. The range render seeks to
+// `frame / fps of the scene` (SceneBuilder.renderFrameRange) and leaves out the frames in trim
+// zones; the frame-by-frame render seeks to `frame / options.fps`.
+export const resolveRenderTimes = (input) => {
+    if (!input.activeRange)
+        return input.frameIndices.map((frame) => frame / input.fps);
+    return input.effectiveRanges.flatMap((range) => Array.from({ length: range.toFrame - range.fromFrame }, (_, index) => (range.fromFrame + index) / input.sceneFps));
+};
 export const resolveTransport = (streamEncode, activeRange) => {
     if (streamEncode)
         return 'range-binding-stream-encode';

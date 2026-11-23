@@ -90,25 +90,19 @@ export const mediaFrameIndexAtSceneTime = (
 };
 
 /**
- * The scene times the page shows on a frame outside the window `fromFrame..toFrame`: where it
- * builds the scene tree, where its first seek to 0 lands, where the seeks in `seekTimes` land
- * (frames to explain) and where a seek to a window frame lands when the play range or a
- * disabled zone moves it. Destroying the scene asks for no frame.
+ * The scene times the page shows, split by what it does there. `rendered`: where a seek to one
+ * of `renderTimes` lands; the page draws an output frame there. `other`: where the page only
+ * looks: it builds the scene tree, seeks to 0 first, and seeks to each of `seekTimes` (frames
+ * to explain). Destroying the scene asks for no frame.
  */
-export const sceneTimesOutsideWindow = (input: {
+export const shownSceneTimes = (input: {
 	settings: SceneTimeSettings;
-	fromFrame: number;
-	toFrame: number;
+	renderTimes: number[];
 	seekTimes?: number[];
-}): number[] => {
+}): { rendered: number[]; other: number[] } => {
 	const { settings } = input;
-	const shown = new Set([sceneTimeAtBuild(settings)]);
-	for (const time of [0, ...(input.seekTimes ?? [])]) shown.add(sceneTimeAfterSeek(settings, time));
-	for (let frame = input.fromFrame; frame < input.toFrame; frame += 1) {
-		shown.add(sceneTimeAfterSeek(settings, frame / settings.fps));
-	}
-	return [...shown].filter((time) => {
-		const frame = frameIndexAtTime(time, settings.fps);
-		return frame < input.fromFrame || frame >= input.toFrame;
-	});
+	const rendered = new Set(input.renderTimes.map((time) => sceneTimeAfterSeek(settings, time)));
+	const other = new Set([sceneTimeAtBuild(settings)]);
+	for (const time of [0, ...(input.seekTimes ?? [])]) other.add(sceneTimeAfterSeek(settings, time));
+	return { rendered: [...rendered], other: [...other].filter((time) => !rendered.has(time)) };
 };

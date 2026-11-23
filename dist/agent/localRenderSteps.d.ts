@@ -30,6 +30,13 @@ export declare const resolveFrameRanges: (frameIndices: number[], environment: L
     activeRange: FrameRange | null;
     mediaPreparationRange: FrameRange | null;
 };
+export declare const resolveRenderTimes: (input: {
+    activeRange: FrameRange | null;
+    effectiveRanges: FrameRange[];
+    frameIndices: number[];
+    fps: number;
+    sceneFps: number;
+}) => number[];
 export declare const resolveTransport: (streamEncode: boolean, activeRange: FrameRange | null) => Transport;
 export declare const buildRendererOptions: (options: LocalRenderOptions) => {
     serverRendererMode: "canvas" | "webgl";

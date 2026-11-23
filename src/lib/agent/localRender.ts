@@ -26,6 +26,7 @@ import {
 	renderFrameRanges,
 	renderSparseFrames,
 	resolveFrameRanges,
+	resolveRenderTimes,
 	resolveMediaDiagnosticsPath,
 	resolveTmpParent,
 	resolveTransport,
@@ -477,6 +478,7 @@ const prepareSceneForRender = async (input: {
 	scene: Scene;
 	renderPlan: AgentRenderPlan;
 	mediaPreparationRange: { fromFrame: number; toFrame: number } | null;
+	renderTimes: number[];
 	tempRoot: string;
 	mediaDiagnostics: boolean;
 	mediaTimeoutMs: number | undefined;
@@ -498,9 +500,10 @@ const prepareSceneForRender = async (input: {
 		workDir: input.tempRoot,
 		fromFrame: input.mediaPreparationRange.fromFrame,
 		toFrame: input.mediaPreparationRange.toFrame,
+		renderTimes: input.renderTimes,
 		strict: true,
 		diagnostics: input.mediaDiagnostics,
-		// The page seeks to each frame it is asked to explain, also outside the frame window.
+		// The page seeks to each frame it is asked to explain, and draws none there.
 		seekTimes: input.explain?.map((request) => request.frame / input.fps),
 		extractionTimeoutMs: input.mediaTimeoutMs
 	});
@@ -743,6 +746,13 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 			scene: parsed,
 			renderPlan,
 			mediaPreparationRange,
+			renderTimes: resolveRenderTimes({
+				activeRange,
+				effectiveRanges,
+				frameIndices: options.frameIndices,
+				fps: options.fps,
+				sceneFps: parsed.settings.fps
+			}),
 			tempRoot,
 			mediaDiagnostics: options.mediaDiagnostics ?? false,
 			mediaTimeoutMs: options.mediaTimeoutMs,

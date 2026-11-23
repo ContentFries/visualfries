@@ -17,6 +17,7 @@ import {
 	renderFrameRanges,
 	renderSparseFrames,
 	resolveFrameRanges,
+	resolveRenderTimes,
 	resolveMediaDiagnosticsPath,
 	resolveTmpParent,
 	resolveTransport,
@@ -75,6 +76,35 @@ describe('frame range resolution', () => {
 			activeRange: null,
 			mediaPreparationRange: null
 		});
+	});
+
+	it('gives the scene times of a range render: its frames at the frame rate of the scene', () => {
+		// A trim zone took frames 150-269 out of the request; the page never seeks there.
+		expect(
+			resolveRenderTimes({
+				activeRange: { fromFrame: 150, toFrame: 273 },
+				effectiveRanges: [
+					{ fromFrame: 148, toFrame: 150 },
+					{ fromFrame: 270, toFrame: 273 }
+				],
+				frameIndices: [],
+				fps: 60,
+				sceneFps: 30
+			})
+		).toEqual([148 / 30, 149 / 30, 9, 271 / 30, 272 / 30]);
+	});
+
+	it('gives the scene times of a frame-by-frame render: the asked frames at the asked rate', () => {
+		// Two frames, not the billion between them.
+		expect(
+			resolveRenderTimes({
+				activeRange: null,
+				effectiveRanges: [],
+				frameIndices: [120, 1_000_000_000],
+				fps: 60,
+				sceneFps: 30
+			})
+		).toEqual([2, 1_000_000_000 / 60]);
 	});
 
 	it('names the transport after how frames are delivered', () => {

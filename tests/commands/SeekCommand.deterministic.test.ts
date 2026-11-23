@@ -43,6 +43,7 @@ describe('SeekCommand deterministic readiness', () => {
 	const createDeterministicManagerMock = (overrides?: Partial<any>) =>
 		({
 			isEnabled: () => true,
+			expectsFrames: (component: { visible?: boolean }) => component.visible !== false,
 			config: {
 				seekMaxAttempts: 4,
 				loadingMaxAttempts: 2,
@@ -343,6 +344,33 @@ describe('SeekCommand deterministic readiness', () => {
 		});
 
 		await expect(command.execute({ time: 1 })).resolves.toBeUndefined();
+		expect(deterministicMediaManager.recordReadyAttempt).not.toHaveBeenCalled();
+	});
+
+	it('does not wait in strict mode for media of a muted layer, which gets no frame', async () => {
+		const state = { environment: 'server', duration: 10, state: 'paused', currentTime: 0 } as any;
+		const component = createComponent({ id: 'video-muted-layer', startAt: 1, endAt: 5, state });
+		const expectsFrames = vi.fn(() => false);
+		const deterministicMediaManager = createDeterministicManagerMock({
+			config: { seekMaxAttempts: 2, loadingMaxAttempts: 0, readyYieldMs: 0, strict: true },
+			expectsFrames
+		});
+		const command = new SeekCommand({
+			timelineManager: {
+				seek: vi.fn((time: number) => {
+					state.currentTime = time;
+				})
+			} as any,
+			stateManager: state,
+			renderManager: { render: vi.fn(async () => undefined) } as any,
+			componentsManager: { getAll: () => [component] } as any,
+			deterministicMediaManager
+		});
+
+		await expect(command.execute({ time: 1 })).resolves.toBeUndefined();
+		expect(expectsFrames).toHaveBeenCalledWith(
+			expect.objectContaining({ id: 'video-muted-layer' })
+		);
 		expect(deterministicMediaManager.recordReadyAttempt).not.toHaveBeenCalled();
 	});
 

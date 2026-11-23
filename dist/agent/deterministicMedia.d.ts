@@ -28,14 +28,20 @@ export type LocalDeterministicFrameManifest = Record<string, Record<string, stri
 export type PrepareLocalDeterministicMediaInput = {
     scene: unknown;
     workDir: string;
+    /** The frame window of the render. Only read when `renderTimes` is not given. */
     fromFrame: number;
     toFrame: number;
+    /**
+     * Scene times the page seeks to and draws a frame at. Default: every frame of the window,
+     * at the frame rate of the scene.
+     */
+    renderTimes?: number[];
     publicBasePath?: string;
     frameExtension?: LocalDeterministicFrameExtension;
     jpegQualityScale?: number;
     strict?: boolean;
     diagnostics?: boolean;
-    /** Scene times the page seeks to besides the frames of the window (frames to explain). */
+    /** Scene times the page seeks to without drawing a frame (frames to explain). */
     seekTimes?: number[];
     /** Limit for one ffmpeg extraction in ms; 0 switches it off. Default 600000. */
     extractionTimeoutMs?: number;

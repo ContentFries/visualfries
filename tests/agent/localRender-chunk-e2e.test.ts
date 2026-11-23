@@ -87,6 +87,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg || !hasKitConfig)(
 	() => {
 		let dir: string;
 		let sourceUrl: string;
+		let gifUrl: string;
 
 		beforeAll(async () => {
 			// Resolved, because the dev server refuses a root reached through a symlink (macOS /var).
@@ -104,22 +105,31 @@ describe.skipIf(!hasChromium || !hasFfmpeg || !hasKitConfig)(
 			]);
 			expect(made.status).toBe(0);
 			sourceUrl = pathToFileURL(source).href;
+			const gif = path.join(dir, 'source.gif');
+			expect(
+				spawnSync('ffmpeg', ['-y', '-t', '3', '-i', source, '-vf', 'fps=10', gif]).status
+			).toBe(0);
+			gifUrl = pathToFileURL(gif).href;
 		});
 
 		afterAll(async () => {
 			await fs.rm(dir, { recursive: true, force: true });
 		});
 
-		// Renders EDGE_FRAMES frames and gives every one of them, as bytes.
-		const renderFrames = async (name: string, scene: ReturnType<typeof sceneOf>, fromFrame = 0) => {
-			const frameIndices = Array.from({ length: EDGE_FRAMES }, (_, index) => fromFrame + index);
+		// Renders the frames and gives every one that was drawn, as bytes.
+		const render = async (
+			name: string,
+			scene: ReturnType<typeof sceneOf>,
+			frameIndices: number[],
+			fps = FPS
+		) => {
 			const tmpDir = path.join(dir, `${name}-tmp`);
 			await fs.mkdir(tmpDir, { recursive: true });
 			const result = await renderSceneLocally({
 				scene,
 				output: path.join(dir, name),
 				framesOnly: true,
-				fps: FPS,
+				fps,
 				frameIndices,
 				imageFormat: 'jpg',
 				skipDuplicates: false,
@@ -128,10 +138,21 @@ describe.skipIf(!hasChromium || !hasFfmpeg || !hasKitConfig)(
 				chromiumPath: findChromium() ?? undefined
 			});
 
-			expect(result.frames.transport).toBe('range-binding');
-			expect(result.frames.items.map((item) => item.frame)).toEqual(frameIndices);
 			expect(result.runtimeErrors).toEqual([]);
-			return Promise.all(result.frames.items.map((item) => fs.readFile(item.path as string)));
+			const frames = await Promise.all(
+				result.frames.items.map((item) => fs.readFile(item.path as string))
+			);
+			return { result, frames, drawn: result.frames.items.map((item) => item.frame) };
+		};
+
+		// Renders EDGE_FRAMES frames in a row.
+		const renderFrames = async (name: string, scene: ReturnType<typeof sceneOf>, fromFrame = 0) => {
+			const frameIndices = Array.from({ length: EDGE_FRAMES }, (_, index) => fromFrame + index);
+			const { result, frames, drawn } = await render(name, scene, frameIndices);
+
+			expect(result.frames.transport).toBe('range-binding');
+			expect(drawn).toEqual(frameIndices);
+			return frames;
 		};
 
 		const renderChunkFrames = (
@@ -219,6 +240,78 @@ describe.skipIf(!hasChromium || !hasFfmpeg || !hasKitConfig)(
 			expect(withMutedLayer.map((frame, index) => frame.equals(alone[index]))).toEqual(
 				alone.map(() => true)
 			);
+		});
+
+		const oneLayer = (...components: Array<Record<string, unknown>>): Layer[] => [
+			{ id: 'media', components }
+		];
+
+		it('renders the one frame of a clip that starts and ends at the same time', async () => {
+			// Frame 60 shows the clip, frame 61 the background alone.
+			const scene = sceneOf(oneLayer(clip('zero-length', 2, 2, 1, sourceUrl)));
+
+			const { frames, drawn } = await render('zero-length', scene, [60, 61]);
+
+			expect(drawn).toEqual([60, 61]);
+			expect(differentFrames(frames)).toBe(2);
+		});
+
+		it('renders media whose times lie between two frames, and a GIF with a source start', async () => {
+			const video = sceneOf(oneLayer(clip('between-frames', 0.003, 20, 0.03, sourceUrl)));
+			const videoFrames = await render('between-frames', video, [300, 301, 302]);
+			expect(differentFrames(videoFrames.frames)).toBe(3);
+
+			const gif = sceneOf(
+				oneLayer({
+					id: 'gif',
+					type: 'GIF',
+					source: { url: gifUrl, startAt: 1 },
+					timeline: { startAt: 2, endAt: 4 },
+					appearance: { x: 0, y: 0, width: 64, height: 48 }
+				})
+			);
+			const gifFrames = await render('gif-source-start', gif, [60, 61]);
+			expect(gifFrames.drawn).toEqual([60, 61]);
+		});
+
+		it('renders single frames asked at another frame rate than the scene has', async () => {
+			// Frames 120 and 122 at 60 frames a second are seconds 2 and 2.033 of the scene, and
+			// the clip is on screen only there.
+			const scene = sceneOf(oneLayer(clip('one-second', 2, 3, 0, sourceUrl)));
+
+			const { result, frames } = await render('other-frame-rate', scene, [120, 122], 60);
+
+			expect(result.frames.transport).toBe('sparse-evaluate');
+			expect(differentFrames(frames)).toBe(2);
+		});
+
+		it('renders the picture of the out-point on frames after it', async () => {
+			const layers = oneLayer(clip('long', 0, 25, 0, sourceUrl));
+			const atOutPoint = await render('out-point-wanted', sceneOf(layers), [150]);
+
+			const afterOutPoint = await render('out-point', sceneOf(layers, { endAt: 5 }), [180, 181]);
+
+			expect(afterOutPoint.frames.map((frame) => frame.equals(atOutPoint.frames[0]))).toEqual([
+				true,
+				true
+			]);
+		});
+
+		it('renders past a trim zone without the source of media that lives only inside it', async () => {
+			const scene = sceneOf(
+				oneLayer(
+					clip('in-trim-zone', 4, 5, 0, MISSING_SOURCE),
+					clip('after-trim-zone', 9, 20, 0, sourceUrl)
+				),
+				{ trimZones: [{ start: 4, end: 9 }] }
+			);
+
+			// Frames 150-269 lie in the zone and are left out.
+			const frameIndices = Array.from({ length: 123 }, (_, index) => 150 + index);
+			const { frames, drawn } = await render('trim-zone', scene, frameIndices);
+
+			expect(drawn).toEqual([270, 271, 272]);
+			expect(differentFrames(frames)).toBe(3);
 		});
 	},
 	240_000

@@ -4,7 +4,7 @@ import {
 	mediaFrameIndexAtSceneTime,
 	sceneTimeAfterSeek,
 	sceneTimeAtBuild,
-	sceneTimesOutsideWindow,
+	shownSceneTimes,
 	type SceneTimeMedia,
 	type SceneTimeSettings
 } from '$lib/agent/sceneTime.ts';
@@ -171,52 +171,67 @@ describe('scene times of the local renderer follow the runtime', () => {
 	);
 });
 
-describe('scene times outside the frame window', () => {
-	const chunk = { fromFrame: 1351, toFrame: 2676 };
+describe('scene times the page shows', () => {
+	const timesOf = (fromFrame: number, toFrame: number, fps = 30) =>
+		Array.from({ length: toFrame - fromFrame }, (_, index) => (fromFrame + index) / fps);
+	const chunk = timesOf(1351, 2676);
+	const otherTimes = (settings: SceneTimeSettings, renderTimes: number[], seekTimes?: number[]) =>
+		shownSceneTimes({ settings, renderTimes, seekTimes }).other;
 
-	it('is the build time alone for a plain scene', () => {
-		expect(sceneTimesOutsideWindow({ settings: settingsOf(), ...chunk })).toEqual([0]);
-		// A window that holds frame 0 has no time outside.
-		expect(sceneTimesOutsideWindow({ settings: settingsOf(), fromFrame: 0, toFrame: 30 })).toEqual(
-			[]
-		);
+	it('draws every frame of a chunk and looks at the build time besides', () => {
+		const shown = shownSceneTimes({ settings: settingsOf(), renderTimes: chunk });
+
+		expect(shown.rendered).toEqual(chunk);
+		expect(shown.other).toEqual([0]);
+		// A render that draws frame 0 looks nowhere else.
+		expect(otherTimes(settingsOf(), timesOf(0, 30))).toEqual([]);
 	});
 
-	it('is the frame of the in-point, also when the in-point lies between two frames', () => {
-		expect(sceneTimesOutsideWindow({ settings: settingsOf({ startAt: 20 }), ...chunk })).toEqual([
-			20
-		]);
-		expect(
-			sceneTimesOutsideWindow({ settings: settingsOf({ startAt: 20.015 }), ...chunk })
-		).toEqual([20]);
+	it('looks at the frame of the in-point, also when the in-point lies between two frames', () => {
+		expect(otherTimes(settingsOf({ startAt: 20 }), chunk)).toEqual([20]);
+		expect(otherTimes(settingsOf({ startAt: 20.015 }), chunk)).toEqual([20]);
 	});
 
-	it('holds the place the first seek lands when a trim zone moves it', () => {
+	it('looks where the first seek lands when a trim zone moves it', () => {
 		const settings = settingsOf({ startAt: 20, trimZones: [{ start: 20, end: 25 }] });
 
 		// Built at the in-point (20); the seek to 0 lands inside the merged zone 0-25 and
 		// leaves it at the nearer end.
-		expect(sceneTimesOutsideWindow({ settings, ...chunk })).toEqual([20, 25]);
+		expect(otherTimes(settings, chunk)).toEqual([20, 25]);
 	});
 
-	it('holds the frames to explain, but not those inside the window', () => {
-		expect(
-			sceneTimesOutsideWindow({ settings: settingsOf(), ...chunk, seekTimes: [97, 50, 97.01] })
-		).toEqual([0, 97]);
+	it('looks at the frames to explain, but not at those it draws anyway', () => {
+		expect(otherTimes(settingsOf(), chunk, [97, 50, 97.01])).toEqual([0, 97]);
 	});
 
-	it('holds the place a window frame is moved to by the play range', () => {
+	it('draws the place the play range moves a frame to', () => {
 		// Frames 0-29 of a scene that starts at second 20 all show second 20.
 		expect(
-			sceneTimesOutsideWindow({ settings: settingsOf({ startAt: 20 }), fromFrame: 0, toFrame: 30 })
-		).toEqual([20]);
+			shownSceneTimes({ settings: settingsOf({ startAt: 20 }), renderTimes: timesOf(0, 30) })
+		).toEqual({ rendered: [20], other: [] });
 		// Frames after the out-point all show the out-point.
 		expect(
-			sceneTimesOutsideWindow({
-				settings: settingsOf({ endAt: 60 }),
-				fromFrame: 2700,
-				toFrame: 2730
+			shownSceneTimes({ settings: settingsOf({ endAt: 60 }), renderTimes: timesOf(2700, 2730) })
+		).toEqual({ rendered: [60], other: [0] });
+	});
+
+	it('does not look at a trim zone the render leaves out', () => {
+		const settings = settingsOf({ trimZones: [{ start: 4, end: 9 }] });
+
+		// Frames 150-269 lie in the zone; the range render draws 270-329 only.
+		expect(shownSceneTimes({ settings, renderTimes: timesOf(270, 273) })).toEqual({
+			rendered: [9, 271 / 30, 272 / 30],
+			other: [0]
+		});
+	});
+
+	it('follows the seeks of the page, whatever lies between them', () => {
+		// Frames 0 and 1 000 000 000 of a two-second scene: two seeks.
+		expect(
+			shownSceneTimes({
+				settings: settingsOf({ duration: 2 }),
+				renderTimes: [0, 1_000_000_000 / 30]
 			})
-		).toEqual([0, 60]);
+		).toEqual({ rendered: [0, 2], other: [] });
 	});
 });

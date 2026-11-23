@@ -12,7 +12,7 @@ import { resolveEffectiveRenderRanges } from './renderRanges.js';
 import { resolveAgentRenderPlan } from './renderPlan.js';
 import { discoverSceneFonts } from './sceneFonts.js';
 import { muxAudioWithVideo, PipeFrameEncoder } from './streamingEncoder.js';
-import { attachPageDiagnostics, buildEmptyRangeResult, buildRenderDiagnostic, buildRendererOptions, buildResolveAliases, createFrameWriter, DEFAULT_FRAME_TIMEOUT_MS, DEFAULT_INIT_TIMEOUT_MS, initRenderPage, renderFrameRanges, renderSparseFrames, resolveFrameRanges, resolveMediaDiagnosticsPath, resolveTmpParent, resolveTransport, withPhaseTimeout } from './localRenderSteps.js';
+import { attachPageDiagnostics, buildEmptyRangeResult, buildRenderDiagnostic, buildRendererOptions, buildResolveAliases, createFrameWriter, DEFAULT_FRAME_TIMEOUT_MS, DEFAULT_INIT_TIMEOUT_MS, initRenderPage, renderFrameRanges, renderSparseFrames, resolveFrameRanges, resolveRenderTimes, resolveMediaDiagnosticsPath, resolveTmpParent, resolveTransport, withPhaseTimeout } from './localRenderSteps.js';
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = path.dirname(currentFile);
 const defaultPackageRoot = path.resolve(currentDir, '..', '..');
@@ -320,9 +320,10 @@ const prepareSceneForRender = async (input) => {
         workDir: input.tempRoot,
         fromFrame: input.mediaPreparationRange.fromFrame,
         toFrame: input.mediaPreparationRange.toFrame,
+        renderTimes: input.renderTimes,
         strict: true,
         diagnostics: input.mediaDiagnostics,
-        // The page seeks to each frame it is asked to explain, also outside the frame window.
+        // The page seeks to each frame it is asked to explain, and draws none there.
         seekTimes: input.explain?.map((request) => request.frame / input.fps),
         extractionTimeoutMs: input.mediaTimeoutMs
     });
@@ -494,6 +495,13 @@ export async function renderSceneLocally(options) {
             scene: parsed,
             renderPlan,
             mediaPreparationRange,
+            renderTimes: resolveRenderTimes({
+                activeRange,
+                effectiveRanges,
+                frameIndices: options.frameIndices,
+                fps: options.fps,
+                sceneFps: parsed.settings.fps
+            }),
             tempRoot,
             mediaDiagnostics: options.mediaDiagnostics ?? false,
             mediaTimeoutMs: options.mediaTimeoutMs,

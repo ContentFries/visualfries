@@ -20,14 +20,16 @@ export declare const sceneTimeAfterSeek: (settings: SceneTimeSettings, requested
  */
 export declare const mediaFrameIndexAtSceneTime: (media: SceneTimeMedia, sceneTime: number, settings: SceneTimeSettings) => number | null;
 /**
- * The scene times the page shows on a frame outside the window `fromFrame..toFrame`: where it
- * builds the scene tree, where its first seek to 0 lands, where the seeks in `seekTimes` land
- * (frames to explain) and where a seek to a window frame lands when the play range or a
- * disabled zone moves it. Destroying the scene asks for no frame.
+ * The scene times the page shows, split by what it does there. `rendered`: where a seek to one
+ * of `renderTimes` lands; the page draws an output frame there. `other`: where the page only
+ * looks: it builds the scene tree, seeks to 0 first, and seeks to each of `seekTimes` (frames
+ * to explain). Destroying the scene asks for no frame.
  */
-export declare const sceneTimesOutsideWindow: (input: {
+export declare const shownSceneTimes: (input: {
     settings: SceneTimeSettings;
-    fromFrame: number;
-    toFrame: number;
+    renderTimes: number[];
     seekTimes?: number[];
-}) => number[];
+}) => {
+    rendered: number[];
+    other: number[];
+};

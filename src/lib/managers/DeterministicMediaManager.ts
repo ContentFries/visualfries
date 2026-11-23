@@ -65,6 +65,7 @@ export class DeterministicMediaManager {
 	>();
 	#oneTimeOverrides = new Map<string, Map<number, DeterministicFramePayload>>();
 	#diagnostics: DiagnosticsState = createDefaultDiagnosticsState();
+	#mediaOfMutedLayers: Set<string>;
 
 	constructor(cradle: { deterministicMediaConfig?: DeterministicMediaConfig; sceneData: Scene }) {
 		this.config = cradle.deterministicMediaConfig
@@ -73,6 +74,23 @@ export class DeterministicMediaManager {
 		this.#provider = this.config.provider ?? null;
 		this.#maxCachedTextures =
 			this.config.maxCachedTextures ?? Math.max(3, this.#countSceneMediaComponents(cradle.sceneData) * 3);
+		this.#mediaOfMutedLayers = new Set(
+			cradle.sceneData.layers
+				.filter((layer) => layer.muted)
+				.flatMap((layer) => layer.components)
+				.filter((component) => component.type === 'VIDEO' || component.type === 'GIF')
+				.map((component) => component.id)
+		);
+	}
+
+	/**
+	 * Whether a media component gets frames. Whoever prepares the frames (the local renderer,
+	 * cf-worker) leaves out a hidden component and the media of a muted layer, so the render
+	 * must not ask for them. The layer is read from the scene this manager was built with: a
+	 * component cannot see its layer, and the layers of the runtime do not keep `muted`.
+	 */
+	expectsFrames(component: { id: string; visible?: boolean }): boolean {
+		return component.visible !== false && !this.#mediaOfMutedLayers.has(component.id);
 	}
 
 	isEnabled(): boolean {

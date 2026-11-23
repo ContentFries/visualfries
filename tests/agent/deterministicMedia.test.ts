@@ -170,6 +170,7 @@ describe.skipIf(!hasFfmpeg)('frames prepared for a chunk from the middle of a sc
 			layers?: Array<Record<string, unknown>>;
 			fromFrame?: number;
 			toFrame?: number;
+			renderTimes?: number[];
 			seekTimes?: number[];
 			extractionTimeoutMs?: number;
 		} = {}
@@ -186,6 +187,7 @@ describe.skipIf(!hasFfmpeg)('frames prepared for a chunk from the middle of a sc
 			workDir,
 			fromFrame: input.fromFrame ?? 1351,
 			toFrame: input.toFrame ?? 2676,
+			renderTimes: input.renderTimes,
 			seekTimes: input.seekTimes,
 			extractionTimeoutMs: input.extractionTimeoutMs
 		});
@@ -195,7 +197,9 @@ describe.skipIf(!hasFfmpeg)('frames prepared for a chunk from the middle of a sc
 				.sort((a, b) => a - b);
 		const folders = async () =>
 			(await fs.readdir(path.join(workDir, 'deterministic-media/predecoded'))).sort();
-		return { result, frames, folders, workDir, manifest: result.payload.frameManifest };
+		const picture = (id: string, frame: number) =>
+			fs.readFile(path.join(workDir, result.payload.frameManifest[id][String(frame)]));
+		return { result, frames, folders, picture, workDir, manifest: result.payload.frameManifest };
 	};
 
 	beforeAll(async () => {
@@ -351,7 +355,7 @@ describe.skipIf(!hasFfmpeg)('frames prepared for a chunk from the middle of a sc
 		expect(first.equals(second)).toBe(false);
 	}, 60_000);
 
-	it('hides media of a muted layer instead of preparing frames for it', async () => {
+	it('prepares no frames for media of a muted layer, and leaves the scene as it is', async () => {
 		const { result, manifest } = await prepare('muted-layer', {
 			layers: [
 				{ id: 'shown', components: [clip('shown', 0, 100, 0)] },
@@ -367,7 +371,147 @@ describe.skipIf(!hasFfmpeg)('frames prepared for a chunk from the middle of a sc
 		);
 
 		expect(Object.keys(manifest)).toEqual(['shown']);
-		expect(visible).toEqual({ shown: true, 'in-muted-layer': false });
+		// The client environment draws this video, so the scene must not hide it. The server
+		// render asks for no frame of it (DeterministicMediaManager.expectsFrames).
+		expect(visible).toEqual({ shown: true, 'in-muted-layer': true });
+	}, 60_000);
+
+	it('prepares the one frame of a clip that starts and ends at the same time', async () => {
+		// The runtime shows a clip of no length on the frame of its time: frame 60.
+		const { result, frames, manifest } = await prepare('zero-length', {
+			layers: [{ id: 'media', components: [clip('zero-length', 2, 2, 1)] }],
+			fromFrame: 60,
+			toFrame: 62
+		});
+
+		expect(result.media.map((item) => item.framesPrepared)).toEqual([1]);
+		expect(frames('zero-length')).toEqual([28, 29, 30, 31, 32]);
+		expect(manifest['zero-length']['30']).toBe(
+			'/deterministic-media/predecoded/0-zero-length/1.jpg'
+		);
+	}, 60_000);
+
+	it('keys the frames of a clip whose times lie between two frames the way the page asks', async () => {
+		// The page puts both starts on their frames (0 and 0), so scene frame 300 asks for
+		// frame 300. Rounding the difference of the two starts gives 301.
+		const { frames, manifest } = await prepare('between-frames', {
+			layers: [{ id: 'media', components: [clip('between-frames', 0.003, 20, 0.03)] }],
+			fromFrame: 300,
+			toFrame: 310
+		});
+
+		expect(frames('between-frames').slice(-12)).toEqual(
+			Array.from({ length: 12 }, (_, index) => 300 + index)
+		);
+		expect(manifest['between-frames']['300']).toBe(
+			'/deterministic-media/predecoded/0-between-frames/1.jpg'
+		);
+		expect(manifest['between-frames']['309']).toBe(
+			'/deterministic-media/predecoded/0-between-frames/10.jpg'
+		);
+	}, 60_000);
+
+	it('plays a GIF from its first frame, whatever its source start says', async () => {
+		// The page does not add the source start of a GIF: scene frame 60 asks for frame 0.
+		const gif = {
+			id: 'gif',
+			type: 'GIF',
+			source: { url: sourceUrl, startAt: 1 },
+			timeline: { startAt: 2, endAt: 4 },
+			appearance: { x: 0, y: 0, width: 64, height: 48 }
+		};
+		const { frames, manifest, picture } = await prepare('gif-source-start', {
+			layers: [{ id: 'media', components: [gif, clip('video-from-0', 2, 4, 0)] }],
+			fromFrame: 60,
+			toFrame: 62
+		});
+
+		expect(frames('gif')).toEqual([0, 1, 2, 3]);
+		expect(manifest['gif']['1']).toBe('/deterministic-media/predecoded/0-gif/2.jpg');
+		expect((await picture('gif', 0)).equals(await picture('video-from-0', 0))).toBe(true);
+	}, 60_000);
+
+	it('prepares the picture of the out-point for frames after it', async () => {
+		const layers = [{ id: 'media', components: [clip('long', 0, 25, 0)] }];
+		const atOutPoint = await prepare('out-point-wanted', { layers, fromFrame: 150, toFrame: 151 });
+		// Frames 180 and 181 lie after the out-point: the page shows second 5 on both, and
+		// asks the clip for its frame 150.
+		const afterOutPoint = await prepare('out-point', {
+			settings: { endAt: 5 },
+			layers,
+			fromFrame: 180,
+			toFrame: 182
+		});
+
+		expect(afterOutPoint.result.media.map((item) => item.framesPrepared)).toEqual([1]);
+		expect(afterOutPoint.frames('long')).toEqual([0, 1, 2, 148, 149, 150, 151, 152]);
+		expect(
+			(await afterOutPoint.picture('long', 150)).equals(await atOutPoint.picture('long', 150))
+		).toBe(true);
+	}, 60_000);
+
+	it('starts the run at the first frame of the clip in the window, also before the in-point', async () => {
+		// Frames 0-60 all show the in-point (frame 60), where the clip is asked for frame 90.
+		// The run still starts at scene frame 15, where the clip starts, as it did before:
+		// with a source time between two frames, another start gives another picture.
+		const { result, manifest } = await prepare('run-start', {
+			settings: { startAt: 2.02 },
+			layers: [{ id: 'media', components: [clip('early', 0.5, 9, 1.51)] }],
+			fromFrame: 0,
+			toFrame: 90
+		});
+
+		expect(result.media.map((item) => item.framesPrepared)).toEqual([75]);
+		expect(manifest['early']['90']).toBe('/deterministic-media/predecoded/0-early/46.jpg');
+		expect(manifest['early']['119']).toBe('/deterministic-media/predecoded/0-early/75.jpg');
+	}, 60_000);
+
+	it('does not look at media the render times never show', async () => {
+		// A range render leaves out the frames in a trim zone (4-9 s), so the page never
+		// shows the clip that lives only there. Its missing source does not matter.
+		const { manifest, frames } = await prepare('trimmed-out', {
+			settings: { trimZones: [{ start: 4, end: 9 }] },
+			layers: [
+				{
+					id: 'media',
+					components: [
+						clip('in-trim-zone', 4, 5, 0, { source: { url: MISSING_SOURCE, startAt: 0 } }),
+						clip('after-trim-zone', 9, 20, 0)
+					]
+				}
+			],
+			fromFrame: 150,
+			toFrame: 273,
+			renderTimes: [9, 271 / 30, 272 / 30]
+		});
+
+		expect(manifest['in-trim-zone']).toBeUndefined();
+		expect(frames('after-trim-zone')).toEqual([0, 1, 2, 3, 4]);
+	}, 60_000);
+
+	it('prepares a window that reaches far past the end of the scene without walking it', async () => {
+		const { result, frames } = await prepare('past-the-end', {
+			settings: { duration: 2 },
+			layers: [{ id: 'media', components: [clip('short', 0, 2, 0)] }],
+			fromFrame: 0,
+			toFrame: 1_000_000_001
+		});
+
+		// Frames 0-59 show the clip; every later frame shows second 2, where it is over.
+		expect(result.media.map((item) => item.framesPrepared)).toEqual([60]);
+		expect(frames('short')).toEqual(Array.from({ length: 62 }, (_, index) => index));
+	}, 10_000);
+
+	it('cuts a long id so that its folder name fits a file system', async () => {
+		const id = 'x'.repeat(254);
+		const { folders, manifest } = await prepare('long-id', {
+			layers: [{ id: 'media', components: [clip(id, 0, 1, 0)] }],
+			fromFrame: 0,
+			toFrame: 2
+		});
+
+		expect(await folders()).toEqual([`0-${'x'.repeat(80)}`]);
+		expect(manifest[id]['0']).toBe(`/deterministic-media/predecoded/0-${'x'.repeat(80)}/1.jpg`);
 	}, 60_000);
 
 	it('stops an extraction whose source never answers', async () => {

@@ -64,6 +64,8 @@ export type LocalRenderOptions = {
 	mediaDiagnostics?: boolean;
 	explain?: Array<{ componentId: string; frame: number }>;
 	environment?: 'client' | 'server';
+	/** Limit for one ffmpeg extraction of media frames, in ms. Default 600000; 0 turns it off. */
+	mediaTimeoutMs?: number;
 	/** Limit for the page to build the scene, in ms. Default 120000; 0 turns it off. */
 	initTimeoutMs?: number;
 	/** Limit for the page to deliver the next frame, in ms. Default 120000; 0 turns it off. */
@@ -477,6 +479,9 @@ const prepareSceneForRender = async (input: {
 	mediaPreparationRange: { fromFrame: number; toFrame: number } | null;
 	tempRoot: string;
 	mediaDiagnostics: boolean;
+	mediaTimeoutMs: number | undefined;
+	explain: LocalRenderOptions['explain'];
+	fps: number;
 }): Promise<{
 	sceneForRender: Scene;
 	deterministicMediaDiagnostics: Array<Record<string, unknown>>;
@@ -494,7 +499,10 @@ const prepareSceneForRender = async (input: {
 		fromFrame: input.mediaPreparationRange.fromFrame,
 		toFrame: input.mediaPreparationRange.toFrame,
 		strict: true,
-		diagnostics: input.mediaDiagnostics
+		diagnostics: input.mediaDiagnostics,
+		// The page seeks to each frame it is asked to explain, also outside the frame window.
+		seekTimes: input.explain?.map((request) => request.frame / input.fps),
+		extractionTimeoutMs: input.mediaTimeoutMs
 	});
 	await fs.writeFile(payloadPath, `${JSON.stringify(deterministicMedia.payload, null, 2)}\n`);
 	return {
@@ -736,7 +744,10 @@ export async function renderSceneLocally(options: LocalRenderOptions): Promise<L
 			renderPlan,
 			mediaPreparationRange,
 			tempRoot,
-			mediaDiagnostics: options.mediaDiagnostics ?? false
+			mediaDiagnostics: options.mediaDiagnostics ?? false,
+			mediaTimeoutMs: options.mediaTimeoutMs,
+			explain: options.explain,
+			fps: options.fps
 		});
 		await fs.writeFile(
 			path.join(tempRoot, 'renderer-options.json'),

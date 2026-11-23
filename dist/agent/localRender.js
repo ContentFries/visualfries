@@ -321,7 +321,10 @@ const prepareSceneForRender = async (input) => {
         fromFrame: input.mediaPreparationRange.fromFrame,
         toFrame: input.mediaPreparationRange.toFrame,
         strict: true,
-        diagnostics: input.mediaDiagnostics
+        diagnostics: input.mediaDiagnostics,
+        // The page seeks to each frame it is asked to explain, also outside the frame window.
+        seekTimes: input.explain?.map((request) => request.frame / input.fps),
+        extractionTimeoutMs: input.mediaTimeoutMs
     });
     await fs.writeFile(payloadPath, `${JSON.stringify(deterministicMedia.payload, null, 2)}\n`);
     return {
@@ -492,7 +495,10 @@ export async function renderSceneLocally(options) {
             renderPlan,
             mediaPreparationRange,
             tempRoot,
-            mediaDiagnostics: options.mediaDiagnostics ?? false
+            mediaDiagnostics: options.mediaDiagnostics ?? false,
+            mediaTimeoutMs: options.mediaTimeoutMs,
+            explain: options.explain,
+            fps: options.fps
         });
         await fs.writeFile(path.join(tempRoot, 'renderer-options.json'), `${JSON.stringify(buildRendererOptions(options), null, 2)}\n`);
         await writeRenderClient(tempRoot);

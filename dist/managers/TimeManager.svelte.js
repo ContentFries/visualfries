@@ -1,17 +1,16 @@
+import { frameIndexAtTime } from '../utils/frameTime.js';
 export class TimeManager {
     fps = $state(30); // Default
     duration = $state(0);
-    static FRAME_EPSILON = 1e-4;
     getFrameIndex(time, mode = 'nearest', skipDurationCheck = false) {
         let adjustedTime = Math.max(time, 0);
         if (!skipDurationCheck) {
             adjustedTime = Math.min(adjustedTime, this.duration);
         }
-        const scaledTime = adjustedTime * this.fps;
         if (mode === 'current') {
-            return Math.max(0, Math.floor(scaledTime + TimeManager.FRAME_EPSILON));
+            return frameIndexAtTime(adjustedTime, this.fps);
         }
-        return Math.max(0, Math.round(scaledTime));
+        return Math.max(0, Math.round(adjustedTime * this.fps));
     }
     getTimeForFrame(frame, skipDurationCheck = false) {
         const frameTime = Math.max(0, frame) / this.fps;

@@ -44,7 +44,8 @@ export class SeekCommand {
             if (!this.#isDeterministicMediaComponent(component)) {
                 continue;
             }
-            if (!component.context.isActive) {
+            // A hidden component gets no frame (DeterministicMediaFrameHook), so none is pending.
+            if (!component.context.isActive || component.context.data?.visible === false) {
                 continue;
             }
             const pixiTexture = component.context.getResource('pixiTexture');

@@ -323,6 +323,29 @@ describe('SeekCommand deterministic readiness', () => {
 		);
 	});
 
+	it('does not wait in strict mode for a hidden component, which gets no frame', async () => {
+		const state = { environment: 'server', duration: 10, state: 'paused', currentTime: 0 } as any;
+		const component = createComponent({ id: 'video-hidden', startAt: 1, endAt: 5, state });
+		(component.context.data as { visible?: boolean }).visible = false;
+		const deterministicMediaManager = createDeterministicManagerMock({
+			config: { seekMaxAttempts: 2, loadingMaxAttempts: 0, readyYieldMs: 0, strict: true }
+		});
+		const command = new SeekCommand({
+			timelineManager: {
+				seek: vi.fn((time: number) => {
+					state.currentTime = time;
+				})
+			} as any,
+			stateManager: state,
+			renderManager: { render: vi.fn(async () => undefined) } as any,
+			componentsManager: { getAll: () => [component] } as any,
+			deterministicMediaManager
+		});
+
+		await expect(command.execute({ time: 1 })).resolves.toBeUndefined();
+		expect(deterministicMediaManager.recordReadyAttempt).not.toHaveBeenCalled();
+	});
+
 	it('uses floor when computing the current scene frame index', async () => {
 		const state = { environment: 'server', duration: 10, state: 'paused', currentTime: 0 } as any;
 		const component = createComponent({

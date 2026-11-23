@@ -30,7 +30,8 @@ export class DeterministicMediaFrameHook implements IComponentHook {
 
 		const fps = this.#state.data.settings.fps || 30;
 		const data = this.#context.contextData;
-		if (!this.#context.isActive) {
+		// A hidden component is never drawn, and nobody prepares frames for it.
+		if (!this.#context.isActive || data.visible === false) {
 			const cacheKeyChanged = this.#clearDeterministicResources(data.id);
 			if (cacheKeyChanged) {
 				this.#state.markDirty();

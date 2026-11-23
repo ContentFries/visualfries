@@ -116,6 +116,19 @@ describe('DeterministicMediaFrameHook', () => {
 		expect(stateManager.markDirty).toHaveBeenCalledTimes(1);
 	});
 
+	it('asks for no frame in strict mode while the component is hidden', async () => {
+		context.contextData.visible = false;
+		manager.config.strict = true;
+		manager.getProvider.mockReturnValue({});
+		manager.clearCacheKey.mockReturnValue(true);
+
+		await expect(hook.handle('update', context)).resolves.toBeUndefined();
+
+		expect(manager.resolveOverride).not.toHaveBeenCalled();
+		expect(context.removeResource).toHaveBeenCalledWith('pixiResource');
+		expect(stateManager.markDirty).toHaveBeenCalledTimes(1);
+	});
+
 	it('throws DeterministicRenderError in strict mode when override is missing', async () => {
 		manager.resolveOverride.mockResolvedValue(null);
 		manager.clearCacheKey.mockReturnValue(false);

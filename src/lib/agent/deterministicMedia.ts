@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { SceneShape, type Scene } from '../schemas/scene/index.js';
+import { mediaFrameIndexAtSceneTime, sceneTimesOutsideWindow } from './sceneTime.js';
 
 export type LocalDeterministicMediaStrategy = 'predecoded-image-sequence';
 export type LocalDeterministicFrameExtension = 'jpg' | 'png';
@@ -48,7 +49,13 @@ export type PrepareLocalDeterministicMediaInput = {
 	jpegQualityScale?: number;
 	strict?: boolean;
 	diagnostics?: boolean;
+	/** Scene times the page seeks to besides the frames of the window (frames to explain). */
+	seekTimes?: number[];
+	/** Limit for one ffmpeg extraction in ms; 0 switches it off. Default 600000. */
+	extractionTimeoutMs?: number;
 };
+
+export const DEFAULT_EXTRACTION_TIMEOUT_MS = 600_000;
 
 export type PrepareLocalDeterministicMediaResult = {
 	preparedScene: Scene;
@@ -191,25 +198,6 @@ export function toLocalDeterministicFrameIndex(
 	return Math.max(0, Math.round(sourceStartInFrames + sceneFrameIndex - timelineStartInFrames));
 }
 
-/**
- * The scene tree is built at the scene's in-point (`settings.startAt`), not at 0, and asks every
- * media component on screen there for its frame. Returns that frame's index, or null when the
- * scene starts at 0 or the component is not on screen at the in-point.
- */
-export function toLocalSceneStartFrameIndex(
-	component: LocalDeterministicMediaComponent,
-	sceneStartAt: unknown,
-	fps: number
-): number | null {
-	if (typeof sceneStartAt !== 'number' || !Number.isFinite(sceneStartAt) || sceneStartAt <= 0) {
-		return null;
-	}
-	if (sceneStartAt < component.timelineStartAt || sceneStartAt >= component.timelineEndAt) {
-		return null;
-	}
-	return toLocalDeterministicFrameIndex(component, sceneStartAt * fps, fps);
-}
-
 export function resolveLocalPredecodedExtractionPlan(
 	sourceStartSec: number,
 	sourceEndSec: number | undefined,
@@ -251,23 +239,43 @@ export function resolveLocalPredecodedExtractionPlan(
 	};
 }
 
-const runFfmpeg = async (args: string[], label: string): Promise<void> => {
+// ffmpeg reads the source before the page loads, so nothing else bounds it: a source that
+// never answers would hang the render. ffmpeg prints nothing while it seeks, so the limit is
+// on the whole call, not on silence.
+const runFfmpeg = async (
+	args: string[],
+	input: { label: string; timeoutMs: number }
+): Promise<void> => {
 	const ffmpegPath = process.env.FFMPEG_PATH || 'ffmpeg';
+	const tag = `[visualfries deterministic media][${input.label}]`;
 	await new Promise<void>((resolve, reject) => {
 		const child = spawn(ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
 		let stderr = '';
+		let timedOut = false;
+		const timer =
+			input.timeoutMs > 0
+				? setTimeout(() => {
+						timedOut = true;
+						child.kill('SIGKILL');
+					}, input.timeoutMs)
+				: undefined;
 		child.stderr?.on('data', (chunk) => {
 			stderr = (stderr + String(chunk)).slice(-4000);
 		});
-		child.on('error', reject);
+		child.on('error', (error) => {
+			clearTimeout(timer);
+			reject(error);
+		});
 		child.on('close', (code) => {
-			if (code === 0) {
-				resolve();
-			} else {
-				reject(
-					new Error(`[visualfries deterministic media][${label}] ffmpeg exited ${code}. ${stderr}`)
-				);
-			}
+			clearTimeout(timer);
+			if (code === 0) return resolve();
+			reject(
+				new Error(
+					timedOut
+						? `${tag} ffmpeg timed out: no result for ${input.timeoutMs} ms.`
+						: `${tag} ffmpeg exited ${code}. ${stderr}`
+				)
+			);
 		});
 	});
 };
@@ -296,6 +304,7 @@ const extractFrameSequence = async (options: {
 	jpegQualityScale: number;
 	seekMode?: 'fast' | 'accurate';
 	label?: string;
+	timeoutMs: number;
 }): Promise<string[]> => {
 	await fs.mkdir(options.outputDir, { recursive: true });
 	const outputPattern = path.join(options.outputDir, `%d.${options.extension}`);
@@ -329,7 +338,10 @@ const extractFrameSequence = async (options: {
 	}
 	args.push(outputPattern);
 
-	await runFfmpeg(args, options.label ?? 'extract-frame-sequence');
+	await runFfmpeg(args, {
+		label: options.label ?? 'extract-frame-sequence',
+		timeoutMs: options.timeoutMs
+	});
 	return listFrameFiles(options.outputDir, options.extension);
 };
 
@@ -366,39 +378,27 @@ const assignBoundaryFrames = (
 	}
 };
 
-/**
- * Frames the scene tree asks for while it builds, whatever the frame window: the component's
- * first frame (a component that starts with the scene) and its frame at the scene's in-point.
- * Only fills indices that have no frame yet, so real frames of the window always win.
- */
-export function assignLocalBootstrapFrames(
-	manifest: LocalDeterministicFrameManifest,
-	component: LocalDeterministicMediaComponent,
-	input: { fps: number; sceneStartAt: unknown; frameUrl: string }
-): void {
-	assignBoundaryFrames(
-		manifest,
-		component.id,
-		Math.round(component.sourceStartAt * input.fps),
-		input.frameUrl
-	);
-	const sceneStartFrameIndex = toLocalSceneStartFrameIndex(
-		component,
-		input.sceneStartAt,
-		input.fps
-	);
-	if (sceneStartFrameIndex !== null) {
-		assignBoundaryFrames(manifest, component.id, sceneStartFrameIndex, input.frameUrl);
-	}
-}
-
 type FrameExtractionContext = {
 	fps: number;
 	frameExtension: LocalDeterministicFrameExtension;
 	jpegQualityScale: number;
 	predecodedRoot: string;
 	publicBasePath: string;
+	timeoutMs: number;
 };
+
+type MediaFramesTarget = {
+	media: LocalDeterministicMediaComponent;
+	/** The component's own folder below `predecoded`. */
+	folder: string;
+	/** Frames the page asks the component for at scene times outside the frame window. */
+	bootstrapFrameIndices: number[];
+};
+
+// Ids differ in characters a file name cannot hold (`clip/a`, `clip_a`), or only in case on a
+// file system that ignores it. The position in the scene makes every folder its own.
+const componentFolder = (media: LocalDeterministicMediaComponent, position: number): string =>
+	`${position}-${safeFilePart(media.id)}`;
 
 const resolveSourceInput = (media: LocalDeterministicMediaComponent): string => {
 	const sourceInput = toInputPath(media.sourceUrl);
@@ -410,16 +410,16 @@ const resolveSourceInput = (media: LocalDeterministicMediaComponent): string => 
 
 // A fast seek can come back short near the end of a source; the accurate seek is the retry.
 const extractComponentFrames = async (
-	media: LocalDeterministicMediaComponent,
+	target: MediaFramesTarget,
 	context: FrameExtractionContext,
 	plan: LocalPredecodedExtractionPlan
 ): Promise<{ outputDir: string; frames: string[] }> => {
-	const outputDir = path.join(context.predecodedRoot, safeFilePart(media.id));
+	const outputDir = path.join(context.predecodedRoot, target.folder);
 	await fs.rm(outputDir, { recursive: true, force: true });
 	await fs.mkdir(outputDir, { recursive: true });
 	const extract = (seekMode: 'fast' | 'accurate', label: string) =>
 		extractFrameSequence({
-			inputPath: resolveSourceInput(media),
+			inputPath: resolveSourceInput(target.media),
 			outputDir,
 			sourceStartSec: plan.sourceStartSec,
 			expectedFrameCount: plan.extractFrameCount,
@@ -427,7 +427,8 @@ const extractComponentFrames = async (
 			extension: context.frameExtension,
 			jpegQualityScale: context.jpegQualityScale,
 			seekMode,
-			label: `${media.id}:${label}`
+			label: `${target.media.id}:${label}`,
+			timeoutMs: context.timeoutMs
 		});
 
 	let frames = await extract('fast', 'fast');
@@ -439,46 +440,57 @@ const extractComponentFrames = async (
 };
 
 const frameUrlFor = (
-	media: LocalDeterministicMediaComponent,
+	target: MediaFramesTarget,
 	context: FrameExtractionContext,
 	fileNumber: number
 ): string =>
-	`${context.publicBasePath}/predecoded/${safeFilePart(media.id)}/${fileNumber}.${context.frameExtension}`;
+	`${context.publicBasePath}/predecoded/${target.folder}/${fileNumber}.${context.frameExtension}`;
 
-// A component that is not on screen in the frame window still needs one frame: the scene tree
-// asks for it while it builds when the component is on screen at the scene's start.
-const prepareBootstrapFrame = async (
-	media: LocalDeterministicMediaComponent,
-	context: FrameExtractionContext,
+// Only fills indices that have no frame yet, so real frames of the window always win.
+const assignBootstrapFrames = (
 	manifest: LocalDeterministicFrameManifest,
-	sceneStartAt: unknown
+	target: MediaFramesTarget,
+	frameUrl: string
+): void => {
+	for (const frameIndex of target.bootstrapFrameIndices) {
+		assignBoundaryFrames(manifest, target.media.id, frameIndex, frameUrl);
+	}
+};
+
+// A component that is not on screen in the frame window needs a frame only when the page
+// shows it at a scene time outside the window (where the scene tree is built, for one). That
+// time is never rendered to a frame, so the component's first frame stands in for it. A
+// component the page never shows gets no extraction, and its source is not even looked at.
+const prepareBootstrapFrame = async (
+	target: MediaFramesTarget,
+	context: FrameExtractionContext,
+	manifest: LocalDeterministicFrameManifest
 ): Promise<void> => {
+	if (target.bootstrapFrameIndices.length === 0) return;
 	const plan = resolveLocalPredecodedExtractionPlan(
-		media.sourceStartAt,
-		media.sourceEndAt,
+		target.media.sourceStartAt,
+		target.media.sourceEndAt,
 		1,
 		context.fps
 	);
-	const { frames } = await extractComponentFrames(media, context, plan);
+	const { frames } = await extractComponentFrames(target, context, plan);
 	if (frames.length < 1) {
-		throw new Error(`VisualFries deterministic media missing bootstrap frame for ${media.id}`);
+		throw new Error(
+			`VisualFries deterministic media missing bootstrap frame for ${target.media.id}`
+		);
 	}
-	assignLocalBootstrapFrames(manifest, media, {
-		fps: context.fps,
-		sceneStartAt,
-		frameUrl: frameUrlFor(media, context, 1)
-	});
+	assignBootstrapFrames(manifest, target, frameUrlFor(target, context, 1));
 };
 
 // Every frame of the component inside the window, keyed by the index the renderer asks for.
 // Returns the number of frames prepared.
 const prepareWindowFrames = async (
-	media: LocalDeterministicMediaComponent,
+	target: MediaFramesTarget,
 	context: FrameExtractionContext,
 	manifest: LocalDeterministicFrameManifest,
-	input: { activeWindow: LocalDeterministicActiveWindow; sceneStartAt: unknown }
+	activeWindow: LocalDeterministicActiveWindow
 ): Promise<number> => {
-	const { activeWindow } = input;
+	const { media } = target;
 	const expectedFrameCount = activeWindow.activeEndFrame - activeWindow.activeStartFrame;
 	const extractionPlan = resolveLocalPredecodedExtractionPlan(
 		activeWindow.sourceStartSec,
@@ -488,7 +500,7 @@ const prepareWindowFrames = async (
 	);
 	if (extractionPlan.extractFrameCount <= 0) return 0;
 
-	const extracted = await extractComponentFrames(media, context, extractionPlan);
+	const extracted = await extractComponentFrames(target, context, extractionPlan);
 	const frames = await padTrailingFrames(
 		extracted.outputDir,
 		context.frameExtension,
@@ -506,7 +518,7 @@ const prepareWindowFrames = async (
 		activeWindow.activeStartFrame,
 		context.fps
 	);
-	const firstFrameUrl = frameUrlFor(media, context, 1);
+	const firstFrameUrl = frameUrlFor(target, context, 1);
 	assignBoundaryFrames(
 		manifest,
 		media.id,
@@ -520,7 +532,7 @@ const prepareWindowFrames = async (
 			throw new Error(`VisualFries deterministic media frame missing: ${fullPath}`);
 		}
 		manifest[media.id][String(firstDeterministicFrameIndex + index)] = frameUrlFor(
-			media,
+			target,
 			context,
 			index + 1
 		);
@@ -530,15 +542,22 @@ const prepareWindowFrames = async (
 		manifest,
 		media.id,
 		firstDeterministicFrameIndex + expectedFrameCount - 1,
-		frameUrlFor(media, context, expectedFrameCount)
+		frameUrlFor(target, context, expectedFrameCount)
 	);
 	// After the real frames, so it only fills indices that are still missing.
-	assignLocalBootstrapFrames(manifest, media, {
-		fps: context.fps,
-		sceneStartAt: input.sceneStartAt,
-		frameUrl: firstFrameUrl
-	});
+	assignBootstrapFrames(manifest, target, firstFrameUrl);
 	return expectedFrameCount;
+};
+
+// Media in a muted layer gets no frames (collectLocalDeterministicMediaComponents skips it),
+// so the page must not ask for any: it is hidden, like a component with `visible: false`.
+const hideMediaOfMutedLayers = (scene: Scene): void => {
+	for (const layer of scene.layers) {
+		if (!layer.muted) continue;
+		for (const component of layer.components) {
+			if (component.type === 'VIDEO' || component.type === 'GIF') component.visible = false;
+		}
+	}
 };
 
 export async function prepareLocalDeterministicMedia(
@@ -555,15 +574,28 @@ export async function prepareLocalDeterministicMedia(
 		frameExtension: input.frameExtension ?? 'jpg',
 		jpegQualityScale: Math.max(1, Math.min(31, Math.floor(input.jpegQualityScale ?? 2))),
 		predecodedRoot: path.join(assetsRoot, 'predecoded'),
-		publicBasePath
+		publicBasePath,
+		timeoutMs: input.extractionTimeoutMs ?? DEFAULT_EXTRACTION_TIMEOUT_MS
 	};
 	await fs.mkdir(context.predecodedRoot, { recursive: true });
 
-	const sceneStartAt = scene.settings.startAt;
+	const timesOutsideWindow = sceneTimesOutsideWindow({
+		settings: scene.settings,
+		fromFrame: input.fromFrame,
+		toFrame: input.toFrame,
+		seekTimes: input.seekTimes
+	});
 	const frameManifest: LocalDeterministicFrameManifest = {};
 	const preparedMedia: PrepareLocalDeterministicMediaResult['media'] = [];
 
-	for (const media of collectLocalDeterministicMediaComponents(scene)) {
+	for (const [position, media] of collectLocalDeterministicMediaComponents(scene).entries()) {
+		const target: MediaFramesTarget = {
+			media,
+			folder: componentFolder(media, position),
+			bootstrapFrameIndices: timesOutsideWindow
+				.map((time) => mediaFrameIndexAtSceneTime(media, time, scene.settings))
+				.filter((frameIndex): frameIndex is number => frameIndex !== null)
+		};
 		const activeWindow = resolveLocalDeterministicActiveWindow(
 			media,
 			input.fromFrame,
@@ -571,13 +603,10 @@ export async function prepareLocalDeterministicMedia(
 			fps
 		);
 		if (!activeWindow) {
-			await prepareBootstrapFrame(media, context, frameManifest, sceneStartAt);
+			await prepareBootstrapFrame(target, context, frameManifest);
 			continue;
 		}
-		const framesPrepared = await prepareWindowFrames(media, context, frameManifest, {
-			activeWindow,
-			sceneStartAt
-		});
+		const framesPrepared = await prepareWindowFrames(target, context, frameManifest, activeWindow);
 		if (framesPrepared === 0) continue;
 		preparedMedia.push({
 			componentId: media.id,
@@ -586,6 +615,7 @@ export async function prepareLocalDeterministicMedia(
 			framesPrepared
 		});
 	}
+	hideMediaOfMutedLayers(scene);
 
 	return {
 		preparedScene: scene,

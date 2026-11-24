@@ -10,6 +10,7 @@ import { captureProgramFrames, checkProgram } from '../../src/lib/motion/program
 import { renderProgramInserts } from '../../src/lib/motion/inserts-node.js';
 // @ts-expect-error: a plain .mjs helper shared with the subject layer tests
 import { SW, SH, ffmpeg, headX, writeFootage } from './fixtures/subject/footage.mjs';
+import { rgba } from './png.js';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -17,8 +18,6 @@ const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
 const sha1 = (b: Buffer) => createHash('sha1').update(b).digest('hex');
 
 /** RGBA pixels of a PNG. */
-const rgba = (png: Buffer): Buffer =>
-	ffmpeg(['-i', 'pipe:0', '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'], png);
 const at = (raw: Buffer, x: number, y: number) => [
 	...raw.subarray((y * SW + x) * 4, (y * SW + x) * 4 + 4)
 ];

@@ -9,6 +9,7 @@ import { findChromium, loadMotionProject } from '../../src/lib/motion/node.js';
 import { captureProgramFrames, checkProgram } from '../../src/lib/motion/program-node.js';
 import { resolveProgram } from '../../src/lib/motion/program.js';
 import { scrambled } from '../../src/lib/motion/segments.js';
+import { rgba } from './png.js';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -33,9 +34,6 @@ function ffmpeg(args: string[], input?: Buffer): Buffer {
 	return r.stdout;
 }
 
-function rgba(png: Buffer): Buffer {
-	return ffmpeg(['-i', 'pipe:0', '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'], png);
-}
 const at = (raw: Buffer, x: number, y: number) => [
 	...raw.subarray((y * W + x) * 4, (y * W + x) * 4 + 3)
 ];
@@ -314,10 +312,7 @@ describe.skipIf(!hasChromium || !hasFfmpeg)('transitions on the program stage', 
 			const pngs = await captureProgramFrames(loaded, [89, 90]);
 			const [w, h] = size;
 			for (const f of [89, 90]) {
-				const px = ffmpeg(
-					['-i', 'pipe:0', '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'],
-					pngs.get(f)!
-				);
+				const px = rgba(pngs.get(f)!);
 				const rgbAt = (x: number, y: number) => [
 					...px.subarray((y * w + x) * 4, (y * w + x) * 4 + 3)
 				];

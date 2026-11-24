@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { findChromium, loadMotionProject } from '../../src/lib/motion/node.js';
 import { captureProgramFrames, checkProgram } from '../../src/lib/motion/program-node.js';
+import { rgba } from './png.js';
 
 const hasChromium = !!findChromium();
 const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -54,8 +55,6 @@ function footage(dir: string, name: string, subject: string) {
 const WORLD = `<div style="position:absolute;inset:0;background:#ff00ff"></div>
 `;
 
-const rgba = (png: Buffer) =>
-	ffmpeg(['-i', 'pipe:0', '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'], png);
 /** Pixels that are not the world's magenta. */
 function notWorld(png: Buffer): number {
 	const raw = rgba(png);
